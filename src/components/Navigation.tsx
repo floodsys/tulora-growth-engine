@@ -60,7 +60,7 @@ const Navigation = () => {
                 className="btn-primary px-6" 
                 onClick={() => window.location.href = '/signup'}
               >
-                Start free
+                Sign Up
               </Button>
             </div>
           </div>
@@ -120,7 +120,7 @@ const Navigation = () => {
                   className="btn-primary w-full" 
                   onClick={() => window.location.href = '/signup'}
                 >
-                  Start free
+                  Sign Up
                 </Button>
               </div>
             </div>
