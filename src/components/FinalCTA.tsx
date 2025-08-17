@@ -1,0 +1,55 @@
+import { Button } from "@/components/ui/button";
+import { ArrowRight, Play } from "lucide-react";
+
+const FinalCTA = () => {
+  return (
+    <section className="py-20 bg-gradient-brand relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
+      
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div className="text-center max-w-4xl mx-auto">
+          {/* Headline */}
+          <h2 className="text-3xl lg:text-5xl font-bold text-brand-foreground mb-6 leading-tight">
+            Ready to book 3× more meetings?
+          </h2>
+          
+          {/* Subheadline */}
+          <p className="text-xl text-brand-foreground/90 mb-8 max-w-2xl mx-auto leading-relaxed">
+            Join hundreds of sales teams using Tulora to automate their outreach and 
+            focus on what matters most—closing deals.
+          </p>
+
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
+            <Button 
+              size="lg" 
+              className="bg-white text-brand hover:bg-gray-50 px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+              onClick={() => window.location.href = '/signup'}
+            >
+              Start free in 60 seconds
+              <ArrowRight className="h-5 w-5 ml-2" />
+            </Button>
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="border-brand-foreground/30 text-brand-foreground hover:bg-brand-foreground/10 px-8 py-4 text-lg font-semibold backdrop-blur-sm"
+              onClick={() => window.location.href = '/demo'}
+            >
+              <Play className="h-5 w-5 mr-2" />
+              Watch demo
+            </Button>
+          </div>
+
+          {/* Trust signals */}
+          <div className="space-y-2 text-brand-foreground/80">
+            <p className="text-sm">No credit card required • 14-day free trial • Cancel anytime</p>
+            <p className="text-xs">Join 847 sales teams who've transformed their outreach</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default FinalCTA;

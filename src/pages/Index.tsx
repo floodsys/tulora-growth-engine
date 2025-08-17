@@ -1,12 +1,49 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import Navigation from "@/components/Navigation";
+import Hero from "@/components/Hero";
+import ProofStrip from "@/components/ProofStrip";
+import FeatureCards from "@/components/FeatureCards";
+import LiveDemo from "@/components/LiveDemo";
+import IntegrationsGrid from "@/components/IntegrationsGrid";
+import PricingTable from "@/components/PricingTable";
+import FAQ from "@/components/FAQ";
+import FinalCTA from "@/components/FinalCTA";
+import Footer from "@/components/Footer";
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      {/* Navigation */}
+      <Navigation />
+      
+      {/* Main Content */}
+      <main>
+        {/* 1. Hero Section */}
+        <Hero />
+        
+        {/* 2. Proof Strip */}
+        <ProofStrip />
+        
+        {/* 3. Outcome-First Features */}
+        <FeatureCards />
+        
+        {/* 4. Live Demo / Interactive */}
+        <LiveDemo />
+        
+        {/* 5. Integrations */}
+        <IntegrationsGrid />
+        
+        {/* 6. Pricing */}
+        <PricingTable />
+        
+        {/* 7. FAQ */}
+        <FAQ />
+        
+        {/* 8. Final CTA */}
+        <FinalCTA />
+      </main>
+      
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };
