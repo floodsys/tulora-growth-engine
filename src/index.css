@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Google Fonts are now loaded via HTML link tags */
 
 @tailwind base;
 @tailwind components;
@@ -152,11 +152,11 @@
   }
 
   body {
-    @apply bg-background text-foreground font-inter antialiased;
+    @apply bg-background text-foreground font-roboto antialiased;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold leading-tight tracking-tight;
+    @apply font-montserrat font-semibold leading-tight tracking-tight;
   }
 }
 
