@@ -1,5 +1,6 @@
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
+import AIWorkforceHero from "@/components/AIWorkforceHero";
 import ProofStrip from "@/components/ProofStrip";
 import FeatureCards from "@/components/FeatureCards";
 import LiveDemo from "@/components/LiveDemo";
@@ -20,7 +21,10 @@ const Index = () => {
         {/* 1. Hero Section */}
         <Hero />
         
-        {/* 2. Proof Strip */}
+        {/* 2. AI Workforce Hero */}
+        <AIWorkforceHero />
+        
+        {/* 3. Proof Strip */}
         <ProofStrip />
         
         {/* 3. Outcome-First Features */}
