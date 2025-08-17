@@ -19,8 +19,9 @@ const Navigation = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:block">
-            <div className="flex items-center space-x-8">
+          <div className="hidden md:flex items-center justify-between flex-1 ml-8">
+            {/* Main Navigation Links - Centered */}
+            <div className="flex items-center space-x-8 mx-auto">
               <a
                 href="#features"
                 className="text-foreground hover:text-brand transition-colors duration-200"
@@ -45,6 +46,10 @@ const Navigation = () => {
               >
                 Blog
               </a>
+            </div>
+            
+            {/* Auth Links - Far Right */}
+            <div className="flex items-center space-x-4">
               <a
                 href="/signin"
                 className="text-foreground hover:text-brand transition-colors duration-200"
