@@ -54,7 +54,7 @@ const Navigation = () => {
                 href="/signin"
                 className="text-foreground hover:text-brand transition-colors duration-200"
               >
-                Sign in
+                Login
               </a>
               <Button 
                 className="btn-primary px-6" 
@@ -113,7 +113,7 @@ const Navigation = () => {
                 className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200"
                 onClick={() => setIsMenuOpen(false)}
               >
-                Sign in
+                Login
               </a>
               <div className="px-3 py-2">
                 <Button 
