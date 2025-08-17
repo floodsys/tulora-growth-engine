@@ -68,7 +68,7 @@ const FeatureCards = () => {
 
   return (
     <section className="py-20 bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header Section */}
         <div className="text-center mb-12">
           <div className="mb-5">
@@ -87,11 +87,11 @@ const FeatureCards = () => {
         </div>
 
         {/* Cards Container */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-[1600px] mx-auto">
           {agents.map((agent, index) => (
             <div 
               key={index}
-              className="bg-white rounded-2xl p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-[2fr_200px] gap-6 lg:gap-8 items-center transition-all duration-300 border border-border shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-primary min-h-[200px]"
+              className="bg-white rounded-2xl p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-[2fr_250px] gap-8 lg:gap-12 items-center transition-all duration-300 border border-border shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-primary min-h-[280px]"
             >
               {/* Agent Content */}
               <div className="flex flex-col gap-2">
