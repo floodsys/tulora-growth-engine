@@ -25,23 +25,12 @@ const Navigation = () => {
               <a href="#pricing" className="text-foreground hover:text-brand transition-colors duration-200">
                 Pricing
               </a>
-              <Link to="/talk-to-us" className="text-foreground hover:text-brand transition-colors duration-200">
-                Talk to Us
-              </Link>
+              
+              
             </div>
             
             {/* Auth Links - Far Right */}
-            <div className="flex items-center space-x-4">
-              <Link to="/dashboard" className="text-foreground hover:text-brand transition-colors duration-200">
-                Dashboard
-              </Link>
-              <a href="/signin" className="text-foreground hover:text-brand transition-colors duration-200">
-                Login
-              </a>
-              <Button className="btn-primary px-6" onClick={() => window.location.href = '/signup'}>
-                Sign Up
-              </Button>
-            </div>
+            
           </div>
 
           {/* Mobile menu button */}
