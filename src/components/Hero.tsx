@@ -77,7 +77,7 @@ const Hero = () => {
               <div className="pt-8 border-t border-border/50">
                 <p className="text-sm text-muted-foreground mb-4">Trusted by forward-thinking teams</p>
                 <div className="flex items-center space-x-8 opacity-60">
-                  <div className="text-2xl font-bold text-foreground">500+</div>
+                  <div className="text-2xl font-bold text-foreground">100+</div>
                   <div className="text-sm text-muted-foreground">AI Agents<br/>Deployed</div>
                   <div className="text-2xl font-bold text-foreground">95%</div>
                   <div className="text-sm text-muted-foreground">Success<br/>Rate</div>
