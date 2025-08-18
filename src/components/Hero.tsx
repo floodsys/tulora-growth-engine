@@ -103,7 +103,7 @@ const Hero = () => {
               {/* Floating info cards */}
               <div className="absolute top-8 -left-8 bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-white/20 animate-float delay-200">
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-emerald-500 rounded-lg flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FFEE58' }}>
                     <span className="text-white text-sm font-bold">✓</span>
                   </div>
                   <div>
