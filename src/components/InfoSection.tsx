@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { useEffect, useRef } from 'react';
 import Typed from 'typed.js';
-import featuresImage from '@/assets/features.svg';
+import featuresImage from '@/assets/features.svg?url';
 import { Layers, Target, Star, Settings, TrendingUp, Lightbulb } from 'lucide-react';
 const InfoSection = () => {
   const el = useRef(null);
