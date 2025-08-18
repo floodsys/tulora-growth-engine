@@ -20,7 +20,7 @@ const Footer = () => {
       href: "/blog"
     }, {
       label: "Contact",
-      href: "/contact"
+      href: "/talk-to-us"
     }]
   }, {
     title: "Legal",
