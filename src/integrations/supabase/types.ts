@@ -14,6 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_profiles: {
+        Row: {
+          call_recording_enabled: boolean
+          created_at: string
+          first_message: string | null
+          first_message_mode: string
+          id: string
+          is_default: boolean
+          language: string
+          max_tokens: number | null
+          name: string
+          organization_id: string
+          retell_agent_id: string
+          settings: Json | null
+          status: string
+          system_prompt: string | null
+          temperature: number | null
+          transfer_number: string | null
+          updated_at: string
+          voice: string | null
+          warm_transfer_enabled: boolean
+        }
+        Insert: {
+          call_recording_enabled?: boolean
+          created_at?: string
+          first_message?: string | null
+          first_message_mode?: string
+          id?: string
+          is_default?: boolean
+          language?: string
+          max_tokens?: number | null
+          name: string
+          organization_id: string
+          retell_agent_id: string
+          settings?: Json | null
+          status?: string
+          system_prompt?: string | null
+          temperature?: number | null
+          transfer_number?: string | null
+          updated_at?: string
+          voice?: string | null
+          warm_transfer_enabled?: boolean
+        }
+        Update: {
+          call_recording_enabled?: boolean
+          created_at?: string
+          first_message?: string | null
+          first_message_mode?: string
+          id?: string
+          is_default?: boolean
+          language?: string
+          max_tokens?: number | null
+          name?: string
+          organization_id?: string
+          retell_agent_id?: string
+          settings?: Json | null
+          status?: string
+          system_prompt?: string | null
+          temperature?: number | null
+          transfer_number?: string | null
+          updated_at?: string
+          voice?: string | null
+          warm_transfer_enabled?: boolean
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           created_at: string | null
