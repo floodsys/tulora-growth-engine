@@ -38,8 +38,7 @@ const Hero = () => {
 
               {/* Subtitle */}
               <p className="text-xl lg:text-2xl text-muted-foreground leading-relaxed max-w-2xl">
-                Ops teams can build and manage an entire AI workforce in one powerful visual platform. 
-                No coding required.
+                AI agents automate workflows, save time, and grow your business.
               </p>
 
               {/* Feature highlights */}
