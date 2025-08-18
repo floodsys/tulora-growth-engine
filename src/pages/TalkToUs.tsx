@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import contactUsImage from "@/assets/contact-us.svg";
+import logoSvg from "@/assets/logo.svg";
 
 const TalkToUs = () => {
   const { toast } = useToast();
@@ -61,7 +62,7 @@ const TalkToUs = () => {
       <header className="py-6 px-4 sm:px-6 lg:px-8 border-b border-border/20">
         <div className="container mx-auto">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-primary">Tulora</h1>
+            <img src={logoSvg} alt="Tulora" className="h-8" />
             <Button variant="ghost" onClick={() => window.history.back()}>
               ← Back
             </Button>
