@@ -56,15 +56,15 @@ const FeatureCards = () => {
   }, {
     title: "Support Agent",
     emoji: "🎧",
-    descriptions: ["Responds to customer inquiries instantly", "Learns from your knowledge base and documents", "Escalates complex issues to human agents seamlessly"],
+    descriptions: ["Answers customers instantly, resolves from your knowledge base, and hands off to humans when needed.", "Instant answers from help center, docs, and past tickets", "Multi-channel: chat, email, voice/phone", "Smart handoff: routes by skill/SLA with full context", "Keeps improving via feedback and new articles", "Built-in analytics: CSAT, FCR, deflection, SLA adherence"],
     features: [{
       icon: "💬",
       title: "24/7 available",
-      subtitle: "Always online"
+      subtitle: "Always on"
     }, {
       icon: "🧠",
       title: "Smart learning",
-      subtitle: "Improves over time"
+      subtitle: "Gets better with use"
     }, {
       icon: "🎧",
       title: "Multi-channel",
@@ -72,11 +72,11 @@ const FeatureCards = () => {
     }, {
       icon: "🔄",
       title: "Smart handoff",
-      subtitle: "Knows when"
+      subtitle: "Knows when to escalate"
     }, {
       icon: "📈",
       title: "Track metrics",
-      subtitle: "Monitor performance"
+      subtitle: "Monitor what matters"
     }]
   }, {
     title: "Content Agent (Coming Soon)",
