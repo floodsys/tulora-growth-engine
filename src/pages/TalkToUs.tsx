@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import contactUsImage from "@/assets/contact-us.svg";
+import talkToUsGraphic from "@/assets/talk-to-us-graphic.png";
 import logoSvg from "@/assets/logo.svg";
 
 const TalkToUs = () => {
@@ -89,10 +90,9 @@ const TalkToUs = () => {
               {/* Illustration */}
               <div className="flex justify-center lg:justify-start">
                 <img 
-                  src={contactUsImage} 
+                  src={talkToUsGraphic} 
                   alt="Contact us illustration" 
                   className="w-full max-w-md h-auto"
-                  style={{ filter: 'hue-rotate(210deg) saturate(1.2)' }}
                 />
               </div>
             </div>
