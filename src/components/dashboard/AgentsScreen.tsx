@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Bot, Phone, Settings, Star } from "lucide-react"
+import { Bot, Phone, Star } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface Agent {
@@ -157,7 +157,7 @@ export function AgentsScreen() {
 
   const handleOpenSettings = (agent: Agent) => {
     console.log('Navigating to agent settings for agent:', agent.id, agent.name)
-    navigate(`/agent-settings/${agent.id}`)
+    navigate(`/app/agents/${agent.id}`)
   }
 
   const handleSetDefault = (agentId: string) => {
@@ -312,7 +312,7 @@ export function AgentsScreen() {
                   size="sm"
                   onClick={() => handleOpenSettings(agent)}
                 >
-                  <Settings className="h-3 w-3" />
+                  Edit
                 </Button>
               </div>
             </CardContent>
