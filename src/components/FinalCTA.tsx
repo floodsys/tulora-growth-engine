@@ -1,9 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play } from "lucide-react";
-
 const FinalCTA = () => {
-  return (
-    <section className="py-20 bg-gradient-brand relative overflow-hidden">
+  return <section className="py-20 bg-gradient-brand relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
       
@@ -22,20 +20,11 @@ const FinalCTA = () => {
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
-            <Button 
-              size="lg" 
-              className="bg-white text-brand hover:bg-gray-50 px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-              onClick={() => window.location.href = '/signup'}
-            >
+            <Button size="lg" className="bg-white text-brand hover:bg-gray-50 px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1" onClick={() => window.location.href = '/signup'}>
               Start free in 60 seconds
               <ArrowRight className="h-5 w-5 ml-2" />
             </Button>
-            <Button 
-              variant="outline" 
-              size="lg" 
-              className="border-brand-foreground/30 text-brand-foreground hover:bg-brand-foreground/10 px-8 py-4 text-lg font-semibold backdrop-blur-sm"
-              onClick={() => window.location.href = '/demo'}
-            >
+            <Button variant="outline" size="lg" className="border-brand-foreground/30 text-brand-foreground hover:bg-brand-foreground/10 px-8 py-4 text-lg font-semibold backdrop-blur-sm" onClick={() => window.location.href = '/demo'}>
               <Play className="h-5 w-5 mr-2" />
               Watch demo
             </Button>
@@ -44,12 +33,10 @@ const FinalCTA = () => {
           {/* Trust signals */}
           <div className="space-y-2 text-brand-foreground/80">
             <p className="text-sm">No credit card required • 14-day free trial • Cancel anytime</p>
-            <p className="text-xs">Join 847 sales teams who've transformed their outreach</p>
+            
           </div>
         </div>
       </div>
-    </section>
-  );
+    </section>;
 };
-
 export default FinalCTA;
