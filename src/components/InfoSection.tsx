@@ -51,13 +51,13 @@ const InfoSection = () => {
         {/* Typewriter Header */}
         <div className="text-center mb-8">
           <h2 className="text-3xl lg:text-5xl font-bold text-foreground mb-4">
-            <span ref={el} className="text-5xl"></span>
+            <span ref={el} className="text-4xl"></span>
           </h2>
         </div>
 
         {/* Main Heading */}
         <div className="text-center mb-16">
-          <h3 className="text-4xl text-foreground mb-6 font-bold lg:text-3xl">
+          <h3 className="text-4xl text-foreground mb-6 font-bold lg:text-2xl">
             Free your team for higher impact work.
           </h3>
         </div>
@@ -65,9 +65,8 @@ const InfoSection = () => {
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature, index) => {
-            const IconComponent = feature.icon;
-            return (
-              <Card key={index} className="border border-border/50 hover:border-primary/20 transition-colors">
+          const IconComponent = feature.icon;
+          return <Card key={index} className="border border-border/50 hover:border-primary/20 transition-colors">
                 <CardContent className="p-6 text-center">
                   <div className="mb-4">
                     <div className="w-12 h-12 mb-4 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto">
@@ -81,9 +80,8 @@ const InfoSection = () => {
                     {feature.description}
                   </p>
                 </CardContent>
-              </Card>
-            );
-          })}
+              </Card>;
+        })}
         </div>
       </div>
     </section>;

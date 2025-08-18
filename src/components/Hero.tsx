@@ -14,16 +14,14 @@ const Hero = () => {
           
 
           {/* Main Heading */}
-          <h1 className="text-5xl lg:text-7xl font-bold text-foreground mb-8 max-w-5xl mx-auto leading-tight font-heading">
+          <h1 className="text-5xl font-bold text-foreground mb-8 max-w-5xl mx-auto leading-tight font-heading lg:text-5xl">
             Build teams of{" "}
-            <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
-              AI agents
-            </span>{" "}
+            <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">AI agents</span>{" "}
             that deliver human-quality work
           </h1>
 
           {/* Subtitle */}
-          <p className="text-xl lg:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed lg:text-2xl">
             Ops teams can build and manage an entire AI workforce in one powerful visual platform.
           </p>
 
