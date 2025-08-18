@@ -16,7 +16,7 @@ const Hero = () => {
         <div className="max-w-7xl mx-auto text-center">
           <Badge variant="secondary" className="mb-8 px-4 py-2 text-sm font-medium bg-primary/10 text-primary border-primary/20">
             <Sparkles className="w-4 h-4 mr-2" />
-            Now in Beta
+            Early Access
           </Badge>
         </div>
       </div>
