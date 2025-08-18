@@ -21,6 +21,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { OrgSwitcher } from "@/components/dashboard/widgets/OrgSwitcher"
+import logo from "@/assets/logo.png"
 
 const items = [
   { title: "Overview", url: "overview", icon: BarChart3 },
@@ -45,8 +46,11 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
         <SidebarGroup>
           <SidebarGroupLabel className="px-4 py-2">
             <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-brand" />
-              {state !== "collapsed" && <span className="font-semibold">AI Outreach</span>}
+              {state === "collapsed" ? (
+                <img src={logo} alt="Logo" className="h-6 w-6 object-contain" />
+              ) : (
+                <img src={logo} alt="Your Company" className="h-8 w-auto max-w-[120px] object-contain" />
+              )}
             </div>
           </SidebarGroupLabel>
           
