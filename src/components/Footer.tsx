@@ -9,15 +9,6 @@ const Footer = () => {
     }, {
       label: "Pricing",
       href: "#pricing"
-    }, {
-      label: "Integrations",
-      href: "/integrations"
-    }, {
-      label: "API",
-      href: "/api"
-    }, {
-      label: "Changelog",
-      href: "/changelog"
     }]
   }, {
     title: "Company",
@@ -25,35 +16,11 @@ const Footer = () => {
       label: "About",
       href: "/about"
     }, {
-      label: "Blog",
+      label: "Blog (coming soon)",
       href: "/blog"
-    }, {
-      label: "Careers",
-      href: "/careers"
     }, {
       label: "Contact",
       href: "/contact"
-    }, {
-      label: "Press",
-      href: "/press"
-    }]
-  }, {
-    title: "Resources",
-    links: [{
-      label: "Documentation",
-      href: "/docs"
-    }, {
-      label: "Help Center",
-      href: "/help"
-    }, {
-      label: "Community",
-      href: "/community"
-    }, {
-      label: "Templates",
-      href: "/templates"
-    }, {
-      label: "Best Practices",
-      href: "/best-practices"
     }]
   }, {
     title: "Legal",
@@ -76,7 +43,7 @@ const Footer = () => {
   }];
   return <footer className="bg-background border-t border-border">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8">
           {/* Brand Column */}
           <div className="col-span-2">
             <div className="mb-6">
