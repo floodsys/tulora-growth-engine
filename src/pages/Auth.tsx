@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import logo from "@/assets/logo.png";
+import tuloraLogo from "@/assets/tulora-logo.svg";
 import authIllustration from "@/assets/auth-illustration.jpg";
 
 const Auth = () => {
@@ -34,7 +34,7 @@ const Auth = () => {
         {/* Header */}
         <div className="mb-8">
           <Link to="/" className="flex items-center mb-8">
-            <img src={logo} alt="Tulora" className="h-8 w-auto" />
+            <img src={tuloraLogo} alt="Tulora" className="h-8 w-auto" />
           </Link>
           
           <Link 
