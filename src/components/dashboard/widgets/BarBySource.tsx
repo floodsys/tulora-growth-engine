@@ -31,7 +31,6 @@ export function BarBySource({ title, data, loading, color = "hsl(var(--primary))
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border/20" />
             <XAxis 
               dataKey="source" 
               className="text-xs text-muted-foreground/60"
