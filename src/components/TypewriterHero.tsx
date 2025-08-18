@@ -13,6 +13,8 @@ const TypewriterHero = () => {
       typed.destroy();
     };
   }, []);
-  return;
+  return (
+    <span ref={el} className="text-primary font-bold"></span>
+  );
 };
 export default TypewriterHero;
