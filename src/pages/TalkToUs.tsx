@@ -74,9 +74,9 @@ const TalkToUs = () => {
       {/* Main Content */}
       <main className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="container mx-auto max-w-6xl">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-12 items-start">
             {/* Left Side - Content */}
-            <div className="space-y-8">
+            <div className="space-y-8 lg:pt-8">
               {/* Hero Section */}
               <div className="space-y-6">
                 <h1 className="text-4xl lg:text-5xl font-bold text-foreground leading-tight">
