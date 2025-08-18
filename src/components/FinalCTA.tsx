@@ -24,7 +24,7 @@ const FinalCTA = () => {
               Contact us
               <ArrowRight className="h-5 w-5 ml-2" />
             </Button>
-            <Button variant="outline" size="lg" className="bg-white border-brand-foreground/30 text-brand-foreground hover:bg-gray-50 px-8 py-4 text-lg font-semibold backdrop-blur-sm" onClick={() => window.location.href = '/demo'}>
+            <Button variant="outline" size="lg" className="bg-white border-brand-foreground/30 text-black hover:bg-gray-50 px-8 py-4 text-lg font-semibold backdrop-blur-sm" onClick={() => window.location.href = '/demo'}>
               <Play className="h-5 w-5 mr-2" />
               Request Demo
             </Button>
