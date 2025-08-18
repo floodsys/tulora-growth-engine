@@ -45,7 +45,7 @@ const InfoSection = () => {
       <div className="max-w-7xl mx-auto">
         {/* Features Image */}
         <div className="text-center mb-16">
-          <img src="/src/assets/features.svg" alt="AI automation features and data flows illustration" className="max-w-full h-auto mx-auto" />
+          <img src="https://71bed9839f6b63de0d12cd02f4fd4947.cdn.bubble.io/f1754097164349x913319392506058100/features.svg" alt="AI automation features and data flows illustration" className="max-w-full h-auto mx-auto" />
         </div>
 
         {/* Typewriter Header */}
