@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Play } from "lucide-react";
 const Hero = () => {
-  return <div className="relative min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
+  return <div className="relative min-h-[600px] bg-gradient-to-br from-background via-background to-muted/30">
       {/* Top Banner */}
       
 
