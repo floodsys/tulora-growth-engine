@@ -40,22 +40,33 @@ serve(async (req) => {
       }
     )
 
-    const url = new URL(req.url)
-    const pathParts = url.pathname.split('/')
-    const agentId = pathParts[pathParts.length - 1]
+    // For function invocation, we get the data from the request body
+    const requestData = await req.json()
+    const { method, agentId, ...updates } = requestData
 
-    console.log(`${req.method} request for agent: ${agentId}`)
+    console.log(`${method} request for agent: ${agentId}`)
 
-    if (req.method === 'GET') {
+    if (method === 'GET') {
       // Get agent profile
       const { data: agent, error } = await supabase
         .from('agent_profiles')
         .select('*')
         .eq('id', agentId)
-        .single()
+        .maybeSingle()
 
       if (error) {
         console.error('Error fetching agent:', error)
+        return new Response(
+          JSON.stringify({ error: 'Failed to fetch agent' }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+
+      if (!agent) {
+        console.log('Agent not found:', agentId)
         return new Response(
           JSON.stringify({ error: 'Agent not found' }),
           { 
@@ -73,13 +84,13 @@ serve(async (req) => {
       )
     }
 
-    if (req.method === 'PATCH') {
-      const updates: AgentProfileUpdate = await req.json()
+    if (method === 'PATCH') {
+      const agentUpdates: AgentProfileUpdate = updates
       
-      console.log('Agent updates:', updates)
+      console.log('Agent updates:', agentUpdates)
 
       // Validate transfer_number if provided
-      if (updates.transfer_number && !/^\+\d{7,15}$/.test(updates.transfer_number)) {
+      if (agentUpdates.transfer_number && !/^\+\d{7,15}$/.test(agentUpdates.transfer_number)) {
         return new Response(
           JSON.stringify({ error: 'Invalid transfer number format. Must be E.164 format (+1234567890)' }),
           { 
@@ -108,7 +119,7 @@ serve(async (req) => {
       }
 
       // If setting as default, unset previous default
-      if (updates.is_default === true && !currentAgent.is_default) {
+      if (agentUpdates.is_default === true && !currentAgent.is_default) {
         console.log('Unsetting previous default agents for org:', currentAgent.organization_id)
         
         const { error: unsetError } = await supabase
@@ -125,7 +136,7 @@ serve(async (req) => {
       // Update the agent
       const { data: updatedAgent, error: updateError } = await supabase
         .from('agent_profiles')
-        .update(updates)
+        .update(agentUpdates)
         .eq('id', agentId)
         .select()
         .single()
@@ -152,7 +163,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
+      JSON.stringify({ error: `Method ${method} not allowed` }),
       { 
         status: 405,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
