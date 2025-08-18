@@ -281,11 +281,11 @@ export function AgentsScreen() {
                 </div>
               </div>
               
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 min-w-0"
+                  className="col-span-2"
                   onClick={() => {
                     setSelectedAgent(agent)
                     setTestCallOpen(true)
@@ -293,29 +293,38 @@ export function AgentsScreen() {
                   disabled={agent.status !== "active"}
                 >
                   <Phone className="h-3 w-3 mr-1" />
-                  Test
+                  Test Call
                 </Button>
                 
-                {!agent.isDefault && (
-                  <Button
-                    variant="outline"
+                {!agent.isDefault ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSetDefault(agent.id)}
+                    >
+                      <Star className="h-3 w-3 mr-1" />
+                      Default
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleOpenSettings(agent)}
+                    >
+                      Edit
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    variant="outline" 
                     size="sm"
-                    onClick={() => handleSetDefault(agent.id)}
-                    className="flex-1 min-w-0"
+                    onClick={() => handleOpenSettings(agent)}
+                    className="col-span-2"
                   >
-                    <Star className="h-3 w-3 mr-1" />
-                    Default
+                    Edit Settings
                   </Button>
                 )}
-                
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleOpenSettings(agent)}
-                  className="flex-1 min-w-0"
-                >
-                  Edit
-                </Button>
               </div>
             </CardContent>
           </Card>
