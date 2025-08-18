@@ -68,7 +68,7 @@ const Hero = () => {
                   className="px-8 py-4 text-lg font-semibold bg-white/50 backdrop-blur-sm border-2 border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all duration-300"
                 >
                   <Play className="mr-2 w-5 h-5" />
-                  Watch Demo
+                  Book Demo
                 </Button>
               </div>
 
