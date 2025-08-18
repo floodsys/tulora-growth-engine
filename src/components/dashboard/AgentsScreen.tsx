@@ -304,7 +304,7 @@ export function AgentsScreen() {
                       onClick={() => handleSetDefault(agent.id)}
                       className="w-full justify-center"
                     >
-                      <Star className="h-3 w-3 mr-1" />
+                      <Star className="h-3 w-3 mr-0.5" />
                       Default
                     </Button>
                     
