@@ -54,13 +54,6 @@ export function BarBySource({ title, data, loading, color = "hsl(var(--primary))
               dataKey="leads" 
               fill={color}
               radius={[4, 4, 0, 0]}
-              style={{ cursor: 'pointer' }}
-              onMouseEnter={(data, index, e) => {
-                (e.target as SVGElement).setAttribute('fill', 'hsl(var(--foreground))')
-              }}
-              onMouseLeave={(data, index, e) => {
-                (e.target as SVGElement).setAttribute('fill', color)
-              }}
             />
           </BarChart>
         </ResponsiveContainer>
