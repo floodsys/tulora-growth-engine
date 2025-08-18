@@ -25,7 +25,7 @@ const FeatureCards = () => {
       subtitle: "Works anywhere"
     }]
   }, {
-    title: "Research Agent",
+    title: "Research Agent (Coming Soon)",
     emoji: "🔬",
     descriptions: ["AI handles your research, so you don't have to", "Every call is fully prepped with the right insights", "Customize exactly how you need it"],
     features: [{
@@ -75,7 +75,7 @@ const FeatureCards = () => {
       subtitle: "Monitor performance"
     }]
   }, {
-    title: "Content Agent",
+    title: "Content Agent (Coming Soon)",
     emoji: "✏️",
     descriptions: ["Creates blog posts, emails, and marketing copy", "Maintains your brand voice and style consistently", "Optimizes content for SEO and engagement"],
     features: [{
