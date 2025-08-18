@@ -49,8 +49,8 @@ export function OrgSwitcher() {
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0">
-        <Command>
+      <PopoverContent className="w-[200px] p-0 bg-background border">
+        <Command className="bg-background">
           <CommandInput placeholder="Search organizations..." />
           <CommandList>
             <CommandEmpty>No organizations found.</CommandEmpty>
