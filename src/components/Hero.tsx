@@ -59,7 +59,7 @@ const Hero = () => {
                   size="lg" 
                   className="px-8 py-4 text-lg font-semibold bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 shadow-lg hover:shadow-xl transition-all duration-300"
                 >
-                  Start Building Free
+                  Start Free
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
                 <Button 
