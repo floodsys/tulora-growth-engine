@@ -53,6 +53,29 @@ const InfoSection = () => {
   return (
     <section className="py-20 px-4 sm:px-6 lg:px-8 bg-background">
       <div className="max-w-7xl mx-auto">
+        {/* Main Heading */}
+        <div className="text-center mb-16">
+          <h3 className="text-4xl lg:text-5xl font-bold text-foreground mb-6">
+            Free your team for higher impact work.
+          </h3>
+        </div>
+
+        {/* Features Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+          {features.map((feature, index) => (
+            <Card key={index} className="border border-border/50 hover:border-primary/20 transition-colors">
+              <CardContent className="p-6">
+                <h3 className="text-xl font-semibold text-foreground mb-3">
+                  {feature.title}
+                </h3>
+                <p className="text-muted-foreground leading-relaxed">
+                  {feature.description}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
         {/* Typewriter Header */}
         <div className="text-center mb-8">
           <h2 className="text-3xl lg:text-5xl font-bold text-foreground mb-4">
@@ -67,29 +90,6 @@ const InfoSection = () => {
             alt="Features illustration" 
             className="max-w-full h-auto mx-auto"
           />
-        </div>
-
-        {/* Main Heading */}
-        <div className="text-center mb-16">
-          <h3 className="text-4xl lg:text-5xl font-bold text-foreground mb-6">
-            Free your team for higher impact work.
-          </h3>
-        </div>
-
-        {/* Features Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {features.map((feature, index) => (
-            <Card key={index} className="border border-border/50 hover:border-primary/20 transition-colors">
-              <CardContent className="p-6">
-                <h3 className="text-xl font-semibold text-foreground mb-3">
-                  {feature.title}
-                </h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  {feature.description}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
         </div>
       </div>
     </section>
