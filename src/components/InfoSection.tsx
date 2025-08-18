@@ -69,7 +69,7 @@ const InfoSection = () => {
           return <Card key={index} className="border border-border/50 hover:border-primary/20 transition-colors">
                 <CardContent className="p-6 text-center">
                   <div className="mb-4">
-                    <div className="w-12 h-12 mb-4 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto">
+                    <div className="w-12 h-12 mb-4 rounded-lg bg-gradient-to-br from-[#6056FF] to-[#FE7587] flex items-center justify-center mx-auto">
                       <IconComponent className="w-7 h-7 text-white" />
                     </div>
                     <h3 className="text-xl font-semibold text-foreground">
