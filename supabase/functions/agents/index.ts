@@ -47,7 +47,19 @@ serve(async (req) => {
     const requestData = await req.json()
     console.log('Request data:', JSON.stringify(requestData))
     
-    const { method, agentId, ...updates } = requestData
+    let { method, agentId, ...updates } = requestData
+
+    // Handle legacy numeric IDs by mapping them to UUIDs
+    const legacyIdMap: Record<string, string> = {
+      '1': '00000000-0000-0000-0000-000000000001',
+      '2': '00000000-0000-0000-0000-000000000002', 
+      '3': '00000000-0000-0000-0000-000000000003'
+    }
+    
+    if (legacyIdMap[agentId]) {
+      console.log(`Mapping legacy ID ${agentId} to UUID ${legacyIdMap[agentId]}`)
+      agentId = legacyIdMap[agentId]
+    }
 
     console.log(`${method} request for agent: ${agentId}`)
 
