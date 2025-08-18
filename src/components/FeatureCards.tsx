@@ -56,7 +56,7 @@ const FeatureCards = () => {
   }, {
     title: "Support Agent",
     emoji: "🎧",
-    descriptions: ["Instant answers from your knowledge base, docs, and past tickets. With smart handoff to humans when needed.", "Multi-channel: chat, email, voice/phone", "Smart handoff: routes by skill/SLA with full context", "Keeps improving via feedback and new articles", "Built-in analytics: CSAT, FCR, deflection, SLA adherence"],
+    descriptions: ["Instant answers from your knowledge base, docs, and past tickets. With smart handoff to humans when needed", "Smart handoff: routes by skill/SLA with full context", "Keeps improving via feedback and new articles", "Built-in analytics: CSAT, FCR, deflection, SLA adherence"],
     features: [{
       icon: "💬",
       title: "24/7 available",
