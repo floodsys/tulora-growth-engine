@@ -45,7 +45,7 @@ const Hero = () => {
               <div className="flex flex-wrap gap-4 text-sm">
                 <div className="flex items-center space-x-2 bg-primary/5 px-4 py-2 rounded-full border border-primary/20">
                   <Zap className="w-4 h-4 text-primary" />
-                  <span className="text-foreground font-medium">Deploy in minutes</span>
+                  <span className="text-foreground font-medium">Rapid time-to-value</span>
                 </div>
                 <div className="flex items-center space-x-2 bg-purple-500/5 px-4 py-2 rounded-full border border-purple-500/20">
                   <Brain className="w-4 h-4 text-purple-600" />
