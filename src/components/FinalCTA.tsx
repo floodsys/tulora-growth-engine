@@ -32,7 +32,7 @@ const FinalCTA = () => {
 
           {/* Trust signals */}
           <div className="space-y-2 text-brand-foreground/80">
-            <p className="text-sm">No credit card required • 14-day free trial • Cancel anytime</p>
+            
             
           </div>
         </div>
