@@ -1,1 +1,46 @@
 project_id = "nkjxbeypbiclvouqfjyc"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://lovableproject.com"]
+jwt_expiry = 3600
+password_length = 8
+external_email_enabled = true
+external_phone_enabled = true
+external_apple_enabled = false
+external_azure_enabled = false
+external_bitbucket_enabled = false
+external_discord_enabled = false
+external_facebook_enabled = false
+external_figma_enabled = false
+external_github_enabled = false
+external_gitlab_enabled = false
+external_google_enabled = false
+external_keycloak_enabled = false
+external_linkedin_enabled = false
+external_notion_enabled = false
+external_twitch_enabled = false
+external_twitter_enabled = false
+external_slack_enabled = false
+external_spotify_enabled = false
+external_workos_enabled = false
+external_zoom_enabled = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[functions.agents]
+verify_jwt = false
+
+[functions.retell-dial]
+verify_jwt = false

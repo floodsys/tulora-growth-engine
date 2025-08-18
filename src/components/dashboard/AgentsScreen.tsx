@@ -45,7 +45,7 @@ interface Agent {
 
 const mockAgents: Agent[] = [
   {
-    id: "1",
+    id: "00000000-0000-0000-0000-000000000001",
     name: "Sales Agent Pro",
     retellId: "agent_12345abcde",
     status: "active",
@@ -63,7 +63,7 @@ const mockAgents: Agent[] = [
     enableRecording: true
   },
   {
-    id: "2", 
+    id: "00000000-0000-0000-0000-000000000002", 
     name: "Lead Qualifier",
     retellId: "agent_67890fghij",
     status: "active", 
@@ -80,7 +80,7 @@ const mockAgents: Agent[] = [
     enableRecording: true
   },
   {
-    id: "3",
+    id: "00000000-0000-0000-0000-000000000003",
     name: "Follow-up Specialist",
     retellId: "agent_klmno12345",
     status: "inactive",
