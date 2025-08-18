@@ -69,8 +69,10 @@ const InfoSection = () => {
             return (
               <Card key={index} className="border border-border/50 hover:border-primary/20 transition-colors">
                 <CardContent className="p-6">
-                  <div className="flex items-center mb-4">
-                    <IconComponent className="w-8 h-8 text-primary mr-3" />
+                  <div className="mb-4">
+                    <IconComponent className="w-10 h-10 mb-4 text-transparent bg-gradient-to-br from-primary to-accent bg-clip-text" style={{
+                      filter: 'drop-shadow(0 0 8px hsl(var(--primary) / 0.3))'
+                    }} />
                     <h3 className="text-xl font-semibold text-foreground">
                       {feature.title}
                     </h3>
