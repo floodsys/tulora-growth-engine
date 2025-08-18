@@ -83,7 +83,7 @@ const Footer = () => {
                 Tulora
               </span>
             </div>
-            <p className="text-muted-foreground mb-6 max-w-sm">Tulora — Always by your side</p>
+            <p className="text-muted-foreground mb-6 max-w-sm">Tulora — Always present. Always by your side</p>
             
             {/* Social Links */}
             <div className="flex space-x-4">
