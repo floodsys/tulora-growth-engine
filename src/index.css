@@ -9,10 +9,10 @@
 @layer base {
   :root {
     /* Brand Colors */
-    --brand: 248 83% 66%;
+    --brand: 252 100% 68%; /* #6056FF */
     --brand-foreground: 0 0% 100%;
-    --brand-light: 248 100% 88%;
-    --brand-dark: 248 83% 56%;
+    --brand-light: 252 100% 85%;
+    --brand-dark: 252 100% 58%;
     
     /* Backgrounds */
     --background: 0 0% 97.6%; /* #F9F9F9 */
@@ -25,9 +25,9 @@
     --card-hover: 0 0% 98%;
 
     /* Interactive Elements */
-    --primary: 248 83% 66%;
+    --primary: 252 100% 68%; /* #6056FF */
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 248 83% 56%;
+    --primary-hover: 252 100% 58%;
 
     --secondary: 0 0% 100%; /* #FFFFFF */
     --secondary-foreground: 240 6% 10%;
@@ -53,18 +53,18 @@
     /* Borders & Inputs */
     --border: 240 6% 90%;
     --input: 240 6% 90%;
-    --ring: 248 83% 66%;
+    --ring: 252 100% 68%; /* #6056FF */
 
     /* Gradients */
-    --gradient-brand: linear-gradient(135deg, hsl(248 83% 66%), hsl(267 83% 76%));
+    --gradient-brand: linear-gradient(135deg, hsl(252 100% 68%), hsl(350 98% 76%)); /* #6056FF to #FE7587 */
     --gradient-subtle: linear-gradient(135deg, hsl(0 0% 100%), hsl(0 0% 97.6%));
-    --gradient-hero: linear-gradient(135deg, hsl(248 100% 98%), hsl(267 100% 98%));
+    --gradient-hero: linear-gradient(135deg, hsl(252 100% 98%), hsl(350 100% 95%));
 
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 hsl(240 10% 4% / 0.05);
     --shadow-md: 0 4px 6px -1px hsl(240 10% 4% / 0.1), 0 2px 4px -1px hsl(240 10% 4% / 0.06);
     --shadow-lg: 0 10px 15px -3px hsl(240 10% 4% / 0.1), 0 4px 6px -2px hsl(240 10% 4% / 0.05);
-    --shadow-brand: 0 10px 25px -5px hsl(248 83% 66% / 0.3);
+    --shadow-brand: 0 10px 25px -5px hsl(252 100% 68% / 0.3);
 
     --radius: 0.75rem;
 
@@ -87,10 +87,10 @@
 
   .dark {
     /* Brand Colors - Dark Mode */
-    --brand: 248 83% 66%;
+    --brand: 252 100% 68%; /* #6056FF */
     --brand-foreground: 0 0% 100%;
-    --brand-light: 248 100% 88%;
-    --brand-dark: 248 83% 56%;
+    --brand-light: 252 100% 85%;
+    --brand-dark: 252 100% 58%;
     
     /* Backgrounds - Dark Mode */
     --background: 240 10% 4%;
@@ -103,9 +103,9 @@
     --card-hover: 240 10% 10%;
 
     /* Interactive Elements - Dark Mode */
-    --primary: 248 83% 66%;
+    --primary: 252 100% 68%; /* #6056FF */
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 248 83% 76%;
+    --primary-hover: 252 100% 78%;
 
     --secondary: 240 4% 16%;
     --secondary-foreground: 0 0% 98%;
@@ -131,18 +131,18 @@
     /* Borders & Inputs - Dark Mode */
     --border: 240 4% 16%;
     --input: 240 4% 16%;
-    --ring: 248 83% 66%;
+    --ring: 252 100% 68%; /* #6056FF */
 
     /* Gradients - Dark Mode */
-    --gradient-brand: linear-gradient(135deg, hsl(248 83% 66%), hsl(267 83% 76%));
+    --gradient-brand: linear-gradient(135deg, hsl(252 100% 68%), hsl(350 98% 76%)); /* #6056FF to #FE7587 */
     --gradient-subtle: linear-gradient(135deg, hsl(240 10% 7%), hsl(240 4% 16%));
-    --gradient-hero: linear-gradient(135deg, hsl(248 50% 8%), hsl(267 50% 8%));
+    --gradient-hero: linear-gradient(135deg, hsl(252 50% 15%), hsl(350 50% 20%));
 
     /* Shadows - Dark Mode */
     --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.1);
     --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.2), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
     --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.2), 0 4px 6px -2px hsl(0 0% 0% / 0.1);
-    --shadow-brand: 0 10px 25px -5px hsl(248 83% 66% / 0.4);
+    --shadow-brand: 0 10px 25px -5px hsl(252 100% 68% / 0.4);
   }
 }
 
