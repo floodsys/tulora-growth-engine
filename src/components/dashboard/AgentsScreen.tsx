@@ -302,9 +302,10 @@ export function AgentsScreen() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleSetDefault(agent.id)}
+                      className="flex items-center justify-center text-center truncate"
                     >
-                      <Star className="h-3 w-3 mr-1" />
-                      Default
+                      <Star className="h-3 w-3 mr-1 flex-shrink-0" />
+                      <span className="truncate">Default</span>
                     </Button>
                     
                     <Button 
