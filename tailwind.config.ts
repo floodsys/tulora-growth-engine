@@ -73,6 +73,10 @@ export default {
 					foreground: 'hsl(var(--card-foreground))',
 					hover: 'hsl(var(--card-hover))',
 				},
+				popover: {
+					DEFAULT: 'hsl(var(--popover))',
+					foreground: 'hsl(var(--popover-foreground))',
+				},
 			},
 			backgroundImage: {
 				'gradient-brand': 'var(--gradient-brand)',
