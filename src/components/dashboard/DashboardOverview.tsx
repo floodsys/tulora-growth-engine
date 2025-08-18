@@ -68,20 +68,22 @@ export function DashboardOverview() {
   const [loading, setLoading] = useState(false)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header with Date Range Picker */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
         <div>
-          <h2 className="text-2xl font-bold">Dashboard Overview</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-xl md:text-2xl font-bold">Dashboard Overview</h2>
+          <p className="text-sm md:text-base text-muted-foreground">
             Track your outreach performance and results
           </p>
         </div>
-        <DateRangePicker value={dateRange} onChange={setDateRange} />
+        <div className="w-full md:w-auto">
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
+        </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <KpiCard
           title="New Leads"
           value={kpiData.newLeads.value}
@@ -113,7 +115,7 @@ export function DashboardOverview() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">{/* ... keep existing code */}
         <TrendLine
           title="Conversions Over Time"
           data={trendData}

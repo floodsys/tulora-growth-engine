@@ -35,17 +35,17 @@ const Dashboard = () => {
       <div className="min-h-screen flex w-full">
         <AppSidebar activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
         
-        <main className="flex-1">
-          <header className="h-14 flex items-center border-b bg-background px-6">
+        <main className="flex-1 flex flex-col min-w-0">
+          <header className="h-14 flex items-center border-b bg-background px-4 md:px-6">
             <SidebarTrigger />
-            <div className="ml-4 flex-1">
-              <h1 className="text-lg font-semibold capitalize">
+            <div className="ml-4 flex-1 min-w-0">
+              <h1 className="text-lg font-semibold capitalize truncate">
                 {activeScreen === "overview" ? "Dashboard" : activeScreen}
               </h1>
             </div>
           </header>
           
-          <div className="p-6">
+          <div className="flex-1 p-4 md:p-6 overflow-auto">
             {renderContent()}
           </div>
         </main>
