@@ -41,7 +41,7 @@ const InfoSection = () => {
     description: "Harness our AI: craft precision prompts for seamless product development and generate vivid product visuals in seconds.",
     icon: Lightbulb
   }];
-  return <section className="py-20 px-4 sm:px-6 lg:px-8 bg-background">
+  return <section className="py-12 px-4 sm:px-6 lg:px-8 bg-background">
       <div className="max-w-7xl mx-auto">
         {/* Features Image */}
         <div className="text-center mb-16">
