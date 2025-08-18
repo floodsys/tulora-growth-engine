@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -50,6 +51,12 @@ const Navigation = () => {
             
             {/* Auth Links - Far Right */}
             <div className="flex items-center space-x-4">
+              <Link
+                to="/dashboard"
+                className="text-foreground hover:text-brand transition-colors duration-200"
+              >
+                Dashboard
+              </Link>
               <a
                 href="/signin"
                 className="text-foreground hover:text-brand transition-colors duration-200"
