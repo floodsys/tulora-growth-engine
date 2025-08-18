@@ -21,7 +21,7 @@ const FinalCTA = () => {
               Start Free
               <ArrowRight className="h-5 w-5 ml-2" />
             </Button>
-            <Button variant="outline" size="lg" className="bg-white border-brand-foreground/30 text-black hover:bg-gray-50 px-8 py-4 text-lg font-semibold backdrop-blur-sm" onClick={() => window.location.href = '/demo'}>
+            <Button variant="outline" size="lg" className="bg-white border-brand-foreground/30 text-black hover:bg-gray-50 px-8 py-4 text-lg font-semibold backdrop-blur-sm" onClick={() => window.location.href = '/talk-to-us'}>
               Book Demo
             </Button>
           </div>
