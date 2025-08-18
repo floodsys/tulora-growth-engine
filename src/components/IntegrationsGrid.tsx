@@ -1,24 +1,24 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, MessageSquare, Database, Github, Palette, Zap, Building, Cloud, CreditCard, MessageCircle, Search, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const IntegrationsGrid = () => {
   const integrationLogos = [
     // Top row
-    { name: "Slack", position: "top-[10%] left-[15%]", color: "text-purple-500" },
-    { name: "Notion", position: "top-[5%] left-[45%]", color: "text-gray-800" },
-    { name: "GitHub", position: "top-[15%] right-[20%]", color: "text-gray-900" },
+    { name: "Slack", position: "top-[10%] left-[15%]", color: "text-purple-500", Icon: MessageSquare },
+    { name: "Notion", position: "top-[5%] left-[45%]", color: "text-gray-800", Icon: Database },
+    { name: "GitHub", position: "top-[15%] right-[20%]", color: "text-gray-900", Icon: Github },
     
     // Middle row  
-    { name: "Figma", position: "top-[35%] left-[8%]", color: "text-purple-600" },
-    { name: "Zapier", position: "top-[40%] left-[35%]", color: "text-orange-500" },
-    { name: "HubSpot", position: "top-[30%] right-[15%]", color: "text-orange-600" },
-    { name: "Salesforce", position: "top-[45%] right-[40%]", color: "text-blue-500" },
+    { name: "Figma", position: "top-[35%] left-[8%]", color: "text-purple-600", Icon: Palette },
+    { name: "Zapier", position: "top-[40%] left-[35%]", color: "text-orange-500", Icon: Zap },
+    { name: "HubSpot", position: "top-[30%] right-[15%]", color: "text-orange-600", Icon: Building },
+    { name: "Salesforce", position: "top-[45%] right-[40%]", color: "text-blue-500", Icon: Cloud },
     
     // Bottom row
-    { name: "Stripe", position: "bottom-[25%] left-[20%]", color: "text-indigo-600" },
-    { name: "Discord", position: "bottom-[30%] left-[50%]", color: "text-indigo-500" },
-    { name: "Google", position: "bottom-[20%] right-[25%]", color: "text-red-500" },
-    { name: "Twilio", position: "bottom-[35%] right-[10%]", color: "text-red-600" },
+    { name: "Stripe", position: "bottom-[25%] left-[20%]", color: "text-indigo-600", Icon: CreditCard },
+    { name: "Discord", position: "bottom-[30%] left-[50%]", color: "text-indigo-500", Icon: MessageCircle },
+    { name: "Google", position: "bottom-[20%] right-[25%]", color: "text-red-500", Icon: Search },
+    { name: "Twilio", position: "bottom-[35%] right-[10%]", color: "text-red-600", Icon: Phone },
   ];
 
   return (
@@ -35,7 +35,7 @@ const IntegrationsGrid = () => {
                 animationDuration: `${3 + (index % 3)}s`
               }}
             >
-              <div className={`w-6 h-6 rounded ${logo.color} bg-current opacity-80`}></div>
+              <logo.Icon className={`w-6 h-6 ${logo.color}`} />
             </div>
           ))}
         </div>
