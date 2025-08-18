@@ -23,11 +23,11 @@ const Index = () => {
         {/* 1. Hero Section */}
         <Hero />
         
-        {/* 3. Info Section */}
-        <InfoSection />
-        
         {/* 4. AI Workforce Hero */}
         <AIWorkforceHero />
+        
+        {/* 3. Info Section */}
+        <InfoSection />
         
         {/* 3. Outcome-First Features */}
         <FeatureCards />
