@@ -112,7 +112,9 @@ const Footer = () => {
               <h3 className="font-semibold text-foreground mb-4">{section.title}</h3>
               <ul className="space-y-3">
                 {section.links.map((link, linkIndex) => <li key={linkIndex}>
-                    
+                    <a href={link.href} className="text-muted-foreground hover:text-brand transition-colors duration-200">
+                      {link.label}
+                    </a>
                   </li>)}
               </ul>
             </div>)}
