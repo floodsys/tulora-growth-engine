@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
+import logo from "@/assets/logo.svg";
 
 const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -13,9 +14,11 @@ const Navigation = () => {
           {/* Logo */}
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <span className="text-2xl font-bold bg-gradient-brand bg-clip-text text-transparent">
-                Tulora
-              </span>
+              <img 
+                src={logo} 
+                alt="Your Logo" 
+                className="h-8 w-auto object-contain" 
+              />
             </div>
           </div>
 
