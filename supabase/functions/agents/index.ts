@@ -29,6 +29,9 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  console.log('Request method:', req.method)
+  console.log('Request URL:', req.url)
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -42,6 +45,8 @@ serve(async (req) => {
 
     // For function invocation, we get the data from the request body
     const requestData = await req.json()
+    console.log('Request data:', JSON.stringify(requestData))
+    
     const { method, agentId, ...updates } = requestData
 
     console.log(`${method} request for agent: ${agentId}`)

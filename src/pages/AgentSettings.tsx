@@ -98,14 +98,22 @@ const AgentSettings = () => {
     const loadAgent = async () => {
       if (!agentId) return
 
+      console.log('Loading agent with ID:', agentId)
+
       try {
         const { data, error } = await supabase.functions.invoke('agents', {
           body: { method: 'GET', agentId }
         })
 
-        if (error) throw error
+        console.log('Supabase response:', { data, error })
+
+        if (error) {
+          console.error('Supabase function error:', error)
+          throw error
+        }
 
         const agentData = data as AgentProfile
+        console.log('Loaded agent data:', agentData)
         setAgent(agentData)
         reset(agentData)
       } catch (error) {
