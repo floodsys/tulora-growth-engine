@@ -240,7 +240,7 @@ export function AgentsScreen() {
 
 
       {/* Agents Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
         {agents.map((agent) => (
           <Card key={agent.id} className="relative">
             <CardHeader>
@@ -281,7 +281,7 @@ export function AgentsScreen() {
                 </div>
               </div>
               
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -296,24 +296,28 @@ export function AgentsScreen() {
                   Test
                 </Button>
                 
-                {!agent.isDefault && (
-                  <Button
-                    variant="outline"
+                <div className="flex gap-2">
+                  {!agent.isDefault && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSetDefault(agent.id)}
+                      className="flex-1 sm:flex-none"
+                    >
+                      <Star className="h-3 w-3 mr-1" />
+                      Set Default
+                    </Button>
+                  )}
+                  
+                  <Button 
+                    variant="outline" 
                     size="sm"
-                    onClick={() => handleSetDefault(agent.id)}
+                    onClick={() => handleOpenSettings(agent)}
+                    className="flex-1 sm:flex-none"
                   >
-                    <Star className="h-3 w-3 mr-1" />
-                    Set Default
+                    Edit
                   </Button>
-                )}
-                
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleOpenSettings(agent)}
-                >
-                  Edit
-                </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
