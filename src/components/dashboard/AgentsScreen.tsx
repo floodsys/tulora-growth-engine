@@ -302,7 +302,7 @@ export function AgentsScreen() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleSetDefault(agent.id)}
-                      className="flex items-center justify-center"
+                      className="w-full justify-center"
                     >
                       <Star className="h-3 w-3 mr-1" />
                       Default
