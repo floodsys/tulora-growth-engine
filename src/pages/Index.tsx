@@ -1,6 +1,6 @@
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
-import TypewriterHero from "@/components/TypewriterHero";
+
 import InfoSection from "@/components/InfoSection";
 import AIWorkforceHero from "@/components/AIWorkforceHero";
 import ProofStrip from "@/components/ProofStrip";
@@ -22,9 +22,6 @@ const Index = () => {
       <main>
         {/* 1. Hero Section */}
         <Hero />
-        
-        {/* 2. Typewriter Hero */}
-        <TypewriterHero />
         
         {/* 3. Info Section */}
         <InfoSection />
