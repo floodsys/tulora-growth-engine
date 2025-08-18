@@ -193,7 +193,7 @@ const TalkToUs = () => {
                       className="w-full h-12 text-lg font-semibold"
                       variant="brand"
                     >
-                      Schedule Demo Call
+                      Send message
                     </Button>
                   </form>
                 </CardContent>
