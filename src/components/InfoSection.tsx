@@ -1,6 +1,28 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { useEffect, useRef } from 'react';
+import Typed from 'typed.js';
+import featuresImage from '@/assets/features.svg';
 
 const InfoSection = () => {
+  const el = useRef(null);
+
+  useEffect(() => {
+    const typed = new Typed(el.current, {
+      strings: [
+        "Build. 🚀",
+        "Automate. 🤖", 
+        "Scale. 📈"
+      ],
+      typeSpeed: 20,
+      backSpeed: 20,
+      loop: true
+    });
+
+    return () => {
+      typed.destroy();
+    };
+  }, []);
+
   const features = [
     {
       title: "All-in-one multi-agent platform",
@@ -31,11 +53,27 @@ const InfoSection = () => {
   return (
     <section className="py-20 px-4 sm:px-6 lg:px-8 bg-background">
       <div className="max-w-7xl mx-auto">
+        {/* Typewriter Header */}
+        <div className="text-center mb-8">
+          <h2 className="text-3xl lg:text-5xl font-bold text-foreground mb-4">
+            <span ref={el}></span>
+          </h2>
+        </div>
+
+        {/* Features Image */}
+        <div className="text-center mb-16">
+          <img 
+            src={featuresImage} 
+            alt="Features illustration" 
+            className="max-w-full h-auto mx-auto"
+          />
+        </div>
+
         {/* Main Heading */}
         <div className="text-center mb-16">
-          <h2 className="text-4xl lg:text-5xl font-bold text-foreground mb-6">
+          <h3 className="text-4xl lg:text-5xl font-bold text-foreground mb-6">
             Free your team for higher impact work.
-          </h2>
+          </h3>
         </div>
 
         {/* Features Grid */}
