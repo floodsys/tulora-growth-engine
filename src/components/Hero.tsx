@@ -38,17 +38,7 @@ const Hero = () => {
           </div>
 
           {/* Navigation Pills */}
-          <div className="flex items-center justify-center gap-6 mb-16">
-            <Badge variant="secondary" className="px-4 py-2 text-sm font-medium">
-              Getting started
-            </Badge>
-            <Badge variant="outline" className="px-4 py-2 text-sm font-medium">
-              AI Agents
-            </Badge>
-            <Badge variant="outline" className="px-4 py-2 text-sm font-medium">
-              AI Tools
-            </Badge>
-          </div>
+          
 
           {/* Dashboard Preview */}
           <div className="relative max-w-6xl mx-auto">
