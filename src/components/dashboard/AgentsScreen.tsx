@@ -281,11 +281,11 @@ export function AgentsScreen() {
                 </div>
               </div>
               
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1"
+                  className="flex-1 min-w-0"
                   onClick={() => {
                     setSelectedAgent(agent)
                     setTestCallOpen(true)
@@ -296,28 +296,26 @@ export function AgentsScreen() {
                   Test
                 </Button>
                 
-                <div className="flex gap-2">
-                  {!agent.isDefault && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSetDefault(agent.id)}
-                      className="flex-1 sm:flex-none"
-                    >
-                      <Star className="h-3 w-3 mr-1" />
-                      Set Default
-                    </Button>
-                  )}
-                  
-                  <Button 
-                    variant="outline" 
+                {!agent.isDefault && (
+                  <Button
+                    variant="outline"
                     size="sm"
-                    onClick={() => handleOpenSettings(agent)}
-                    className="flex-1 sm:flex-none"
+                    onClick={() => handleSetDefault(agent.id)}
+                    className="flex-1 min-w-0"
                   >
-                    Edit
+                    <Star className="h-3 w-3 mr-1" />
+                    Default
                   </Button>
-                </div>
+                )}
+                
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleOpenSettings(agent)}
+                  className="flex-1 min-w-0"
+                >
+                  Edit
+                </Button>
               </div>
             </CardContent>
           </Card>
