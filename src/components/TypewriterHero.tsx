@@ -23,7 +23,7 @@ const TypewriterHero = () => {
 
   return (
     <div className="text-center py-16">
-      <h1 className="text-5xl lg:text-7xl font-bold text-foreground">
+      <h1 className="text-3xl lg:text-5xl font-bold text-foreground">
         <span ref={el}></span>
       </h1>
     </div>
