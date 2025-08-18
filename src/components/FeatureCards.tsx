@@ -1,28 +1,32 @@
 const FeatureCards = () => {
   const agents = [{
-    title: "BDR Agent",
+    title: "Voice AI Leads Agent",
     emoji: "🤖",
-    descriptions: ["Engages leads instantly. Drives pipeline 24/7", "Adapts to any sales motion. Fits any playbook", "Automates research, follow-ups, and CRM updates—effortlessly"],
+    descriptions: ["Answers and calls back leads in seconds—qualifies, routes, and books. 24/7 phone coverage, zero busywork.", "Instant answer/callback: Sub-60s from forms, ads, and missed calls", "Qualifies & routes: Your ICP rules, territories, and handoffs"],
     features: [{
-      icon: "📧",
-      title: "No cold leads",
-      subtitle: "Every follow-up handled"
+      icon: "📞",
+      title: "No missed calls",
+      subtitle: "Every inquiry answered"
+    }, {
+      icon: "🔁",
+      title: "Every callback covered",
+      subtitle: "Sequenced until booked/closed"
     }, {
       icon: "⚡",
-      title: "Speed to lead",
-      subtitle: "Instant, every time"
+      title: "Speed-to-lead",
+      subtitle: "Under 60 seconds"
     }, {
       icon: "💼",
       title: "Less admin",
-      subtitle: "AI handles it"
+      subtitle: "Auto logging & transcripts"
     }, {
       icon: "👥",
-      title: "Custom flows",
-      subtitle: "Built for you"
+      title: "Custom call flows",
+      subtitle: "Built to your script"
     }, {
       icon: "🔗",
-      title: "Integration",
-      subtitle: "Works anywhere"
+      title: "Integrations",
+      subtitle: "Twilio/Retell, Salesforce/HubSpot, calendars"
     }]
   }, {
     title: "Research Agent (Coming Soon)",
