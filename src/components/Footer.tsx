@@ -1,4 +1,5 @@
 import { X, Linkedin, Youtube, Instagram } from "lucide-react";
+import iconLogo from "@/assets/icon_logo.svg";
 const Footer = () => {
   const footerSections = [{
     title: "Product",
@@ -79,9 +80,7 @@ const Footer = () => {
           {/* Brand Column */}
           <div className="col-span-2">
             <div className="mb-6">
-              <span className="text-2xl font-bold bg-gradient-brand bg-clip-text text-transparent">
-                Tulora
-              </span>
+              <img src={iconLogo} alt="Tulora" className="h-8 w-auto" />
             </div>
             <p className="text-muted-foreground mb-6 max-w-sm">Tulora — Always present. Always by your side</p>
             
