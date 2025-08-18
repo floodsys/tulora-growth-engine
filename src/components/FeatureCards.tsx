@@ -2,7 +2,7 @@ const FeatureCards = () => {
   const agents = [{
     title: "Voice AI Leads Agent",
     emoji: "🤖",
-    descriptions: ["Answers and calls back leads in seconds—qualifies, routes, and books. 24/7 phone coverage, zero busywork.", "Instant answer/callback: Sub-60s from forms, ads, and missed calls", "Qualifies & routes: Your ICP rules, territories, and handoffs"],
+    descriptions: ["Instant answer/callback: Sub-60s from forms, ads, and missed calls", "Auto-booking: Puts meetings on the right calendar", "Follow-ups handled: Re-calls & reminders until outcome", "CRM-clean: Notes, recordings, and statuses logged automatically"],
     features: [{
       icon: "📞",
       title: "No missed calls",
