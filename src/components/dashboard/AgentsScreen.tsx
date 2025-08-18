@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -19,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { Bot, Phone, Settings, Star } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -31,6 +33,15 @@ interface Agent {
   avgDuration: number
   successRate: number
   isDefault: boolean
+  // Extended settings
+  prompt?: string
+  voice?: string
+  language?: string
+  temperature?: number
+  maxTokens?: number
+  enableTransfer?: boolean
+  transferNumber?: string
+  enableRecording?: boolean
 }
 
 const mockAgents: Agent[] = [
@@ -42,7 +53,15 @@ const mockAgents: Agent[] = [
     calls: 156,
     avgDuration: 180,
     successRate: 68,
-    isDefault: true
+    isDefault: true,
+    prompt: "You are a professional sales agent. Be friendly, persuasive, and focus on identifying customer needs.",
+    voice: "alloy",
+    language: "en",
+    temperature: 0.7,
+    maxTokens: 150,
+    enableTransfer: true,
+    transferNumber: "+1-555-0100",
+    enableRecording: true
   },
   {
     id: "2", 
@@ -52,7 +71,14 @@ const mockAgents: Agent[] = [
     calls: 89,
     avgDuration: 120,
     successRate: 72,
-    isDefault: false
+    isDefault: false,
+    prompt: "You are a lead qualification specialist. Ask targeted questions to determine if prospects are qualified leads.",
+    voice: "echo",
+    language: "en",
+    temperature: 0.5,
+    maxTokens: 100,
+    enableTransfer: false,
+    enableRecording: true
   },
   {
     id: "3",
@@ -62,14 +88,23 @@ const mockAgents: Agent[] = [
     calls: 34,
     avgDuration: 95,
     successRate: 45,
-    isDefault: false
+    isDefault: false,
+    prompt: "You are a follow-up specialist. Be persistent but polite in following up on previous conversations.",
+    voice: "fable",
+    language: "en",
+    temperature: 0.6,
+    maxTokens: 120,
+    enableTransfer: false,
+    enableRecording: false
   }
 ]
 
 export function AgentsScreen() {
   const [agents, setAgents] = useState(mockAgents)
   const [testCallOpen, setTestCallOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
+  const [editingAgent, setEditingAgent] = useState<Agent | null>(null)
   const [phoneNumber, setPhoneNumber] = useState("")
   const { toast } = useToast()
 
@@ -120,6 +155,27 @@ export function AgentsScreen() {
         variant: "destructive"
       })
     }
+  }
+
+  const handleOpenSettings = (agent: Agent) => {
+    setEditingAgent({ ...agent })
+    setSettingsOpen(true)
+  }
+
+  const handleSaveSettings = () => {
+    if (!editingAgent) return
+
+    setAgents(prev => prev.map(agent => 
+      agent.id === editingAgent.id ? editingAgent : agent
+    ))
+
+    toast({
+      title: "Agent Settings Updated",
+      description: `Settings for ${editingAgent.name} have been saved`,
+    })
+
+    setSettingsOpen(false)
+    setEditingAgent(null)
   }
 
   const handleSetDefault = (agentId: string) => {
@@ -200,6 +256,211 @@ export function AgentsScreen() {
         </Dialog>
       </div>
 
+      {/* Agent Settings Dialog */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Agent Settings</DialogTitle>
+            <DialogDescription>
+              Configure settings for {editingAgent?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingAgent && (
+            <div className="space-y-6">
+              {/* Basic Info */}
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="agent-name">Agent Name</Label>
+                  <Input
+                    id="agent-name"
+                    value={editingAgent.name}
+                    onChange={(e) => setEditingAgent({...editingAgent, name: e.target.value})}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="retell-id">Retell Agent ID</Label>
+                  <Input
+                    id="retell-id"
+                    value={editingAgent.retellId}
+                    disabled
+                    className="bg-muted"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Agent ID cannot be changed
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <Select 
+                    value={editingAgent.status} 
+                    onValueChange={(value: "active" | "inactive" | "training") => 
+                      setEditingAgent({...editingAgent, status: value})
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="training">Training</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* AI Configuration */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">AI Configuration</h3>
+                
+                <div>
+                  <Label htmlFor="prompt">System Prompt</Label>
+                  <Textarea
+                    id="prompt"
+                    value={editingAgent.prompt || ""}
+                    onChange={(e) => setEditingAgent({...editingAgent, prompt: e.target.value})}
+                    rows={4}
+                    placeholder="Enter the system prompt for this agent..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="voice">Voice</Label>
+                    <Select 
+                      value={editingAgent.voice || "alloy"} 
+                      onValueChange={(value) => setEditingAgent({...editingAgent, voice: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="alloy">Alloy</SelectItem>
+                        <SelectItem value="echo">Echo</SelectItem>
+                        <SelectItem value="fable">Fable</SelectItem>
+                        <SelectItem value="onyx">Onyx</SelectItem>
+                        <SelectItem value="nova">Nova</SelectItem>
+                        <SelectItem value="shimmer">Shimmer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="language">Language</Label>
+                    <Select 
+                      value={editingAgent.language || "en"} 
+                      onValueChange={(value) => setEditingAgent({...editingAgent, language: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="es">Spanish</SelectItem>
+                        <SelectItem value="fr">French</SelectItem>
+                        <SelectItem value="de">German</SelectItem>
+                        <SelectItem value="it">Italian</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="temperature">Temperature</Label>
+                    <Input
+                      id="temperature"
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={editingAgent.temperature || 0.7}
+                      onChange={(e) => setEditingAgent({...editingAgent, temperature: parseFloat(e.target.value)})}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Controls randomness (0-1)
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="max-tokens">Max Tokens</Label>
+                    <Input
+                      id="max-tokens"
+                      type="number"
+                      min="50"
+                      max="500"
+                      value={editingAgent.maxTokens || 150}
+                      onChange={(e) => setEditingAgent({...editingAgent, maxTokens: parseInt(e.target.value)})}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Maximum response length
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Call Features */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Call Features</h3>
+                
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Enable Call Recording</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Record all calls for quality and training purposes
+                    </p>
+                  </div>
+                  <Switch
+                    checked={editingAgent.enableRecording || false}
+                    onCheckedChange={(checked) => setEditingAgent({...editingAgent, enableRecording: checked})}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Enable Warm Transfer</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Allow agent to transfer calls to a human representative
+                    </p>
+                  </div>
+                  <Switch
+                    checked={editingAgent.enableTransfer || false}
+                    onCheckedChange={(checked) => setEditingAgent({...editingAgent, enableTransfer: checked})}
+                  />
+                </div>
+
+                {editingAgent.enableTransfer && (
+                  <div>
+                    <Label htmlFor="transfer-number">Transfer Number</Label>
+                    <Input
+                      id="transfer-number"
+                      value={editingAgent.transferNumber || ""}
+                      onChange={(e) => setEditingAgent({...editingAgent, transferNumber: e.target.value})}
+                      placeholder="+1 (555) 123-4567"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Phone number to transfer calls to
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setSettingsOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveSettings}>
+                  Save Settings
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Agents Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {agents.map((agent) => (
@@ -268,7 +529,11 @@ export function AgentsScreen() {
                   </Button>
                 )}
                 
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleOpenSettings(agent)}
+                >
                   <Settings className="h-3 w-3" />
                 </Button>
               </div>
