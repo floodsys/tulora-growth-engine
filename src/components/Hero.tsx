@@ -97,7 +97,6 @@ const Hero = () => {
                   src={heroCodingImage} 
                   alt="AI coding illustration" 
                   className="w-full h-auto max-w-md mx-auto"
-                  style={{ filter: 'hue-rotate(250deg) saturate(1.1)' }}
                 />
               </div>
 
