@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import IndexV2 from "./pages/IndexV2";
 import Dashboard from "./pages/Dashboard";
 import AgentSettings from "./pages/AgentSettings";
+import TalkToUs from "./pages/TalkToUs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/v2" element={<IndexV2 />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/talk-to-us" element={<TalkToUs />} />
           <Route path="/app/agents/:agentId" element={<AgentSettings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
