@@ -141,7 +141,7 @@ const FeatureCards = () => {
                       <div className="w-4 h-4 bg-gradient-to-br from-primary to-purple-600 rounded text-[8px] flex items-center justify-center mx-auto mb-1">
                         <span className="text-white text-[6px]">{feature.icon.charAt(0)}</span>
                       </div>
-                      <div className="text-[11px] font-semibold text-foreground mb-0.5 font-heading">
+                      <div className="text-[10px] font-semibold text-foreground mb-0.5 font-heading break-words hyphens-auto text-center">
                         {feature.title}
                       </div>
                       <div className="text-[9px] text-muted-foreground leading-tight break-words hyphens-auto">
