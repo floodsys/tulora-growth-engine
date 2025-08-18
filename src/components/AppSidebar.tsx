@@ -21,7 +21,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { OrgSwitcher } from "@/components/dashboard/widgets/OrgSwitcher"
-import featuresLogo from "@/assets/features.svg"
+import logo from "@/assets/logo.svg"
 
 
 const items = [
@@ -48,9 +48,9 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
           <SidebarGroupLabel className="px-4 py-2">
             <div className="flex items-center gap-2">
               {state === "collapsed" ? (
-                <img src={featuresLogo} alt="Logo" className="h-6 w-auto object-contain" />
+                <img src={logo} alt="Logo" className="h-6 w-auto object-contain" />
               ) : (
-                <img src={featuresLogo} alt="Your Logo" className="h-8 w-auto max-w-[120px] object-contain" />
+                <img src={logo} alt="Your Logo" className="h-8 w-auto max-w-[120px] object-contain" />
               )}
             </div>
           </SidebarGroupLabel>
