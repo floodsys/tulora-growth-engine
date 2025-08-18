@@ -25,8 +25,9 @@ const Navigation = () => {
               <a href="#pricing" className="text-foreground hover:text-brand transition-colors duration-200">
                 Pricing
               </a>
-              
-              
+              <Link to="/talk-to-us" className="text-foreground hover:text-brand transition-colors duration-200">
+                Talk to Us
+              </Link>
             </div>
             
             {/* Auth Links - Far Right */}
