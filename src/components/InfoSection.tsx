@@ -45,7 +45,7 @@ const InfoSection = () => {
       <div className="max-w-7xl mx-auto">
         {/* Features Image */}
         <div className="text-center mb-16">
-          <img src={featuresImage} alt="Features illustration" className="max-w-full h-auto mx-auto" />
+          <img src={featuresImage} alt="AI automation features and data flows illustration" className="max-w-full h-auto mx-auto" />
         </div>
 
         {/* Typewriter Header */}
