@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Play, Sparkles, Zap, Brain } from "lucide-react";
+import { Link } from "react-router-dom";
 import heroCodingImage from "@/assets/hero-coding.svg";
 
 const Hero = () => {
@@ -55,13 +56,15 @@ const Hero = () => {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row items-start gap-4 pt-4">
-                <Button 
-                  size="lg" 
-                  className="px-8 py-4 text-lg font-semibold bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 shadow-lg hover:shadow-xl transition-all duration-300"
-                >
-                  Start Free
-                  <ArrowRight className="ml-2 w-5 h-5" />
-                </Button>
+                <Link to="/signup">
+                  <Button 
+                    size="lg" 
+                    className="px-8 py-4 text-lg font-semibold bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    Start Free
+                    <ArrowRight className="ml-2 w-5 h-5" />
+                  </Button>
+                </Link>
                 <Button 
                   variant="outline" 
                   size="lg" 
