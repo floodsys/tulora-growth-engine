@@ -24,6 +24,11 @@ interface AgentProfileUpdate {
 }
 
 serve(async (req) => {
+  console.log('=== NEW REQUEST ===')
+  console.log('Request method:', req.method)
+  console.log('Request URL:', req.url)
+  console.log('Request headers:', Object.fromEntries(req.headers))
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })

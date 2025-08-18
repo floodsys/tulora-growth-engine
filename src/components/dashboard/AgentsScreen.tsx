@@ -156,6 +156,7 @@ export function AgentsScreen() {
   }
 
   const handleOpenSettings = (agent: Agent) => {
+    console.log('Navigating to agent settings for agent:', agent.id, agent.name)
     navigate(`/agent-settings/${agent.id}`)
   }
 

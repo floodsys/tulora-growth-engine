@@ -102,6 +102,26 @@ const AgentSettings = () => {
       console.log('Current URL:', window.location.href)
 
       try {
+        console.log('Trying direct Supabase query first...')
+        
+        // Try direct supabase query first to test
+        const { data: directData, error: directError } = await supabase
+          .from('agent_profiles')
+          .select('*')
+          .eq('id', agentId)
+          .single()
+        
+        console.log('Direct Supabase query result:', { directData, directError })
+        
+        if (directData) {
+          console.log('Direct query worked! Using direct data.')
+          const agentData = directData as AgentProfile
+          setAgent(agentData)
+          reset(agentData)
+          return
+        }
+
+        console.log('Direct query failed, trying edge function...')
         const { data, error } = await supabase.functions.invoke('agents', {
           body: { method: 'GET', agentId }
         })
