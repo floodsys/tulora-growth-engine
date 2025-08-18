@@ -1,29 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Play } from "lucide-react";
-
 const Hero = () => {
-  return (
-    <div className="relative min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
+  return <div className="relative min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       {/* Top Banner */}
-      <div className="bg-gradient-to-r from-primary/90 to-purple-600/90 text-white py-3 px-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-              <span className="text-sm">🚀</span>
-            </div>
-            <span className="font-semibold">AI Ops Bootcamp</span>
-            <span className="text-white/80">– Become a Certified AI Ops Professional.</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" className="text-white hover:bg-white/20 font-semibold">
-              Join Next Course
-              <ArrowRight className="ml-1 h-4 w-4" />
-            </Button>
-            <button className="text-white/80 hover:text-white text-sm">✕</button>
-          </div>
-        </div>
-      </div>
+      
 
       {/* Main Hero Content */}
       <div className="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
@@ -145,8 +126,6 @@ const Hero = () => {
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Hero;
