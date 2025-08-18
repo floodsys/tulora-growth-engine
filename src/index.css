@@ -40,6 +40,10 @@
     --accent: 240 5% 96%;
     --accent-foreground: 240 6% 10%;
 
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 4%;
+
     /* Status Colors */
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
@@ -117,6 +121,10 @@
     
     --accent: 240 4% 16%;
     --accent-foreground: 0 0% 98%;
+
+    /* Popover - Dark Mode */
+    --popover: 240 10% 7%;
+    --popover-foreground: 0 0% 98%;
 
     /* Status Colors - Dark Mode */
     --success: 142 71% 45%;
