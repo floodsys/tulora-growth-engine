@@ -132,7 +132,7 @@ const FeatureCards = () => {
                     </div>)}
                 </div>
                 
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 mt-2">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5 gap-2 mt-2">
                   {agent.features.map((feature, idx) => <div key={idx} className="bg-muted/50 p-2 rounded-lg border border-border/50 text-center transition-all duration-200 hover:bg-muted hover:border-border">
                       <div className="w-4 h-4 bg-gradient-to-br from-primary to-purple-600 rounded text-[8px] flex items-center justify-center mx-auto mb-1">
                         <span className="text-white text-[6px]">{feature.icon.charAt(0)}</span>
