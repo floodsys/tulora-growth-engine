@@ -1,13 +1,11 @@
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
-
 import InfoSection from "@/components/InfoSection";
 import AIWorkforceHero from "@/components/AIWorkforceHero";
-
 import FeatureCards from "@/components/FeatureCards";
 import LiveDemo from "@/components/LiveDemo";
 import IntegrationsGrid from "@/components/IntegrationsGrid";
-import PricingTable from "@/components/PricingTable";
+import AIWorkforceV2 from "@/components/v2/AIWorkforceV2";
 import FAQ from "@/components/FAQ";
 import FinalCTA from "@/components/FinalCTA";
 import Footer from "@/components/Footer";
@@ -38,8 +36,8 @@ const Index = () => {
         {/* 5. Integrations */}
         <IntegrationsGrid />
         
-        {/* 6. Pricing */}
-        <PricingTable />
+        {/* 6. Custom AI Service */}
+        <AIWorkforceV2 />
         
         {/* 7. FAQ */}
         <FAQ />
