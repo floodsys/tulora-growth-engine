@@ -49,7 +49,7 @@ const Hero = () => {
                 </div>
                 <div className="flex items-center space-x-2 bg-purple-500/5 px-4 py-2 rounded-full border border-purple-500/20">
                   <Brain className="w-4 h-4 text-purple-600" />
-                  <span className="text-foreground font-medium">No technical skills needed</span>
+                  <span className="text-foreground font-medium">Configure, don't code</span>
                 </div>
               </div>
 
