@@ -17,7 +17,7 @@ const FinalCTA = () => {
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
-            <Button size="lg" className="bg-white text-brand hover:bg-gray-50 px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1" onClick={() => window.location.href = '/signup'}>
+            <Button size="lg" className="bg-white text-brand hover:bg-gray-50 px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1" onClick={() => window.location.href = '/auth'}>
               Start Free
               <ArrowRight className="h-5 w-5 ml-2" />
             </Button>
