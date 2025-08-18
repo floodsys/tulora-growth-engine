@@ -31,15 +31,15 @@ export function BarBySource({ title, data, loading, color = "hsl(var(--primary))
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis 
               dataKey="source" 
-              className="text-xs text-muted-foreground/30"
+              className="text-xs text-muted-foreground"
               tickLine={false}
               axisLine={false}
             />
             <YAxis 
-              className="text-xs text-muted-foreground/30"
+              className="text-xs text-muted-foreground"
               tickLine={false}
               axisLine={false}
             />
