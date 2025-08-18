@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { useEffect, useRef } from 'react';
 import Typed from 'typed.js';
-import logo from '@/assets/logo.svg';
+import featuresImage from '@/assets/features.svg';
 import { Layers, Target, Star, Settings, TrendingUp, Lightbulb } from 'lucide-react';
 const InfoSection = () => {
   const el = useRef(null);
@@ -45,7 +45,7 @@ const InfoSection = () => {
       <div className="max-w-7xl mx-auto">
         {/* Features Image */}
         <div className="text-center mb-16">
-          <img src={logo} alt="Features illustration" className="max-w-full h-auto mx-auto" />
+          <img src={featuresImage} alt="Features illustration" className="max-w-full h-auto mx-auto" />
         </div>
 
         {/* Typewriter Header */}
