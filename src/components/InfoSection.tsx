@@ -53,13 +53,6 @@ const InfoSection = () => {
   return (
     <section className="py-20 px-4 sm:px-6 lg:px-8 bg-background">
       <div className="max-w-7xl mx-auto">
-        {/* Typewriter Header */}
-        <div className="text-center mb-8">
-          <h2 className="text-3xl lg:text-5xl font-bold text-foreground mb-4">
-            <span ref={el}></span>
-          </h2>
-        </div>
-
         {/* Features Image */}
         <div className="text-center mb-16">
           <img 
@@ -67,6 +60,13 @@ const InfoSection = () => {
             alt="Features illustration" 
             className="max-w-full h-auto mx-auto"
           />
+        </div>
+
+        {/* Typewriter Header */}
+        <div className="text-center mb-8">
+          <h2 className="text-3xl lg:text-5xl font-bold text-foreground mb-4">
+            <span ref={el}></span>
+          </h2>
         </div>
 
         {/* Main Heading */}
