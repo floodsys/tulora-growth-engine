@@ -1,0 +1,152 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import tuloraLogo from "@/assets/tulora-logo.svg";
+import authIllustration from "@/assets/auth-illustration.jpg";
+
+const Auth = () => {
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    fullName: "",
+    stayLoggedIn: false,
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Handle form submission
+    console.log("Form submitted:", formData);
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex">
+      {/* Left Panel - Form */}
+      <div className="flex-1 flex flex-col justify-center px-8 lg:px-16 max-w-md lg:max-w-lg mx-auto lg:mx-0">
+        {/* Header */}
+        <div className="mb-8">
+          <Link to="/" className="flex items-center mb-8">
+            <img src={tuloraLogo} alt="Tulora" className="h-8 w-auto" />
+          </Link>
+          
+          <Link 
+            to="/"
+            className="text-muted-foreground hover:text-foreground transition-colors text-sm mb-6 inline-block"
+          >
+            ← Go to home
+          </Link>
+          
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            {isSignUp ? "Sign up" : "Sign in"}
+          </h1>
+          <p className="text-muted-foreground">
+            {isSignUp ? "Start free" : "Welcome back!"}
+          </p>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {isSignUp && (
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Full name</Label>
+              <Input
+                id="fullName"
+                name="fullName"
+                type="text"
+                placeholder="First Last"
+                value={formData.fullName}
+                onChange={handleInputChange}
+                required
+              />
+              <p className="text-xs text-muted-foreground">Profile</p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email address</Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              placeholder={isSignUp ? "name@email.com" : "Enter your email..."}
+              value={formData.email}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              placeholder={isSignUp ? "Password" : "Enter password..."}
+              value={formData.password}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+
+          {!isSignUp && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="stayLoggedIn"
+                  checked={formData.stayLoggedIn}
+                  onCheckedChange={(checked) => 
+                    setFormData(prev => ({ ...prev, stayLoggedIn: checked as boolean }))
+                  }
+                />
+                <Label htmlFor="stayLoggedIn" className="text-sm">Stay logged in</Label>
+              </div>
+              <Link 
+                to="/forgot-password" 
+                className="text-sm text-primary hover:underline"
+              >
+                Forgot Password?
+              </Link>
+            </div>
+          )}
+
+          <Button type="submit" className="w-full" size="lg">
+            {isSignUp ? "Sign up" : "Sign in"}
+          </Button>
+        </form>
+
+        {/* Toggle between Sign In/Sign Up */}
+        <div className="mt-6 text-center">
+          <p className="text-muted-foreground text-sm">
+            {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+            <button
+              type="button"
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-primary hover:underline font-medium"
+            >
+              {isSignUp ? "Sign In" : "Get started for free"}
+            </button>
+          </p>
+        </div>
+      </div>
+
+      {/* Right Panel - Image */}
+      <div className="hidden lg:flex flex-1 bg-card">
+        <img
+          src={authIllustration}
+          alt="Dashboard illustration"
+          className="w-full h-full object-cover"
+        />
+      </div>
+    </div>
+  );
+};
+
+export default Auth;
