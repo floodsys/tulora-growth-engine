@@ -13,10 +13,7 @@ const FinalCTA = () => {
           </h2>
           
           {/* Subheadline */}
-          <p className="text-xl text-brand-foreground/90 mb-8 max-w-2xl mx-auto leading-relaxed">
-            Join hundreds of sales teams using Tulora to automate their outreach and 
-            focus on what matters most—closing deals.
-          </p>
+          <p className="text-xl text-brand-foreground/90 mb-8 max-w-2xl mx-auto leading-relaxed">Elevate your business to new heights of success with AI today!</p>
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
