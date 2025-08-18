@@ -64,12 +64,16 @@ serve(async (req) => {
     console.log(`${method} request for agent: ${agentId}`)
 
     if (method === 'GET') {
+      console.log('Attempting to fetch agent with ID:', agentId)
+      
       // Get agent profile
       const { data: agent, error } = await supabase
         .from('agent_profiles')
         .select('*')
         .eq('id', agentId)
         .maybeSingle()
+
+      console.log('Database query result:', { agent, error })
 
       if (error) {
         console.error('Error fetching agent:', error)
@@ -188,6 +192,8 @@ serve(async (req) => {
     )
   } catch (error) {
     console.error('Unexpected error:', error)
+    console.error('Error stack:', error.stack)
+    console.error('Error message:', error.message)
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { 

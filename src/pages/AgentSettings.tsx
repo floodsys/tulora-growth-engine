@@ -99,6 +99,7 @@ const AgentSettings = () => {
       if (!agentId) return
 
       console.log('Loading agent with ID:', agentId)
+      console.log('Current URL:', window.location.href)
 
       try {
         const { data, error } = await supabase.functions.invoke('agents', {
