@@ -65,14 +65,16 @@ const Hero = () => {
                     <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
                 </Link>
-                <Button 
-                  variant="outline" 
-                  size="lg" 
-                  className="px-8 py-4 text-lg font-semibold bg-white/50 backdrop-blur-sm border-2 border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all duration-300"
-                >
-                  <Play className="mr-2 w-5 h-5" />
-                  Book Demo
-                </Button>
+                <Link to="/talk-to-us">
+                  <Button 
+                    variant="outline" 
+                    size="lg" 
+                    className="px-8 py-4 text-lg font-semibold bg-white/50 backdrop-blur-sm border-2 border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all duration-300"
+                  >
+                    <Play className="mr-2 w-5 h-5" />
+                    Book Demo
+                  </Button>
+                </Link>
               </div>
 
               {/* Social proof */}
