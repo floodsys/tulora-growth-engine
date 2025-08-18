@@ -36,7 +36,7 @@ const Hero = () => {
             <Button size="lg" className="px-8 py-4 text-lg font-semibold bg-primary hover:bg-primary/90">
               Try for free
             </Button>
-            <Button variant="outline" size="lg" className="px-8 py-4 text-lg font-semibold">
+            <Button variant="outline" size="lg" className="px-8 py-4 text-lg font-semibold bg-white text-foreground border-border hover:bg-gray-50">
               Request a demo
             </Button>
           </div>
