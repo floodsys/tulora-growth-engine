@@ -38,10 +38,7 @@ const Security = () => {
             <br />
             AI workers in one secure place.
           </h2>
-          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-            We ensure security and compliance, are GDPR-ready, hold a SOC 2 (Type 2) certification,
-            and give you control over your data storage.
-          </p>
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">We ensure security and compliance, and give you control over your data storage, user permissions, integrations and more.</p>
         </div>
 
         {/* Security Features Grid */}
