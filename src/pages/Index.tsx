@@ -6,6 +6,7 @@ import FeatureCards from "@/components/FeatureCards";
 import LiveDemo from "@/components/LiveDemo";
 import IntegrationsGrid from "@/components/IntegrationsGrid";
 
+import Security from "@/components/Security";
 import FAQ from "@/components/FAQ";
 import FinalCTA from "@/components/FinalCTA";
 import Footer from "@/components/Footer";
@@ -36,7 +37,9 @@ const Index = () => {
         {/* 5. Integrations */}
         <IntegrationsGrid />
         
-        
+        {/* 6. Security */}
+        <Security />
+
         {/* 7. FAQ */}
         <FAQ />
         
