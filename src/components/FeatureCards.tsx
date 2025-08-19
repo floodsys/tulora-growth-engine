@@ -104,7 +104,7 @@ const FeatureCards = () => {
       subtitle: "Content at scale"
     }]
   }];
-  return <section className="py-8 bg-background">
+  return <section id="features" className="py-8 bg-background">
       <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header Section */}
         <div className="text-center mb-12">
