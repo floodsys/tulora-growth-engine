@@ -96,7 +96,7 @@ const Footer = () => {
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-success rounded-full"></div>
                 <span className="text-xs text-muted-foreground">
-                  SOC 2 Type II (In Progress)
+                  SOC 2 Type II
                 </span>
               </div>
             </div>
