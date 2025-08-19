@@ -52,7 +52,7 @@ const FAQ = () => {
             </h2>
             <p className="text-lg text-muted-foreground">
               Everything you need to know about Tulora. Can't find what you're looking for? 
-              <a href="/contact" className="text-brand hover:text-brand-dark font-semibold ml-1">
+              <a href="/talk-to-us" className="text-brand hover:text-brand-dark font-semibold ml-1">
                 Contact our team
               </a>
             </p>
