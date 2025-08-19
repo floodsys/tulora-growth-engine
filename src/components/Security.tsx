@@ -64,8 +64,8 @@ const Security = () => {
             const IconComponent = feature.icon;
             return (
               <div key={index} className="bg-card rounded-lg p-6 border border-border/50 hover:border-primary/20 transition-colors hover:shadow-lg">
-                <div className="mb-4">
-                  <div className="w-12 h-12 mb-4 rounded-lg bg-gradient-to-br from-[#6056FF] to-[#FE7587] flex items-center justify-center">
+                <div className="mb-4 text-center">
+                  <div className="w-12 h-12 mb-4 rounded-lg bg-gradient-to-br from-[#6056FF] to-[#FE7587] flex items-center justify-center mx-auto">
                     <IconComponent className="w-7 h-7 text-white" />
                   </div>
                   <h3 className="text-xl font-semibold text-foreground mb-3">
