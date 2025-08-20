@@ -112,7 +112,7 @@ const LiveDemo = () => {
                       Would you be open to a 15-minute chat about how we've helped similar companies 
                       increase efficiency by 40%?<br /><br />
                       Best,<br />
-                      Alex
+                      Bradley
                     </p>
                   </div>
 
