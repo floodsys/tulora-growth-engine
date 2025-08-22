@@ -1,152 +1,48 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import logo from "@/assets/logo.svg";
-import authIllustration from "@/assets/auth-illustration.jpg";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import { bootstrapUser } from "@/lib/api";
 
-const Auth = () => {
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    fullName: "",
-    stayLoggedIn: false,
-  });
+export default function Auth() {
+  const nav = useNavigate();
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Handle form submission
-    console.log("Form submitted:", formData);
-  };
+  async function submit(kind: "signIn" | "signUp") {
+    setErr(null); setBusy(true);
+    try {
+      const fn = kind === "signIn" ? supabase.auth.signInWithPassword : supabase.auth.signUp;
+      const { error, data } = await fn({ email, password: pw });
+      if (error) throw error;
+      if (!data.session && kind === "signUp") {
+        setErr("Check your email to confirm your account.");
+        return;
+      }
+      await bootstrapUser();          // creates free org, stripe customer, membership, etc.
+      nav("/dashboard", { replace: true });
+    } catch (e:any) {
+      setErr(e.message ?? "Auth failed");
+    } finally { setBusy(false); }
+  }
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Left Panel - Form */}
-      <div className="flex-1 flex flex-col justify-center px-8 lg:px-16 max-w-md lg:max-w-lg mx-auto lg:mx-0">
-        {/* Header */}
-        <div className="mb-8">
-          <Link to="/" className="flex items-center mb-8">
-            <img src={logo} alt="Tulora" className="h-8 w-auto" />
-          </Link>
-          
-          <Link 
-            to="/"
-            className="text-muted-foreground hover:text-foreground transition-colors text-sm mb-6 inline-block"
-          >
-            ← Go to home
-          </Link>
-          
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            {isSignUp ? "Sign up" : "Sign in"}
-          </h1>
-          <p className="text-muted-foreground">
-            {isSignUp ? "Start free" : "Welcome back!"}
-          </p>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {isSignUp && (
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full name</Label>
-              <Input
-                id="fullName"
-                name="fullName"
-                type="text"
-                placeholder="First Last"
-                value={formData.fullName}
-                onChange={handleInputChange}
-                required
-              />
-              <p className="text-xs text-muted-foreground">Profile</p>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email address</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder={isSignUp ? "name@email.com" : "Enter your email..."}
-              value={formData.email}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              placeholder={isSignUp ? "Password" : "Enter password..."}
-              value={formData.password}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
-
-          {!isSignUp && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="stayLoggedIn"
-                  checked={formData.stayLoggedIn}
-                  onCheckedChange={(checked) => 
-                    setFormData(prev => ({ ...prev, stayLoggedIn: checked as boolean }))
-                  }
-                />
-                <Label htmlFor="stayLoggedIn" className="text-sm">Stay logged in</Label>
-              </div>
-              <Link 
-                to="/forgot-password" 
-                className="text-sm text-primary hover:underline"
-              >
-                Forgot Password?
-              </Link>
-            </div>
-          )}
-
-          <Button type="submit" className="w-full" size="lg">
-            {isSignUp ? "Sign up" : "Sign in"}
-          </Button>
-        </form>
-
-        {/* Toggle between Sign In/Sign Up */}
-        <div className="mt-6 text-center">
-          <p className="text-muted-foreground text-sm">
-            {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-            <button
-              type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-primary hover:underline font-medium"
-            >
-              {isSignUp ? "Sign In" : "Get started for free"}
-            </button>
-          </p>
-        </div>
+    <div className="max-w-sm mx-auto p-6 space-y-4">
+      <h1 className="text-2xl font-semibold">Sign in</h1>
+      <input className="w-full border rounded p-2"
+        placeholder="email" value={email} onChange={e=>setEmail(e.target.value)} />
+      <input className="w-full border rounded p-2"
+        placeholder="password" type="password" value={pw} onChange={e=>setPw(e.target.value)} />
+      <div className="flex gap-2">
+        <button className="px-4 py-2 border rounded" disabled={busy} onClick={()=>submit("signIn")}>
+          {busy ? "..." : "Sign in"}
+        </button>
+        <button className="px-4 py-2 border rounded" disabled={busy} onClick={()=>submit("signUp")}>
+          {busy ? "..." : "Sign up"}
+        </button>
       </div>
-
-      {/* Right Panel - Image */}
-      <div className="hidden lg:flex flex-1 bg-card">
-        <img
-          src={authIllustration}
-          alt="Dashboard illustration"
-          className="w-full h-full object-cover"
-        />
-      </div>
+      {err && <p className="text-red-600">{err}</p>}
     </div>
   );
-};
-
-export default Auth;
+}
