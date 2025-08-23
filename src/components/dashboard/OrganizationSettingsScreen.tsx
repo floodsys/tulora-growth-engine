@@ -9,6 +9,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Trash2, Plus, Minus } from "lucide-react"
+import { IntegrationsSettings } from "./settings/IntegrationsSettings"
+import { BillingSettings } from "./settings/BillingSettings"
+import { OrganizationDangerZone } from "./settings/OrganizationDangerZone"
 
 // Mock data
 const memberSeats = [
@@ -245,27 +248,12 @@ export function OrganizationSettingsScreen() {
             </Card>
           </div>
         )
+      case "integrations":
+        return <IntegrationsSettings />
       case "billing":
-        return (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Billing Information</CardTitle>
-                <CardDescription>Manage your subscription and billing preferences</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-4 bg-muted rounded-lg">
-                  <div className="text-sm font-medium">Current Plan: Professional</div>
-                  <div className="text-sm text-muted-foreground">$29/month • Next billing: Jan 15, 2024</div>
-                </div>
-                <div className="flex space-x-2">
-                  <Button>Upgrade Plan</Button>
-                  <Button variant="outline">Manage Billing</Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )
+        return <BillingSettings />
+      case "danger":
+        return <OrganizationDangerZone />
       default:
         return null
     }
@@ -275,11 +263,13 @@ export function OrganizationSettingsScreen() {
     <div className="space-y-6">
       <div className="border-b">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-muted/50">
+          <TabsList className="grid w-full grid-cols-6 h-auto p-1 bg-muted/50">
             <TabsTrigger value="organization" className="text-xs">ORGANIZATION</TabsTrigger>
             <TabsTrigger value="members" className="text-xs">MEMBERS</TabsTrigger>
             <TabsTrigger value="seats" className="text-xs">SEATS</TabsTrigger>
+            <TabsTrigger value="integrations" className="text-xs">INTEGRATIONS</TabsTrigger>
             <TabsTrigger value="billing" className="text-xs">BILLING</TabsTrigger>
+            <TabsTrigger value="danger" className="text-xs">DANGER ZONE</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>

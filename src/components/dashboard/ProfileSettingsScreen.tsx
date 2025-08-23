@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Switch } from "@/components/ui/switch"
 import { useAuth } from "@/contexts/AuthContext"
+import { NotificationSettings } from "./settings/NotificationSettings"
+import { SecuritySettings } from "./settings/SecuritySettings"
+import { PersonalDangerZone } from "./settings/PersonalDangerZone"
 
 export function ProfileSettingsScreen() {
   const { user } = useAuth()
@@ -18,16 +21,10 @@ export function ProfileSettingsScreen() {
     newPassword: "",
     confirmPassword: "",
   })
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
 
   const handleUpdateProfile = () => {
     // TODO: Implement profile update logic
     console.log("Profile update:", formData)
-  }
-
-  const handleToggle2FA = () => {
-    setTwoFactorEnabled(!twoFactorEnabled)
-    // TODO: Implement 2FA toggle logic
   }
 
   const getUserInitials = () => {
@@ -90,99 +87,12 @@ export function ProfileSettingsScreen() {
             </Card>
           </div>
         )
+      case "notifications":
+        return <NotificationSettings />
       case "security":
-        return (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Change Password</CardTitle>
-                <CardDescription>Update your password to keep your account secure</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="currentPassword">Current Password</Label>
-                  <Input
-                    id="currentPassword"
-                    type="password"
-                    value={formData.currentPassword}
-                    onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword">New Password</Label>
-                  <Input
-                    id="newPassword"
-                    type="password"
-                    value={formData.newPassword}
-                    onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  />
-                </div>
-                <Button>Update Password</Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Two-Factor Authentication</CardTitle>
-                <CardDescription>Add an extra layer of security to your account</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <div className="text-sm font-medium">Enable 2FA</div>
-                    <div className="text-sm text-muted-foreground">
-                      Use an authenticator app to secure your account
-                    </div>
-                  </div>
-                  <Switch
-                    checked={twoFactorEnabled}
-                    onCheckedChange={handleToggle2FA}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )
-      case "preferences":
-        return (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Preferences</CardTitle>
-                <CardDescription>Customize your app experience</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <div className="text-sm font-medium">Email Notifications</div>
-                    <div className="text-sm text-muted-foreground">
-                      Receive updates via email
-                    </div>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <div className="text-sm font-medium">Desktop Notifications</div>
-                    <div className="text-sm text-muted-foreground">
-                      Show notifications in your browser
-                    </div>
-                  </div>
-                  <Switch />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )
+        return <SecuritySettings />
+      case "danger":
+        return <PersonalDangerZone />
       default:
         return null
     }
@@ -192,10 +102,11 @@ export function ProfileSettingsScreen() {
     <div className="space-y-6">
       <div className="border-b">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-muted/50">
+          <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-muted/50">
             <TabsTrigger value="profile" className="text-xs">PROFILE</TabsTrigger>
+            <TabsTrigger value="notifications" className="text-xs">NOTIFICATIONS</TabsTrigger>
             <TabsTrigger value="security" className="text-xs">SECURITY</TabsTrigger>
-            <TabsTrigger value="preferences" className="text-xs">PREFERENCES</TabsTrigger>
+            <TabsTrigger value="danger" className="text-xs">DANGER ZONE</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
