@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -8,7 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { Trash2, Plus, Minus } from "lucide-react"
+import { Trash2, Plus, Minus, ShieldX } from "lucide-react"
+import { useUserRole } from "@/hooks/useUserRole"
 import { IntegrationsSettings } from "./settings/IntegrationsSettings"
 import { BillingSettings } from "./settings/BillingSettings"
 import { OrganizationDangerZone } from "./settings/OrganizationDangerZone"
@@ -24,6 +26,10 @@ const memberSeats = [
 const seatData = { total: 10, used: 3, available: 7 }
 
 export function OrganizationSettingsScreen() {
+  // For now using mock org ID - this should be replaced with actual current org
+  const currentOrgId = "1" // This should come from a context or state management
+  const { isOwner, isLoading, role } = useUserRole(currentOrgId)
+  
   const [activeTab, setActiveTab] = useState("organization")
   const [orgData, setOrgData] = useState({
     name: "My Organization",
@@ -31,6 +37,36 @@ export function OrganizationSettingsScreen() {
     industry: "Technology",
   })
   const [newSeatCount, setNewSeatCount] = useState(seatData.total)
+
+  // Show permission error if user is not an owner
+  if (!isLoading && !isOwner) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold mb-2">Organization Settings</h1>
+          <p className="text-muted-foreground mb-6">Access restricted</p>
+        </div>
+        <Alert className="border-destructive">
+          <ShieldX className="h-4 w-4" />
+          <AlertDescription>
+            Only organization owners have access to organization settings. 
+            {role && ` Your current role is: ${role}.`} Please contact your organization owner if you need to make changes.
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold mb-2">Organization Settings</h1>
+          <p className="text-muted-foreground mb-6">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
   const handleUpdateOrg = () => {
     // TODO: Implement organization update logic

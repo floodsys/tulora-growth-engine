@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/contexts/AuthContext"
+import { useUserRole } from "@/hooks/useUserRole"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,9 +22,10 @@ interface ProfileAvatarProps {
 
 export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarProps) {
   const { user, signOut } = useAuth()
-
-  // TODO: Get user role from auth context - for now assume owner
-  const isOwner = true
+  
+  // For now using mock org ID - this should be replaced with actual current org
+  const currentOrgId = "1" // This should come from a context or state management
+  const { isOwner, isLoading } = useUserRole(currentOrgId)
 
   const handleSignOut = async () => {
     try {
