@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -19,7 +19,8 @@ import {
   TrendingUp,
   CreditCard,
   ExternalLink,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from "lucide-react"
 import { DateRangePicker } from "./widgets/DateRangePicker"
 import { DateRange } from "react-day-picker"
@@ -51,6 +52,15 @@ interface UsageEvent {
     tokens?: number
     minutes?: number
   }
+}
+
+interface BillingStatus {
+  billing_status: string
+  current_period_end: string | null
+  price_id: string | null
+  quantity: number
+  plan_key: string | null
+  billing_tier: string
 }
 
 const mockUsageData: UsageData = {
@@ -105,7 +115,43 @@ export function UsageBilling() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [usageEvents, setUsageEvents] = useState(mockUsageEvents)
   const [isSyncing, setIsSyncing] = useState(false)
+  const [isUpgrading, setIsUpgrading] = useState(false)
+  const [isOpeningPortal, setIsOpeningPortal] = useState(false)
+  const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null)
+  const [isLoadingBilling, setIsLoadingBilling] = useState(true)
   const { toast } = useToast()
+
+  // TODO: Get actual org ID from context/auth
+  const currentOrgId = "temp-org-id"
+
+  
+  // Load billing status on component mount
+  useEffect(() => {
+    fetchBillingStatus()
+  }, [currentOrgId])
+
+  const fetchBillingStatus = async () => {
+    try {
+      setIsLoadingBilling(true)
+      
+      const { data, error } = await supabase.functions.invoke('check-org-billing', {
+        body: { orgId: currentOrgId }
+      })
+
+      if (error) throw error
+
+      setBillingStatus(data)
+    } catch (error: any) {
+      console.error('Error fetching billing status:', error)
+      toast({
+        title: "Error loading billing status",
+        description: error.message || "Failed to load billing information",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingBilling(false)
+    }
+  }
 
   const getUsagePercentage = (used: number, limit: number) => {
     return (used / limit) * 100
@@ -141,15 +187,98 @@ export function UsageBilling() {
     }
   }
 
+  const getBillingStatusBadge = () => {
+    if (!billingStatus) return null
+    
+    switch (billingStatus.billing_status) {
+      case 'active':
+        return <Badge className="bg-green-500 text-white">Pro Plan</Badge>
+      case 'trialing':
+        return <Badge className="bg-blue-500 text-white">Trial</Badge>
+      case 'past_due':
+        return <Badge className="bg-yellow-500 text-white">Payment Required</Badge>
+      case 'canceled':
+      case 'inactive':
+      default:
+        return <Badge variant="outline">Free Plan</Badge>
+    }
+  }
+
+  const shouldShowUpgradeCTA = () => {
+    return !billingStatus || !['active', 'trialing'].includes(billingStatus.billing_status)
+  }
+
+  const handleUpgrade = async (interval: 'month' | 'year' = 'month') => {
+    try {
+      setIsUpgrading(true)
+      
+      // Use appropriate price ID based on interval
+      const priceId = interval === 'year' 
+        ? process.env.PRICE_ID_PRO_YEARLY || 'price_yearly_placeholder'
+        : process.env.PRICE_ID_PRO_MONTHLY || 'price_monthly_placeholder'
+      
+      const { data, error } = await supabase.functions.invoke('create-org-checkout', {
+        body: { 
+          orgId: currentOrgId,
+          priceId: priceId,
+          seats: billingStatus?.quantity || 1
+        }
+      })
+
+      if (error) throw error
+
+      // Open Stripe Checkout in new tab
+      window.open(data.url, '_blank')
+      
+      toast({
+        title: "Redirecting to checkout",
+        description: "Opening Stripe checkout in a new tab...",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error starting checkout",
+        description: error.message || "Failed to start checkout process",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUpgrading(false)
+    }
+  }
+
+  const handleManageBilling = async () => {
+    try {
+      setIsOpeningPortal(true)
+      
+      const { data, error } = await supabase.functions.invoke('org-customer-portal', {
+        body: { orgId: currentOrgId }
+      })
+
+      if (error) throw error
+
+      // Open Stripe Customer Portal in new tab
+      window.open(data.url, '_blank')
+      
+      toast({
+        title: "Opening billing portal",
+        description: "Redirecting to Stripe billing portal...",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error opening billing portal",
+        description: error.message || "Failed to access billing portal",
+        variant: "destructive",
+      })
+    } finally {
+      setIsOpeningPortal(false)
+    }
+  }
+
   const handleSyncSeats = async () => {
     try {
       setIsSyncing(true)
       
-      // TODO: Get current org ID from context/state
-      const orgId = "temp-org-id" // Replace with actual org ID
-      
       const { data, error } = await supabase.functions.invoke('org-update-seats', {
-        body: { orgId }
+        body: { orgId: currentOrgId }
       })
 
       if (error) throw error
@@ -158,6 +287,9 @@ export function UsageBilling() {
         title: "Seats synced successfully",
         description: data.message,
       })
+      
+      // Refresh billing status after sync
+      await fetchBillingStatus()
     } catch (error: any) {
       toast({
         title: "Error syncing seats",
@@ -178,7 +310,10 @@ export function UsageBilling() {
             Monitor your usage and manage your subscription
           </p>
         </div>
-        <DateRangePicker value={dateRange} onChange={setDateRange} />
+        <div className="flex items-center gap-3">
+          {getBillingStatusBadge()}
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
+        </div>
       </div>
 
       {/* Current Plan */}
@@ -187,37 +322,88 @@ export function UsageBilling() {
           <div className="flex justify-between items-center">
             <CardTitle className="flex items-center gap-2">
               <Crown className="h-5 w-5 text-warning" />
-              Current Plan: {mockUsageData.currentPlan}
+              Current Plan: {billingStatus?.billing_tier || 'Free'}
+              {isLoadingBilling && (
+                <RefreshCw className="h-4 w-4 animate-spin ml-2" />
+              )}
             </CardTitle>
             <div className="flex gap-2">
               <Button variant="outline" onClick={handleSyncSeats} disabled={isSyncing}>
                 <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
                 Sync Seats
               </Button>
-              <Button>
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Manage Subscription
-              </Button>
+              {billingStatus?.billing_status === 'active' ? (
+                <Button onClick={handleManageBilling} disabled={isOpeningPortal}>
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  {isOpeningPortal ? 'Opening...' : 'Manage Subscription'}
+                </Button>
+              ) : (
+                <Button onClick={() => handleUpgrade('month')} disabled={isUpgrading}>
+                  <Crown className="h-4 w-4 mr-2" />
+                  {isUpgrading ? 'Processing...' : 'Upgrade Now'}
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Billing Cycle</p>
-              <p className="font-medium capitalize">{mockUsageData.billingCycle}</p>
+              <p className="text-sm text-muted-foreground mb-1">Billing Status</p>
+              <p className="font-medium capitalize">{billingStatus?.billing_status || 'Loading...'}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Next Billing Date</p>
-              <p className="font-medium">{format(mockUsageData.nextBillingDate, "MMM d, yyyy")}</p>
+              <p className="text-sm text-muted-foreground mb-1">Current Period End</p>
+              <p className="font-medium">
+                {billingStatus?.current_period_end 
+                  ? format(new Date(billingStatus.current_period_end), "MMM d, yyyy")
+                  : 'N/A'
+                }
+              </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Current Month Spend</p>
-              <p className="font-medium text-lg">${mockUsageData.currentSpend.toFixed(2)}</p>
+              <p className="text-sm text-muted-foreground mb-1">Seats</p>
+              <p className="font-medium text-lg">{billingStatus?.quantity || 0}</p>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Paywall/Upgrade CTA */}
+      {shouldShowUpgradeCTA() && (
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <AlertTriangle className="h-8 w-8 text-yellow-600" />
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-yellow-900">Upgrade Required</h3>
+                <p className="text-yellow-700">
+                  {billingStatus?.billing_status === 'past_due' 
+                    ? 'Your payment is past due. Please update your billing information.'
+                    : 'Upgrade to Pro to unlock unlimited features and remove restrictions.'
+                  }
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleUpgrade('month')}
+                  disabled={isUpgrading}
+                >
+                  Monthly Plan
+                </Button>
+                <Button 
+                  onClick={() => handleUpgrade('year')}
+                  disabled={isUpgrading}
+                  className="bg-yellow-600 hover:bg-yellow-700"
+                >
+                  Yearly Plan (Save 20%)
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Usage Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -245,7 +431,6 @@ export function UsageBilling() {
             </div>
           </CardContent>
         </Card>
-
         {/* Calls Count */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -297,23 +482,25 @@ export function UsageBilling() {
         </Card>
       </div>
 
-      {/* Upgrade CTA */}
-      <Card className="bg-gradient-brand text-white">
-        <CardContent className="p-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Ready to scale up?</h3>
-              <p className="text-white/90">
-                Upgrade to Enterprise for unlimited calls, advanced AI features, and priority support.
-              </p>
+      {/* Upgrade CTA - Only show if user has active subscription */}
+      {billingStatus?.billing_status === 'active' && (
+        <Card className="bg-gradient-brand text-white">
+          <CardContent className="p-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Ready to scale up?</h3>
+                <p className="text-white/90">
+                  Add more seats or upgrade to Enterprise for unlimited calls, advanced AI features, and priority support.
+                </p>
+              </div>
+              <Button variant="secondary" className="bg-white text-primary hover:bg-white/90">
+                <Crown className="h-4 w-4 mr-2" />
+                Scale Up
+              </Button>
             </div>
-            <Button variant="secondary" className="bg-white text-primary hover:bg-white/90">
-              <Crown className="h-4 w-4 mr-2" />
-              Upgrade Now
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Usage Events */}
       <Card>
