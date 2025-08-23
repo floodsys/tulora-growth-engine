@@ -8,7 +8,8 @@ const corsHeaders = {
 }
 
 interface CheckoutRequest {
-  interval: 'month' | 'year'  // Use interval instead of priceId for cleaner API
+  planKey: 'pro' | 'business'
+  interval: 'month' | 'year'
   orgId: string
   seats: number
 }
@@ -42,14 +43,14 @@ serve(async (req) => {
     const { data: userData, error: userError } = await supabase.auth.getUser(token)
     if (userError || !userData.user) throw new Error('User not authenticated')
 
-    const { interval, orgId, seats }: CheckoutRequest = await req.json()
-    logStep('Request data', { interval, orgId, seats })
+    const { planKey, interval, orgId, seats }: CheckoutRequest = await req.json()
+    logStep('Request data', { planKey, interval, orgId, seats })
 
     // Verify user has admin access to this org
     const { data: membership } = await supabase
       .from('organization_members')
       .select('role')
-      .eq('org_id', orgId)
+      .eq('organization_id', orgId)
       .eq('user_id', userData.user.id)
       .single()
 
@@ -86,16 +87,39 @@ serve(async (req) => {
       logStep('Created new Stripe customer', { customerId })
     }
 
-    // Map interval to price ID from environment variables
-    const priceId = interval === 'year' 
-      ? Deno.env.get('PRICE_ID_PRO_YEARLY')
-      : Deno.env.get('PRICE_ID_PRO_MONTHLY')
-    
-    if (!priceId) {
-      throw new Error(`Price ID not configured for interval: ${interval}`)
+    // Get plan configuration and determine price ID
+    const { data: planConfig, error: planError } = await supabase
+      .from('plan_configs')
+      .select('*')
+      .eq('plan_key', planKey)
+      .eq('is_active', true)
+      .single()
+
+    if (planError || !planConfig) {
+      throw new Error(`Plan ${planKey} not found or inactive`)
     }
 
-    logStep('Using price ID', { interval, priceId })
+    const priceIdField = interval === 'month' ? 'stripe_price_id_monthly' : 'stripe_price_id_yearly'
+    let priceId = planConfig[priceIdField]
+
+    // Fallback to environment variables for price IDs
+    if (!priceId) {
+      if (planKey === 'pro') {
+        priceId = interval === 'month' 
+          ? Deno.env.get('PRICE_ID_PRO_MONTHLY')
+          : Deno.env.get('PRICE_ID_PRO_YEARLY')
+      } else if (planKey === 'business') {
+        priceId = interval === 'month'
+          ? Deno.env.get('PRICE_ID_BUSINESS_MONTHLY')
+          : Deno.env.get('PRICE_ID_BUSINESS_YEARLY')
+      }
+    }
+
+    if (!priceId) {
+      throw new Error(`No Stripe price ID configured for ${planKey} ${interval}ly`)
+    }
+
+    logStep('Using price ID', { planKey, interval, priceId })
 
     // Create checkout session
     const origin = req.headers.get('origin') || 'http://localhost:3000'
@@ -111,14 +135,15 @@ serve(async (req) => {
       success_url: `${origin}/dashboard?checkout_success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/dashboard?checkout_canceled=true`,
       metadata: {
-        org_id: orgId,
+        organization_id: orgId,
+        plan_key: planKey,
         seats: seats.toString(),
         interval: interval
       },
       subscription_data: {
         metadata: {
-          org_id: orgId,
-          interval: interval
+          organization_id: orgId,
+          plan_key: planKey
         }
       }
     })

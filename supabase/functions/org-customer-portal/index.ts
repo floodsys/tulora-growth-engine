@@ -47,7 +47,7 @@ serve(async (req) => {
     const { data: membership } = await supabase
       .from('organization_members')
       .select('role')
-      .eq('org_id', orgId)
+      .eq('organization_id', orgId)
       .eq('user_id', userData.user.id)
       .single()
 

@@ -112,8 +112,8 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
       status: subscription.status 
     })
 
-    // Primary: Resolve org via subscription.metadata.org_id
-    let orgId = subscription.metadata.org_id
+    // Primary: Resolve org via subscription.metadata.organization_id
+    let orgId = subscription.metadata.organization_id || subscription.metadata.org_id
     
     // Fallback: Map customer → organizations.stripe_customer_id
     if (!orgId && subscription.customer) {

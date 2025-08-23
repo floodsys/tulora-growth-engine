@@ -7,57 +7,56 @@ import { Check, Sparkles, Star } from "lucide-react";
 const PricingTable = () => {
   const [billingCycle, setBillingCycle] = useState("monthly");
   
-  // High-ticket model: No Free plan, premium pricing
+  // Professional pricing: Pro and Business plans only
   const plans = [{
-    name: "Starter",
+    name: "Pro",
     price: {
-      monthly: 497,
-      yearly: 4970
+      monthly: 99,
+      yearly: 1069
     },
-    description: "Perfect for growing sales teams",
+    description: "Perfect for growing teams",
     features: [
-      "5 AI agents", 
-      "10 team seats", 
-      "1,000 calls/month", 
-      "25GB storage",
-      "Advanced calendar coordination", 
+      "10 AI agents", 
+      "20 team seats", 
+      "5,000 calls/month", 
+      "100GB storage",
+      "Advanced analytics", 
       "Voice & SMS integrations", 
-      "Basic analytics & reporting", 
+      "CRM integrations", 
       "Email support",
-      "Knowledge base access",
-      "Basic CRM integration"
+      "Knowledge base access"
     ],
     limitations: [],
-    cta: "Start 14-day trial",
+    cta: "Upgrade to Pro",
     ctaVariant: "outline" as const,
-    popular: false
+    popular: false,
+    planKey: "pro"
   }, {
     name: "Business",
     price: {
-      monthly: 1497,
-      yearly: 14970
+      monthly: 299,
+      yearly: 3229
     },
-    description: "For enterprise sales operations",
+    description: "For enterprise operations",
     features: [
       "Unlimited AI agents", 
       "Unlimited team seats", 
       "Unlimited calls", 
       "500GB storage",
-      "Advanced calendar coordination", 
+      "Advanced analytics", 
       "Voice & SMS integrations", 
-      "Advanced analytics & reporting", 
+      "All CRM integrations",
+      "White-label options",
+      "API access", 
       "Priority support",
       "Account manager",
-      "All CRM integrations", 
-      "A/B testing",
-      "White-label options",
-      "API access",
       "Custom integrations"
     ],
     limitations: [],
-    cta: "Start 14-day trial",
+    cta: "Upgrade to Business",
     ctaVariant: "default" as const,
-    popular: true
+    popular: true,
+    planKey: "business"
   }];
   return <section id="pricing" className="py-20 bg-gradient-subtle">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -121,7 +120,18 @@ const PricingTable = () => {
               </div>
 
               {/* CTA */}
-              <Button className={`w-full ${plan.ctaVariant === "default" ? "btn-primary" : "btn-secondary"}`} size="lg" onClick={() => window.location.href = '/signup'}>
+              <Button 
+                className={`w-full ${plan.ctaVariant === "default" ? "btn-primary" : "btn-secondary"}`} 
+                size="lg" 
+                onClick={() => {
+                  // Redirect to signup with plan selection
+                  const params = new URLSearchParams({
+                    plan: plan.planKey,
+                    interval: billingCycle === 'yearly' ? 'year' : 'month'
+                  })
+                  window.location.href = `/signup?${params.toString()}`
+                }}
+              >
                 {plan.cta}
               </Button>
 
