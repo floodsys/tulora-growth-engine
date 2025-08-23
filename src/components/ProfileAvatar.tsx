@@ -1,4 +1,4 @@
-import { User, Building2, LogOut, Settings } from "lucide-react"
+import { User, Building2, LogOut, Settings, Users } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,7 +9,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/contexts/AuthContext"
-import { useUserRole } from "@/hooks/useUserRole"
+import { useOrganizationRole } from "@/hooks/useOrganizationRole"
+import { useNavigate } from "react-router-dom"
 
 interface ProfileAvatarProps {
   activeScreen: string
@@ -18,10 +19,11 @@ interface ProfileAvatarProps {
 
 export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarProps) {
   const { user, signOut } = useAuth()
+  const navigate = useNavigate()
   
   // TODO: Get organization ID from context or props - for now use mock
   const mockOrgId = "mock-org-id" 
-  const { isOwner } = useUserRole(mockOrgId)
+  const { isAdmin } = useOrganizationRole(mockOrgId)
 
   const handleSignOut = async () => {
     try {
@@ -87,14 +89,18 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
             <User className="mr-2 h-4 w-4" />
             <span>Profile Settings</span>
           </DropdownMenuItem>
-          {isOwner && (
-            <DropdownMenuItem 
-              onClick={() => setActiveScreen("organization-settings")}
-              className="cursor-pointer"
-            >
-              <Building2 className="mr-2 h-4 w-4" />
-              <span>Organization Settings</span>
-            </DropdownMenuItem>
+          {isAdmin && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/settings/teams')}>
+                <Users className="mr-2 h-4 w-4" />
+                Teams
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setActiveScreen("organization-settings")}>
+                <Building2 className="mr-2 h-4 w-4" />
+                Organization Settings
+              </DropdownMenuItem>
+            </>
           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem 

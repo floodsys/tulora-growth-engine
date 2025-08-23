@@ -1,61 +1,36 @@
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import Index from "./pages/Index";
-import Dashboard from "./pages/Dashboard";
-import AgentSettings from "./pages/AgentSettings";
-import TalkToUs from "./pages/TalkToUs";
-import Auth from "./pages/Auth";
-import NotFound from "./pages/NotFound";
+import { AuthProvider } from "@/contexts/AuthContext";
+import Index from "@/pages/Index";
+import Dashboard from "@/pages/Dashboard";
+import Auth from "@/pages/Auth";
+import TalkToUs from "@/pages/TalkToUs";
+import NotFound from "@/pages/NotFound";
+import AgentSettings from "@/pages/AgentSettings";
+import TeamsSettings from "@/pages/TeamsSettings";
+import InviteAccept from "@/pages/InviteAccept";
 
-// Protected Route component
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
-  
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  }
-  
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-  
-  return <>{children}</>;
-};
-
-const App = () => (
-  <TooltipProvider>
-    <Toaster />
-    <Sonner />
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Index />} />
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/signin" element={<Navigate to="/auth" replace />} />
-        <Route path="/signup" element={<Navigate to="/auth" replace />} />
-        <Route path="/talk-to-us" element={<TalkToUs />} />
-        <Route 
-          path="/dashboard" 
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/app/agents/:agentId" 
-          element={
-            <ProtectedRoute>
-              <AgentSettings />
-            </ProtectedRoute>
-          } 
-        />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </BrowserRouter>
-  </TooltipProvider>
-);
+function App() {
+  return (
+    <AuthProvider>
+      <TooltipProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/talk-to-us" element={<TalkToUs />} />
+            <Route path="/agent-settings" element={<AgentSettings />} />
+            <Route path="/settings/teams" element={<TeamsSettings />} />
+            <Route path="/invite/accept" element={<InviteAccept />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <Toaster />
+        </Router>
+      </TooltipProvider>
+    </AuthProvider>
+  );
+}
 
 export default App;
