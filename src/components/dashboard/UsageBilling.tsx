@@ -206,7 +206,7 @@ export function UsageBilling() {
       case 'canceled':
       case 'inactive':
       default:
-        return <Badge variant="outline">Free Plan</Badge>
+        return <Badge variant="outline">Starter Plan</Badge>
     }
   }
 
