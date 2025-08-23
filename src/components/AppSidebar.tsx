@@ -69,7 +69,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
                     onClick={() => setActiveScreen(item.url)}
-                    className={`h-8 px-3 ${activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"}`}
+                    className={`h-9 px-3 ${activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"}`}
                   >
                     <item.icon className="h-4 w-4" />
                     {state !== "collapsed" && <span className="ml-3">{item.title}</span>}
