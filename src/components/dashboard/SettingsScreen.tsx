@@ -1,15 +1,8 @@
 import { useState } from "react"
-import { User, Building2, Key, Shield, CreditCard, Trash2, Bell, Camera, Users, Settings2 } from "lucide-react"
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar"
+import { User, Building2, Key, Shield, CreditCard, Trash2, Bell, Users, Settings2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 import { ProfileSettings } from "./settings/ProfileSettings"
 import { NotificationSettings } from "./settings/NotificationSettings"
 import { SecuritySettings } from "./settings/SecuritySettings"
@@ -75,67 +68,73 @@ export function SettingsScreen() {
   }
 
   return (
-    <div className="flex h-full">
-      <Sidebar className="w-64 border-r">
-        <SidebarContent>
-          <div className="p-4">
-            <h2 className="text-lg font-semibold">Settings</h2>
+    <div className="flex h-full max-h-[calc(100vh-8rem)]">
+      {/* Settings Navigation */}
+      <div className="w-64 border-r bg-background">
+        <div className="p-4 border-b">
+          <h2 className="text-lg font-semibold">Settings</h2>
+        </div>
+        
+        <div className="p-4 space-y-6">
+          {/* Personal Settings */}
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground mb-3">Personal Settings</h3>
+            <div className="space-y-1">
+              {personalSettingsItems.map((item) => (
+                <Button
+                  key={item.id}
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "w-full justify-start h-9",
+                    activeSection === item.id && "bg-muted text-primary font-medium"
+                  )}
+                  onClick={() => {
+                    setActiveTab("personal")
+                    setActiveSection(item.id)
+                  }}
+                >
+                  <item.icon className="h-4 w-4 mr-3" />
+                  {item.title}
+                </Button>
+              ))}
+            </div>
           </div>
-          
-          <SidebarGroup>
-            <SidebarGroupLabel className="px-4">Personal Settings</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {personalSettingsItems.map((item) => (
-                  <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton
-                      onClick={() => {
-                        setActiveTab("personal")
-                        setActiveSection(item.id)
-                      }}
-                      className={`${
-                        activeSection === item.id ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
-                      }`}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
 
+          {/* Organization Settings */}
           {isOwner && (
-            <SidebarGroup>
-              <SidebarGroupLabel className="px-4">Organization Settings</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {organizationSettingsItems.map((item) => (
-                    <SidebarMenuItem key={item.id}>
-                      <SidebarMenuButton
-                        onClick={() => {
-                          setActiveTab("organization")
-                          setActiveSection(item.id)
-                        }}
-                        className={`${
-                          activeSection === item.id ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
-                        }`}
-                      >
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground mb-3">Organization Settings</h3>
+              <div className="space-y-1">
+                {organizationSettingsItems.map((item) => (
+                  <Button
+                    key={item.id}
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "w-full justify-start h-9",
+                      activeSection === item.id && "bg-muted text-primary font-medium"
+                    )}
+                    onClick={() => {
+                      setActiveTab("organization")
+                      setActiveSection(item.id)
+                    }}
+                  >
+                    <item.icon className="h-4 w-4 mr-3" />
+                    {item.title}
+                  </Button>
+                ))}
+              </div>
+            </div>
           )}
-        </SidebarContent>
-      </Sidebar>
+        </div>
+      </div>
 
-      <div className="flex-1 p-6">
-        {renderSettingsContent()}
+      {/* Settings Content */}
+      <div className="flex-1 overflow-auto">
+        <div className="p-6">
+          {renderSettingsContent()}
+        </div>
       </div>
     </div>
   )
