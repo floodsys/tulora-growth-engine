@@ -537,6 +537,7 @@ export type Database = {
           cancel_at_period_end: boolean | null
           created_at: string | null
           current_period_end: string | null
+          entitlements: Json | null
           id: string
           name: string
           settings: Json | null
@@ -550,6 +551,7 @@ export type Database = {
           cancel_at_period_end?: boolean | null
           created_at?: string | null
           current_period_end?: string | null
+          entitlements?: Json | null
           id?: string
           name: string
           settings?: Json | null
@@ -563,6 +565,7 @@ export type Database = {
           cancel_at_period_end?: boolean | null
           created_at?: string | null
           current_period_end?: string | null
+          entitlements?: Json | null
           id?: string
           name?: string
           settings?: Json | null

@@ -149,6 +149,24 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
       return
     }
 
+    // Fetch price metadata from Stripe for entitlements
+    const price = await stripe.prices.retrieve(subscriptionItem.price.id)
+    const priceMetadata = price.metadata || {}
+    
+    logStep('Price metadata retrieved', { 
+      priceId: price.id, 
+      metadata: priceMetadata 
+    })
+
+    // Build entitlements from price metadata
+    const entitlements = {
+      plan_key: priceMetadata.plan_key || 'free',
+      limit_agents: parseInt(priceMetadata.limit_agents || '0') || null,
+      limit_seats: parseInt(priceMetadata.limit_seats || '1') || 1,
+      features: priceMetadata.features ? JSON.parse(priceMetadata.features) : [],
+      ...priceMetadata // Include any other metadata fields
+    }
+
     const subscriptionData = {
       stripe_subscription_id: subscription.id,
       subscription_item_id: subscriptionItem.id,
@@ -188,11 +206,13 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
       throw subUpsertError
     }
 
-    // Mirror key fields to organizations table for UI caching
+    // Mirror key fields to organizations table for UI caching, including entitlements
     const organizationUpdates = {
       billing_status: subscription.status,
       current_period_end: subscriptionData.current_period_end,
       cancel_at_period_end: subscriptionData.cancel_at_period_end,
+      entitlements: entitlements,
+      billing_tier: entitlements.plan_key || 'free',
       updated_at: new Date().toISOString()
     }
 

@@ -18,6 +18,7 @@ interface BillingStatus {
   quantity: number
   plan_key: string | null
   billing_tier: string
+  entitlements: Record<string, any>
 }
 
 const logStep = (step: string, details?: any) => {
@@ -64,10 +65,10 @@ serve(async (req) => {
       throw new Error('No access to organization')
     }
 
-    // Get organization details including cached billing info
+    // Get organization details including cached billing info and entitlements
     const { data: org } = await supabase
       .from('organizations')
-      .select('stripe_customer_id, billing_status, billing_tier, current_period_end, cancel_at_period_end')
+      .select('stripe_customer_id, billing_status, billing_tier, current_period_end, cancel_at_period_end, entitlements')
       .eq('id', orgId)
       .single()
 
@@ -89,7 +90,8 @@ serve(async (req) => {
       price_id: null,
       quantity: 0,
       plan_key: null,
-      billing_tier: org.billing_tier || 'free'
+      billing_tier: org.billing_tier || 'free',
+      entitlements: org.entitlements || {}
     }
 
     // If we have a subscription in the database, use it as base
@@ -100,7 +102,8 @@ serve(async (req) => {
         price_id: dbSubscription.price_id,
         quantity: dbSubscription.quantity || 0,
         plan_key: null, // Will fetch from Stripe
-        billing_tier: org.billing_tier || 'free'
+        billing_tier: org.billing_tier || 'free',
+        entitlements: org.entitlements || {}
       }
       
       logStep('Using database subscription data', {
@@ -123,13 +126,23 @@ serve(async (req) => {
           // Get price details including metadata
           const price = await stripe.prices.retrieve(subscriptionItem.price.id)
           
+          // Build fresh entitlements from price metadata
+          const entitlements = {
+            plan_key: price.metadata?.plan_key || 'free',
+            limit_agents: parseInt(price.metadata?.limit_agents || '0') || null,
+            limit_seats: parseInt(price.metadata?.limit_seats || '1') || 1,
+            features: price.metadata?.features ? JSON.parse(price.metadata.features) : [],
+            ...price.metadata // Include any other metadata fields
+          }
+          
           billingStatus = {
             billing_status: subscription.status,
             current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
             price_id: price.id,
             quantity: subscriptionItem.quantity || 0,
             plan_key: price.metadata?.plan_key || null,
-            billing_tier: org.billing_tier || 'free'
+            billing_tier: entitlements.plan_key || 'free',
+            entitlements
           }
           
           logStep('Updated from Stripe with plan metadata', {
