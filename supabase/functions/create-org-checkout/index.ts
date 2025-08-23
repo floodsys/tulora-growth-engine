@@ -90,6 +90,7 @@ serve(async (req) => {
     const origin = req.headers.get('origin') || 'http://localhost:3000'
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
+      client_reference_id: orgId, // For reliable org mapping
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [{

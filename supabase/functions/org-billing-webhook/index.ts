@@ -52,7 +52,7 @@ serve(async (req) => {
         
         if (session.mode === 'subscription' && session.subscription) {
           const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
-          await handleSubscriptionUpdate(supabase, subscription)
+          await handleSubscriptionUpdate(supabase, stripe, subscription)
         }
         break
       }
@@ -66,16 +66,22 @@ serve(async (req) => {
           subscriptionId: subscription.id,
           status: subscription.status 
         })
-        await handleSubscriptionUpdate(supabase, subscription)
+        await handleSubscriptionUpdate(supabase, stripe, subscription)
         break
       }
 
-      case 'invoice.payment_succeeded':
+      case 'invoice.paid':
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice
+        logStep('Invoice event', { 
+          type: event.type, 
+          invoiceId: invoice.id,
+          subscriptionId: invoice.subscription 
+        })
+        
         if (invoice.subscription) {
           const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string)
-          await handleSubscriptionUpdate(supabase, subscription)
+          await handleSubscriptionUpdate(supabase, stripe, subscription)
         }
         break
       }
@@ -99,40 +105,71 @@ serve(async (req) => {
   }
 })
 
-async function handleSubscriptionUpdate(supabase: any, subscription: Stripe.Subscription) {
-  logStep('Handling subscription update', { 
-    subscriptionId: subscription.id,
-    status: subscription.status 
-  })
-
-  const orgId = subscription.metadata.org_id
-  if (!orgId) {
-    logStep('No org_id in subscription metadata')
-    return
-  }
-
-  // Get subscription item (first one - assuming single line item for seats)
-  const subscriptionItem = subscription.items.data[0]
-  const quantity = subscriptionItem?.quantity || 1
-
-  // Update organizations table
-  await supabase
-    .from('organizations')
-    .update({
-      billing_status: subscription.status,
-      billing_tier: subscription.status === 'active' ? 'pro' : 'free',
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      cancel_at_period_end: subscription.cancel_at_period_end,
+async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscription: Stripe.Subscription) {
+  try {
+    logStep('Handling subscription update', { 
+      subscriptionId: subscription.id,
+      status: subscription.status 
     })
-    .eq('id', orgId)
 
-  // Upsert subscription record
-  await supabase
-    .from('org_subscriptions')
-    .upsert({
+    // Get org ID - prefer subscription metadata, fallback to customer mapping
+    let orgId = subscription.metadata.org_id
+    
+    if (!orgId && subscription.customer) {
+      logStep('No org_id in subscription metadata, looking up via customer')
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('stripe_customer_id', subscription.customer)
+        .single()
+      
+      if (org) {
+        orgId = org.id
+        logStep('Found org via customer mapping', { orgId, customerId: subscription.customer })
+      }
+    }
+
+    if (!orgId) {
+      logStep('ERROR: Cannot map subscription to organization', { 
+        subscriptionId: subscription.id,
+        customerId: subscription.customer 
+      })
+      return
+    }
+
+    // Get subscription item (first one - assuming single line item for seats)
+    const subscriptionItem = subscription.items.data[0]
+    const quantity = subscriptionItem?.quantity || 1
+
+    logStep('Processing subscription data', {
+      orgId,
+      subscriptionId: subscription.id,
+      status: subscription.status,
+      quantity,
+      priceId: subscriptionItem?.price?.id
+    })
+
+    // Update organizations table (cache for UI)
+    const { error: orgUpdateError } = await supabase
+      .from('organizations')
+      .update({
+        billing_status: subscription.status,
+        billing_tier: subscription.status === 'active' ? 'pro' : 'free',
+        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        cancel_at_period_end: subscription.cancel_at_period_end,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orgId)
+
+    if (orgUpdateError) {
+      logStep('ERROR updating organizations table', { error: orgUpdateError })
+    }
+
+    // Upsert subscription record with idempotency
+    const subscriptionData = {
       org_id: orgId,
       stripe_subscription_id: subscription.id,
-      product_id: subscriptionItem?.price?.product,
+      product_id: subscriptionItem?.price?.product as string,
       price_id: subscriptionItem?.price?.id,
       subscription_item_id: subscriptionItem?.id,
       status: subscription.status,
@@ -141,9 +178,29 @@ async function handleSubscriptionUpdate(supabase: any, subscription: Stripe.Subs
       current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
       current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
       cancel_at_period_end: subscription.cancel_at_period_end,
-    }, {
-      onConflict: 'stripe_subscription_id'
-    })
+      updated_at: new Date().toISOString()
+    }
 
-  logStep('Subscription updated in database', { orgId, status: subscription.status, quantity })
+    const { error: subUpdateError } = await supabase
+      .from('org_subscriptions')
+      .upsert(subscriptionData, {
+        onConflict: 'stripe_subscription_id'
+      })
+
+    if (subUpdateError) {
+      logStep('ERROR updating org_subscriptions table', { error: subUpdateError })
+    } else {
+      logStep('Successfully updated subscription in database', { 
+        orgId, 
+        status: subscription.status, 
+        quantity 
+      })
+    }
+
+  } catch (error) {
+    logStep('ERROR in handleSubscriptionUpdate', { 
+      error: error instanceof Error ? error.message : String(error),
+      subscriptionId: subscription.id 
+    })
+  }
 }
