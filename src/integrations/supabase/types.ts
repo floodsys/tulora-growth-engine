@@ -630,8 +630,8 @@ export type Database = {
           invite_token: string
           invited_by: string | null
           organization_id: string
-          role: string
-          status: string
+          role: Database["public"]["Enums"]["org_role"]
+          status: Database["public"]["Enums"]["invitation_status"]
         }
         Insert: {
           created_at?: string
@@ -641,8 +641,8 @@ export type Database = {
           invite_token: string
           invited_by?: string | null
           organization_id: string
-          role: string
-          status?: string
+          role: Database["public"]["Enums"]["org_role"]
+          status?: Database["public"]["Enums"]["invitation_status"]
         }
         Update: {
           created_at?: string
@@ -652,8 +652,8 @@ export type Database = {
           invite_token?: string
           invited_by?: string | null
           organization_id?: string
-          role?: string
-          status?: string
+          role?: Database["public"]["Enums"]["org_role"]
+          status?: Database["public"]["Enums"]["invitation_status"]
         }
         Relationships: [
           {
@@ -668,22 +668,25 @@ export type Database = {
       organization_members: {
         Row: {
           created_at: string
+          id: string
           organization_id: string
-          role: string | null
+          role: Database["public"]["Enums"]["org_role"]
           seat_active: boolean | null
           user_id: string
         }
         Insert: {
           created_at?: string
+          id?: string
           organization_id: string
-          role?: string | null
+          role: Database["public"]["Enums"]["org_role"]
           seat_active?: boolean | null
           user_id: string
         }
         Update: {
           created_at?: string
+          id?: string
           organization_id?: string
-          role?: string | null
+          role?: Database["public"]["Enums"]["org_role"]
           seat_active?: boolean | null
           user_id?: string
         }
@@ -695,75 +698,35 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "organization_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       organizations: {
         Row: {
-          billing_status: string | null
-          billing_tier: Database["public"]["Enums"]["billing_tier"]
-          cancel_at_period_end: boolean | null
           created_at: string | null
-          current_period_end: string | null
-          entitlements: Json | null
           id: string
-          is_demo: boolean | null
           name: string
           owner_user_id: string | null
-          plan_key: string | null
-          settings: Json | null
-          slug: string
-          stripe_customer_id: string | null
-          trial_ends_at: string | null
-          trial_started_at: string | null
-          updated_at: string | null
         }
         Insert: {
-          billing_status?: string | null
-          billing_tier?: Database["public"]["Enums"]["billing_tier"]
-          cancel_at_period_end?: boolean | null
           created_at?: string | null
-          current_period_end?: string | null
-          entitlements?: Json | null
           id?: string
-          is_demo?: boolean | null
           name: string
           owner_user_id?: string | null
-          plan_key?: string | null
-          settings?: Json | null
-          slug: string
-          stripe_customer_id?: string | null
-          trial_ends_at?: string | null
-          trial_started_at?: string | null
-          updated_at?: string | null
         }
         Update: {
-          billing_status?: string | null
-          billing_tier?: Database["public"]["Enums"]["billing_tier"]
-          cancel_at_period_end?: boolean | null
           created_at?: string | null
-          current_period_end?: string | null
-          entitlements?: Json | null
           id?: string
-          is_demo?: boolean | null
           name?: string
           owner_user_id?: string | null
-          plan_key?: string | null
-          settings?: Json | null
-          slug?: string
-          stripe_customer_id?: string | null
-          trial_ends_at?: string | null
-          trial_started_at?: string | null
-          updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "organizations_plan_key_fkey"
-            columns: ["plan_key"]
-            isOneToOne: false
-            referencedRelation: "plan_configs"
-            referencedColumns: ["plan_key"]
-          },
-        ]
+        Relationships: []
       }
       plan_configs: {
         Row: {
@@ -1045,6 +1008,7 @@ export type Database = {
     }
     Enums: {
       billing_tier: "free" | "pro"
+      invitation_status: "pending" | "accepted" | "revoked" | "expired"
       org_role: "admin" | "editor" | "viewer" | "user"
       role: "admin" | "editor" | "viewer" | "user"
     }
@@ -1175,6 +1139,7 @@ export const Constants = {
   public: {
     Enums: {
       billing_tier: ["free", "pro"],
+      invitation_status: ["pending", "accepted", "revoked", "expired"],
       org_role: ["admin", "editor", "viewer", "user"],
       role: ["admin", "editor", "viewer", "user"],
     },
