@@ -10,7 +10,12 @@ import NotFound from "@/pages/NotFound";
 import AgentSettings from "@/pages/AgentSettings";
 import TeamsSettings from "@/pages/TeamsSettings";
 import InviteAccept from "@/pages/InviteAccept";
+import InviteAcceptPage from "@/pages/InviteAcceptPage";
 import Demo from "@/pages/Demo";
+import SettingsLayout from "@/pages/SettingsLayout";
+import SettingsPersonal from "@/pages/SettingsPersonal";
+import SettingsTeams from "@/pages/SettingsTeams";
+import SettingsOrganization from "@/pages/SettingsOrganization";
 
 function App() {
   return (
@@ -24,7 +29,13 @@ function App() {
             <Route path="/talk-to-us" element={<TalkToUs />} />
             <Route path="/agent-settings" element={<AgentSettings />} />
             <Route path="/settings/teams" element={<TeamsSettings />} />
+            <Route path="/settings" element={<SettingsLayout />}>
+              <Route path="personal" element={<SettingsPersonal />} />
+              <Route path="teams" element={<SettingsTeams />} />
+              <Route path="organization" element={<SettingsOrganization />} />
+            </Route>
             <Route path="/invite/accept" element={<InviteAccept />} />
+            <Route path="/invite/accept-new" element={<InviteAcceptPage />} />
             <Route path="/demo" element={<Demo />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

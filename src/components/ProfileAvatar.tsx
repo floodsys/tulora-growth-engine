@@ -92,12 +92,16 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
           {(isAdmin || isOwner) && (
             <>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/settings/personal')}>
+                <User className="mr-2 h-4 w-4" />
+                Personal Settings
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate('/settings/teams')}>
                 <Users className="mr-2 h-4 w-4" />
                 Teams
               </DropdownMenuItem>
               {isOwner && (
-                <DropdownMenuItem onClick={() => setActiveScreen("organization-settings")}>
+                <DropdownMenuItem onClick={() => navigate('/settings/organization')}>
                   <Building2 className="mr-2 h-4 w-4" />
                   Organization Settings
                 </DropdownMenuItem>
