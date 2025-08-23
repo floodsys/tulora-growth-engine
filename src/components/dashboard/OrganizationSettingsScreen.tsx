@@ -12,7 +12,8 @@ import { Trash2, Plus, Minus, Shield } from "lucide-react"
 import { IntegrationsSettings } from "./settings/IntegrationsSettings"
 import { BillingSettings } from "./settings/BillingSettings"
 import { OrganizationDangerZone } from "./settings/OrganizationDangerZone"
-import { useUserRole } from "@/hooks/useUserRole"
+import { useOrganizationRole } from "@/hooks/useOrganizationRole"
+import { TeamManagement } from "./TeamManagement"
 
 // Mock data
 const memberSeats = [
@@ -27,7 +28,7 @@ const seatData = { total: 10, used: 3, available: 7 }
 export function OrganizationSettingsScreen() {
   // TODO: Get organization ID from context or props - for now use mock
   const mockOrgId = "mock-org-id"
-  const { isOwner, role, loading } = useUserRole(mockOrgId)
+  const { isAdmin, role, loading } = useOrganizationRole(mockOrgId)
   const [activeTab, setActiveTab] = useState("organization")
   
   // Show permission error for non-owners
@@ -41,7 +42,7 @@ export function OrganizationSettingsScreen() {
     )
   }
 
-  if (!isOwner) {
+  if (!isAdmin) {
     return (
       <div className="space-y-6">
         <Card>
@@ -51,7 +52,7 @@ export function OrganizationSettingsScreen() {
               Access Restricted
             </CardTitle>
             <CardDescription>
-              Only organization owners (admin role) can access organization settings.
+              Only organization admins can access organization settings.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -59,7 +60,7 @@ export function OrganizationSettingsScreen() {
               Your current role: <Badge variant="secondary">{role}</Badge>
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              Contact your organization owner to access these settings or modify your permissions.
+              Contact your organization admin to access these settings or modify your permissions.
             </p>
           </CardContent>
         </Card>
@@ -145,47 +146,7 @@ export function OrganizationSettingsScreen() {
           </div>
         )
       case "members":
-        return (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Team Members</CardTitle>
-                <CardDescription>Manage your organization's team members and their access</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {memberSeats.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarFallback>{member.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">{member.name}</div>
-                          <div className="text-sm text-muted-foreground">{member.email}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <Badge variant={member.role === "Owner" ? "default" : "secondary"}>
-                          {member.role}
-                        </Badge>
-                        {member.role !== "Owner" && (
-                          <Button variant="outline" size="sm">
-                            Remove
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  <Button className="w-full">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Invite Member
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )
+        return <TeamManagement />
       case "seats":
         return (
           <div className="space-y-6">
@@ -309,7 +270,7 @@ export function OrganizationSettingsScreen() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-6 h-auto p-1 bg-muted/50">
             <TabsTrigger value="organization" className="text-xs">ORGANIZATION</TabsTrigger>
-            <TabsTrigger value="members" className="text-xs">MEMBERS</TabsTrigger>
+            <TabsTrigger value="members" className="text-xs">TEAM</TabsTrigger>
             <TabsTrigger value="seats" className="text-xs">SEATS</TabsTrigger>
             <TabsTrigger value="integrations" className="text-xs">INTEGRATIONS</TabsTrigger>
             <TabsTrigger value="billing" className="text-xs">BILLING</TabsTrigger>

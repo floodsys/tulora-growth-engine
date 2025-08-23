@@ -111,12 +111,12 @@ export async function acceptInvitation(membershipId: string, orgId: string) {
       const { error: memberError } = await supabase
         .from('organization_members')
         .upsert({
-          org_id: orgId,
+          organization_id: orgId,
           user_id: userData.user.id,
           seat_active: true,
           role: 'member'
         }, {
-          onConflict: 'org_id,user_id'
+          onConflict: 'organization_id,user_id'
         })
 
       if (memberError) throw memberError
@@ -150,7 +150,7 @@ export async function removeMember(userId: string, orgId: string) {
     const { error: removeError } = await supabase
       .from('organization_members')
       .delete()
-      .eq('org_id', orgId)
+      .eq('organization_id', orgId)
       .eq('user_id', userId)
 
     if (removeError) throw removeError
@@ -191,7 +191,7 @@ export async function toggleSeatActive(userId: string, orgId: string, seatActive
     const { error } = await supabase
       .from('organization_members')
       .update({ seat_active: seatActive })
-      .eq('org_id', orgId)
+      .eq('organization_id', orgId)
       .eq('user_id', userId)
 
     if (error) throw error
