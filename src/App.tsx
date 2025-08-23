@@ -10,6 +10,7 @@ import NotFound from "@/pages/NotFound";
 import AgentSettings from "@/pages/AgentSettings";
 import TeamsSettings from "@/pages/TeamsSettings";
 import InviteAccept from "@/pages/InviteAccept";
+import Demo from "@/pages/Demo";
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
             <Route path="/agent-settings" element={<AgentSettings />} />
             <Route path="/settings/teams" element={<TeamsSettings />} />
             <Route path="/invite/accept" element={<InviteAccept />} />
+            <Route path="/demo" element={<Demo />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />

@@ -2,32 +2,60 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, Star } from "lucide-react";
+
 const PricingTable = () => {
   const [billingCycle, setBillingCycle] = useState("monthly");
+  
+  // High-ticket model: No Free plan, premium pricing
   const plans = [{
-    name: "Free",
+    name: "Starter",
     price: {
-      monthly: 0,
-      yearly: 0
+      monthly: 497,
+      yearly: 4970
     },
-    description: "Perfect for trying out Tulora",
-    features: ["50 AI-generated messages/month", "Basic calendar integration", "Email support", "1 user", "Standard templates"],
-    limitations: ["No advanced personalization", "No voice integrations", "Limited analytics"],
-    cta: "Start free",
+    description: "Perfect for growing sales teams",
+    features: [
+      "5 AI agents", 
+      "10 team seats", 
+      "1,000 calls/month", 
+      "25GB storage",
+      "Advanced calendar coordination", 
+      "Voice & SMS integrations", 
+      "Basic analytics & reporting", 
+      "Email support",
+      "Knowledge base access",
+      "Basic CRM integration"
+    ],
+    limitations: [],
+    cta: "Start 14-day trial",
     ctaVariant: "outline" as const,
     popular: false
   }, {
-    name: "Pro",
+    name: "Business",
     price: {
-      monthly: 89,
-      yearly: 712
+      monthly: 1497,
+      yearly: 14970
     },
-    // $712 = $89 * 12 * 0.67 (33% discount)
-    description: "For growing sales teams",
-    features: ["Unlimited AI messages", "Advanced calendar coordination", "Voice & SMS integrations", "Up to 10 users", "Custom templates & sequences", "Advanced analytics & reporting", "CRM integrations (HubSpot, Salesforce)", "Priority support", "A/B testing"],
+    description: "For enterprise sales operations",
+    features: [
+      "Unlimited AI agents", 
+      "Unlimited team seats", 
+      "Unlimited calls", 
+      "500GB storage",
+      "Advanced calendar coordination", 
+      "Voice & SMS integrations", 
+      "Advanced analytics & reporting", 
+      "Priority support",
+      "Account manager",
+      "All CRM integrations", 
+      "A/B testing",
+      "White-label options",
+      "API access",
+      "Custom integrations"
+    ],
     limitations: [],
-    cta: "Start free trial",
+    cta: "Start 14-day trial",
     ctaVariant: "default" as const,
     popular: true
   }];
@@ -39,7 +67,7 @@ const PricingTable = () => {
             Simple, transparent pricing
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto mb-8 text-2xl">
-            Start free, upgrade when you're ready to scale. No hidden fees, cancel anytime.
+            Professional-grade AI sales automation. 14-day free trial, cancel anytime.
           </p>
 
           {/* Billing Toggle */}
@@ -97,20 +125,34 @@ const PricingTable = () => {
                 {plan.cta}
               </Button>
 
-              {plan.name === "Free" && <p className="text-xs text-muted-foreground text-center mt-3">
-                  No credit card required
-                </p>}
+              <p className="text-xs text-muted-foreground text-center mt-3">
+                No credit card required for trial
+              </p>
             </div>)}
         </div>
 
         {/* Bottom Note */}
         <div className="text-center mt-12">
           <p className="text-muted-foreground">
-            Need enterprise features? 
+            Need custom enterprise solutions? 
             <a href="/contact" className="text-brand hover:text-brand-dark font-semibold ml-1">
               Contact our sales team
             </a>
           </p>
+          
+          {/* Demo Sandbox CTA */}
+          <div className="mt-8 p-6 border border-dashed border-muted-foreground/30 rounded-lg bg-muted/20">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Star className="h-4 w-4 text-yellow-500" />
+              <h3 className="font-semibold">Try Our Demo Sandbox</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Experience our AI sales automation with pre-configured demo agents and sample data
+            </p>
+            <Button variant="outline" onClick={() => window.location.href = '/demo'}>
+              Launch Demo Sandbox
+            </Button>
+          </div>
         </div>
       </div>
     </section>;

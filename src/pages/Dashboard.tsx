@@ -7,9 +7,7 @@ import { KnowledgeBase } from "@/components/dashboard/KnowledgeBase"
 import { Scheduling } from "@/components/dashboard/Scheduling"
 import { UsageBilling } from "@/components/dashboard/UsageBilling"
 import { TeamManagement } from "@/components/dashboard/TeamManagement"
-import { SettingsScreen } from "@/components/dashboard/SettingsScreen"
-import { ProfileSettingsScreen } from "@/components/dashboard/ProfileSettingsScreen"
-import { OrganizationSettingsScreen } from "@/components/dashboard/OrganizationSettingsScreen"
+import { UnifiedSettings } from "@/components/UnifiedSettings"
 import { InviteSystemTests } from "@/components/InviteSystemTests"
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
@@ -66,11 +64,7 @@ const Dashboard = () => {
       case "team":
         return <TeamManagement />
       case "settings":
-        return <SettingsScreen />
-      case "profile-settings":
-        return <ProfileSettingsScreen />
-      case "organization-settings":
-        return <OrganizationSettingsScreen />
+        return <UnifiedSettings organizationId="demo-org-id" />
       case "invite-tests":
         return <InviteSystemTests />
       default:
@@ -90,8 +84,6 @@ const Dashboard = () => {
               <h1 className="text-lg font-semibold capitalize truncate">
                 {activeScreen === "overview" ? "Dashboard" : 
                  activeScreen === "settings" ? "Settings" :
-                 activeScreen === "profile-settings" ? "Profile Settings" :
-                 activeScreen === "organization-settings" ? "Organization Settings" :
                  activeScreen === "invite-tests" ? "Invite System Tests" :
                  activeScreen}
               </h1>
