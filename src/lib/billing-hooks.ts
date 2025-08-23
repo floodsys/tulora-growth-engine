@@ -40,6 +40,40 @@ export async function triggerSeatSync(orgId: string, options?: { showToast?: boo
 }
 
 /**
+ * Start a checkout session for upgrading to Pro
+ */
+export async function startCheckout(orgId: string, interval: 'month' | 'year', seats: number) {
+  try {
+    const { data, error } = await supabase.functions.invoke('create-org-checkout', {
+      body: { 
+        orgId,
+        interval,
+        seats
+      }
+    })
+
+    if (error) throw error
+
+    // Open Stripe Checkout in new tab
+    window.open(data.url, '_blank')
+    
+    toast({
+      title: "Redirecting to checkout",
+      description: `Opening ${interval}ly plan checkout...`,
+    })
+
+    return { success: true, data }
+  } catch (error: any) {
+    toast({
+      title: "Error starting checkout",
+      description: error.message || "Failed to start checkout process",
+      variant: "destructive",
+    })
+    return { success: false, error }
+  }
+}
+
+/**
  * Accept an organization invitation and sync seats
  */
 export async function acceptInvitation(membershipId: string, orgId: string) {

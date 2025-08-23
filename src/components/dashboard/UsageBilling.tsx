@@ -212,15 +212,10 @@ export function UsageBilling() {
     try {
       setIsUpgrading(true)
       
-      // Use appropriate price ID based on interval
-      const priceId = interval === 'year' 
-        ? process.env.PRICE_ID_PRO_YEARLY || 'price_yearly_placeholder'
-        : process.env.PRICE_ID_PRO_MONTHLY || 'price_monthly_placeholder'
-      
       const { data, error } = await supabase.functions.invoke('create-org-checkout', {
         body: { 
           orgId: currentOrgId,
-          priceId: priceId,
+          interval: interval,
           seats: billingStatus?.quantity || 1
         }
       })

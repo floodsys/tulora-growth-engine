@@ -8,7 +8,7 @@ const corsHeaders = {
 }
 
 interface CheckoutRequest {
-  priceId: string  // PRICE_ID_PRO_MONTHLY or PRICE_ID_PRO_YEARLY
+  interval: 'month' | 'year'  // Use interval instead of priceId for cleaner API
   orgId: string
   seats: number
 }
@@ -42,8 +42,8 @@ serve(async (req) => {
     const { data: userData, error: userError } = await supabase.auth.getUser(token)
     if (userError || !userData.user) throw new Error('User not authenticated')
 
-    const { priceId, orgId, seats }: CheckoutRequest = await req.json()
-    logStep('Request data', { priceId, orgId, seats })
+    const { interval, orgId, seats }: CheckoutRequest = await req.json()
+    logStep('Request data', { interval, orgId, seats })
 
     // Verify user has admin access to this org
     const { data: membership } = await supabase
@@ -86,6 +86,17 @@ serve(async (req) => {
       logStep('Created new Stripe customer', { customerId })
     }
 
+    // Map interval to price ID from environment variables
+    const priceId = interval === 'year' 
+      ? Deno.env.get('PRICE_ID_PRO_YEARLY')
+      : Deno.env.get('PRICE_ID_PRO_MONTHLY')
+    
+    if (!priceId) {
+      throw new Error(`Price ID not configured for interval: ${interval}`)
+    }
+
+    logStep('Using price ID', { interval, priceId })
+
     // Create checkout session
     const origin = req.headers.get('origin') || 'http://localhost:3000'
     const session = await stripe.checkout.sessions.create({
@@ -101,11 +112,13 @@ serve(async (req) => {
       cancel_url: `${origin}/dashboard/billing?canceled=true`,
       metadata: {
         org_id: orgId,
-        seats: seats.toString()
+        seats: seats.toString(),
+        interval: interval
       },
       subscription_data: {
         metadata: {
-          org_id: orgId
+          org_id: orgId,
+          interval: interval
         }
       }
     })
