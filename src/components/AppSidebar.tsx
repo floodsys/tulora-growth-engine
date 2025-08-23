@@ -26,6 +26,7 @@ import logo from "@/assets/logo.svg"
 
 
 const items = [
+  { title: "Settings", url: "settings", icon: Settings },
   { title: "Overview", url: "overview", icon: BarChart3 },
   { title: "Calls", url: "calls", icon: Phone },
   { title: "Agents", url: "agents", icon: Bot },
@@ -33,7 +34,6 @@ const items = [
   { title: "Scheduling", url: "scheduling", icon: Calendar },
   { title: "Team", url: "team", icon: Users },
   { title: "Usage & Billing", url: "billing", icon: CreditCard },
-  { title: "Settings", url: "settings", icon: Settings },
 ]
 
 interface AppSidebarProps {
