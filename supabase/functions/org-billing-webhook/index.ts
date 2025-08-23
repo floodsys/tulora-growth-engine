@@ -112,95 +112,116 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
       status: subscription.status 
     })
 
-    // Get org ID - prefer subscription metadata, fallback to customer mapping
+    // Primary: Resolve org via subscription.metadata.org_id
     let orgId = subscription.metadata.org_id
     
+    // Fallback: Map customer → organizations.stripe_customer_id
     if (!orgId && subscription.customer) {
-      logStep('No org_id in subscription metadata, looking up via customer')
-      const { data: org } = await supabase
+      logStep('No org_id in subscription metadata, resolving via customer mapping')
+      
+      const { data: org, error: orgError } = await supabase
         .from('organizations')
         .select('id')
         .eq('stripe_customer_id', subscription.customer)
         .single()
       
-      if (org) {
+      if (orgError) {
+        logStep('Error looking up org by customer', { error: orgError })
+      } else if (org) {
         orgId = org.id
-        logStep('Found org via customer mapping', { orgId, customerId: subscription.customer })
+        logStep('Resolved org via customer mapping', { orgId, customerId: subscription.customer })
       }
     }
 
     if (!orgId) {
-      logStep('ERROR: Cannot map subscription to organization', { 
+      logStep('ERROR: Cannot resolve org for subscription', { 
         subscriptionId: subscription.id,
-        customerId: subscription.customer 
+        customerId: subscription.customer,
+        metadata: subscription.metadata
       })
       return
     }
 
-    // Get subscription item (first one - assuming single line item for seats)
+    // Get subscription item details
     const subscriptionItem = subscription.items.data[0]
-    const quantity = subscriptionItem?.quantity || 1
-
-    logStep('Processing subscription data', {
-      orgId,
-      subscriptionId: subscription.id,
-      status: subscription.status,
-      quantity,
-      priceId: subscriptionItem?.price?.id
-    })
-
-    // Update organizations table (cache for UI)
-    const { error: orgUpdateError } = await supabase
-      .from('organizations')
-      .update({
-        billing_status: subscription.status,
-        billing_tier: subscription.status === 'active' ? 'pro' : 'free',
-        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-        cancel_at_period_end: subscription.cancel_at_period_end,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', orgId)
-
-    if (orgUpdateError) {
-      logStep('ERROR updating organizations table', { error: orgUpdateError })
+    if (!subscriptionItem) {
+      logStep('ERROR: No subscription items found', { subscriptionId: subscription.id })
+      return
     }
 
-    // Upsert subscription record with idempotency
     const subscriptionData = {
-      org_id: orgId,
       stripe_subscription_id: subscription.id,
-      product_id: subscriptionItem?.price?.product as string,
-      price_id: subscriptionItem?.price?.id,
-      subscription_item_id: subscriptionItem?.id,
+      subscription_item_id: subscriptionItem.id,
+      price_id: subscriptionItem.price.id,
       status: subscription.status,
-      quantity: quantity,
-      trial_end: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
+      quantity: subscriptionItem.quantity || 1,
       current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
       current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      cancel_at_period_end: subscription.cancel_at_period_end,
+      trial_end: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
+      cancel_at_period_end: subscription.cancel_at_period_end || false,
       updated_at: new Date().toISOString()
     }
 
-    const { error: subUpdateError } = await supabase
+    logStep('Prepared subscription data', {
+      orgId,
+      subscriptionId: subscription.id,
+      status: subscription.status,
+      quantity: subscriptionData.quantity,
+      priceId: subscriptionData.price_id
+    })
+
+    // Upsert to org_subscriptions with idempotency (stripe_subscription_id is unique)
+    const { error: subUpsertError } = await supabase
       .from('org_subscriptions')
-      .upsert(subscriptionData, {
-        onConflict: 'stripe_subscription_id'
+      .upsert({
+        org_id: orgId,
+        ...subscriptionData
+      }, {
+        onConflict: 'stripe_subscription_id'  // Ensures idempotency
       })
 
-    if (subUpdateError) {
-      logStep('ERROR updating org_subscriptions table', { error: subUpdateError })
-    } else {
-      logStep('Successfully updated subscription in database', { 
-        orgId, 
-        status: subscription.status, 
-        quantity 
+    if (subUpsertError) {
+      logStep('ERROR upserting to org_subscriptions', { 
+        error: subUpsertError,
+        subscriptionId: subscription.id 
       })
+      throw subUpsertError
     }
+
+    // Mirror key fields to organizations table for UI caching
+    const organizationUpdates = {
+      billing_status: subscription.status,
+      current_period_end: subscriptionData.current_period_end,
+      cancel_at_period_end: subscriptionData.cancel_at_period_end,
+      updated_at: new Date().toISOString()
+    }
+
+    const { error: orgUpdateError } = await supabase
+      .from('organizations')
+      .update(organizationUpdates)
+      .eq('id', orgId)
+
+    if (orgUpdateError) {
+      logStep('ERROR updating organizations table', { 
+        error: orgUpdateError,
+        orgId 
+      })
+      throw orgUpdateError
+    }
+
+    logStep('Successfully processed subscription update', { 
+      orgId,
+      subscriptionId: subscription.id,
+      status: subscription.status,
+      quantity: subscriptionData.quantity,
+      priceId: subscriptionData.price_id
+    })
 
   } catch (error) {
     logStep('ERROR in handleSubscriptionUpdate', { 
       error: error instanceof Error ? error.message : String(error),
       subscriptionId: subscription.id 
     })
+    throw error // Re-throw to ensure webhook returns error status
   }
 }
