@@ -1,7 +1,9 @@
 import { useState } from "react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -17,10 +19,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { Search, Phone, Users, MoreHorizontal } from "lucide-react"
+import { Search, Phone, Users, MoreHorizontal, PhoneCall, Clock, TrendingUp, Filter, BarChart3 } from "lucide-react"
 import { TranscriptViewer } from "./widgets/TranscriptViewer"
 import { RecordingPlayer } from "./widgets/RecordingPlayer"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatDistanceToNow } from "date-fns"
 
 interface Call {
@@ -107,7 +108,7 @@ const mockTranscript = [
   }
 ]
 
-export function CallsScreen() {
+const AllCallsTab = () => {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCall, setSelectedCall] = useState<Call | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
@@ -141,91 +142,93 @@ export function CallsScreen() {
   }
 
   const handleRedial = (call: Call) => {
-    // Implement redial logic - reuse context from previous call
     console.log("Redialing with context:", call)
   }
 
   const handleWarmTransfer = (call: Call) => {
-    // Implement warm transfer logic
     console.log("Warm transfer with context:", call)
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">Calls</h2>
-          <p className="text-muted-foreground">
-            View and manage all your call records
-          </p>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>All Calls</CardTitle>
+            </div>
+            <Button variant="outline">
+              <Filter className="h-4 w-4 mr-2" />
+              Filter
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search calls by caller, phone, or outcome..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search calls by caller, phone, or outcome..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
-      {/* Calls Table */}
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Caller</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Outcome</TableHead>
-              <TableHead>Sentiment</TableHead>
-              <TableHead>Duration</TableHead>
-              <TableHead>Owner</TableHead>
-              <TableHead>Time</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredCalls.map((call) => (
-              <TableRow 
-                key={call.id}
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleCallSelect(call)}
-              >
-                <TableCell className="font-medium">{call.caller}</TableCell>
-                <TableCell className="text-muted-foreground">{call.phone}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{call.outcome}</Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge className={getSentimentColor(call.sentiment)}>
-                    {call.sentiment}
-                  </Badge>
-                </TableCell>
-                <TableCell>{formatDuration(call.duration)}</TableCell>
-                <TableCell>{call.owner}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatDistanceToNow(call.timestamp, { addSuffix: true })}
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleCallSelect(call)
-                    }}
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </TableCell>
+          {/* Calls Table */}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Caller</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Outcome</TableHead>
+                <TableHead>Sentiment</TableHead>
+                <TableHead>Duration</TableHead>
+                <TableHead>Owner</TableHead>
+                <TableHead>Time</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {filteredCalls.map((call) => (
+                <TableRow 
+                  key={call.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleCallSelect(call)}
+                >
+                  <TableCell className="font-medium">{call.caller}</TableCell>
+                  <TableCell className="text-muted-foreground">{call.phone}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{call.outcome}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getSentimentColor(call.sentiment)}>
+                      {call.sentiment}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{formatDuration(call.duration)}</TableCell>
+                  <TableCell>{call.owner}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatDistanceToNow(call.timestamp, { addSuffix: true })}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleCallSelect(call)
+                      }}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Call Detail Drawer */}
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
@@ -292,6 +295,127 @@ export function CallsScreen() {
           )}
         </SheetContent>
       </Sheet>
+    </div>
+  )
+}
+
+const AnalyticsTab = () => (
+  <div className="space-y-6">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
+          <Phone className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">1,234</div>
+          <p className="text-xs text-muted-foreground">+10% from last month</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Successful Calls</CardTitle>
+          <PhoneCall className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">892</div>
+          <p className="text-xs text-muted-foreground">+5% from last month</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Avg Duration</CardTitle>
+          <Clock className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">4:32</div>
+          <p className="text-xs text-muted-foreground">+2% from last month</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">72%</div>
+          <p className="text-xs text-muted-foreground">+8% from last month</p>
+        </CardContent>
+      </Card>
+    </div>
+
+    <Card>
+      <CardHeader>
+        <CardTitle>Call Performance Trends</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground">Advanced analytics charts coming soon...</p>
+      </CardContent>
+    </Card>
+  </div>
+)
+
+const ScheduledTab = () => (
+  <div className="space-y-6">
+    <Card>
+      <CardHeader>
+        <CardTitle>Scheduled Calls</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground">No scheduled calls at the moment.</p>
+      </CardContent>
+    </Card>
+  </div>
+)
+
+const ReportsTab = () => (
+  <div className="space-y-6">
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <BarChart3 className="h-5 w-5" />
+          Call Reports
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground">Detailed call reports and exports coming soon...</p>
+      </CardContent>
+    </Card>
+  </div>
+)
+
+export function CallsScreen() {
+  return (
+    <div className="h-full max-h-[calc(100vh-8rem)]">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold">Calls</h1>
+        <p className="text-muted-foreground">Monitor and analyze your call activities</p>
+      </div>
+      
+      <Tabs defaultValue="all" className="h-full flex flex-col">
+        <TabsList className="grid w-full max-w-lg grid-cols-4">
+          <TabsTrigger value="all">ALL CALLS</TabsTrigger>
+          <TabsTrigger value="analytics">ANALYTICS</TabsTrigger>
+          <TabsTrigger value="scheduled">SCHEDULED</TabsTrigger>
+          <TabsTrigger value="reports">REPORTS</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="all" className="flex-1 mt-6">
+          <AllCallsTab />
+        </TabsContent>
+        
+        <TabsContent value="analytics" className="flex-1 mt-6">
+          <AnalyticsTab />
+        </TabsContent>
+        
+        <TabsContent value="scheduled" className="flex-1 mt-6">
+          <ScheduledTab />
+        </TabsContent>
+        
+        <TabsContent value="reports" className="flex-1 mt-6">
+          <ReportsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Table,
   TableBody,
@@ -11,6 +15,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,7 +42,9 @@ import {
   User,
   Mail,
   CheckCircle,
-  XCircle
+  XCircle,
+  Bell,
+  Settings
 } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
@@ -57,10 +70,12 @@ interface PendingInvite {
   email?: string
 }
 
-export function TeamManagement() {
+const TeamMembersTab = () => {
   const [members, setMembers] = useState<TeamMember[]>([])
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [inviteRole, setInviteRole] = useState("member")
   const { toast } = useToast()
 
   // TODO: Get actual org ID from context/auth
@@ -165,19 +180,6 @@ export function TeamManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">Team Management</h2>
-          <p className="text-muted-foreground">
-            Manage your organization members and seat allocations
-          </p>
-        </div>
-        <Button>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Invite Member
-        </Button>
-      </div>
-
       {/* Team Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
@@ -212,6 +214,46 @@ export function TeamManagement() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Invite Member */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5" />
+            Invite Team Member
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="colleague@company.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="role">Role</Label>
+              <Select value={inviteRole} onValueChange={setInviteRole}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Member</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Button>
+            <Mail className="h-4 w-4 mr-2" />
+            Send Invitation
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Pending Invitations */}
       {pendingInvites.length > 0 && (
@@ -336,6 +378,87 @@ export function TeamManagement() {
           </Table>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+const UsersTab = () => (
+  <div className="space-y-6">
+    <Card>
+      <CardHeader>
+        <CardTitle>User Management</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground">Individual user account management coming soon...</p>
+      </CardContent>
+    </Card>
+  </div>
+)
+
+const NotificationOptionsTab = () => (
+  <div className="space-y-6">
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Bell className="h-5 w-5" />
+          Team Notification Settings
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground">Team-wide notification preferences coming soon...</p>
+      </CardContent>
+    </Card>
+  </div>
+)
+
+const VariablesTab = () => (
+  <div className="space-y-6">
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Settings className="h-5 w-5" />
+          Team Variables
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground">Shared team variables and configuration coming soon...</p>
+      </CardContent>
+    </Card>
+  </div>
+)
+
+export function TeamManagement() {
+  return (
+    <div className="h-full max-h-[calc(100vh-8rem)]">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold">My Team</h1>
+        <p className="text-muted-foreground">Manage your team members and settings</p>
+      </div>
+      
+      <Tabs defaultValue="team" className="h-full flex flex-col">
+        <TabsList className="grid w-full max-w-lg grid-cols-4">
+          <TabsTrigger value="team">TEAM</TabsTrigger>
+          <TabsTrigger value="users">USERS</TabsTrigger>
+          <TabsTrigger value="notifications">NOTIFICATION OPTIONS</TabsTrigger>
+          <TabsTrigger value="variables">VARIABLES</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="team" className="flex-1 mt-6">
+          <TeamMembersTab />
+        </TabsContent>
+        
+        <TabsContent value="users" className="flex-1 mt-6">
+          <UsersTab />
+        </TabsContent>
+        
+        <TabsContent value="notifications" className="flex-1 mt-6">
+          <NotificationOptionsTab />
+        </TabsContent>
+        
+        <TabsContent value="variables" className="flex-1 mt-6">
+          <VariablesTab />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

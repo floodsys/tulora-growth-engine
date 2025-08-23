@@ -1,8 +1,10 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Dialog,
   DialogContent,
@@ -20,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Bot, Phone, Star } from "lucide-react"
+import { Bot, Phone, Star, Play, Pause, Settings, Plus, BarChart3, FileText, Zap } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface Agent {
@@ -32,7 +34,6 @@ interface Agent {
   avgDuration: number
   successRate: number
   isDefault: boolean
-  // Extended settings
   prompt?: string
   voice?: string
   language?: string
@@ -98,7 +99,7 @@ const mockAgents: Agent[] = [
   }
 ]
 
-export function AgentsScreen() {
+const AllAgentsTab = () => {
   const navigate = useNavigate()
   const [agents, setAgents] = useState(mockAgents)
   const [testCallOpen, setTestCallOpen] = useState(false)
@@ -135,7 +136,6 @@ export function AgentsScreen() {
     }
 
     try {
-      // Mock API call to /api/retell/dial
       console.log("Dialing with agent:", selectedAgent.retellId, "to:", phoneNumber)
       
       toast({
@@ -174,188 +174,230 @@ export function AgentsScreen() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">AI Agents</h2>
-          <p className="text-muted-foreground">
-            Manage your Retell AI agents and configure settings
-          </p>
-        </div>
-        
-        <Dialog open={testCallOpen} onOpenChange={setTestCallOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Phone className="h-4 w-4 mr-2" />
-              Test Call
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Test Call</DialogTitle>
-              <DialogDescription>
-                Place a test call using one of your AI agents
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="agent">Select Agent</Label>
-                <Select onValueChange={(value) => setSelectedAgent(agents.find(a => a.id === value) || null)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose an agent" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {agents.filter(a => a.status === "active").map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        {agent.name} ({agent.retellId})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  placeholder="+1 (555) 123-4567"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                />
-              </div>
-              
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setTestCallOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleTestCall}>
-                  <Phone className="h-4 w-4 mr-2" />
-                  Start Call
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-
-      {/* Agents Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
-        {agents.map((agent) => (
-          <Card key={agent.id} className="relative">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Bot className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-lg">{agent.name}</CardTitle>
-                  {agent.isDefault && (
-                    <Star className="h-4 w-4 text-warning fill-current" />
-                  )}
-                </div>
-                <Badge className={getStatusColor(agent.status)}>
-                  {agent.status}
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground font-mono">
-                {agent.retellId}
-              </p>
-            </CardHeader>
-            
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Total Calls</p>
-                  <p className="font-semibold">{agent.calls}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Avg Duration</p>
-                  <p className="font-semibold">{formatDuration(agent.avgDuration)}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Success Rate</p>
-                  <p className="font-semibold">{agent.successRate}%</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Status</p>
-                  <p className="font-semibold capitalize">{agent.status}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="col-span-2"
-                  onClick={() => {
-                    setSelectedAgent(agent)
-                    setTestCallOpen(true)
-                  }}
-                  disabled={agent.status !== "active"}
-                >
-                  <Phone className="h-3 w-3 mr-1" />
-                  Test Call
-                </Button>
-                
-                {!agent.isDefault ? (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSetDefault(agent.id)}
-                      className="w-full justify-center"
-                    >
-                      <Star className="h-3 w-3 mr-0" />
-                      Default
-                    </Button>
-                    
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleOpenSettings(agent)}
-                    >
-                      Edit
-                    </Button>
-                  </>
-                ) : (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleOpenSettings(agent)}
-                    className="col-span-2"
-                  >
-                    Edit Settings
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Default Agent Info */}
       <Card>
         <CardHeader>
-          <CardTitle>Organization Settings</CardTitle>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>AI Agents</CardTitle>
+            </div>
+            <div className="flex gap-2">
+              <Dialog open={testCallOpen} onOpenChange={setTestCallOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Phone className="h-4 w-4 mr-2" />
+                    Test Call
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Test Call</DialogTitle>
+                    <DialogDescription>
+                      Place a test call using one of your AI agents
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="agent">Select Agent</Label>
+                      <Select onValueChange={(value) => setSelectedAgent(agents.find(a => a.id === value) || null)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose an agent" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {agents.filter(a => a.status === "active").map((agent) => (
+                            <SelectItem key={agent.id} value={agent.id}>
+                              {agent.name} ({agent.retellId})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Input
+                        id="phone"
+                        placeholder="+1 (555) 123-4567"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setTestCallOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleTestCall}>
+                        <Phone className="h-4 w-4 mr-2" />
+                        Start Call
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Agent
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Default Agent</p>
-              <p className="text-sm text-muted-foreground">
-                The agent used for new outreach campaigns by default
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="font-medium">
-                {agents.find(a => a.isDefault)?.name}
-              </p>
-              <p className="text-sm text-muted-foreground font-mono">
-                {agents.find(a => a.isDefault)?.retellId}
-              </p>
-            </div>
+          <div className="grid gap-4">
+            {agents.map((agent) => (
+              <div key={agent.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-12 w-12">
+                    <AvatarFallback>
+                      <Bot className="h-6 w-6" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold">{agent.name}</h3>
+                      {agent.isDefault && (
+                        <Star className="h-4 w-4 text-warning fill-current" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Badge className={getStatusColor(agent.status)}>
+                        {agent.status}
+                      </Badge>
+                      <span>•</span>
+                      <span>{agent.calls} calls</span>
+                      <span>•</span>
+                      <span>{agent.successRate}% success rate</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm">
+                    {agent.status === "active" ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleOpenSettings(agent)}>
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+const PerformanceTab = () => (
+  <div className="space-y-6">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Agents</CardTitle>
+          <Bot className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">3</div>
+          <p className="text-xs text-muted-foreground">2 active, 1 paused</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
+          <BarChart3 className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">135</div>
+          <p className="text-xs text-muted-foreground">+15% from last week</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Avg Success Rate</CardTitle>
+          <BarChart3 className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">75%</div>
+          <p className="text-xs text-muted-foreground">+5% from last week</p>
+        </CardContent>
+      </Card>
+    </div>
+
+    <Card>
+      <CardHeader>
+        <CardTitle>Agent Performance Metrics</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground">Detailed performance analytics coming soon...</p>
+      </CardContent>
+    </Card>
+  </div>
+)
+
+const TemplatesTab = () => (
+  <div className="space-y-6">
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <FileText className="h-5 w-5" />
+          Agent Templates
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground">Pre-built agent configurations for common use cases coming soon...</p>
+      </CardContent>
+    </Card>
+  </div>
+)
+
+const AutomationTab = () => (
+  <div className="space-y-6">
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Zap className="h-5 w-5" />
+          Agent Automation
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground">Automated agent workflows and triggers coming soon...</p>
+      </CardContent>
+    </Card>
+  </div>
+)
+
+export function AgentsScreen() {
+  return (
+    <div className="h-full max-h-[calc(100vh-8rem)]">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold">AI Agents</h1>
+        <p className="text-muted-foreground">Create and manage your AI voice agents</p>
+      </div>
+      
+      <Tabs defaultValue="agents" className="h-full flex flex-col">
+        <TabsList className="grid w-full max-w-lg grid-cols-4">
+          <TabsTrigger value="agents">AGENTS</TabsTrigger>
+          <TabsTrigger value="performance">PERFORMANCE</TabsTrigger>
+          <TabsTrigger value="templates">TEMPLATES</TabsTrigger>
+          <TabsTrigger value="automation">AUTOMATION</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="agents" className="flex-1 mt-6">
+          <AllAgentsTab />
+        </TabsContent>
+        
+        <TabsContent value="performance" className="flex-1 mt-6">
+          <PerformanceTab />
+        </TabsContent>
+        
+        <TabsContent value="templates" className="flex-1 mt-6">
+          <TemplatesTab />
+        </TabsContent>
+        
+        <TabsContent value="automation" className="flex-1 mt-6">
+          <AutomationTab />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
