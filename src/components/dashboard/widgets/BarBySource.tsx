@@ -46,8 +46,10 @@ export function BarBySource({ title, data, loading, color = "hsl(var(--primary))
               contentStyle={{
                 backgroundColor: "hsl(var(--card))",
                 border: "1px solid hsl(var(--border))",
-                borderRadius: "8px"
+                borderRadius: "8px",
+                boxShadow: "0 4px 12px hsl(var(--muted) / 0.15)"
               }}
+              cursor={{ fill: "hsl(var(--muted) / 0.2)" }}
             />
             <Bar 
               dataKey="leads" 
