@@ -67,7 +67,7 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
                 )}
               </div>
               <span className="text-sm font-medium text-foreground truncate">
-                {user?.user_metadata?.full_name || user?.email || "User"}
+                {user?.user_metadata?.full_name || "User"}
               </span>
             </div>
           </Button>
