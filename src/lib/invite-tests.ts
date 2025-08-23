@@ -37,12 +37,15 @@ async function getCurrentUserId(): Promise<string> {
 }
 
 async function addMemberToOrg(orgId: string, userId: string, role: string): Promise<void> {
+  // Ensure role is valid for the enum
+  const validRole = ['admin', 'editor', 'viewer', 'user'].includes(role) ? role : 'user';
+  
   const { error } = await supabase
     .from('organization_members')
     .insert({
       organization_id: orgId,
       user_id: userId,
-      role,
+      role: validRole as 'admin' | 'editor' | 'viewer' | 'user',
       seat_active: true
     });
 

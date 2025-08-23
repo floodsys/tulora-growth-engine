@@ -114,7 +114,7 @@ export async function acceptInvitation(membershipId: string, orgId: string) {
           organization_id: orgId,
           user_id: userData.user.id,
           seat_active: true,
-          role: 'member'
+          role: 'user' // Changed from 'member' to valid enum value
         }, {
           onConflict: 'organization_id,user_id'
         })

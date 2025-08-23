@@ -53,8 +53,15 @@ export function useFeatureGating(organizationId: string | null): FeatureAccess {
       }
 
       if (org) {
-        setPlanName(org.plan_configs.display_name);
-        setPlanLimits(org.plan_configs.limits as unknown as PlanLimits);
+        // For now, set default values since plan_configs doesn't exist yet
+        setPlanName("Free Plan");
+        setPlanLimits({
+          agents: 1,
+          seats: 1,
+          calls_per_month: 100,
+          storage_gb: 10,
+          integrations: ['basic']
+        });
       }
     } catch (error) {
       console.error('Error in feature gating check:', error);

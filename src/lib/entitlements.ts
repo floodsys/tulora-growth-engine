@@ -36,8 +36,9 @@ export async function getOrgEntitlements(orgId: string): Promise<OrgLimits> {
       return getFreePlanLimits()
     }
 
-    const entitlements: Entitlements = (org.entitlements as Entitlements) || { plan_key: 'free' }
-    const isActive = ['active', 'trialing'].includes(org.billing_status || '')
+    // For now, return default values since entitlements and billing_status don't exist yet
+    const entitlements: Entitlements = { plan_key: 'free' }
+    const isActive = true // Default to active for now
     
     // If not active, return free plan limits
     if (!isActive) {
