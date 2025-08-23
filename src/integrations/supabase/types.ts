@@ -444,27 +444,33 @@ export type Database = {
       }
       organizations: {
         Row: {
+          billing_tier: Database["public"]["Enums"]["billing_tier"]
           created_at: string | null
           id: string
           name: string
           settings: Json | null
           slug: string
+          stripe_customer_id: string | null
           updated_at: string | null
         }
         Insert: {
+          billing_tier?: Database["public"]["Enums"]["billing_tier"]
           created_at?: string | null
           id?: string
           name: string
           settings?: Json | null
           slug: string
+          stripe_customer_id?: string | null
           updated_at?: string | null
         }
         Update: {
+          billing_tier?: Database["public"]["Enums"]["billing_tier"]
           created_at?: string | null
           id?: string
           name?: string
           settings?: Json | null
           slug?: string
+          stripe_customer_id?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -473,6 +479,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          current_org_id: string | null
           email: string | null
           full_name: string | null
           id: string
@@ -481,6 +488,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          current_org_id?: string | null
           email?: string | null
           full_name?: string | null
           id: string
@@ -489,6 +497,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          current_org_id?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
@@ -651,7 +660,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      billing_tier: "free" | "pro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -778,6 +787,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      billing_tier: ["free", "pro"],
+    },
   },
 } as const
