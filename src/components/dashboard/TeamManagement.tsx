@@ -149,20 +149,20 @@ const TeamMembersTab = () => {
   const getRoleIcon = (role: string | null) => {
     switch (role) {
       case 'owner':
-        return <Crown className="h-4 w-4 text-yellow-500" />
+        return <Crown className="h-4 w-4 text-warning" />
       case 'admin':
-        return <Shield className="h-4 w-4 text-blue-500" />
+        return <Shield className="h-4 w-4 text-primary" />
       default:
-        return <User className="h-4 w-4 text-gray-500" />
+        return <User className="h-4 w-4 text-muted-foreground" />
     }
   }
 
   const getRoleBadge = (role: string | null) => {
     switch (role) {
       case 'owner':
-        return <Badge className="bg-yellow-500">Owner</Badge>
+        return <Badge variant="secondary" className="bg-warning text-warning-foreground">Owner</Badge>
       case 'admin':
-        return <Badge className="bg-blue-500">Admin</Badge>
+        return <Badge variant="secondary" className="bg-primary text-primary-foreground">Admin</Badge>
       default:
         return <Badge variant="outline">Member</Badge>
     }
@@ -330,7 +330,7 @@ const TeamMembersTab = () => {
                   <TableCell>{getRoleBadge(member.role)}</TableCell>
                   <TableCell>
                     {member.seat_active ? (
-                      <Badge className="bg-green-500">Active</Badge>
+                      <Badge variant="secondary" className="bg-success text-success-foreground">Active</Badge>
                     ) : (
                       <Badge variant="outline">Inactive</Badge>
                     )}

@@ -85,6 +85,56 @@ export function ProfileSettingsScreen() {
                 </Button>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Change Password</CardTitle>
+                <CardDescription>Update your account password</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="currentPassword">Current Password</Label>
+                  <Input
+                    id="currentPassword"
+                    type="password"
+                    value={formData.currentPassword}
+                    onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
+                    placeholder="Enter current password"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={formData.newPassword}
+                    onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
+                    placeholder="Enter new password"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    placeholder="Confirm new password"
+                  />
+                </div>
+                <Button onClick={() => {
+                  if (formData.newPassword !== formData.confirmPassword) {
+                    console.log("Passwords do not match")
+                    return
+                  }
+                  // TODO: Implement password update
+                  console.log("Password update:", { currentPassword: formData.currentPassword, newPassword: formData.newPassword })
+                  setFormData({ ...formData, currentPassword: "", newPassword: "", confirmPassword: "" })
+                }}>
+                  Update Password
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         )
       case "notifications":

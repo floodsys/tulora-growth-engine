@@ -52,7 +52,7 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost" 
-            className="h-auto w-full justify-start rounded-sm p-2 hover:bg-muted/50"
+            className="h-auto w-full justify-start rounded-sm p-2 hover:bg-muted"
           >
             <div className="flex items-center gap-3 w-full">
               <div className="h-8 w-8 bg-muted rounded-sm flex items-center justify-center text-sm font-medium flex-shrink-0">
