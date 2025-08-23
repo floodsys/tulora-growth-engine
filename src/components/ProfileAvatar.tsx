@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { User, Building2, LogOut, Settings } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -22,14 +21,6 @@ interface ProfileAvatarProps {
 
 export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarProps) {
   const { user, signOut } = useAuth()
-  const [showEditProfile, setShowEditProfile] = useState(false)
-  const [formData, setFormData] = useState({
-    fullName: user?.user_metadata?.full_name || "",
-    email: user?.email || "",
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  })
 
   // TODO: Get user role from auth context - for now assume owner
   const isOwner = true
@@ -42,11 +33,6 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
     }
   }
 
-  const handleUpdateProfile = () => {
-    // TODO: Implement profile update logic
-    console.log("Profile update:", formData)
-    setShowEditProfile(false)
-  }
 
   const getUserInitials = () => {
     if (user?.user_metadata?.full_name) {
@@ -64,16 +50,21 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
+            <Button
             variant="ghost" 
-            className="h-10 w-10 rounded-full p-0 hover:scale-105 transition-transform duration-200 hover:shadow-md"
+            className="h-auto w-auto rounded-full p-2 hover:scale-105 transition-transform duration-200 hover:shadow-md"
           >
-            <Avatar className="h-9 w-9">
-              <AvatarImage src={user?.user_metadata?.avatar_url} />
-              <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
-                {getUserInitials()}
-              </AvatarFallback>
-            </Avatar>
+            <div className="flex items-center gap-2">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user?.user_metadata?.avatar_url} />
+                <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
+                  {getUserInitials()}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-sm font-medium text-foreground">
+                {user?.user_metadata?.full_name || "User"}
+              </span>
+            </div>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent 
@@ -88,21 +79,28 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
           </div>
           <DropdownMenuSeparator />
           <DropdownMenuItem 
-            onClick={() => setShowEditProfile(true)}
+            onClick={() => setActiveScreen("profile-settings")}
             className="cursor-pointer"
           >
             <User className="mr-2 h-4 w-4" />
-            <span>Edit Profile</span>
+            <span>Profile Settings</span>
           </DropdownMenuItem>
           {isOwner && (
             <DropdownMenuItem 
-              onClick={() => setActiveScreen("settings")}
+              onClick={() => setActiveScreen("organization-settings")}
               className="cursor-pointer"
             >
               <Building2 className="mr-2 h-4 w-4" />
               <span>Organization Settings</span>
             </DropdownMenuItem>
           )}
+          <DropdownMenuItem 
+            onClick={() => setActiveScreen("settings")}
+            className="cursor-pointer"
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            <span>Settings</span>
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem 
             onClick={handleSignOut}
@@ -114,98 +112,6 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Edit Profile Dialog */}
-      <Dialog open={showEditProfile} onOpenChange={setShowEditProfile}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Edit Profile</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Profile Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-4">
-                  <Avatar className="h-16 w-16">
-                    <AvatarImage src={user?.user_metadata?.avatar_url} />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-lg">
-                      {getUserInitials()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <Button variant="outline" size="sm">
-                    Change Picture
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    value={formData.fullName}
-                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Change Password</CardTitle>
-                <CardDescription className="text-xs">
-                  Leave blank if you don't want to change your password
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="currentPassword">Current Password</Label>
-                  <Input
-                    id="currentPassword"
-                    type="password"
-                    value={formData.currentPassword}
-                    onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword">New Password</Label>
-                  <Input
-                    id="newPassword"
-                    type="password"
-                    value={formData.newPassword}
-                    onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setShowEditProfile(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleUpdateProfile}>
-                Save Changes
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   )
 }

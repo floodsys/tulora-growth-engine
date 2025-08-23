@@ -8,6 +8,8 @@ import { Scheduling } from "@/components/dashboard/Scheduling"
 import { UsageBilling } from "@/components/dashboard/UsageBilling"
 import { TeamManagement } from "@/components/dashboard/TeamManagement"
 import { SettingsScreen } from "@/components/dashboard/SettingsScreen"
+import { ProfileSettingsScreen } from "@/components/dashboard/ProfileSettingsScreen"
+import { OrganizationSettingsScreen } from "@/components/dashboard/OrganizationSettingsScreen"
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -64,6 +66,10 @@ const Dashboard = () => {
         return <TeamManagement />
       case "settings":
         return <SettingsScreen />
+      case "profile-settings":
+        return <ProfileSettingsScreen />
+      case "organization-settings":
+        return <OrganizationSettingsScreen />
       default:
         return <DashboardOverview />
     }
@@ -79,7 +85,11 @@ const Dashboard = () => {
             <SidebarTrigger />
             <div className="ml-4 flex-1 min-w-0">
               <h1 className="text-lg font-semibold capitalize truncate">
-                {activeScreen === "overview" ? "Dashboard" : activeScreen === "settings" ? "Settings" : activeScreen}
+                {activeScreen === "overview" ? "Dashboard" : 
+                 activeScreen === "settings" ? "Settings" :
+                 activeScreen === "profile-settings" ? "Profile Settings" :
+                 activeScreen === "organization-settings" ? "Organization Settings" :
+                 activeScreen}
               </h1>
             </div>
           </header>

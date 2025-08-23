@@ -27,7 +27,6 @@ import logo from "@/assets/logo.svg"
 
 
 const items = [
-  { title: "Settings", url: "settings", icon: Settings },
   { title: "Overview", url: "overview", icon: BarChart3 },
   { title: "Calls", url: "calls", icon: Phone },
   { title: "Agents", url: "agents", icon: Bot },
