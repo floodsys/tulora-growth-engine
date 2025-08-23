@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { CheckCircle, XCircle, Clock, Users, Mail, AlertTriangle } from "lucide-react";
+import { acceptInvite } from "@/lib/invite-helpers";
 
 interface InviteDetails {
   id: string;
@@ -97,16 +98,23 @@ function InviteAccept() {
 
     setAccepting(true);
     try {
-      // Mock accepting the invitation
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const result = await acceptInvite(token);
 
-      toast({
-        title: "Welcome to the team!",
-        description: `You have successfully joined ${invite.organizations.name}`,
-      });
+      if (result.success) {
+        toast({
+          title: "Welcome to the team!",
+          description: `You have successfully joined ${invite.organizations.name}`,
+        });
 
-      // Redirect to teams settings
-      navigate('/settings/teams');
+        // Redirect to teams settings
+        navigate('/settings/teams');
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to accept invitation. Please try again.",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error('Error accepting invite:', error);
       toast({
