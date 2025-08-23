@@ -109,7 +109,7 @@ async function getCurrentSeatCount(orgId: string): Promise<number> {
   const { count } = await supabase
     .from('organization_members')
     .select('*', { count: 'exact', head: true })
-    .eq('org_id', orgId)
+    .eq('organization_id', orgId)
     .eq('seat_active', true)
 
   return count || 0
