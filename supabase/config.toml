@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.retell-dial]
 verify_jwt = false
+
+[functions.org-billing-webhook]
+verify_jwt = false
