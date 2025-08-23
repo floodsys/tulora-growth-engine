@@ -7,10 +7,43 @@ import { KnowledgeBase } from "@/components/dashboard/KnowledgeBase"
 import { Scheduling } from "@/components/dashboard/Scheduling"
 import { UsageBilling } from "@/components/dashboard/UsageBilling"
 import { TeamManagement } from "@/components/dashboard/TeamManagement"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useToast } from "@/hooks/use-toast"
 
 const Dashboard = () => {
   const [activeScreen, setActiveScreen] = useState("overview")
+  const { toast } = useToast()
+
+  // Handle checkout success/cancel redirects
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const checkoutSuccess = urlParams.get('checkout_success')
+    const checkoutCanceled = urlParams.get('checkout_canceled')
+    const sessionId = urlParams.get('session_id')
+
+    if (checkoutSuccess) {
+      // Switch to billing screen and show success message
+      setActiveScreen('billing')
+      toast({
+        title: "Checkout successful!",
+        description: sessionId ? `Session ID: ${sessionId}` : "Your subscription is now active.",
+      })
+      
+      // Clean up URL parameters
+      window.history.replaceState({}, '', '/dashboard')
+    } else if (checkoutCanceled) {
+      // Switch to billing screen and show cancellation message
+      setActiveScreen('billing')
+      toast({
+        title: "Checkout canceled",
+        description: "You can try again anytime.",
+        variant: "destructive",
+      })
+      
+      // Clean up URL parameters
+      window.history.replaceState({}, '', '/dashboard')
+    }
+  }, [])
 
   const renderContent = () => {
     switch (activeScreen) {
