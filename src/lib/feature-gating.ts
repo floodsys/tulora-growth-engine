@@ -23,11 +23,7 @@ export async function getOrgFeatureFlags(orgId: string): Promise<FeatureFlags> {
     // Get organization data with plan info
     const { data: org, error: orgError } = await supabase
       .from('organizations')
-      .select(`
-        name,
-        plan_key,
-        stripe_customer_id
-      `)
+      .select('*')
       .eq('id', orgId)
       .maybeSingle()
 
@@ -41,7 +37,7 @@ export async function getOrgFeatureFlags(orgId: string): Promise<FeatureFlags> {
     }
 
     // For now, return basic limits based on plan key or default to trial
-    const planKey = org.plan_key || 'trial'
+    const planKey = (org as any).plan_key || 'trial'
     let limits, features, planName, isActive
     
     if (planKey === 'pro') {
