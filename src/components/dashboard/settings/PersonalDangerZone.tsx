@@ -15,20 +15,20 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { AlertTriangle } from "lucide-react"
-import { toast } from "sonner"
+// import { useToast } from "@/hooks/use-toast"
 
 export function PersonalDangerZone() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("")
 
   const handleDeleteAccount = () => {
     if (deleteConfirmation !== "DELETE") {
-      toast.error("Please type DELETE to confirm")
+      console.log("Please type DELETE to confirm")
       return
     }
     
     // TODO: Implement account deletion
     // This should remove the user but preserve org data if other members remain
-    toast.success("Account deletion initiated")
+    console.log("Account deletion initiated")
   }
 
   return (

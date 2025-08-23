@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Users, Plus, Minus } from "lucide-react"
-import { toast } from "sonner"
+// import { useToast } from "@/hooks/use-toast"
 
 const seatData = {
   total: 10,
@@ -57,18 +57,18 @@ export function SeatManagement() {
 
   const handleUpdateSeats = () => {
     // TODO: Implement seat count update
-    toast.success(`Seat count updated to ${newSeatCount}`)
+    console.log(`Seat count updated to ${newSeatCount}`)
   }
 
   const handleToggleSeat = (memberId: string, memberName: string, currentStatus: boolean) => {
     if (!currentStatus && seatData.available === 0) {
-      toast.error("No available seats. Please add more seats first.")
+      console.log("No available seats. Please add more seats first.")
       return
     }
     
     // TODO: Implement seat toggle
     const action = currentStatus ? "deactivated" : "activated"
-    toast.success(`Seat ${action} for ${memberName}`)
+    console.log(`Seat ${action} for ${memberName}`)
   }
 
   return (

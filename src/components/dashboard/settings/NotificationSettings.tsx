@@ -3,9 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { toast } from "sonner"
+import { useToast } from "@/hooks/use-toast"
 
 export function NotificationSettings() {
+  const { toast } = useToast()
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [systemAlerts, setSystemAlerts] = useState(true)
   const [callNotifications, setCallNotifications] = useState(true)
@@ -13,7 +14,10 @@ export function NotificationSettings() {
 
   const handleSave = () => {
     // TODO: Implement notification settings save
-    toast.success("Notification settings updated")
+    toast({
+      title: "Settings updated",
+      description: "Notification settings have been saved successfully.",
+    })
   }
 
   return (

@@ -26,7 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { toast } from "sonner"
+// import { useToast } from "@/hooks/use-toast"
 
 const currentMembers = [
   {
@@ -61,24 +61,24 @@ export function MemberManagement() {
 
   const handleInviteMember = () => {
     if (!inviteEmail) {
-      toast.error("Please enter an email address")
+      console.log("Please enter an email address")
       return
     }
     
     // TODO: Implement member invitation
-    toast.success(`Invitation sent to ${inviteEmail}`)
+    console.log(`Invitation sent to ${inviteEmail}`)
     setInviteEmail("")
     setInviteRole("member")
   }
 
   const handleRemoveMember = (memberId: string, memberName: string) => {
     // TODO: Implement member removal
-    toast.success(`${memberName} removed from organization`)
+    console.log(`${memberName} removed from organization`)
   }
 
   const handleChangeRole = (memberId: string, newRole: string) => {
     // TODO: Implement role change
-    toast.success(`Member role updated to ${newRole}`)
+    console.log(`Member role updated to ${newRole}`)
   }
 
   const getRoleBadgeVariant = (role: string) => {

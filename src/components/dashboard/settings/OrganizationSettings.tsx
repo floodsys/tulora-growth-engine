@@ -4,15 +4,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2 } from "lucide-react"
-import { toast } from "sonner"
+import { useToast } from "@/hooks/use-toast"
 
 export function OrganizationSettings() {
+  const { toast } = useToast()
   const [orgName, setOrgName] = useState("Acme Corporation")
   const [orgSlug, setOrgSlug] = useState("acme-corp")
 
   const handleUpdateOrganization = () => {
     // TODO: Implement organization update
-    toast.success("Organization settings updated")
+    toast({
+      title: "Organization updated",
+      description: "Organization settings have been updated successfully.",
+    })
   }
 
   return (

@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { CreditCard, ExternalLink, Calendar, Users, Phone, Bot } from "lucide-react"
-import { toast } from "sonner"
+// import { useToast } from "@/hooks/use-toast"
 
 const billingData = {
   plan: "Pro",
@@ -24,7 +24,7 @@ const billingData = {
 export function BillingSettings() {
   const handleManageSubscription = () => {
     // TODO: Implement Stripe Customer Portal redirect
-    toast.success("Redirecting to billing portal...")
+    console.log("Redirecting to billing portal...")
   }
 
   const getUsagePercentage = (used: number, limit: number) => {

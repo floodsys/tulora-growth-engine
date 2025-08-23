@@ -5,9 +5,10 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Camera, Mail, Lock } from "lucide-react"
-import { toast } from "sonner"
+import { useToast } from "@/hooks/use-toast"
 
 export function ProfileSettings() {
+  const { toast } = useToast()
   const [fullName, setFullName] = useState("John Doe")
   const [email] = useState("john.doe@example.com") // Non-editable
   const [currentPassword, setCurrentPassword] = useState("")
@@ -16,16 +17,16 @@ export function ProfileSettings() {
 
   const handleProfileUpdate = () => {
     // TODO: Implement profile update
-    toast.success("Profile updated successfully")
+    console.log("Profile updated successfully")
   }
 
   const handlePasswordUpdate = () => {
     if (newPassword !== confirmPassword) {
-      toast.error("Passwords do not match")
+      console.log("Passwords do not match")
       return
     }
     // TODO: Implement password update
-    toast.success("Password updated successfully")
+    console.log("Password updated successfully")
     setCurrentPassword("")
     setNewPassword("")
     setConfirmPassword("")

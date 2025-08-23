@@ -15,7 +15,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { AlertTriangle, Building2 } from "lucide-react"
-import { toast } from "sonner"
+// import { useToast } from "@/hooks/use-toast"
 
 export function OrganizationDangerZone() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("")
@@ -23,7 +23,7 @@ export function OrganizationDangerZone() {
 
   const handleDeleteOrganization = () => {
     if (deleteConfirmation !== orgName) {
-      toast.error(`Please type "${orgName}" to confirm`)
+      console.log(`Please type "${orgName}" to confirm`)
       return
     }
     
@@ -33,7 +33,7 @@ export function OrganizationDangerZone() {
     // 2. Remove all members
     // 3. Cancel subscription
     // 4. Delete organization permanently
-    toast.success("Organization deletion initiated")
+    console.log("Organization deletion initiated")
   }
 
   return (

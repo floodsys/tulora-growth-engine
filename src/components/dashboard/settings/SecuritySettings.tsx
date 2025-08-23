@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Smartphone, Globe, Monitor, LogOut } from "lucide-react"
-import { toast } from "sonner"
+// import { useToast } from "@/hooks/use-toast"
 
 const activeSessions = [
   {
@@ -43,22 +43,22 @@ export function SecuritySettings() {
   const handleToggle2FA = () => {
     if (!twoFactorEnabled) {
       // TODO: Implement 2FA setup flow
-      toast.success("Two-factor authentication setup initiated")
+      console.log("Two-factor authentication setup initiated")
     } else {
       // TODO: Implement 2FA disable flow
-      toast.success("Two-factor authentication disabled")
+      console.log("Two-factor authentication disabled")
     }
     setTwoFactorEnabled(!twoFactorEnabled)
   }
 
   const handleRevokeSession = (sessionId: string) => {
     // TODO: Implement session revocation
-    toast.success("Session revoked successfully")
+    console.log("Session revoked successfully")
   }
 
   const handleRevokeAllSessions = () => {
     // TODO: Implement revoke all sessions
-    toast.success("All other sessions revoked")
+    console.log("All other sessions revoked")
   }
 
   return (

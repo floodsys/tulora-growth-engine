@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Eye, EyeOff, Key, Phone, Calendar, Webhook, Bot } from "lucide-react"
-import { toast } from "sonner"
+// import { useToast } from "@/hooks/use-toast"
 
 const integrations = [
   {
@@ -79,12 +79,12 @@ export function IntegrationsSettings() {
 
   const handleSaveIntegration = (integrationId: string) => {
     // TODO: Implement integration save
-    toast.success(`${integrations.find(i => i.id === integrationId)?.name} settings saved`)
+    console.log(`${integrations.find(i => i.id === integrationId)?.name} settings saved`)
   }
 
   const handleTestIntegration = (integrationId: string) => {
     // TODO: Implement integration test
-    toast.success(`${integrations.find(i => i.id === integrationId)?.name} connection tested successfully`)
+    console.log(`${integrations.find(i => i.id === integrationId)?.name} connection tested successfully`)
   }
 
   return (
