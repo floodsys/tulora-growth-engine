@@ -704,9 +704,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_invite: {
+        Args: { token: string }
+        Returns: Json
+      }
       binary_quantize: {
         Args: { "": string } | { "": unknown }
         Returns: unknown
+      }
+      create_invite: {
+        Args: {
+          invite_email: string
+          invite_role: Database["public"]["Enums"]["org_role"]
+          org_id: string
+        }
+        Returns: string
       }
       create_organization: {
         Args: { name: string; slug: string }
@@ -815,6 +827,7 @@ export type Database = {
     }
     Enums: {
       billing_tier: "free" | "pro"
+      org_role: "admin" | "editor" | "viewer" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -943,6 +956,7 @@ export const Constants = {
   public: {
     Enums: {
       billing_tier: ["free", "pro"],
+      org_role: ["admin", "editor", "viewer", "user"],
     },
   },
 } as const
