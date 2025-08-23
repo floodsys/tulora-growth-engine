@@ -58,7 +58,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
           </SidebarGroupLabel>
           
           {state !== "collapsed" && (
-            <div className="px-6 py-4 mb-6">
+            <div className="px-6 py-4 mb-3">
               <OrgSwitcher />
             </div>
           )}
