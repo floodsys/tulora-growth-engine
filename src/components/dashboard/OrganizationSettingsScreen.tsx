@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { Trash2, Plus, Minus } from "lucide-react"
+import { Trash2, Plus, Minus, Shield } from "lucide-react"
 import { IntegrationsSettings } from "./settings/IntegrationsSettings"
 import { BillingSettings } from "./settings/BillingSettings"
 import { OrganizationDangerZone } from "./settings/OrganizationDangerZone"
+import { useUserRole } from "@/hooks/useUserRole"
 
 // Mock data
 const memberSeats = [
@@ -24,7 +25,47 @@ const memberSeats = [
 const seatData = { total: 10, used: 3, available: 7 }
 
 export function OrganizationSettingsScreen() {
+  // TODO: Get organization ID from context or props - for now use mock
+  const mockOrgId = "mock-org-id"
+  const { isOwner, role, loading } = useUserRole(mockOrgId)
   const [activeTab, setActiveTab] = useState("organization")
+  
+  // Show permission error for non-owners
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center p-8">
+          <div className="text-muted-foreground">Loading...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isOwner) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-muted-foreground" />
+              Access Restricted
+            </CardTitle>
+            <CardDescription>
+              Only organization owners (admin role) can access organization settings.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm text-muted-foreground">
+              Your current role: <Badge variant="secondary">{role}</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              Contact your organization owner to access these settings or modify your permissions.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
   const [orgData, setOrgData] = useState({
     name: "My Organization",
     website: "https://myorg.com",

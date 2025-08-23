@@ -702,6 +702,10 @@ export type Database = {
         Args: { org_id: string }
         Returns: boolean
       }
+      is_org_owner: {
+        Args: { org_id: string }
+        Returns: boolean
+      }
       ivfflat_bit_support: {
         Args: { "": unknown }
         Returns: unknown

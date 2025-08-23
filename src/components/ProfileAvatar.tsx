@@ -9,10 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/contexts/AuthContext"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useUserRole } from "@/hooks/useUserRole"
 
 interface ProfileAvatarProps {
   activeScreen: string
@@ -21,9 +18,10 @@ interface ProfileAvatarProps {
 
 export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarProps) {
   const { user, signOut } = useAuth()
-
-  // TODO: Get user role from auth context - for now assume owner
-  const isOwner = true
+  
+  // TODO: Get organization ID from context or props - for now use mock
+  const mockOrgId = "mock-org-id" 
+  const { isOwner } = useUserRole(mockOrgId)
 
   const handleSignOut = async () => {
     try {
