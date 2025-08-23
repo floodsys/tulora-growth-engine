@@ -10,6 +10,7 @@ import { TeamManagement } from "@/components/dashboard/TeamManagement"
 import { SettingsScreen } from "@/components/dashboard/SettingsScreen"
 import { ProfileSettingsScreen } from "@/components/dashboard/ProfileSettingsScreen"
 import { OrganizationSettingsScreen } from "@/components/dashboard/OrganizationSettingsScreen"
+import { InviteSystemTests } from "@/components/InviteSystemTests"
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -70,6 +71,8 @@ const Dashboard = () => {
         return <ProfileSettingsScreen />
       case "organization-settings":
         return <OrganizationSettingsScreen />
+      case "invite-tests":
+        return <InviteSystemTests />
       default:
         return <DashboardOverview />
     }
@@ -89,6 +92,7 @@ const Dashboard = () => {
                  activeScreen === "settings" ? "Settings" :
                  activeScreen === "profile-settings" ? "Profile Settings" :
                  activeScreen === "organization-settings" ? "Organization Settings" :
+                 activeScreen === "invite-tests" ? "Invite System Tests" :
                  activeScreen}
               </h1>
             </div>
