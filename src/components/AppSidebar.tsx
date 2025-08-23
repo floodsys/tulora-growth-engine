@@ -97,11 +97,16 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
           </SidebarGroup>
         </div>
         
-        {/* Bottom Section - Help & Notifications */}
-        <div className="mt-auto space-y-1">
+        {/* Profile section with notifications and help */}
+        <div className="mt-auto border-t">
+          <div className="p-3">
+            <ProfileAvatar activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
+          </div>
+          
+          {/* Help & Notifications under profile */}
           {state !== "collapsed" && (
             <SidebarGroup>
-              <SidebarGroupContent className="px-3">
+              <SidebarGroupContent className="px-3 pb-3">
                 <SidebarMenu className="space-y-0">
                   {/* Notifications */}
                   <SidebarMenuItem>
@@ -171,7 +176,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
           {/* Collapsed state - icon only */}
           {state === "collapsed" && (
             <SidebarGroup>
-              <SidebarGroupContent className="px-3">
+              <SidebarGroupContent className="px-3 pb-3">
                 <SidebarMenu className="space-y-1">
                   <SidebarMenuItem>
                     <SidebarMenuButton 
@@ -190,11 +195,6 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
               </SidebarGroupContent>
             </SidebarGroup>
           )}
-        </div>
-
-        {/* Profile Avatar at bottom */}
-        <div className="p-3 border-t">
-          <ProfileAvatar activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
         </div>
       </SidebarContent>
     </Sidebar>

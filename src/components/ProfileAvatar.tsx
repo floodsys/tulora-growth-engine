@@ -50,19 +50,24 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-            <Button
+          <Button
             variant="ghost" 
-            className="h-auto w-auto rounded-full p-2 hover:scale-105 transition-transform duration-200 hover:shadow-md"
+            className="h-auto w-full justify-start rounded-sm p-2 hover:bg-muted/50"
           >
-            <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.user_metadata?.avatar_url} />
-                <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
-                  {getUserInitials()}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-sm font-medium text-foreground">
-                {user?.user_metadata?.full_name || "User"}
+            <div className="flex items-center gap-3 w-full">
+              <div className="h-8 w-8 bg-muted rounded-sm flex items-center justify-center text-sm font-medium flex-shrink-0">
+                {user?.user_metadata?.avatar_url ? (
+                  <img 
+                    src={user.user_metadata.avatar_url} 
+                    alt="Profile"
+                    className="h-full w-full object-cover rounded-sm"
+                  />
+                ) : (
+                  <span className="text-muted-foreground">{getUserInitials()}</span>
+                )}
+              </div>
+              <span className="text-sm font-medium text-foreground truncate">
+                {user?.user_metadata?.full_name || user?.email || "User"}
               </span>
             </div>
           </Button>
