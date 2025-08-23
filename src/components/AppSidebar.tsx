@@ -33,6 +33,7 @@ const items = [
   { title: "Scheduling", url: "scheduling", icon: Calendar },
   { title: "Team", url: "team", icon: Users },
   { title: "Usage & Billing", url: "billing", icon: CreditCard },
+  { title: "Settings", url: "settings", icon: Settings },
 ]
 
 interface AppSidebarProps {
