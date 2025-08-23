@@ -18,11 +18,14 @@ import {
   Zap, 
   TrendingUp,
   CreditCard,
-  ExternalLink
+  ExternalLink,
+  RefreshCw
 } from "lucide-react"
 import { DateRangePicker } from "./widgets/DateRangePicker"
 import { DateRange } from "react-day-picker"
 import { format } from "date-fns"
+import { supabase } from "@/integrations/supabase/client"
+import { useToast } from "@/hooks/use-toast"
 
 interface UsageData {
   minutesUsed: number
@@ -101,6 +104,8 @@ const mockUsageEvents: UsageEvent[] = [
 export function UsageBilling() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [usageEvents, setUsageEvents] = useState(mockUsageEvents)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const { toast } = useToast()
 
   const getUsagePercentage = (used: number, limit: number) => {
     return (used / limit) * 100
@@ -136,6 +141,34 @@ export function UsageBilling() {
     }
   }
 
+  const handleSyncSeats = async () => {
+    try {
+      setIsSyncing(true)
+      
+      // TODO: Get current org ID from context/state
+      const orgId = "temp-org-id" // Replace with actual org ID
+      
+      const { data, error } = await supabase.functions.invoke('org-update-seats', {
+        body: { orgId }
+      })
+
+      if (error) throw error
+
+      toast({
+        title: "Seats synced successfully",
+        description: data.message,
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error syncing seats",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -156,10 +189,16 @@ export function UsageBilling() {
               <Crown className="h-5 w-5 text-warning" />
               Current Plan: {mockUsageData.currentPlan}
             </CardTitle>
-            <Button>
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Manage Subscription
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleSyncSeats} disabled={isSyncing}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                Sync Seats
+              </Button>
+              <Button>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Manage Subscription
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
