@@ -47,7 +47,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
     <Sidebar className={state === "collapsed" ? "w-14" : "w-60"} collapsible="icon">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="px-4 py-2">
+          <SidebarGroupLabel className="px-6 py-4">
             <div className="flex items-center gap-2">
               {state === "collapsed" ? (
                 <img src={logo} alt="Logo" className="h-6 w-auto object-contain" />
@@ -58,21 +58,21 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
           </SidebarGroupLabel>
           
           {state !== "collapsed" && (
-            <div className="px-4 py-2">
+            <div className="px-6 py-3 mb-2">
               <OrgSwitcher />
             </div>
           )}
           
-          <SidebarGroupContent>
-            <SidebarMenu>
+          <SidebarGroupContent className="px-3">
+            <SidebarMenu className="space-y-1">
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
                     onClick={() => setActiveScreen(item.url)}
-                    className={activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"}
+                    className={`h-10 px-3 ${activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"}`}
                   >
                     <item.icon className="h-4 w-4" />
-                    {state !== "collapsed" && <span>{item.title}</span>}
+                    {state !== "collapsed" && <span className="ml-3">{item.title}</span>}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
