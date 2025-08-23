@@ -501,21 +501,68 @@ export type Database = {
           },
         ]
       }
+      organization_invitations: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invite_token: string
+          invited_by: string | null
+          organization_id: string
+          role: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invite_token: string
+          invited_by?: string | null
+          organization_id: string
+          role: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invite_token?: string
+          invited_by?: string | null
+          organization_id?: string
+          role?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_members: {
         Row: {
-          org_id: string
+          created_at: string
+          organization_id: string
           role: string | null
           seat_active: boolean | null
           user_id: string
         }
         Insert: {
-          org_id: string
+          created_at?: string
+          organization_id: string
           role?: string | null
           seat_active?: boolean | null
           user_id: string
         }
         Update: {
-          org_id?: string
+          created_at?: string
+          organization_id?: string
           role?: string | null
           seat_active?: boolean | null
           user_id?: string
@@ -523,7 +570,7 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "organization_members_org_id_fkey"
-            columns: ["org_id"]
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
@@ -540,6 +587,7 @@ export type Database = {
           entitlements: Json | null
           id: string
           name: string
+          owner_user_id: string | null
           settings: Json | null
           slug: string
           stripe_customer_id: string | null
@@ -554,6 +602,7 @@ export type Database = {
           entitlements?: Json | null
           id?: string
           name: string
+          owner_user_id?: string | null
           settings?: Json | null
           slug: string
           stripe_customer_id?: string | null
@@ -568,6 +617,7 @@ export type Database = {
           entitlements?: Json | null
           id?: string
           name?: string
+          owner_user_id?: string | null
           settings?: Json | null
           slug?: string
           stripe_customer_id?: string | null
