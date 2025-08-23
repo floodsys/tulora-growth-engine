@@ -159,11 +159,26 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
     })
 
     // Build entitlements from price metadata
+    // If no price metadata, derive plan from price ID
+    let planKey = priceMetadata.plan_key || 'free'
+    let limitAgents = parseInt(priceMetadata.limit_agents || '0') || null
+    let limitSeats = parseInt(priceMetadata.limit_seats || '1') || 1
+    let features = priceMetadata.features ? JSON.parse(priceMetadata.features) : []
+    
+    // Fallback: if price metadata is empty, use the environment price IDs to determine plan
+    if (!priceMetadata.plan_key && (price.id === Deno.env.get('PRICE_ID_PRO_MONTHLY') || price.id === Deno.env.get('PRICE_ID_PRO_YEARLY'))) {
+      planKey = price.id === Deno.env.get('PRICE_ID_PRO_MONTHLY') ? 'pro_monthly' : 'pro_yearly'
+      limitAgents = null // unlimited
+      limitSeats = 5
+      features = ['advanced_analytics', 'priority_support']
+      logStep('Using fallback pro plan entitlements', { priceId: price.id, planKey })
+    }
+    
     const entitlements = {
-      plan_key: priceMetadata.plan_key || 'free',
-      limit_agents: parseInt(priceMetadata.limit_agents || '0') || null,
-      limit_seats: parseInt(priceMetadata.limit_seats || '1') || 1,
-      features: priceMetadata.features ? JSON.parse(priceMetadata.features) : [],
+      plan_key: planKey,
+      limit_agents: limitAgents,
+      limit_seats: limitSeats,
+      features: features,
       ...priceMetadata // Include any other metadata fields
     }
 
