@@ -123,7 +123,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
                           <ChevronRight className="h-4 w-4" />
                         </SidebarMenuButton>
                       </PopoverTrigger>
-                      <PopoverContent side="right" align="start" className="w-56 p-2">
+                      <PopoverContent side="right" align="end" className="w-56 p-2" sideOffset={8}>
                         <div className="space-y-1">
                           <button
                             onClick={() => setActiveScreen("contact-us")}
