@@ -442,10 +442,101 @@ export type Database = {
           },
         ]
       }
+      org_subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean | null
+          created_at: string | null
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          org_id: string
+          price_id: string | null
+          product_id: string | null
+          quantity: number | null
+          status: string
+          stripe_subscription_id: string | null
+          subscription_item_id: string | null
+          trial_end: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          org_id: string
+          price_id?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          status: string
+          stripe_subscription_id?: string | null
+          subscription_item_id?: string | null
+          trial_end?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          org_id?: string
+          price_id?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          status?: string
+          stripe_subscription_id?: string | null
+          subscription_item_id?: string | null
+          trial_end?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_subscriptions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_members: {
+        Row: {
+          org_id: string
+          role: string | null
+          seat_active: boolean | null
+          user_id: string
+        }
+        Insert: {
+          org_id: string
+          role?: string | null
+          seat_active?: boolean | null
+          user_id: string
+        }
+        Update: {
+          org_id?: string
+          role?: string | null
+          seat_active?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_members_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
+          billing_status: string | null
           billing_tier: Database["public"]["Enums"]["billing_tier"]
+          cancel_at_period_end: boolean | null
           created_at: string | null
+          current_period_end: string | null
           id: string
           name: string
           settings: Json | null
@@ -454,8 +545,11 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          billing_status?: string | null
           billing_tier?: Database["public"]["Enums"]["billing_tier"]
+          cancel_at_period_end?: boolean | null
           created_at?: string | null
+          current_period_end?: string | null
           id?: string
           name: string
           settings?: Json | null
@@ -464,8 +558,11 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          billing_status?: string | null
           billing_tier?: Database["public"]["Enums"]["billing_tier"]
+          cancel_at_period_end?: boolean | null
           created_at?: string | null
+          current_period_end?: string | null
           id?: string
           name?: string
           settings?: Json | null
