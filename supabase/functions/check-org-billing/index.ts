@@ -11,6 +11,15 @@ interface CheckBillingRequest {
   orgId: string
 }
 
+interface BillingStatus {
+  billing_status: string
+  current_period_end: string | null
+  price_id: string | null
+  quantity: number
+  plan_key: string | null
+  billing_tier: string
+}
+
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CHECK-ORG-BILLING] ${step}${detailsStr}`);
@@ -55,7 +64,7 @@ serve(async (req) => {
       throw new Error('No access to organization')
     }
 
-    // Get organization details
+    // Get organization details including cached billing info
     const { data: org } = await supabase
       .from('organizations')
       .select('stripe_customer_id, billing_status, billing_tier, current_period_end, cancel_at_period_end')
@@ -64,84 +73,84 @@ serve(async (req) => {
 
     if (!org) throw new Error('Organization not found')
 
-    let billingInfo = {
-      billing_status: org.billing_status || 'inactive',
-      billing_tier: org.billing_tier || 'free',
-      current_period_end: org.current_period_end,
-      cancel_at_period_end: org.cancel_at_period_end || false,
-      seats: 0,
-      active_subscriptions: []
-    }
-
-    // If org has Stripe customer, fetch latest data
-    if (org.stripe_customer_id) {
-      const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
-      
-      // Get active subscriptions
-      const subscriptions = await stripe.subscriptions.list({
-        customer: org.stripe_customer_id,
-        status: 'active',
-        limit: 10,
-      })
-
-      if (subscriptions.data.length > 0) {
-        const subscription = subscriptions.data[0] // Get first active subscription
-        const subscriptionItem = subscription.items.data[0]
-        
-        billingInfo = {
-          billing_status: subscription.status,
-          billing_tier: subscription.status === 'active' ? 'pro' : 'free',
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-          cancel_at_period_end: subscription.cancel_at_period_end,
-          seats: subscriptionItem?.quantity || 0,
-          active_subscriptions: subscriptions.data.map(sub => ({
-            id: sub.id,
-            status: sub.status,
-            quantity: sub.items.data[0]?.quantity || 0,
-            current_period_end: new Date(sub.current_period_end * 1000).toISOString()
-          }))
-        }
-
-        // Update cached billing info in database
-        await supabase
-          .from('organizations')
-          .update({
-            billing_status: subscription.status,
-            billing_tier: subscription.status === 'active' ? 'pro' : 'free',
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-            cancel_at_period_end: subscription.cancel_at_period_end,
-          })
-          .eq('id', orgId)
-
-        logStep('Updated billing info from Stripe', billingInfo)
-      }
-    }
-
-    // Get subscription details from database
-    const { data: dbSubscriptions } = await supabase
+    // Get most recent subscription from database
+    const { data: dbSubscription } = await supabase
       .from('org_subscriptions')
       .select('*')
       .eq('org_id', orgId)
-      .eq('status', 'active')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .single()
 
-    // Get member count
-    const { count: memberCount } = await supabase
-      .from('organization_members')
-      .select('*', { count: 'exact', head: true })
-      .eq('org_id', orgId)
-      .eq('seat_active', true)
+    // Initialize billing status with defaults
+    let billingStatus: BillingStatus = {
+      billing_status: 'inactive',
+      current_period_end: null,
+      price_id: null,
+      quantity: 0,
+      plan_key: null,
+      billing_tier: org.billing_tier || 'free'
+    }
 
-    logStep('Retrieved billing info', { 
-      ...billingInfo, 
-      memberCount,
-      dbSubscriptions: dbSubscriptions?.length || 0 
-    })
+    // If we have a subscription in the database, use it as base
+    if (dbSubscription) {
+      billingStatus = {
+        billing_status: dbSubscription.status,
+        current_period_end: dbSubscription.current_period_end,
+        price_id: dbSubscription.price_id,
+        quantity: dbSubscription.quantity || 0,
+        plan_key: null, // Will fetch from Stripe
+        billing_tier: org.billing_tier || 'free'
+      }
+      
+      logStep('Using database subscription data', {
+        subscriptionId: dbSubscription.stripe_subscription_id,
+        status: dbSubscription.status,
+        quantity: dbSubscription.quantity
+      })
+    }
 
-    return new Response(JSON.stringify({
-      ...billingInfo,
-      member_count: memberCount || 0,
-      db_subscriptions: dbSubscriptions || []
-    }), {
+    // Fetch fresh data from Stripe if we have a customer ID
+    if (org.stripe_customer_id && dbSubscription?.stripe_subscription_id) {
+      try {
+        const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
+        
+        // Get the specific subscription
+        const subscription = await stripe.subscriptions.retrieve(dbSubscription.stripe_subscription_id)
+        const subscriptionItem = subscription.items.data[0]
+        
+        if (subscriptionItem?.price?.id) {
+          // Get price details including metadata
+          const price = await stripe.prices.retrieve(subscriptionItem.price.id)
+          
+          billingStatus = {
+            billing_status: subscription.status,
+            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            price_id: price.id,
+            quantity: subscriptionItem.quantity || 0,
+            plan_key: price.metadata?.plan_key || null,
+            billing_tier: org.billing_tier || 'free'
+          }
+          
+          logStep('Updated from Stripe with plan metadata', {
+            subscriptionId: subscription.id,
+            status: subscription.status,
+            priceId: price.id,
+            planKey: price.metadata?.plan_key,
+            quantity: subscriptionItem.quantity
+          })
+        }
+      } catch (stripeError) {
+        logStep('Error fetching from Stripe, using cached data', { 
+          error: stripeError instanceof Error ? stripeError.message : String(stripeError) 
+        })
+        // Continue with database/cached data
+      }
+    }
+
+    logStep('Final billing status', billingStatus)
+
+    return new Response(JSON.stringify(billingStatus), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
