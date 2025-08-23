@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrganizationRole, OrganizationRole } from "@/hooks/useOrganizationRole";
+import { useUserOrganization } from "@/hooks/useUserOrganization";
 import { Plus, Mail, Users, UserCheck, Clock, X, Copy, Ban, Shield, ArrowLeft } from "lucide-react";
 
 interface TeamMember {
@@ -53,21 +54,20 @@ function TeamsSettings() {
   const [emailError, setEmailError] = useState('');
   const [inviting, setInviting] = useState(false);
 
-  // Mock organization ID - in real app, get from context/props
-  const organizationId = "mock-org-id";
-  const { isAdmin, loading: roleLoading } = useOrganizationRole(organizationId);
+  const { organizationId, isOwner, loading: orgLoading } = useUserOrganization();
+  const { isAdmin, loading: roleLoading } = useOrganizationRole(organizationId || undefined);
 
   useEffect(() => {
-    // Redirect non-admins
-    if (!roleLoading && !isAdmin) {
+    // Redirect non-admins and non-owners
+    if (!orgLoading && !roleLoading && !isAdmin && !isOwner) {
       navigate('/dashboard');
       return;
     }
 
-    if (!roleLoading && isAdmin) {
+    if (!orgLoading && !roleLoading && (isAdmin || isOwner) && organizationId) {
       fetchTeamData();
     }
-  }, [isAdmin, roleLoading, navigate]);
+  }, [isAdmin, isOwner, roleLoading, orgLoading, organizationId, navigate]);
 
   const fetchTeamData = async () => {
     try {
@@ -76,7 +76,7 @@ function TeamsSettings() {
         {
           id: "1",
           user_id: "user1",
-          organization_id: organizationId,
+          organization_id: organizationId || "",
           role: "admin",
           seat_active: true,
           created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
@@ -89,7 +89,7 @@ function TeamsSettings() {
         {
           id: "2", 
           user_id: "user2",
-          organization_id: organizationId,
+          organization_id: organizationId || "",
           role: "editor",
           seat_active: true,
           created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
@@ -102,7 +102,7 @@ function TeamsSettings() {
         {
           id: "3",
           user_id: "user3", 
-          organization_id: organizationId,
+          organization_id: organizationId || "",
           role: "viewer",
           seat_active: false,
           created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
@@ -117,7 +117,7 @@ function TeamsSettings() {
       const mockInvites: PendingInvite[] = [
         {
           id: "invite1",
-          organization_id: organizationId,
+          organization_id: organizationId || "",
           email: "newuser@example.com",
           role: "viewer",
           status: "pending",
@@ -180,7 +180,7 @@ function TeamsSettings() {
       // Create mock invite for demonstration
       const newInvite: PendingInvite = {
         id: `invite-${Date.now()}`,
-        organization_id: organizationId,
+        organization_id: organizationId || "",
         email: email,
         role: inviteRole,
         status: "pending",
@@ -311,7 +311,7 @@ function TeamsSettings() {
     }
   };
 
-  if (roleLoading) {
+  if (orgLoading || roleLoading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -330,7 +330,7 @@ function TeamsSettings() {
     );
   }
 
-  if (!isAdmin) {
+  if (!isAdmin && !isOwner) {
     return null; // Will redirect in useEffect
   }
 

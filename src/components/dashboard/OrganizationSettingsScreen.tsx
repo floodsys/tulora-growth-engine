@@ -13,6 +13,7 @@ import { IntegrationsSettings } from "./settings/IntegrationsSettings"
 import { BillingSettings } from "./settings/BillingSettings"
 import { OrganizationDangerZone } from "./settings/OrganizationDangerZone"
 import { useOrganizationRole } from "@/hooks/useOrganizationRole"
+import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { TeamManagement } from "./TeamManagement"
 
 // Mock data
@@ -26,10 +27,11 @@ const memberSeats = [
 const seatData = { total: 10, used: 3, available: 7 }
 
 export function OrganizationSettingsScreen() {
-  // TODO: Get organization ID from context or props - for now use mock
-  const mockOrgId = "mock-org-id"
-  const { isAdmin, role, loading } = useOrganizationRole(mockOrgId)
+  const { organizationId, isOwner, loading: orgLoading } = useUserOrganization()
+  const { role, loading: roleLoading } = useOrganizationRole(organizationId || undefined)
   const [activeTab, setActiveTab] = useState("organization")
+  
+  const loading = orgLoading || roleLoading
   
   // Show permission error for non-owners
   if (loading) {
@@ -42,7 +44,7 @@ export function OrganizationSettingsScreen() {
     )
   }
 
-  if (!isAdmin) {
+  if (!isOwner) {
     return (
       <div className="space-y-6">
         <Card>
@@ -52,15 +54,15 @@ export function OrganizationSettingsScreen() {
               Access Restricted
             </CardTitle>
             <CardDescription>
-              Only organization admins can access organization settings.
+              Only organization owners can access organization settings.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-sm text-muted-foreground">
-              Your current role: <Badge variant="secondary">{role}</Badge>
+              Your current role: <Badge variant="secondary">{role || 'Member'}</Badge>
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              Contact your organization admin to access these settings or modify your permissions.
+              Contact your organization owner to access these settings.
             </p>
           </CardContent>
         </Card>

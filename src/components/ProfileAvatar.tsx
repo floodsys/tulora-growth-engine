@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/contexts/AuthContext"
 import { useOrganizationRole } from "@/hooks/useOrganizationRole"
+import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { useNavigate } from "react-router-dom"
 
 interface ProfileAvatarProps {
@@ -21,9 +22,8 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   
-  // TODO: Get organization ID from context or props - for now use mock
-  const mockOrgId = "mock-org-id" 
-  const { isAdmin } = useOrganizationRole(mockOrgId)
+  const { organizationId, isOwner } = useUserOrganization()
+  const { isAdmin } = useOrganizationRole(organizationId || undefined)
 
   const handleSignOut = async () => {
     try {
@@ -89,17 +89,19 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
             <User className="mr-2 h-4 w-4" />
             <span>Profile Settings</span>
           </DropdownMenuItem>
-          {isAdmin && (
+          {(isAdmin || isOwner) && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => navigate('/settings/teams')}>
                 <Users className="mr-2 h-4 w-4" />
                 Teams
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setActiveScreen("organization-settings")}>
-                <Building2 className="mr-2 h-4 w-4" />
-                Organization Settings
-              </DropdownMenuItem>
+              {isOwner && (
+                <DropdownMenuItem onClick={() => setActiveScreen("organization-settings")}>
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Organization Settings
+                </DropdownMenuItem>
+              )}
             </>
           )}
           <DropdownMenuSeparator />
