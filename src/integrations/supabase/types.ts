@@ -705,7 +705,7 @@ export type Database = {
     }
     Functions: {
       accept_invite: {
-        Args: { token: string }
+        Args: { p_token: string }
         Returns: Json
       }
       binary_quantize: {
@@ -719,8 +719,8 @@ export type Database = {
               invite_role: Database["public"]["Enums"]["org_role"]
               org_id: string
             }
-          | { invite_email: string; invite_role: string; org_id: string }
-        Returns: string
+          | { p_email: string; p_org: string; p_role: string }
+        Returns: Json
       }
       create_organization: {
         Args: { name: string; slug: string }
