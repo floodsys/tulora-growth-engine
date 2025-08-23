@@ -902,6 +902,10 @@ export type Database = {
         Args: { p_feature: string; p_org_id: string }
         Returns: boolean
       }
+      has_org_role: {
+        Args: { org_id: string; required_role: string }
+        Returns: boolean
+      }
       hnsw_bit_support: {
         Args: { "": unknown }
         Returns: unknown
