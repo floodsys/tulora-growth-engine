@@ -6,7 +6,8 @@ import {
   Calendar, 
   CreditCard,
   Settings,
-  Building2
+  Building2,
+  Users
 } from "lucide-react"
 
 import {
@@ -30,6 +31,7 @@ const items = [
   { title: "Agents", url: "agents", icon: Bot },
   { title: "Knowledge Base", url: "knowledge", icon: BookOpen },
   { title: "Scheduling", url: "scheduling", icon: Calendar },
+  { title: "Team", url: "team", icon: Users },
   { title: "Usage & Billing", url: "billing", icon: CreditCard },
 ]
 

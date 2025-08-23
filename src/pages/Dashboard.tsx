@@ -6,6 +6,7 @@ import { AgentsScreen } from "@/components/dashboard/AgentsScreen"
 import { KnowledgeBase } from "@/components/dashboard/KnowledgeBase"
 import { Scheduling } from "@/components/dashboard/Scheduling"
 import { UsageBilling } from "@/components/dashboard/UsageBilling"
+import { TeamManagement } from "@/components/dashboard/TeamManagement"
 import { useState } from "react"
 
 const Dashboard = () => {
@@ -25,6 +26,8 @@ const Dashboard = () => {
         return <Scheduling />
       case "billing":
         return <UsageBilling />
+      case "team":
+        return <TeamManagement />
       default:
         return <DashboardOverview />
     }
