@@ -122,8 +122,8 @@ export function UsageBilling() {
   const [isLoadingBilling, setIsLoadingBilling] = useState(true)
   const { toast } = useToast()
 
-  // TODO: Get actual org ID from context/auth
-  const currentOrgId = "temp-org-id"
+  // Use actual org ID for testing
+  const currentOrgId = "8ed6b425-57ad-4b5c-9618-747264d6c4f9"
 
   
   // Load billing status on component mount
