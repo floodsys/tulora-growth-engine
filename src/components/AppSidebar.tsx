@@ -47,7 +47,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
     <Sidebar className={state === "collapsed" ? "w-14" : "w-60"} collapsible="icon">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="px-6 py-4">
+          <SidebarGroupLabel className="px-6 py-6 mb-3">
             <div className="flex items-center gap-2">
               {state === "collapsed" ? (
                 <img src={logo} alt="Logo" className="h-6 w-auto object-contain" />
@@ -58,7 +58,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
           </SidebarGroupLabel>
           
           {state !== "collapsed" && (
-            <div className="px-6 py-3 mb-2">
+            <div className="px-6 py-4 mb-6">
               <OrgSwitcher />
             </div>
           )}
