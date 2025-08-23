@@ -108,8 +108,8 @@ serve(async (req) => {
         price: priceId,
         quantity: seats,
       }],
-      success_url: `${origin}/dashboard/billing?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/dashboard/billing?canceled=true`,
+      success_url: `${origin}/dashboard?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/dashboard?canceled=true`,
       metadata: {
         org_id: orgId,
         seats: seats.toString(),
