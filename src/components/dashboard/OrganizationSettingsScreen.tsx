@@ -261,7 +261,10 @@ export function OrganizationSettingsScreen() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b">
+      <div>
+        <h1 className="text-2xl font-semibold mb-2">Organization Settings</h1>
+        <p className="text-muted-foreground mb-6">Manage your organization information and team settings</p>
+        
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-6 h-auto p-1 bg-muted/50">
             <TabsTrigger value="organization" className="text-xs">ORGANIZATION</TabsTrigger>

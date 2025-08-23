@@ -100,7 +100,10 @@ export function ProfileSettingsScreen() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b">
+      <div>
+        <h1 className="text-2xl font-semibold mb-2">Profile Settings</h1>
+        <p className="text-muted-foreground mb-6">Manage your personal information and account settings</p>
+        
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-muted/50">
             <TabsTrigger value="profile" className="text-xs">PROFILE</TabsTrigger>

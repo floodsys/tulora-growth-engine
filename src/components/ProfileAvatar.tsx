@@ -98,13 +98,6 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
               <span>Organization Settings</span>
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem 
-            onClick={() => setActiveScreen("settings")}
-            className="cursor-pointer"
-          >
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
-          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem 
             onClick={handleSignOut}
