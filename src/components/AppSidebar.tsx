@@ -7,7 +7,14 @@ import {
   CreditCard,
   Settings,
   Building2,
-  Users
+  Users,
+  Bell,
+  HelpCircle,
+  MessageCircle,
+  Users2,
+  PlayCircle,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react"
 
 import {
@@ -19,11 +26,17 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar"
 import { OrgSwitcher } from "@/components/dashboard/widgets/OrgSwitcher"
 import { ProfileAvatar } from "@/components/ProfileAvatar"
+import { Badge } from "@/components/ui/badge"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import logo from "@/assets/logo.svg"
+import { useState } from "react"
 
 
 const items = [
@@ -43,6 +56,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
   const { state } = useSidebar()
+  const [helpExpanded, setHelpExpanded] = useState(false)
 
   return (
     <Sidebar className={state === "collapsed" ? "w-14" : "w-60"} collapsible="icon">
@@ -83,6 +97,101 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
           </SidebarGroup>
         </div>
         
+        {/* Bottom Section - Help & Notifications */}
+        <div className="mt-auto space-y-1">
+          {state !== "collapsed" && (
+            <SidebarGroup>
+              <SidebarGroupContent className="px-3">
+                <SidebarMenu className="space-y-0">
+                  {/* Notifications */}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => setActiveScreen("notifications")}
+                      className={`h-9 px-3 ${activeScreen === "notifications" ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"}`}
+                    >
+                      <Bell className="h-4 w-4" />
+                      <span className="ml-3">Notifications</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  {/* Help with Submenu */}
+                  <Collapsible open={helpExpanded} onOpenChange={setHelpExpanded}>
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton className="h-9 px-3 hover:bg-muted/50 w-full justify-between">
+                          <div className="flex items-center">
+                            <HelpCircle className="h-4 w-4" />
+                            <span className="ml-3">Help</span>
+                          </div>
+                          {helpExpanded ? (
+                            <ChevronDown className="h-3 w-3" />
+                          ) : (
+                            <ChevronRight className="h-3 w-3" />
+                          )}
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton
+                              onClick={() => setActiveScreen("contact-us")}
+                              className={activeScreen === "contact-us" ? "bg-muted text-primary font-medium" : ""}
+                            >
+                              <MessageCircle className="h-3 w-3" />
+                              <span>Contact us</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton className="cursor-not-allowed opacity-60">
+                              <Users2 className="h-3 w-3" />
+                              <span>Community</span>
+                              <Badge variant="secondary" className="ml-auto text-xs">
+                                Coming Soon
+                              </Badge>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton
+                              onClick={() => setActiveScreen("tutorials")}
+                              className={activeScreen === "tutorials" ? "bg-muted text-primary font-medium" : ""}
+                            >
+                              <PlayCircle className="h-3 w-3" />
+                              <span>Tutorials</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
+          
+          {/* Collapsed state - icon only */}
+          {state === "collapsed" && (
+            <SidebarGroup>
+              <SidebarGroupContent className="px-3">
+                <SidebarMenu className="space-y-1">
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => setActiveScreen("notifications")}
+                      className={`h-9 px-3 ${activeScreen === "notifications" ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"}`}
+                    >
+                      <Bell className="h-4 w-4" />
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton className="h-9 px-3 hover:bg-muted/50">
+                      <HelpCircle className="h-4 w-4" />
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
+        </div>
+
         {/* Profile Avatar at bottom */}
         <div className="p-3 border-t">
           <ProfileAvatar activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
