@@ -13,7 +13,6 @@ import {
   MessageCircle,
   Users2,
   PlayCircle,
-  ChevronDown,
   ChevronRight
 } from "lucide-react"
 
@@ -26,9 +25,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar"
 import { OrgSwitcher } from "@/components/dashboard/widgets/OrgSwitcher"
@@ -36,7 +32,6 @@ import { ProfileAvatar } from "@/components/ProfileAvatar"
 import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import logo from "@/assets/logo.svg"
-import { useState } from "react"
 
 
 const items = [
@@ -56,7 +51,6 @@ interface AppSidebarProps {
 
 export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
   const { state } = useSidebar()
-  const [helpExpanded, setHelpExpanded] = useState(false)
 
   return (
     <Sidebar className={state === "collapsed" ? "w-14" : "w-60"} collapsible="icon">
