@@ -64,7 +64,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
           )}
           
           <SidebarGroupContent className="px-3">
-            <SidebarMenu className="space-y-1">
+            <SidebarMenu className="space-y-0">
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
