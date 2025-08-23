@@ -27,6 +27,7 @@ import { DateRange } from "react-day-picker"
 import { format } from "date-fns"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
+import { BillingTestPanel } from "./BillingTestPanel"
 
 interface UsageData {
   minutesUsed: number
@@ -133,13 +134,18 @@ export function UsageBilling() {
   const fetchBillingStatus = async () => {
     try {
       setIsLoadingBilling(true)
+      console.log('Fetching billing status for org:', currentOrgId)
       
       const { data, error } = await supabase.functions.invoke('check-org-billing', {
         body: { orgId: currentOrgId }
       })
 
-      if (error) throw error
+      if (error) {
+        console.error('Billing status error:', error)
+        throw error
+      }
 
+      console.log('Billing status response:', data)
       setBillingStatus(data)
     } catch (error: any) {
       console.error('Error fetching billing status:', error)
@@ -230,6 +236,7 @@ export function UsageBilling() {
         description: "Opening Stripe checkout in a new tab...",
       })
     } catch (error: any) {
+      console.error('Upgrade error:', error)
       toast({
         title: "Error starting checkout",
         description: error.message || "Failed to start checkout process",
@@ -258,6 +265,7 @@ export function UsageBilling() {
         description: "Redirecting to Stripe billing portal...",
       })
     } catch (error: any) {
+      console.error('Portal error:', error)
       toast({
         title: "Error opening billing portal",
         description: error.message || "Failed to access billing portal",
@@ -298,6 +306,13 @@ export function UsageBilling() {
 
   return (
     <div className="space-y-6">
+      {/* Test Panel for Development */}
+      <BillingTestPanel 
+        currentOrgId={currentOrgId}
+        billingStatus={billingStatus}
+        onRefresh={fetchBillingStatus}
+      />
+      
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Usage & Billing</h2>

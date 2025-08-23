@@ -10,11 +10,18 @@ import { toast } from "@/hooks/use-toast"
  */
 export async function triggerSeatSync(orgId: string, options?: { showToast?: boolean }) {
   try {
+    console.log('Triggering seat sync for org:', orgId)
+    
     const { data, error } = await supabase.functions.invoke('org-update-seats', {
       body: { orgId }
     })
 
-    if (error) throw error
+    if (error) {
+      console.error('Seat sync error:', error)
+      throw error
+    }
+
+    console.log('Seat sync success:', data)
 
     if (options?.showToast) {
       toast({
@@ -44,6 +51,8 @@ export async function triggerSeatSync(orgId: string, options?: { showToast?: boo
  */
 export async function startCheckout(orgId: string, interval: 'month' | 'year', seats: number) {
   try {
+    console.log('Starting checkout:', { orgId, interval, seats })
+    
     const { data, error } = await supabase.functions.invoke('create-org-checkout', {
       body: { 
         orgId,
@@ -52,18 +61,28 @@ export async function startCheckout(orgId: string, interval: 'month' | 'year', s
       }
     })
 
-    if (error) throw error
+    if (error) {
+      console.error('Checkout error:', error)
+      throw error
+    }
+
+    console.log('Checkout response:', data)
 
     // Open Stripe Checkout in new tab
-    window.open(data.url, '_blank')
-    
-    toast({
-      title: "Redirecting to checkout",
-      description: `Opening ${interval}ly plan checkout...`,
-    })
+    if (data?.url) {
+      window.open(data.url, '_blank')
+      
+      toast({
+        title: "Redirecting to checkout",
+        description: `Opening ${interval}ly plan checkout...`,
+      })
+    } else {
+      throw new Error('No checkout URL returned')
+    }
 
     return { success: true, data }
   } catch (error: any) {
+    console.error('Checkout error details:', error)
     toast({
       title: "Error starting checkout",
       description: error.message || "Failed to start checkout process",
