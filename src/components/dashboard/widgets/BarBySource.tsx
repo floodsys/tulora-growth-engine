@@ -49,7 +49,7 @@ export function BarBySource({ title, data, loading, color = "hsl(var(--primary))
                 borderRadius: "8px",
                 boxShadow: "0 4px 12px hsl(var(--muted) / 0.15)"
               }}
-              cursor={{ fill: "hsl(var(--muted) / 0.2)" }}
+              cursor={false}
             />
             <Bar 
               dataKey="leads" 
