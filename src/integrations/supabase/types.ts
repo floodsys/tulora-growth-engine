@@ -969,6 +969,10 @@ export type Database = {
         Args: { input_role: string }
         Returns: string
       }
+      setup_user_account: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       sparsevec_out: {
         Args: { "": unknown }
         Returns: unknown
