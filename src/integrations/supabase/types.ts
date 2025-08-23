@@ -709,22 +709,40 @@ export type Database = {
       }
       organizations: {
         Row: {
+          billing_status: string | null
           created_at: string | null
+          entitlements: Json | null
           id: string
           name: string
           owner_user_id: string | null
+          plan_key: string | null
+          stripe_customer_id: string | null
+          trial_ends_at: string | null
+          trial_started_at: string | null
         }
         Insert: {
+          billing_status?: string | null
           created_at?: string | null
+          entitlements?: Json | null
           id?: string
           name: string
           owner_user_id?: string | null
+          plan_key?: string | null
+          stripe_customer_id?: string | null
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
         }
         Update: {
+          billing_status?: string | null
           created_at?: string | null
+          entitlements?: Json | null
           id?: string
           name?: string
           owner_user_id?: string | null
+          plan_key?: string | null
+          stripe_customer_id?: string | null
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
         }
         Relationships: []
       }
