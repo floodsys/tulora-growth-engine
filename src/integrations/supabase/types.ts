@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          ip_address: unknown | null
+          organization_id: string
+          resource_id: string | null
+          resource_type: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          organization_id: string
+          resource_id?: string | null
+          resource_type?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          organization_id?: string
+          resource_id?: string | null
+          resource_type?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       agent_profiles: {
         Row: {
           call_recording_enabled: boolean
@@ -211,6 +250,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      demo_sessions: {
+        Row: {
+          actions_performed: Json | null
+          created_at: string
+          id: string
+          ip_address: unknown | null
+          last_activity: string
+          metadata: Json | null
+          session_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          actions_performed?: Json | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          last_activity?: string
+          metadata?: Json | null
+          session_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          actions_performed?: Json | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          last_activity?: string
+          metadata?: Json | null
+          session_id?: string
+          user_agent?: string | null
+        }
+        Relationships: []
       }
       embeddings: {
         Row: {
@@ -442,6 +514,54 @@ export type Database = {
           },
         ]
       }
+      org_stripe_subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          organization_id: string
+          plan_key: string | null
+          quantity: number | null
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          trial_end: string | null
+          updated_at: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          organization_id: string
+          plan_key?: string | null
+          quantity?: number | null
+          status: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_end?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          organization_id?: string
+          plan_key?: string | null
+          quantity?: number | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_end?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       org_subscriptions: {
         Row: {
           cancel_at_period_end: boolean | null
@@ -586,11 +706,15 @@ export type Database = {
           current_period_end: string | null
           entitlements: Json | null
           id: string
+          is_demo: boolean | null
           name: string
           owner_user_id: string | null
+          plan_key: string | null
           settings: Json | null
           slug: string
           stripe_customer_id: string | null
+          trial_ends_at: string | null
+          trial_started_at: string | null
           updated_at: string | null
         }
         Insert: {
@@ -601,11 +725,15 @@ export type Database = {
           current_period_end?: string | null
           entitlements?: Json | null
           id?: string
+          is_demo?: boolean | null
           name: string
           owner_user_id?: string | null
+          plan_key?: string | null
           settings?: Json | null
           slug: string
           stripe_customer_id?: string | null
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -616,12 +744,69 @@ export type Database = {
           current_period_end?: string | null
           entitlements?: Json | null
           id?: string
+          is_demo?: boolean | null
           name?: string
           owner_user_id?: string | null
+          plan_key?: string | null
           settings?: Json | null
           slug?: string
           stripe_customer_id?: string | null
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
           updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizations_plan_key_fkey"
+            columns: ["plan_key"]
+            isOneToOne: false
+            referencedRelation: "plan_configs"
+            referencedColumns: ["plan_key"]
+          },
+        ]
+      }
+      plan_configs: {
+        Row: {
+          created_at: string
+          display_name: string
+          features: string[] | null
+          id: string
+          is_active: boolean
+          limits: Json
+          plan_key: string
+          price_monthly: number | null
+          price_yearly: number | null
+          stripe_price_id_monthly: string | null
+          stripe_price_id_yearly: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          features?: string[] | null
+          id?: string
+          is_active?: boolean
+          limits?: Json
+          plan_key: string
+          price_monthly?: number | null
+          price_yearly?: number | null
+          stripe_price_id_monthly?: string | null
+          stripe_price_id_yearly?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          features?: string[] | null
+          id?: string
+          is_active?: boolean
+          limits?: Json
+          plan_key?: string
+          price_monthly?: number | null
+          price_yearly?: number | null
+          stripe_price_id_monthly?: string | null
+          stripe_price_id_yearly?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -712,6 +897,10 @@ export type Database = {
         Args: { "": string } | { "": unknown }
         Returns: unknown
       }
+      can_perform_action: {
+        Args: { p_action: string; p_org_id: string; p_resource_type?: string }
+        Returns: boolean
+      }
       create_invite: {
         Args:
           | {
@@ -724,6 +913,10 @@ export type Database = {
       }
       create_organization: {
         Args: { name: string; slug: string }
+        Returns: string
+      }
+      create_organization_with_owner: {
+        Args: { p_name: string; p_slug: string }
         Returns: string
       }
       halfvec_avg: {
@@ -741,6 +934,10 @@ export type Database = {
       halfvec_typmod_in: {
         Args: { "": unknown[] }
         Returns: number
+      }
+      has_feature: {
+        Args: { p_feature: string; p_org_id: string }
+        Returns: boolean
       }
       hnsw_bit_support: {
         Args: { "": unknown }
@@ -789,6 +986,17 @@ export type Database = {
       l2_normalize: {
         Args: { "": string } | { "": unknown } | { "": unknown }
         Returns: unknown
+      }
+      log_activity: {
+        Args: {
+          p_action: string
+          p_details?: Json
+          p_org_id: string
+          p_resource_id?: string
+          p_resource_type?: string
+          p_user_id: string
+        }
+        Returns: string
       }
       normalize_role_value: {
         Args: { input_role: string }
