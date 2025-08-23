@@ -22,6 +22,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { OrgSwitcher } from "@/components/dashboard/widgets/OrgSwitcher"
+import { ProfileAvatar } from "@/components/ProfileAvatar"
 import logo from "@/assets/logo.svg"
 
 
@@ -46,40 +47,47 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
 
   return (
     <Sidebar className={state === "collapsed" ? "w-14" : "w-60"} collapsible="icon">
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-6 py-6 mb-3">
-            <div className="flex items-center gap-2">
-              {state === "collapsed" ? (
-                <img src={logo} alt="Logo" className="h-6 w-auto object-contain" />
-              ) : (
-                <img src={logo} alt="Your Logo" className="h-8 w-auto max-w-[120px] object-contain" />
-              )}
-            </div>
-          </SidebarGroupLabel>
-          
-          {state !== "collapsed" && (
-            <div className="px-6 py-4 mb-3">
-              <OrgSwitcher />
-            </div>
-          )}
-          
-          <SidebarGroupContent className="px-3">
-            <SidebarMenu className="space-y-0">
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    onClick={() => setActiveScreen(item.url)}
-                    className={`h-9 px-3 ${activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"}`}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    {state !== "collapsed" && <span className="ml-3">{item.title}</span>}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+      <SidebarContent className="flex flex-col h-full">
+        <div className="flex-1">
+          <SidebarGroup>
+            <SidebarGroupLabel className="px-6 py-6 mb-3">
+              <div className="flex items-center gap-2">
+                {state === "collapsed" ? (
+                  <img src={logo} alt="Logo" className="h-6 w-auto object-contain" />
+                ) : (
+                  <img src={logo} alt="Your Logo" className="h-8 w-auto max-w-[120px] object-contain" />
+                )}
+              </div>
+            </SidebarGroupLabel>
+            
+            {state !== "collapsed" && (
+              <div className="px-6 py-4 mb-3">
+                <OrgSwitcher />
+              </div>
+            )}
+            
+            <SidebarGroupContent className="px-3">
+              <SidebarMenu className="space-y-0">
+                {items.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      onClick={() => setActiveScreen(item.url)}
+                      className={`h-9 px-3 ${activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"}`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {state !== "collapsed" && <span className="ml-3">{item.title}</span>}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </div>
+        
+        {/* Profile Avatar at bottom */}
+        <div className="p-3 border-t">
+          <ProfileAvatar activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
+        </div>
       </SidebarContent>
     </Sidebar>
   )
