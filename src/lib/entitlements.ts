@@ -33,15 +33,15 @@ export async function getOrgEntitlements(orgId: string): Promise<OrgLimits> {
 
     if (error || !org) {
       console.error('Error fetching org entitlements:', error)
-      return getTrialExpiredLimits()
+      return getFreePlanLimits()
     }
 
     const entitlements: Entitlements = (org.entitlements as Entitlements) || { plan_key: 'free' }
     const isActive = ['active', 'trialing'].includes(org.billing_status || '')
     
-    // If not active, return trial expired limits
+    // If not active, return free plan limits
     if (!isActive) {
-      return getTrialExpiredLimits()
+      return getFreePlanLimits()
     }
 
     // Get current usage counts
@@ -67,18 +67,18 @@ export async function getOrgEntitlements(orgId: string): Promise<OrgLimits> {
     }
   } catch (error) {
     console.error('Error in getOrgEntitlements:', error)
-    return getTrialExpiredLimits()
+    return getFreePlanLimits()
   }
 }
 
-function getTrialExpiredLimits(): OrgLimits {
+function getFreePlanLimits(): OrgLimits {
   return {
     canCreateAgent: false,
     canAddSeat: false,
     maxAgents: 0,
     maxSeats: 1,
     hasFeature: () => false,
-    planName: 'Trial Expired',
+    planName: 'Free',
     isActive: false
   }
 }
@@ -124,7 +124,7 @@ export function useOrgEntitlements(orgId: string | null) {
 
   React.useEffect(() => {
     if (!orgId) {
-      setLimits(getTrialExpiredLimits())
+      setLimits(getFreePlanLimits())
       setLoading(false)
       return
     }

@@ -6,27 +6,28 @@ import { Check, Sparkles } from "lucide-react";
 const PricingTable = () => {
   const [billingCycle, setBillingCycle] = useState("monthly");
   const plans = [{
-    name: "Starter",
+    name: "Free",
     price: {
-      monthly: 497,
-      yearly: 4970
+      monthly: 0,
+      yearly: 0
     },
-    description: "Perfect for small teams getting started",
-    features: ["Up to 500 AI calls/month", "Advanced calendar coordination", "Voice & SMS integrations", "Up to 5 users", "Custom agent templates", "Basic analytics & reporting", "Email support", "Knowledge base integration"],
-    limitations: [],
-    cta: "Start Trial",
+    description: "Perfect for trying out Tulora",
+    features: ["50 AI-generated messages/month", "Basic calendar integration", "Email support", "1 user", "Standard templates"],
+    limitations: ["No advanced personalization", "No voice integrations", "Limited analytics"],
+    cta: "Start free",
     ctaVariant: "outline" as const,
     popular: false
   }, {
-    name: "Business",
+    name: "Pro",
     price: {
-      monthly: 997,
-      yearly: 9970
+      monthly: 89,
+      yearly: 712
     },
-    description: "For serious sales operations",
-    features: ["Unlimited AI calls", "Advanced calendar coordination", "Voice & SMS integrations", "Unlimited users", "Custom templates & sequences", "Advanced analytics & reporting", "CRM integrations (HubSpot, Salesforce)", "Priority support", "A/B testing", "White-label options", "Dedicated account manager"],
+    // $712 = $89 * 12 * 0.67 (33% discount)
+    description: "For growing sales teams",
+    features: ["Unlimited AI messages", "Advanced calendar coordination", "Voice & SMS integrations", "Up to 10 users", "Custom templates & sequences", "Advanced analytics & reporting", "CRM integrations (HubSpot, Salesforce)", "Priority support", "A/B testing"],
     limitations: [],
-    cta: "Start Trial",
+    cta: "Start free trial",
     ctaVariant: "default" as const,
     popular: true
   }];
@@ -96,9 +97,9 @@ const PricingTable = () => {
                 {plan.cta}
               </Button>
 
-              <p className="text-xs text-muted-foreground text-center mt-3">
-                14-day free trial • No credit card required
-              </p>
+              {plan.name === "Free" && <p className="text-xs text-muted-foreground text-center mt-3">
+                  No credit card required
+                </p>}
             </div>)}
         </div>
 
