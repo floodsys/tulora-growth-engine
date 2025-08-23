@@ -34,7 +34,7 @@ import {
 import { OrgSwitcher } from "@/components/dashboard/widgets/OrgSwitcher"
 import { ProfileAvatar } from "@/components/ProfileAvatar"
 import { Badge } from "@/components/ui/badge"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import logo from "@/assets/logo.svg"
 import { useState } from "react"
 
@@ -115,10 +115,10 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
-                  {/* Help with Submenu */}
+                  {/* Help with Popover Menu */}
                   <SidebarMenuItem>
-                    <Collapsible open={helpExpanded} onOpenChange={setHelpExpanded}>
-                      <CollapsibleTrigger asChild>
+                    <Popover>
+                      <PopoverTrigger asChild>
                         <SidebarMenuButton 
                           className={`h-9 px-3 ${activeScreen === "help" ? "bg-muted text-primary font-medium" : "hover:bg-muted"} w-full justify-between`}
                         >
@@ -126,41 +126,35 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
                             <HelpCircle className="h-4 w-4" />
                             <span className="ml-3">Help</span>
                           </div>
-                          {helpExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          <ChevronRight className="h-4 w-4" />
                         </SidebarMenuButton>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="ml-6">
-                        <SidebarMenuSub>
-                          <SidebarMenuSubItem>
-                            <SidebarMenuSubButton 
-                              onClick={() => setActiveScreen("contact-us")}
-                              className="hover:bg-muted"
-                            >
-                              <MessageCircle className="h-3 w-3 mr-2" />
-                              Contact us
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                          <SidebarMenuSubItem>
-                            <SidebarMenuSubButton className="cursor-not-allowed opacity-60 hover:bg-muted">
-                              <Users2 className="h-3 w-3 mr-2" />
-                              Community
-                              <Badge variant="secondary" className="ml-auto text-xs">
-                                Coming Soon
-                              </Badge>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                          <SidebarMenuSubItem>
-                            <SidebarMenuSubButton 
-                              onClick={() => setActiveScreen("tutorials")}
-                              className="hover:bg-muted"
-                            >
-                              <PlayCircle className="h-3 w-3 mr-2" />
-                              Tutorials
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
-                    </Collapsible>
+                      </PopoverTrigger>
+                      <PopoverContent side="right" align="start" className="w-56 p-2">
+                        <div className="space-y-1">
+                          <button
+                            onClick={() => setActiveScreen("contact-us")}
+                            className="flex items-center w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
+                          >
+                            <MessageCircle className="h-4 w-4 mr-3" />
+                            Contact us
+                          </button>
+                          <button className="flex items-center w-full px-3 py-2 text-sm rounded-md cursor-not-allowed opacity-60">
+                            <Users2 className="h-4 w-4 mr-3" />
+                            Community
+                            <Badge variant="secondary" className="ml-auto text-xs">
+                              Coming Soon
+                            </Badge>
+                          </button>
+                          <button
+                            onClick={() => setActiveScreen("tutorials")}
+                            className="flex items-center w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
+                          >
+                            <PlayCircle className="h-4 w-4 mr-3" />
+                            Tutorials
+                          </button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
