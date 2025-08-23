@@ -713,11 +713,13 @@ export type Database = {
         Returns: unknown
       }
       create_invite: {
-        Args: {
-          invite_email: string
-          invite_role: Database["public"]["Enums"]["org_role"]
-          org_id: string
-        }
+        Args:
+          | {
+              invite_email: string
+              invite_role: Database["public"]["Enums"]["org_role"]
+              org_id: string
+            }
+          | { invite_email: string; invite_role: string; org_id: string }
         Returns: string
       }
       create_organization: {
@@ -788,6 +790,10 @@ export type Database = {
         Args: { "": string } | { "": unknown } | { "": unknown }
         Returns: unknown
       }
+      normalize_role_value: {
+        Args: { input_role: string }
+        Returns: string
+      }
       sparsevec_out: {
         Args: { "": unknown }
         Returns: unknown
@@ -799,6 +805,10 @@ export type Database = {
       sparsevec_typmod_in: {
         Args: { "": unknown[] }
         Returns: number
+      }
+      validate_role_constraint: {
+        Args: { role_value: string }
+        Returns: boolean
       }
       vector_avg: {
         Args: { "": number[] }
@@ -828,6 +838,7 @@ export type Database = {
     Enums: {
       billing_tier: "free" | "pro"
       org_role: "admin" | "editor" | "viewer" | "user"
+      role: "admin" | "editor" | "viewer" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -957,6 +968,7 @@ export const Constants = {
     Enums: {
       billing_tier: ["free", "pro"],
       org_role: ["admin", "editor", "viewer", "user"],
+      role: ["admin", "editor", "viewer", "user"],
     },
   },
 } as const
