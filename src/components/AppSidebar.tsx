@@ -69,10 +69,10 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
       <SidebarContent className="flex flex-col h-full">
         <div className="flex-1 space-y-4">
           <SidebarGroup>
-            <SidebarGroupLabel className={isMobile ? "px-4 py-4 mb-2" : state === "collapsed" ? "px-3 py-4 mb-3" : "px-6 py-6 mb-3"}>
+            <SidebarGroupLabel className={isMobile ? "px-4 py-4 mb-2" : state === "collapsed" ? "px-2 py-4 mb-3" : "px-6 py-6 mb-3"}>
               {state === "collapsed" && !isMobile ? (
-                <div className="flex justify-center">
-                  <img src={iconLogo} alt="Icon Logo" className="h-8 w-8 object-contain" />
+                <div className="flex justify-center items-center">
+                  <img src={iconLogo} alt="Icon Logo" className="h-10 w-10 object-contain" />
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
