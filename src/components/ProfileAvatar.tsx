@@ -28,7 +28,7 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
   const handleSignOut = async () => {
     try {
       await signOut()
-      navigate('/auth')
+      navigate('/dashboard')
     } catch (error) {
       console.error("Error signing out:", error)
     }
