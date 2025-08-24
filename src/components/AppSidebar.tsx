@@ -33,6 +33,7 @@ import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useIsMobile } from "@/hooks/use-mobile"
 import logo from "@/assets/logo.svg"
+import iconLogo from "@/assets/icon_logo.svg"
 
 
 const items = [
@@ -71,7 +72,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
             <SidebarGroupLabel className={isMobile ? "px-4 py-4 mb-2" : state === "collapsed" ? "pl-1 pr-4 py-4 mb-3" : "px-6 py-6 mb-3"}>
               <div className="flex items-center gap-2">
                 {state === "collapsed" && !isMobile ? (
-                  <img src={logo} alt="Logo" className="h-6 w-auto object-contain" />
+                  <img src={iconLogo} alt="Logo" className="h-6 w-auto object-contain" />
                 ) : (
                   <img src={logo} alt="Your Logo" className="h-8 w-auto max-w-[120px] object-contain" />
                 )}
