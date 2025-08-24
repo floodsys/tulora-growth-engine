@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Activity, 
   User, 
@@ -23,40 +24,58 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  ChevronDown
+  ChevronDown,
+  Shield,
+  Settings,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserOrganization } from "@/hooks/useUserOrganization";
+import { useOrganizationRole } from "@/hooks/useOrganizationRole";
 import { useToast } from "@/hooks/use-toast";
 
 interface ActivityLog {
   id: string;
   organization_id: string;
-  user_id: string | null;
+  actor_user_id: string | null;
+  actor_role_snapshot: string;
   action: string;
-  resource_type: string | null;
-  resource_id: string | null;
-  details: any;
-  created_at: string;
-  ip_address: string | null;
+  target_type: string;
+  target_id: string | null;
+  status: string;
+  error_code: string | null;
+  ip_hash: string | null;
   user_agent: string | null;
+  request_id: string | null;
+  channel: 'audit' | 'internal' | 'test_invites';
+  metadata: any;
+  created_at: string;
 }
 
 interface ActivityFeedProps {
   showFilters?: boolean;
   maxHeight?: string;
   compact?: boolean;
+  channelFilter?: 'audit' | 'internal' | 'test_invites' | 'all';
 }
 
-export function ActivityFeed({ showFilters = true, maxHeight = "h-96", compact = false }: ActivityFeedProps) {
+export function ActivityFeed({ 
+  showFilters = true, 
+  maxHeight = "h-96", 
+  compact = false,
+  channelFilter = 'audit'
+}: ActivityFeedProps) {
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [activeChannel, setActiveChannel] = useState<string>(channelFilter);
   const { organizationId } = useUserOrganization();
+  const { isAdmin } = useOrganizationRole(organizationId || undefined);
   const { toast } = useToast();
 
   const loadActivities = async () => {
@@ -71,10 +90,17 @@ export function ActivityFeed({ showFilters = true, maxHeight = "h-96", compact =
         .order('created_at', { ascending: false })
         .limit(50);
 
+      // Apply channel filter
+      if (activeChannel !== 'all') {
+        query = query.eq('channel', activeChannel);
+      }
+
+      // Apply action filter
       if (filter !== 'all') {
         query = query.eq('action', filter);
       }
 
+      // Apply date range
       if (dateRange.from) {
         query = query.gte('created_at', dateRange.from.toISOString());
       }
@@ -94,8 +120,8 @@ export function ActivityFeed({ showFilters = true, maxHeight = "h-96", compact =
       if (searchTerm) {
         filteredData = filteredData.filter(activity => 
           activity.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          activity.resource_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          JSON.stringify(activity.details).toLowerCase().includes(searchTerm.toLowerCase())
+          activity.target_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          JSON.stringify(activity.metadata).toLowerCase().includes(searchTerm.toLowerCase())
         );
       }
 
@@ -114,7 +140,7 @@ export function ActivityFeed({ showFilters = true, maxHeight = "h-96", compact =
 
   useEffect(() => {
     loadActivities();
-  }, [organizationId, filter, dateRange]);
+  }, [organizationId, filter, dateRange, activeChannel]);
 
   useEffect(() => {
     // Debounce search
@@ -127,58 +153,88 @@ export function ActivityFeed({ showFilters = true, maxHeight = "h-96", compact =
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const getActivityIcon = (action: string, resourceType: string | null) => {
-    if (action.includes('user') || action.includes('login') || action.includes('profile')) {
+  const getActivityIcon = (action: string, targetType: string) => {
+    if (action.startsWith('auth.') || action.includes('login') || action.includes('profile')) {
       return <User className="h-4 w-4" />;
     }
-    if (action.includes('agent')) {
+    if (action.startsWith('agent.')) {
       return <Bot className="h-4 w-4" />;
     }
-    if (action.includes('call')) {
+    if (action.startsWith('call.')) {
       return <Phone className="h-4 w-4" />;
     }
-    if (action.includes('member') || action.includes('invite')) {
+    if (action.startsWith('member.') || action.startsWith('invite.')) {
       return <Users className="h-4 w-4" />;
     }
-    if (action.includes('organization')) {
+    if (action.startsWith('org.')) {
       return <Building2 className="h-4 w-4" />;
     }
-    if (action.includes('appointment')) {
-      return <CalendarIcon className="h-4 w-4" />;
+    if (action.startsWith('billing.') || action.startsWith('subscription.')) {
+      return <Settings className="h-4 w-4" />;
     }
     return <Activity className="h-4 w-4" />;
   };
 
-  const getActivityVariant = (action: string) => {
-    if (action.includes('created') || action.includes('completed') || action.includes('accepted')) {
-      return "default";
-    }
-    if (action.includes('updated') || action.includes('activated')) {
-      return "secondary";
-    }
-    if (action.includes('deleted') || action.includes('cancelled') || action.includes('failed')) {
+  const getActivityVariant = (status: string, channel: string) => {
+    if (status === 'error') {
       return "destructive";
     }
-    return "outline";
+    if (channel === 'internal') {
+      return "secondary";
+    }
+    if (channel === 'test_invites') {
+      return "outline";
+    }
+    return "default";
+  };
+
+  const getChannelIcon = (channel: string) => {
+    switch (channel) {
+      case 'audit':
+        return <Shield className="h-3 w-3" />;
+      case 'internal':
+        return <Settings className="h-3 w-3" />;
+      case 'test_invites':
+        return <Activity className="h-3 w-3" />;
+      default:
+        return <Activity className="h-3 w-3" />;
+    }
   };
 
   const formatActivityMessage = (activity: ActivityLog) => {
-    const action = activity.action.replace(/_/g, ' ');
-    const resourceType = activity.resource_type || 'item';
+    const action = activity.action.replace(/\./g, ' ').replace(/_/g, ' ');
+    const targetType = activity.target_type || 'item';
     
-    // Extract user name from details if available
-    const userName = activity.details?.userName || activity.details?.name || 'User';
+    // Extract relevant info from metadata
+    const actorInfo = activity.actor_role_snapshot ? `[${activity.actor_role_snapshot}]` : '';
+    const targetInfo = activity.target_id ? ` (${activity.target_id.substring(0, 8)}...)` : '';
     
-    return `${action.charAt(0).toUpperCase() + action.slice(1)} ${resourceType}${activity.details?.name ? ` "${activity.details.name}"` : ''}`;
+    return `${actorInfo} ${action} ${targetType}${targetInfo}`;
+  };
+
+  const shouldShowChannel = (channel: string) => {
+    if (channel === 'audit') return true;
+    if (channel === 'internal' && isAdmin) return true;
+    if (channel === 'test_invites' && isAdmin) return true;
+    return false;
   };
 
   const filterOptions = [
     { value: 'all', label: 'All Activities' },
-    { value: 'user_login', label: 'User Logins' },
-    { value: 'agent_created', label: 'Agent Created' },
-    { value: 'call_initiated', label: 'Calls Initiated' },
-    { value: 'member_invited', label: 'Members Invited' },
-    { value: 'organization_updated', label: 'Org Updates' },
+    { value: 'auth.login', label: 'User Logins' },
+    { value: 'agent.created', label: 'Agent Created' },
+    { value: 'member.invited', label: 'Member Invited' },
+    { value: 'org.updated', label: 'Org Updated' },
+    { value: 'billing.plan_updated', label: 'Billing Updated' },
+  ];
+
+  const availableChannels = [
+    { value: 'all', label: 'All Channels', icon: <Activity className="h-4 w-4" /> },
+    { value: 'audit', label: 'Audit Logs', icon: <Shield className="h-4 w-4" /> },
+    ...(isAdmin ? [
+      { value: 'internal', label: 'Internal', icon: <Settings className="h-4 w-4" /> },
+      { value: 'test_invites', label: 'Test Logs', icon: <Activity className="h-4 w-4" /> }
+    ] : [])
   ];
 
   return (
@@ -189,9 +245,18 @@ export function ActivityFeed({ showFilters = true, maxHeight = "h-96", compact =
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5" />
               Activity Feed
+              {activeChannel !== 'all' && (
+                <Badge variant="outline" className="ml-2">
+                  {getChannelIcon(activeChannel)}
+                  <span className="ml-1 capitalize">{activeChannel}</span>
+                </Badge>
+              )}
             </CardTitle>
             <CardDescription>
-              Recent activities and events in your organization
+              {activeChannel === 'audit' && 'Security and operational audit trail'}
+              {activeChannel === 'internal' && 'Internal system and diagnostic events'}
+              {activeChannel === 'test_invites' && 'Test system validation logs'}
+              {activeChannel === 'all' && 'All activity events across channels'}
             </CardDescription>
           </div>
           <Button 
@@ -210,73 +275,88 @@ export function ActivityFeed({ showFilters = true, maxHeight = "h-96", compact =
       </CardHeader>
       <CardContent>
         {showFilters && (
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search activities..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </div>
-            <Select value={filter} onValueChange={setFilter}>
-              <SelectTrigger className="w-48">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {filterOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
+          <div className="space-y-4 mb-4">
+            {/* Channel Tabs */}
+            <Tabs value={activeChannel} onValueChange={setActiveChannel}>
+              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
+                {availableChannels.map((channel) => (
+                  <TabsTrigger key={channel.value} value={channel.value} className="flex items-center gap-2">
+                    {channel.icon}
+                    <span className="hidden sm:inline">{channel.label}</span>
+                  </TabsTrigger>
                 ))}
-              </SelectContent>
-            </Select>
-            <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-48">
-                  <CalendarIcon className="h-4 w-4 mr-2" />
-                  {dateRange.from ? (
-                    dateRange.to ? (
-                      `${format(dateRange.from, "MMM dd")} - ${format(dateRange.to, "MMM dd")}`
-                    ) : (
-                      format(dateRange.from, "MMM dd, yyyy")
-                    )
-                  ) : (
-                    "Date range"
-                  )}
-                  <ChevronDown className="h-4 w-4 ml-2" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                  mode="range"
-                  selected={dateRange.from && dateRange.to ? { from: dateRange.from, to: dateRange.to } : undefined}
-                  onSelect={(range) => {
-                    setDateRange(range || {});
-                    if (range?.from && range?.to) {
-                      setShowDatePicker(false);
-                    }
-                  }}
-                  numberOfMonths={2}
-                />
-                <div className="p-3 border-t">
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => {
-                      setDateRange({});
-                      setShowDatePicker(false);
-                    }}
-                  >
-                    Clear dates
-                  </Button>
+              </TabsList>
+            </Tabs>
+
+            {/* Filter Controls */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search activities..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
                 </div>
-              </PopoverContent>
-            </Popover>
+              </div>
+              <Select value={filter} onValueChange={setFilter}>
+                <SelectTrigger className="w-48">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {filterOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-48">
+                    <CalendarIcon className="h-4 w-4 mr-2" />
+                    {dateRange.from ? (
+                      dateRange.to ? (
+                        `${format(dateRange.from, "MMM dd")} - ${format(dateRange.to, "MMM dd")}`
+                      ) : (
+                        format(dateRange.from, "MMM dd, yyyy")
+                      )
+                    ) : (
+                      "Date range"
+                    )}
+                    <ChevronDown className="h-4 w-4 ml-2" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="range"
+                    selected={dateRange.from && dateRange.to ? { from: dateRange.from, to: dateRange.to } : undefined}
+                    onSelect={(range) => {
+                      setDateRange(range || {});
+                      if (range?.from && range?.to) {
+                        setShowDatePicker(false);
+                      }
+                    }}
+                    numberOfMonths={2}
+                  />
+                  <div className="p-3 border-t">
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => {
+                        setDateRange({});
+                        setShowDatePicker(false);
+                      }}
+                    >
+                      Clear dates
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
         )}
 
@@ -291,7 +371,7 @@ export function ActivityFeed({ showFilters = true, maxHeight = "h-96", compact =
               ) : (
                 <div>
                   <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  No activities found
+                  No activities found for {activeChannel} channel
                 </div>
               )}
             </div>
@@ -301,30 +381,47 @@ export function ActivityFeed({ showFilters = true, maxHeight = "h-96", compact =
                 <div key={activity.id}>
                   <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="mt-0.5">
-                      {getActivityIcon(activity.action, activity.resource_type)}
+                      {getActivityIcon(activity.action, activity.target_type)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <Badge 
-                          variant={getActivityVariant(activity.action)}
+                          variant={getActivityVariant(activity.status, activity.channel)}
                           className="text-xs"
                         >
-                          {activity.action.replace(/_/g, ' ')}
+                          {getChannelIcon(activity.channel)}
+                          <span className="ml-1">{activity.action}</span>
                         </Badge>
                         <span className="text-xs text-muted-foreground">
                           {format(new Date(activity.created_at), 'MMM dd, HH:mm')}
                         </span>
+                        {activity.status === 'error' && (
+                          <Badge variant="destructive" className="text-xs">
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Error
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm font-medium">
                         {formatActivityMessage(activity)}
                       </p>
-                      {activity.details && Object.keys(activity.details).length > 0 && !compact && (
+                      {!compact && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {activity.ip_hash && (
+                            <span className="mr-3">IP: {activity.ip_hash}</span>
+                          )}
+                          {activity.request_id && (
+                            <span>Request: {activity.request_id.substring(0, 8)}...</span>
+                          )}
+                        </div>
+                      )}
+                      {activity.metadata && Object.keys(activity.metadata).length > 0 && !compact && (
                         <details className="text-xs mt-1">
                           <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
                             View details
                           </summary>
                           <pre className="mt-1 p-2 bg-muted rounded text-xs overflow-auto">
-                            {JSON.stringify(activity.details, null, 2)}
+                            {JSON.stringify(activity.metadata, null, 2)}
                           </pre>
                         </details>
                       )}

@@ -985,6 +985,10 @@ export type Database = {
         Args: { p_name: string; p_slug: string }
         Returns: string
       }
+      get_user_org_role: {
+        Args: { p_org_id: string; p_user_id: string }
+        Returns: string
+      }
       halfvec_avg: {
         Args: { "": number[] }
         Returns: unknown
@@ -1008,6 +1012,10 @@ export type Database = {
       has_org_role: {
         Args: { org_id: string; required_role: string }
         Returns: boolean
+      }
+      hash_ip: {
+        Args: { ip_address: string }
+        Returns: string
       }
       hnsw_bit_support: {
         Args: { "": unknown }
@@ -1068,6 +1076,24 @@ export type Database = {
         }
         Returns: string
       }
+      log_activity_event: {
+        Args: {
+          p_action: string
+          p_actor_role_snapshot?: string
+          p_actor_user_id?: string
+          p_channel?: string
+          p_error_code?: string
+          p_ip_hash?: string
+          p_metadata?: Json
+          p_org_id: string
+          p_request_id?: string
+          p_status?: string
+          p_target_id?: string
+          p_target_type: string
+          p_user_agent?: string
+        }
+        Returns: string
+      }
       log_test_outcome: {
         Args: {
           p_details?: Json
@@ -1104,6 +1130,10 @@ export type Database = {
       sparsevec_typmod_in: {
         Args: { "": unknown[] }
         Returns: number
+      }
+      trim_user_agent: {
+        Args: { user_agent_string: string }
+        Returns: string
       }
       validate_role_constraint: {
         Args: { role_value: string }
