@@ -821,6 +821,68 @@ export type Database = {
         }
         Relationships: []
       }
+      test_logs: {
+        Row: {
+          created_at: string
+          details: Json | null
+          duration_ms: number | null
+          environment: string | null
+          git_commit: string | null
+          id: string
+          message: string | null
+          organization_id: string | null
+          status: string
+          test_name: string
+          test_runner: string | null
+          test_session_id: string
+          test_suite: string
+          test_type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          duration_ms?: number | null
+          environment?: string | null
+          git_commit?: string | null
+          id?: string
+          message?: string | null
+          organization_id?: string | null
+          status: string
+          test_name: string
+          test_runner?: string | null
+          test_session_id?: string
+          test_suite: string
+          test_type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          duration_ms?: number | null
+          environment?: string | null
+          git_commit?: string | null
+          id?: string
+          message?: string | null
+          organization_id?: string | null
+          status?: string
+          test_name?: string
+          test_runner?: string | null
+          test_session_id?: string
+          test_suite?: string
+          test_type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usage_events: {
         Row: {
           cost_cents: number | null
@@ -980,6 +1042,23 @@ export type Database = {
           p_resource_id?: string
           p_resource_type?: string
           p_user_id: string
+        }
+        Returns: string
+      }
+      log_test_outcome: {
+        Args: {
+          p_details?: Json
+          p_duration_ms?: number
+          p_environment?: string
+          p_git_commit?: string
+          p_message?: string
+          p_org_id: string
+          p_session_id: string
+          p_status: string
+          p_test_name: string
+          p_test_runner?: string
+          p_test_suite: string
+          p_test_type: string
         }
         Returns: string
       }

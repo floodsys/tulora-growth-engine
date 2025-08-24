@@ -1,6 +1,53 @@
 import { supabase } from "@/integrations/supabase/client";
 import { createInvite, acceptInvite } from "./invite-helpers";
 
+// Test logging utilities
+let currentSessionId: string | null = null;
+
+export function generateTestSessionId(): string {
+  currentSessionId = crypto.randomUUID();
+  return currentSessionId;
+}
+
+export function getCurrentSessionId(): string {
+  return currentSessionId || generateTestSessionId();
+}
+
+export async function logTestOutcome(
+  orgId: string,
+  testType: 'smoke' | 'full',
+  testSuite: string,
+  testName: string,
+  status: 'passed' | 'failed' | 'error',
+  message?: string,
+  details?: any,
+  durationMs?: number
+) {
+  try {
+    const sessionId = getCurrentSessionId();
+    
+    // Log to server with test_invites channel via edge function
+    await supabase.functions.invoke('test-logger', {
+      body: {
+        sessionId,
+        orgId,
+        testType,
+        testSuite,
+        testName,
+        status,
+        message,
+        details,
+        durationMs,
+        environment: import.meta.env.MODE || 'development',
+        testRunner: 'web'
+      }
+    });
+  } catch (error) {
+    console.error('Failed to log test outcome:', error);
+    // Don't fail tests due to logging issues
+  }
+}
+
 export interface TestResult {
   testName: string;
   passed: boolean;

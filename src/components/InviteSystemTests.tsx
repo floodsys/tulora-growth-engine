@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { CheckCircle, XCircle, Play, Loader2, AlertTriangle, ShieldAlert, ChevronDown, Zap, Settings } from "lucide-react";
 import { runAllTests, TestSuite, TestResult, getTestLevel, isTestingEnabled, areWriteTestsEnabled, isTestSetupValid, getTestOrgId, testReadOnlyAccess } from "@/lib/invite-tests";
+import { TestLogViewer } from "./TestLogViewer";
 import { useToast } from "@/hooks/use-toast";
 
 interface InviteSystemTestsProps {
@@ -421,6 +422,11 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Test Log Viewer */}
+      {testOrgId && (
+        <TestLogViewer organizationId={testOrgId} />
       )}
     </div>
   );
