@@ -124,24 +124,21 @@ export function AuditLogBackfill() {
     setProgress(0);
     
     try {
-      let orgId = null;
-      let orgIds = null;
+      let rpcParams: any = {
+        p_dry_run: dryRun,
+        p_batch_size: 200
+      };
       
       // Determine scope parameters
       if (scope === 'current' && organization?.id) {
-        orgId = organization.id;
+        rpcParams.p_org_id = organization.id;
       } else if (scope === 'custom' && customOrgIds.trim()) {
         const ids = customOrgIds.split(',').map(id => id.trim()).filter(Boolean);
-        orgIds = ids;
+        rpcParams.p_org_ids = ids;
       }
-      // For 'all', both orgId and orgIds remain null to process all accessible orgs
+      // For 'all', both p_org_id and p_org_ids remain undefined to process all accessible orgs
 
-      const { data, error } = await supabase.rpc('backfill_audit_logs', {
-        p_org_id: orgId,
-        p_org_ids: orgIds,
-        p_dry_run: dryRun,
-        p_batch_size: 200
-      });
+      const { data, error } = await supabase.rpc('backfill_audit_logs' as any, rpcParams);
 
       if (error) {
         throw error;
