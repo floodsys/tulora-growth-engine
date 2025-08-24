@@ -31,6 +31,7 @@ import { OrgSwitcher } from "@/components/dashboard/widgets/OrgSwitcher"
 import { ProfileAvatar } from "@/components/ProfileAvatar"
 import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { useIsMobile } from "@/hooks/use-mobile"
 import logo from "@/assets/logo.svg"
 
 
@@ -51,15 +52,25 @@ interface AppSidebarProps {
 
 export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
   const { state } = useSidebar()
+  const isMobile = useIsMobile()
 
   return (
-    <Sidebar className={state === "collapsed" ? "w-14" : "w-60"} collapsible="icon">
+    <Sidebar 
+      className={
+        isMobile 
+          ? "w-full" 
+          : state === "collapsed" 
+            ? "w-14" 
+            : "w-60"
+      } 
+      collapsible="icon"
+    >
       <SidebarContent className="flex flex-col h-full">
-        <div className="flex-1">
+        <div className="flex-1 space-y-4">
           <SidebarGroup>
-            <SidebarGroupLabel className="px-6 py-6 mb-3">
+            <SidebarGroupLabel className={isMobile ? "px-4 py-4 mb-2" : "px-6 py-6 mb-3"}>
               <div className="flex items-center gap-2">
-                {state === "collapsed" ? (
+                {state === "collapsed" && !isMobile ? (
                   <img src={logo} alt="Logo" className="h-6 w-auto object-contain" />
                 ) : (
                   <img src={logo} alt="Your Logo" className="h-8 w-auto max-w-[120px] object-contain" />
@@ -67,22 +78,22 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
               </div>
             </SidebarGroupLabel>
             
-            {state !== "collapsed" && (
-              <div className="px-6 py-4 mb-3">
+            {(state !== "collapsed" || isMobile) && (
+              <div className={isMobile ? "px-4 py-2 mb-2" : "px-6 py-4 mb-3"}>
                 <OrgSwitcher />
               </div>
             )}
             
             <SidebarGroupContent className="px-3">
-              <SidebarMenu className="space-y-0">
+              <SidebarMenu className="space-y-1">
                 {items.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton 
                       onClick={() => setActiveScreen(item.url)}
-                      className={`h-9 px-3 ${activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
+                      className={`h-10 px-3 ${activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
                     >
                       <item.icon className="h-4 w-4" />
-                      {state !== "collapsed" && <span className="ml-3">{item.title}</span>}
+                      {(state !== "collapsed" || isMobile) && <span className="ml-3">{item.title}</span>}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -92,17 +103,17 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
         </div>
         
         {/* Bottom section with Help, Notifications, and Profile */}
-        <div className="mt-auto border-t">
+        <div className="mt-auto border-t pt-4">
           {/* Help & Notifications */}
-          {state !== "collapsed" && (
+          {(state !== "collapsed" || isMobile) && (
             <SidebarGroup>
-              <SidebarGroupContent className="px-3 pt-3">
-                <SidebarMenu className="space-y-0">
+              <SidebarGroupContent className="px-3">
+                <SidebarMenu className="space-y-1">
                   {/* Notifications */}
                   <SidebarMenuItem>
                     <SidebarMenuButton 
                       onClick={() => setActiveScreen("notifications")}
-                      className={`h-9 px-3 ${activeScreen === "notifications" ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
+                      className={`h-10 px-3 ${activeScreen === "notifications" ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
                     >
                       <Bell className="h-4 w-4" />
                       <span className="ml-3">Notifications</span>
@@ -114,7 +125,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
                     <Popover>
                       <PopoverTrigger asChild>
                         <SidebarMenuButton 
-                          className={`h-9 px-3 ${activeScreen === "help" ? "bg-muted text-primary font-medium" : "hover:bg-muted"} w-full justify-between`}
+                          className={`h-10 px-3 ${activeScreen === "help" ? "bg-muted text-primary font-medium" : "hover:bg-muted"} w-full justify-between`}
                         >
                           <div className="flex items-center">
                             <HelpCircle className="h-4 w-4" />
@@ -123,7 +134,13 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
                           <ChevronRight className="h-4 w-4" />
                         </SidebarMenuButton>
                       </PopoverTrigger>
-                      <PopoverContent side="right" align="center" alignOffset={-80} className="w-56 p-2" sideOffset={8}>
+                      <PopoverContent 
+                        side={isMobile ? "top" : "right"} 
+                        align="center" 
+                        alignOffset={isMobile ? 0 : -80} 
+                        className="w-56 p-2" 
+                        sideOffset={8}
+                      >
                         <div className="space-y-1">
                           <button
                             onClick={() => setActiveScreen("contact-us")}
@@ -156,20 +173,20 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
           )}
           
           {/* Collapsed state - icon only */}
-          {state === "collapsed" && (
+          {state === "collapsed" && !isMobile && (
             <SidebarGroup>
-              <SidebarGroupContent className="px-3 pt-3">
+              <SidebarGroupContent className="px-3">
                 <SidebarMenu className="space-y-1">
                   <SidebarMenuItem>
                     <SidebarMenuButton 
                       onClick={() => setActiveScreen("notifications")}
-                      className={`h-9 px-3 ${activeScreen === "notifications" ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
+                      className={`h-10 px-3 ${activeScreen === "notifications" ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
                     >
                       <Bell className="h-4 w-4" />
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton className="h-9 px-3 hover:bg-muted">
+                    <SidebarMenuButton className="h-10 px-3 hover:bg-muted">
                       <HelpCircle className="h-4 w-4" />
                     </SidebarMenuButton>
                   </SidebarMenuItem>
