@@ -11,9 +11,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
-import { ChevronDown, Filter, RefreshCw, User, Calendar, Activity, Download, Eye, ChevronRight } from 'lucide-react';
+import { ChevronDown, Filter, RefreshCw, User, Calendar, Activity, Download, Eye, ChevronRight, History } from 'lucide-react';
 import { format } from 'date-fns';
 import { useOrganizationRole } from '@/hooks/useOrganizationRole';
+import { BackfillActivityModal } from '@/components/dashboard/BackfillActivityModal';
 
 interface AuditLogEntry {
   id: string;
@@ -54,9 +55,22 @@ export function OrganizationActivityViewer() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [showBackfillModal, setShowBackfillModal] = useState(false);
 
   // Check if user has access (Owner or Admin)
   const hasAccess = isOwner || isAdmin;
+
+  // Check if backfill should be enabled
+  const isBackfillEnabled = typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || 
+     window.location.hostname.includes('staging') ||
+     window.location.search.includes('backfill=true'));
+  
+  // Don't show backfill in demo/sandbox mode
+  const isDemoMode = typeof window !== 'undefined' && 
+    window.location.pathname.includes('/demo');
+  
+  const shouldShowBackfill = hasAccess && isBackfillEnabled && !isDemoMode;
 
   const loadAuditLogs = async (reset = false) => {
     if (!organization?.id || !hasAccess) return;
@@ -261,6 +275,16 @@ export function OrganizationActivityViewer() {
               </CardDescription>
             </div>
             <div className="flex gap-2">
+              {shouldShowBackfill && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowBackfillModal(true)}
+                >
+                  <History className="h-4 w-4 mr-2" />
+                  Backfill Activity
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -548,6 +572,17 @@ export function OrganizationActivityViewer() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Backfill Activity Modal */}
+      {shouldShowBackfill && organization && (
+        <BackfillActivityModal
+          open={showBackfillModal}
+          onOpenChange={setShowBackfillModal}
+          organizationId={organization.id}
+          organizationName={organization.name}
+          onSuccess={() => loadAuditLogs(true)}
+        />
+      )}
     </div>
   );
 }
