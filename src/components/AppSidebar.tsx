@@ -33,7 +33,7 @@ import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useIsMobile } from "@/hooks/use-mobile"
 import logo from "@/assets/logo.svg"
-import iconLogo from "@/assets/icon_logo.svg"
+import iconLogo from "@/assets/logo_icon_v2.svg"
 
 
 const items = [
