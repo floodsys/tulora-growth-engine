@@ -1136,6 +1136,45 @@ export type Database = {
         Args: { p_token: string }
         Returns: Json
       }
+      admin_change_member_role: {
+        Args: {
+          p_admin_user_id?: string
+          p_new_role: Database["public"]["Enums"]["org_role"]
+          p_organization_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      admin_get_all_members: {
+        Args: { p_limit?: number; p_search_email?: string }
+        Returns: {
+          email: string
+          joined_at: string
+          last_activity: string
+          organization_id: string
+          organization_name: string
+          role: string
+          seat_active: boolean
+          user_id: string
+        }[]
+      }
+      admin_remove_member: {
+        Args: {
+          p_admin_user_id?: string
+          p_organization_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      admin_toggle_member_seat: {
+        Args: {
+          p_admin_user_id?: string
+          p_organization_id: string
+          p_seat_active: boolean
+          p_user_id: string
+        }
+        Returns: Json
+      }
       backfill_audit_logs: {
         Args: {
           p_batch_size?: number
