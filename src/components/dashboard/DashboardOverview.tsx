@@ -4,6 +4,7 @@ import { TrendLine } from "./widgets/TrendLine"
 import { BarBySource } from "./widgets/BarBySource"
 import { RecentCallsTable } from "./widgets/RecentCallsTable"
 import { DateRangePicker } from "./widgets/DateRangePicker"
+import { ActivityFeed } from "@/components/ActivityFeed"
 import { DateRange } from "react-day-picker"
 import { Users, Phone, Calendar, Star } from "lucide-react"
 
@@ -128,13 +129,20 @@ export function DashboardOverview() {
         />
       </div>
 
-      {/* Recent Calls Table */}
-      <RecentCallsTable
-        calls={recentCalls}
-        loading={loading}
-        onCallSelect={(call) => console.log("View call:", call)}
-        onRedial={(call) => console.log("Redial:", call)}
-      />
+      {/* Bottom Row: Recent Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <RecentCallsTable
+            calls={recentCalls}
+            loading={loading}
+            onCallSelect={(call) => console.log("View call:", call)}
+            onRedial={(call) => console.log("Redial:", call)}
+          />
+        </div>
+        <div>
+          <ActivityFeed showFilters={false} maxHeight="h-80" compact={true} />
+        </div>
+      </div>
     </div>
   )
 }

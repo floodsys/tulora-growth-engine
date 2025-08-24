@@ -16,6 +16,7 @@ import SettingsLayout from "@/pages/SettingsLayout";
 import SettingsPersonal from "@/pages/SettingsPersonal";
 import SettingsTeams from "@/pages/SettingsTeams";
 import SettingsOrganization from "@/pages/SettingsOrganization";
+import ActivityLogs from "@/pages/ActivityLogs";
 import AdminInviteTests from "@/pages/AdminInviteTests";
 
 function App() {
@@ -38,6 +39,7 @@ function App() {
             <Route path="/invite/accept" element={<InviteAccept />} />
             <Route path="/invite/accept-new" element={<InviteAcceptPage />} />
             <Route path="/demo" element={<Demo />} />
+            <Route path="/activity-logs" element={<ActivityLogs />} />
             <Route path="/admin/tests/invites" element={<AdminInviteTests />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
