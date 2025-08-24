@@ -61,6 +61,16 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
       });
       return;
     }
+
+    // Additional safety check for production
+    if (testLevel === 'smoke' && selectedTestMode === 'full') {
+      toast({
+        title: "Action Blocked",
+        description: "Full test suite is disabled in smoke mode. Only read-only tests are allowed.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setTesting(true);
     setTestResults([]);
@@ -100,6 +110,17 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
       });
       return;
     }
+
+    // Additional safety check for production
+    if (testLevel === 'smoke' && selectedTestMode === 'full') {
+      toast({
+        title: "Action Blocked",
+        description: "Full test suite is disabled in smoke mode. Only read-only tests are allowed.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setShowConfirmModal(true);
   };
 
@@ -158,6 +179,16 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
           <ShieldAlert className="h-4 w-4" />
           <AlertDescription>
             {testSetup.message}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {testLevel === 'smoke' && (
+        <Alert className="border-amber-500 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800">
+            <strong>Smoke Mode Active:</strong> Only read-only diagnostic tests are available. 
+            No data will be created or modified.
           </AlertDescription>
         </Alert>
       )}
@@ -233,7 +264,7 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
                       <div className="flex flex-col">
                         <span>Full Suite (CI)</span>
                         <span className="text-xs text-muted-foreground">
-                          {testLevel !== 'full' ? 'Requires RUN_TEST_LEVEL=full' : 'Complete test suite'}
+                          {testLevel !== 'full' ? 'Disabled in smoke mode' : 'Complete test suite'}
                         </span>
                       </div>
                     </DropdownMenuItem>
@@ -274,6 +305,11 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
                         </li>
                       ))}
                     </ul>
+                    {testLevel === 'smoke' && (
+                      <div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+                        <strong>Production Safety:</strong> No destructive operations will be performed.
+                      </div>
+                    )}
                   </div>
                 </div>
                 
