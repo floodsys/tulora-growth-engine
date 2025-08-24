@@ -62,12 +62,45 @@ Deno.serve(async (req) => {
       user_agent_string: rawUserAgent 
     });
 
+    // Handle token/secret fingerprinting in metadata
+    const enhancedMetadata = { ...body.metadata };
+    if (enhancedMetadata.token || enhancedMetadata.api_key || enhancedMetadata.secret) {
+      const issuer = enhancedMetadata.issuer || enhancedMetadata.provider || 'unknown';
+      
+      if (enhancedMetadata.token) {
+        const { data: fingerprint } = await supabase.rpc('create_token_fingerprint', {
+          token_value: enhancedMetadata.token,
+          issuer: issuer
+        });
+        enhancedMetadata.token_fingerprint = fingerprint;
+        delete enhancedMetadata.token;
+      }
+      
+      if (enhancedMetadata.api_key) {
+        const { data: fingerprint } = await supabase.rpc('create_token_fingerprint', {
+          token_value: enhancedMetadata.api_key,
+          issuer: issuer
+        });
+        enhancedMetadata.api_key_fingerprint = fingerprint;
+        delete enhancedMetadata.api_key;
+      }
+      
+      if (enhancedMetadata.secret) {
+        const { data: fingerprint } = await supabase.rpc('create_token_fingerprint', {
+          token_value: enhancedMetadata.secret,
+          issuer: issuer
+        });
+        enhancedMetadata.secret_fingerprint = fingerprint;
+        delete enhancedMetadata.secret;
+      }
+    }
+
     // Generate request ID for tracing
     const requestId = crypto.randomUUID();
 
-    // Enhanced metadata with request context
-    const enhancedMetadata = {
-      ...body.metadata,
+    // Final metadata with request context
+    const finalMetadata = {
+      ...enhancedMetadata,
       timestamp: new Date().toISOString(),
       source: 'edge_function',
       request_id: requestId,
@@ -123,7 +156,7 @@ Deno.serve(async (req) => {
       p_user_agent: trimmedUserAgent,
       p_request_id: requestId,
       p_channel: body.channel || 'audit',
-      p_metadata: enhancedMetadata
+      p_metadata: finalMetadata
     });
 
     if (error) {

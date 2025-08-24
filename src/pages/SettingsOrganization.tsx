@@ -10,6 +10,7 @@ import { useUserOrganization } from "@/hooks/useUserOrganization";
 import { useOrganizationRole } from "@/hooks/useOrganizationRole";
 import { Building2, Shield, Activity } from "lucide-react";
 import { OrganizationActivityViewer } from "@/components/OrganizationActivityViewer";
+import { RetentionSettings } from "@/components/RetentionSettings";
 
 export default function SettingsOrganization() {
   const { toast } = useToast();
@@ -82,7 +83,7 @@ export default function SettingsOrganization() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="general" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             General
@@ -90,6 +91,10 @@ export default function SettingsOrganization() {
           <TabsTrigger value="activity" className="flex items-center gap-2">
             <Activity className="h-4 w-4" />
             Activity
+          </TabsTrigger>
+          <TabsTrigger value="privacy" className="flex items-center gap-2" disabled={!isOwner}>
+            <Shield className="h-4 w-4" />
+            Privacy
           </TabsTrigger>
         </TabsList>
 
@@ -196,6 +201,15 @@ export default function SettingsOrganization() {
 
         <TabsContent value="activity" className="space-y-6">
           <OrganizationActivityViewer />
+        </TabsContent>
+
+        <TabsContent value="privacy" className="space-y-6">
+          {isOwner && organization && (
+            <RetentionSettings 
+              organizationId={organization.id}
+              isOwner={isOwner}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>

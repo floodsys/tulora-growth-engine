@@ -801,6 +801,7 @@ export type Database = {
           name: string
           owner_user_id: string | null
           plan_key: string | null
+          retention_config: Json | null
           stripe_customer_id: string | null
           trial_ends_at: string | null
           trial_started_at: string | null
@@ -813,6 +814,7 @@ export type Database = {
           name: string
           owner_user_id?: string | null
           plan_key?: string | null
+          retention_config?: Json | null
           stripe_customer_id?: string | null
           trial_ends_at?: string | null
           trial_started_at?: string | null
@@ -825,6 +827,7 @@ export type Database = {
           name?: string
           owner_user_id?: string | null
           plan_key?: string | null
+          retention_config?: Json | null
           stripe_customer_id?: string | null
           trial_ends_at?: string | null
           trial_started_at?: string | null
@@ -1029,6 +1032,10 @@ export type Database = {
         Args: { p_action: string; p_org_id: string; p_resource_type?: string }
         Returns: boolean
       }
+      cleanup_expired_logs: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       create_invite: {
         Args:
           | {
@@ -1046,6 +1053,26 @@ export type Database = {
       create_organization_with_owner: {
         Args: { p_name: string; p_slug: string }
         Returns: string
+      }
+      create_token_fingerprint: {
+        Args: { issuer?: string; token_value: string }
+        Returns: string
+      }
+      export_logs_before_purge: {
+        Args: { p_channel?: string; p_org_id: string }
+        Returns: {
+          action: string
+          actor_role_snapshot: string
+          actor_user_id: string
+          channel: string
+          created_at: string
+          error_code: string
+          id: string
+          metadata: Json
+          status: string
+          target_id: string
+          target_type: string
+        }[]
       }
       get_user_org_role: {
         Args: { p_org_id: string; p_user_id: string }
