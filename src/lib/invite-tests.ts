@@ -23,6 +23,27 @@ export function getTestLevel(): TestLevel {
   return ['full', 'smoke', 'off'].includes(level) ? level : 'off';
 }
 
+// Get test organization ID
+export function getTestOrgId(): string | null {
+  const testOrgId = import.meta.env.VITE_TEST_ORG_ID;
+  return testOrgId && testOrgId.trim() !== '' ? testOrgId.trim() : null;
+}
+
+// Check if email delivery is disabled for tests
+export function isEmailDeliveryDisabled(): boolean {
+  return import.meta.env.VITE_DISABLE_EMAIL_DELIVERY_FOR_TESTS === 'true';
+}
+
+// Get analytics excluded organizations
+export function getAnalyticsExcludedOrgs(): string[] {
+  try {
+    const excluded = import.meta.env.VITE_ANALYTICS_EXCLUDE_ORGS;
+    return excluded ? JSON.parse(excluded) : [];
+  } catch {
+    return [];
+  }
+}
+
 // Check if tests are enabled
 export function isTestingEnabled(): boolean {
   return getTestLevel() !== 'off';
@@ -33,8 +54,31 @@ export function areWriteTestsEnabled(): boolean {
   return getTestLevel() === 'full';
 }
 
+// Check if test setup is valid
+export function isTestSetupValid(): { valid: boolean; message?: string } {
+  if (!isTestingEnabled()) {
+    return { valid: false, message: 'Testing is disabled (RUN_TEST_LEVEL=off)' };
+  }
+  
+  const testOrgId = getTestOrgId();
+  if (!testOrgId) {
+    return { 
+      valid: false, 
+      message: 'TEST_ORG_ID is required for testing. Please configure a dedicated test organization.' 
+    };
+  }
+  
+  return { valid: true };
+}
+
 // Test utilities
 async function createTestOrganization(): Promise<string> {
+  // Always use the configured test org ID if available
+  const testOrgId = getTestOrgId();
+  if (testOrgId) {
+    return testOrgId;
+  }
+  
   if (!areWriteTestsEnabled()) {
     throw new Error('Write operations disabled in current test level');
   }
@@ -101,8 +145,42 @@ async function createSecondaryUser(): Promise<{ email: string; password: string 
 // Smoke test for reading organization data (read-only)
 export async function testReadOnlyAccess(orgId: string): Promise<TestSuite> {
   const results: TestResult[] = [];
+  
+  // Validate we're using the test org
+  const testOrgId = getTestOrgId();
+  if (testOrgId && orgId !== testOrgId) {
+    results.push({
+      testName: 'Test Organization Validation',
+      passed: false,
+      message: `Test must use configured TEST_ORG_ID (${testOrgId}), got: ${orgId}`,
+      details: { expectedOrgId: testOrgId, actualOrgId: orgId }
+    });
+  }
 
-  // Test 1: Can read organization data
+  // Test 1: Validate test environment isolation
+  try {
+    results.push({
+      testName: 'Test Environment Configuration',
+      passed: !!testOrgId && isEmailDeliveryDisabled(),
+      message: testOrgId && isEmailDeliveryDisabled() 
+        ? 'Test environment properly configured with isolation'
+        : 'Test environment not properly configured',
+      details: { 
+        testOrgId,
+        emailDeliveryDisabled: isEmailDeliveryDisabled(),
+        testLevel: getTestLevel()
+      }
+    });
+  } catch (error) {
+    results.push({
+      testName: 'Test Environment Configuration',
+      passed: false,
+      message: `Error checking test configuration: ${error}`,
+      details: error
+    });
+  }
+
+  // Test 2: Can read organization data
   try {
     const { data, error } = await supabase
       .from('organizations')
@@ -124,7 +202,7 @@ export async function testReadOnlyAccess(orgId: string): Promise<TestSuite> {
     });
   }
 
-  // Test 2: Can read organization members
+  // Test 3: Can read organization members
   try {
     const { data, error } = await supabase
       .from('organization_members')
@@ -146,7 +224,7 @@ export async function testReadOnlyAccess(orgId: string): Promise<TestSuite> {
     });
   }
 
-  // Test 3: Can read invitations (read-only)
+  // Test 4: Can read invitations (read-only)
   try {
     const { data, error } = await supabase
       .from('organization_invitations')
@@ -179,6 +257,22 @@ export async function testReadOnlyAccess(orgId: string): Promise<TestSuite> {
 
 // Admin permission tests (full test level only)
 export async function testAdminPermissions(orgId: string): Promise<TestSuite> {
+  // Validate we're using the test org
+  const testOrgId = getTestOrgId();
+  if (testOrgId && orgId !== testOrgId) {
+    return {
+      suiteName: 'Admin Permissions',
+      results: [{
+        testName: 'Test Organization Validation',
+        passed: false,
+        message: `Test must use configured TEST_ORG_ID (${testOrgId}), got: ${orgId}`,
+        details: { expectedOrgId: testOrgId, actualOrgId: orgId }
+      }],
+      passed: false,
+      summary: 'Invalid test organization'
+    };
+  }
+
   if (!areWriteTestsEnabled()) {
     return {
       suiteName: 'Admin Permissions',
@@ -195,32 +289,51 @@ export async function testAdminPermissions(orgId: string): Promise<TestSuite> {
 
   const results: TestResult[] = [];
 
-  // Test 1: Can call create_invite and receive a token
+  // Test 1: Validate email delivery is disabled for tests
+  try {
+    results.push({
+      testName: 'Email delivery disabled for tests',
+      passed: isEmailDeliveryDisabled(),
+      message: isEmailDeliveryDisabled() 
+        ? 'Email delivery correctly disabled for tests'
+        : 'WARNING: Email delivery enabled during tests - may send real emails!',
+      details: { emailDeliveryDisabled: isEmailDeliveryDisabled() }
+    });
+  } catch (error) {
+    results.push({
+      testName: 'Email delivery disabled for tests',
+      passed: false,
+      message: `Error checking email configuration: ${error}`,
+      details: error
+    });
+  }
+
+  // Test 2: Can call create_invite and receive a token
   try {
     const inviteResult = await createInvite({
       p_org: orgId,
-      p_email: 'admin-test@example.com',
+      p_email: `test-admin-${Date.now()}@example.com`, // Use timestamped email for tests
       p_role: 'viewer'
     });
 
     results.push({
-      testName: 'Admin can create invite',
+      testName: 'Admin can create invite (test mode)',
       passed: inviteResult.success && !!inviteResult.token,
-      message: inviteResult.success 
+      message: inviteResult.success
         ? `Successfully created invite with token: ${inviteResult.token?.substring(0, 10)}...`
         : `Failed to create invite: ${inviteResult.error}`,
       details: inviteResult
     });
   } catch (error) {
     results.push({
-      testName: 'Admin can create invite',
+      testName: 'Admin can create invite (test mode)',
       passed: false,
       message: `Error: ${error}`,
       details: error
     });
   }
 
-  // Test 2: Can read organization_invitations
+  // Test 3: Can read organization_invitations
   try {
     const { data, error } = await supabase
       .from('organization_invitations')
@@ -242,7 +355,7 @@ export async function testAdminPermissions(orgId: string): Promise<TestSuite> {
     });
   }
 
-  // Test 3: Can update roles in organization_members
+  // Test 4: Can update roles in organization_members
   try {
     const { data: members } = await supabase
       .from('organization_members')
@@ -291,6 +404,22 @@ export async function testAdminPermissions(orgId: string): Promise<TestSuite> {
 
 // Non-admin member permission tests (full test level only)
 export async function testMemberPermissions(orgId: string): Promise<TestSuite> {
+  // Validate we're using the test org
+  const testOrgId = getTestOrgId();
+  if (testOrgId && orgId !== testOrgId) {
+    return {
+      suiteName: 'Member Permissions',
+      results: [{
+        testName: 'Test Organization Validation',
+        passed: false,
+        message: `Test must use configured TEST_ORG_ID (${testOrgId}), got: ${orgId}`,
+        details: { expectedOrgId: testOrgId, actualOrgId: orgId }
+      }],
+      passed: false,
+      summary: 'Invalid test organization'
+    };
+  }
+
   if (!areWriteTestsEnabled()) {
     return {
       suiteName: 'Member Permissions',
@@ -361,9 +490,9 @@ export async function testMemberPermissions(orgId: string): Promise<TestSuite> {
       .from('organization_invitations')
       .insert({
         organization_id: orgId,
-        email: 'unauthorized@example.com',
+        email: `test-unauthorized-${Date.now()}@example.com`, // Use timestamped email for tests
         role: 'viewer',
-        invite_token: 'test-token'
+        invite_token: `test-token-${Date.now()}`
       });
 
     results.push({
@@ -415,6 +544,22 @@ export async function testMemberPermissions(orgId: string): Promise<TestSuite> {
 
 // Invite flow tests (full test level only)
 export async function testInviteFlow(orgId: string): Promise<TestSuite> {
+  // Validate we're using the test org
+  const testOrgId = getTestOrgId();
+  if (testOrgId && orgId !== testOrgId) {
+    return {
+      suiteName: 'Invite Flow',
+      results: [{
+        testName: 'Test Organization Validation',
+        passed: false,
+        message: `Test must use configured TEST_ORG_ID (${testOrgId}), got: ${orgId}`,
+        details: { expectedOrgId: testOrgId, actualOrgId: orgId }
+      }],
+      passed: false,
+      summary: 'Invalid test organization'
+    };
+  }
+
   if (!areWriteTestsEnabled()) {
     return {
       suiteName: 'Invite Flow',
@@ -431,44 +576,54 @@ export async function testInviteFlow(orgId: string): Promise<TestSuite> {
 
   const results: TestResult[] = [];
 
-  // Test 1: accept_invite with valid token creates/updates membership
+  // Test 1: accept_invite with valid token creates/updates membership (smoke test only generates token)
   try {
     // First create an invite
     const inviteResult = await createInvite({
       p_org: orgId,
-      p_email: 'flow-test@example.com',
+      p_email: `test-flow-${Date.now()}@example.com`, // Use timestamped email for tests
       p_role: 'editor'
     });
 
     if (inviteResult.success && inviteResult.token) {
-      // Try to accept the invite
-      const acceptResult = await acceptInvite(inviteResult.token);
-
-      results.push({
-        testName: 'Valid token creates membership',
-        passed: acceptResult.success,
-        message: acceptResult.success 
-          ? 'Successfully accepted valid invitation'
-          : `Failed to accept invitation: ${acceptResult.error}`,
-        details: { inviteResult, acceptResult }
-      });
-
-      // Test 2: Reusing same token fails gracefully
-      if (acceptResult.success) {
-        const reAcceptResult = await acceptInvite(inviteResult.token);
-        
+      // For smoke tests, only validate token generation
+      if (getTestLevel() === 'smoke') {
         results.push({
-          testName: 'Reusing token fails gracefully',
-          passed: !reAcceptResult.success,
-          message: reAcceptResult.success 
-            ? 'ERROR: Token was reused successfully!' 
-            : `Correctly rejected reused token: ${reAcceptResult.error}`,
-          details: reAcceptResult
+          testName: 'Valid token generation (smoke test)',
+          passed: true,
+          message: 'Successfully generated valid invitation token',
+          details: { tokenGenerated: true, testLevel: 'smoke' }
         });
+      } else {
+        // Try to accept the invite (full test only)
+        const acceptResult = await acceptInvite(inviteResult.token);
+
+        results.push({
+          testName: 'Valid token creates membership',
+          passed: acceptResult.success,
+          message: acceptResult.success 
+            ? 'Successfully accepted valid invitation'
+            : `Failed to accept invitation: ${acceptResult.error}`,
+          details: { inviteResult, acceptResult }
+        });
+
+        // Test 2: Reusing same token fails gracefully (full test only)
+        if (acceptResult.success) {
+          const reAcceptResult = await acceptInvite(inviteResult.token);
+          
+          results.push({
+            testName: 'Reusing token fails gracefully',
+            passed: !reAcceptResult.success,
+            message: reAcceptResult.success 
+              ? 'ERROR: Token was reused successfully!' 
+              : `Correctly rejected reused token: ${reAcceptResult.error}`,
+            details: reAcceptResult
+          });
+        }
       }
     } else {
       results.push({
-        testName: 'Valid token creates membership',
+        testName: 'Valid token generation/acceptance',
         passed: false,
         message: `Failed to create test invite: ${inviteResult.error}`,
         details: inviteResult
@@ -476,32 +631,34 @@ export async function testInviteFlow(orgId: string): Promise<TestSuite> {
     }
   } catch (error) {
     results.push({
-      testName: 'Valid token creates membership',
+      testName: 'Valid token generation/acceptance',
       passed: false,
       message: `Error: ${error}`,
       details: error
     });
   }
 
-  // Test 3: Expired tokens fail with clear message
-  try {
-    const expiredResult = await acceptInvite('expired-or-invalid-token');
+  // Test 3: Expired tokens fail with clear message (full test only)
+  if (getTestLevel() === 'full') {
+    try {
+    const expiredResult = await acceptInvite(`expired-test-token-${Date.now()}`);
     
     results.push({
-      testName: 'Expired/invalid tokens fail clearly',
-      passed: !expiredResult.success,
-      message: expiredResult.success 
-        ? 'ERROR: Invalid token was accepted!' 
-        : `Correctly rejected invalid token: ${expiredResult.error}`,
-      details: expiredResult
-    });
-  } catch (error) {
-    results.push({
-      testName: 'Expired/invalid tokens fail clearly',
-      passed: true,
-      message: `Correctly failed with exception: ${error}`,
-      details: error
-    });
+        testName: 'Expired/invalid tokens fail clearly',
+        passed: !expiredResult.success,
+        message: expiredResult.success 
+          ? 'ERROR: Invalid token was accepted!' 
+          : `Correctly rejected invalid token: ${expiredResult.error}`,
+        details: expiredResult
+      });
+    } catch (error) {
+      results.push({
+        testName: 'Expired/invalid tokens fail clearly',
+        passed: true,
+        message: `Correctly failed with exception: ${error}`,
+        details: error
+      });
+    }
   }
 
   const passed = results.every(r => r.passed);
@@ -515,6 +672,22 @@ export async function testInviteFlow(orgId: string): Promise<TestSuite> {
 
 // Data integrity tests (full test level only)
 export async function testDataIntegrity(orgId: string): Promise<TestSuite> {
+  // Validate we're using the test org
+  const testOrgId = getTestOrgId();
+  if (testOrgId && orgId !== testOrgId) {
+    return {
+      suiteName: 'Data Integrity',
+      results: [{
+        testName: 'Test Organization Validation',
+        passed: false,
+        message: `Test must use configured TEST_ORG_ID (${testOrgId}), got: ${orgId}`,
+        details: { expectedOrgId: testOrgId, actualOrgId: orgId }
+      }],
+      passed: false,
+      summary: 'Invalid test organization'
+    };
+  }
+
   if (!areWriteTestsEnabled()) {
     return {
       suiteName: 'Data Integrity',
@@ -535,11 +708,11 @@ export async function testDataIntegrity(orgId: string): Promise<TestSuite> {
   try {
     const inviteResult = await createInvite({
       p_org: orgId,
-      p_email: 'role-test@example.com',
+      p_email: `test-role-${Date.now()}@example.com`, // Use timestamped email for tests
       p_role: 'EDITOR' // Test uppercase input
     });
 
-    results.push({
+      results.push({
       testName: 'Role values are normalized',
       passed: inviteResult.success && inviteResult.role === 'editor',
       message: inviteResult.success 
@@ -560,7 +733,7 @@ export async function testDataIntegrity(orgId: string): Promise<TestSuite> {
   try {
     const invalidRoleResult = await createInvite({
       p_org: orgId,
-      p_email: 'invalid-role-test@example.com',
+      p_email: `test-invalid-role-${Date.now()}@example.com`, // Use timestamped email for tests
       p_role: 'invalid_role'
     });
 
@@ -624,46 +797,52 @@ export async function testDataIntegrity(orgId: string): Promise<TestSuite> {
 // Run all tests based on test level
 export async function runAllTests(orgId?: string): Promise<TestSuite[]> {
   const testLevel = getTestLevel();
+  const testSetup = isTestSetupValid();
   
-  if (testLevel === 'off') {
+  if (!testSetup.valid) {
     return [{
-      suiteName: 'Testing Disabled',
+      suiteName: 'Test Setup',
       results: [{
-        testName: 'Test Execution',
+        testName: 'Test Configuration',
         passed: false,
-        message: 'Testing is disabled (RUN_TEST_LEVEL=off)',
-        details: { testLevel }
+        message: testSetup.message || 'Test setup invalid',
+        details: { 
+          testLevel,
+          testOrgId: getTestOrgId(),
+          emailDeliveryDisabled: isEmailDeliveryDisabled()
+        }
       }],
       passed: false,
-      summary: 'Tests disabled by configuration'
+      summary: 'Test configuration invalid'
     }];
   }
 
-  // For smoke tests, use existing org and run read-only tests
-  if (testLevel === 'smoke') {
-    if (!orgId) {
-      return [{
-        suiteName: 'Smoke Tests',
-        results: [{
-          testName: 'Organization Required',
-          passed: false,
-          message: 'Organization ID required for smoke tests',
-          details: null
-        }],
+  // Always use the configured test org ID
+  const testOrgId = getTestOrgId()!;
+  
+  if (orgId && orgId !== testOrgId) {
+    return [{
+      suiteName: 'Test Organization Validation',
+      results: [{
+        testName: 'Organization Validation',
         passed: false,
-        summary: 'No organization provided'
-      }];
-    }
-    
-    return [await testReadOnlyAccess(orgId)];
+        message: `Tests must use configured TEST_ORG_ID (${testOrgId}), got: ${orgId}`,
+        details: { expectedOrgId: testOrgId, actualOrgId: orgId }
+      }],
+      passed: false,
+      summary: 'Invalid test organization'
+    }];
   }
 
-  // For full tests, create test org if needed and run all tests
-  const testOrgId = orgId || await createTestOrganization();
-  
+  // For smoke tests, run read-only tests
+  if (testLevel === 'smoke') {
+    return [await testReadOnlyAccess(testOrgId)];
+  }
+
+  // For full tests, run all test suites
   const suites = await Promise.all([
     testAdminPermissions(testOrgId),
-    testMemberPermissions(testOrgId),
+    testMemberPermissions(testOrgId), 
     testInviteFlow(testOrgId),
     testDataIntegrity(testOrgId)
   ]);

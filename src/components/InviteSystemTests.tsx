@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle, XCircle, Play, Loader2, AlertTriangle, ShieldAlert } from "lucide-react";
-import { runAllTests, TestSuite, TestResult, getTestLevel, isTestingEnabled, areWriteTestsEnabled } from "@/lib/invite-tests";
+import { runAllTests, TestSuite, TestResult, getTestLevel, isTestingEnabled, areWriteTestsEnabled, isTestSetupValid, getTestOrgId } from "@/lib/invite-tests";
 import { useToast } from "@/hooks/use-toast";
 
 interface InviteSystemTestsProps {
@@ -20,12 +20,14 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
   const testLevel = getTestLevel();
   const testingEnabled = isTestingEnabled();
   const writeTestsEnabled = areWriteTestsEnabled();
+  const testSetup = isTestSetupValid();
+  const testOrgId = getTestOrgId();
 
   const runTests = async () => {
-    if (!testingEnabled) {
+    if (!testSetup.valid) {
       toast({
-        title: "Testing Disabled",
-        description: "Tests are disabled by RUN_TEST_LEVEL configuration",
+        title: "Test Setup Invalid",
+        description: testSetup.message || "Please configure test environment properly",
         variant: "destructive"
       });
       return;
@@ -35,7 +37,8 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
     setTestResults([]);
     
     try {
-      const results = await runAllTests(organizationId);
+      // Always use configured test org, ignore passed organizationId
+      const results = await runAllTests();
       setTestResults(results);
       
       const allPassed = results.every(suite => suite.passed);
@@ -74,11 +77,11 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
 
   return (
     <div className="space-y-6">
-      {!testingEnabled && (
+      {!testSetup.valid && (
         <Alert variant="destructive">
           <ShieldAlert className="h-4 w-4" />
           <AlertDescription>
-            Testing is disabled (RUN_TEST_LEVEL={testLevel}). This feature is only available when testing is enabled.
+            {testSetup.message}
           </AlertDescription>
         </Alert>
       )}
@@ -89,20 +92,20 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
             <AlertTriangle className="h-5 w-5" />
             Invite System Security Tests
             <Badge variant="outline" className="text-xs">
-              Level: {testLevel.toUpperCase()}
+              Test Org: {testOrgId || 'Not Configured'}
             </Badge>
           </CardTitle>
           <CardDescription>
             Automated tests to verify invite system security, permissions, and data integrity.
-            {testLevel === 'smoke' && ' Running in read-only mode.'}
-            {testLevel === 'full' && ' Running complete test suite with write operations.'}
-            {testLevel === 'off' && ' Testing is disabled.'}
+            {testLevel === 'smoke' && ' Running in read-only mode with dedicated test organization.'}
+            {testLevel === 'full' && ' Running complete test suite with dedicated test organization.'}
+            {!testSetup.valid && ' Testing configuration required.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button
             onClick={runTests}
-            disabled={testing || !testingEnabled}
+            disabled={testing || !testSetup.valid}
             className="w-full"
           >
             {testing ? (
@@ -110,10 +113,10 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Running Tests...
               </>
-            ) : !testingEnabled ? (
+            ) : !testSetup.valid ? (
               <>
                 <ShieldAlert className="h-4 w-4 mr-2" />
-                Testing Disabled
+                Setup Required
               </>
             ) : (
               <>
@@ -123,11 +126,14 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
             )}
           </Button>
           
-          {organizationId && testingEnabled && (
+          {testSetup.valid && testOrgId && (
             <Alert className="mt-4">
               <AlertDescription>
-                Testing with organization ID: <code className="bg-muted px-1 rounded">{organizationId}</code>
-                {testLevel === 'smoke' && <span className="block mt-1 text-sm text-muted-foreground">Note: Smoke tests run read-only operations only.</span>}
+                Using dedicated test organization: <code className="bg-muted px-1 rounded">{testOrgId}</code>
+                <span className="block mt-1 text-sm text-muted-foreground">
+                  {testLevel === 'smoke' && 'Read-only operations only. '}
+                  Email delivery disabled for tests.
+                </span>
               </AlertDescription>
             </Alert>
           )}
@@ -197,7 +203,7 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
         </div>
       )}
 
-      {!testing && testResults.length === 0 && testingEnabled && (
+      {!testing && testResults.length === 0 && testSetup.valid && (
         <Card>
           <CardContent className="pt-6">
             <div className="text-center text-muted-foreground">

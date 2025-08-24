@@ -7,7 +7,7 @@ import { ShieldX } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserOrganization } from '@/hooks/useUserOrganization';
 import { useOrganizationRole } from '@/hooks/useOrganizationRole';
-import { getTestLevel, isTestingEnabled } from '@/lib/invite-tests';
+import { getTestLevel, isTestingEnabled, isTestSetupValid } from '@/lib/invite-tests';
 
 const AdminInviteTests = () => {
   const { user } = useAuth();
@@ -18,18 +18,19 @@ const AdminInviteTests = () => {
 
   useEffect(() => {
     const checkAccess = () => {
-      // Check if testing is enabled at all
+      // Check if testing is enabled and properly configured
       const testingEnabled = isTestingEnabled();
+      const testSetup = isTestSetupValid();
       
       // Only allow access if:
       // 1. User is authenticated
-      // 2. Testing is enabled (RUN_TEST_LEVEL !== 'off')
+      // 2. Testing is enabled and properly configured
       // 3. User is organization owner (admin role)
       // 4. Not in demo sandbox (has real organization)
       const isOwner = role === 'admin';
       const hasOrganization = organization && organization.id !== 'demo-org-id';
       
-      const access = user && testingEnabled && isOwner && hasOrganization;
+      const access = user && testingEnabled && testSetup.valid && isOwner && hasOrganization;
       setHasAccess(!!access);
       setLoading(false);
     };
@@ -56,6 +57,8 @@ const AdminInviteTests = () => {
           <Alert className="mt-4">
             <AlertDescription>
               Current test level: <code className="bg-muted px-1 rounded">{getTestLevel()}</code>
+              <br />
+              Test setup: <code className="bg-muted px-1 rounded">{isTestSetupValid().valid ? 'Valid' : 'Invalid'}</code>
             </AlertDescription>
           </Alert>
         </div>
@@ -75,7 +78,8 @@ const AdminInviteTests = () => {
       </header>
       
       <div className="p-4 md:p-6">
-        <InviteSystemTests organizationId={organization?.id} />
+        {/* Don't pass organizationId - tests will use configured TEST_ORG_ID */}
+        <InviteSystemTests />
       </div>
     </div>
   );
