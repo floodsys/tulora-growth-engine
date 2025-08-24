@@ -1036,6 +1036,27 @@ export type Database = {
         }
         Relationships: []
       }
+      superadmins: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       test_logs: {
         Row: {
           created_at: string
@@ -1151,6 +1172,10 @@ export type Database = {
         Args: { p_token: string }
         Returns: Json
       }
+      add_superadmin: {
+        Args: { p_user_email: string }
+        Returns: Json
+      }
       admin_change_member_role: {
         Args: {
           p_admin_user_id?: string
@@ -1215,6 +1240,10 @@ export type Database = {
       binary_quantize: {
         Args: { "": string } | { "": unknown }
         Returns: unknown
+      }
+      bootstrap_superadmin: {
+        Args: { p_bootstrap_token: string }
+        Returns: Json
       }
       can_perform_action: {
         Args: { p_action: string; p_org_id: string; p_resource_type?: string }
@@ -1491,6 +1520,10 @@ export type Database = {
       }
       reinstate_organization: {
         Args: { p_org_id: string; p_reason: string; p_reinstated_by?: string }
+        Returns: Json
+      }
+      remove_superadmin: {
+        Args: { p_user_email: string }
         Returns: Json
       }
       seed_default_alert_rules: {

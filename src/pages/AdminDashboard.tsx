@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAdminAccess } from '@/hooks/useAdminAccess';
+import { useSuperadmin } from '@/hooks/useSuperadmin';
+import { AdminModeChip } from '@/components/ui/AdminModeChip';
 import { getEnvironmentConfig } from '@/lib/environment';
 import { 
   Search, 
@@ -15,10 +16,11 @@ import {
   Settings,
   AlertTriangle,
   TestTube,
-  ExternalLink
+  ExternalLink,
+  Shield
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -33,6 +35,7 @@ import { EmailIntegrations } from '@/components/admin/EmailIntegrations';
 import { FeatureFlags } from '@/components/admin/FeatureFlags';
 import { DataFixes } from '@/components/admin/DataFixes';
 import { AdminTestRunner } from '@/components/admin/AdminTestRunner';
+import { SuperadminManagement } from '@/components/admin/SuperadminManagement';
 
 const adminTabs = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -43,6 +46,7 @@ const adminTabs = [
   { id: 'agent-catalog', label: 'Agent Catalog', icon: Bot },
   { id: 'logs', label: 'Logs', icon: FileText },
   { id: 'utilities', label: 'Utilities', icon: Settings },
+  { id: 'superadmins', label: 'Superadmins', icon: Shield },
   { 
     id: 'tests', 
     label: 'Hidden Tests', 
@@ -53,18 +57,52 @@ const adminTabs = [
 
 export default function AdminDashboard() {
   const { user, loading: authLoading } = useAuth();
-  const { hasAccess, isChecking, AccessDeniedComponent, LoadingComponent } = useAdminAccess();
+  const { isSuperadmin, isLoading } = useSuperadmin();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const envConfig = getEnvironmentConfig();
 
-  if (authLoading || isChecking) {
-    return <LoadingComponent />;
+  // Check authentication and superadmin status
+  useEffect(() => {
+    if (!user && !authLoading) {
+      navigate('/auth');
+      return;
+    }
+    
+    if (!isLoading && !isSuperadmin && user) {
+      navigate('/dashboard');
+      return;
+    }
+  }, [user, isSuperadmin, isLoading, authLoading, navigate]);
+
+  if (authLoading || isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Shield className="h-8 w-8 mx-auto animate-pulse text-primary" />
+          <p className="text-muted-foreground">Checking admin access...</p>
+        </div>
+      </div>
+    );
   }
 
-  if (!hasAccess) {
-    return <AccessDeniedComponent />;
+  if (!isSuperadmin) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+              <AlertTriangle className="w-6 h-6 text-destructive" />
+            </div>
+            <CardTitle>Access Denied</CardTitle>
+            <CardDescription>
+              You don't have permission to access the admin dashboard.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -74,11 +112,7 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
-              {!envConfig.isProduction && (
-                <Badge variant="destructive" className="ml-2">
-                  Dev Environment
-                </Badge>
-              )}
+              <AdminModeChip environment={import.meta.env.MODE || 'development'} />
             </div>
             <div className="flex items-center space-x-4">
               <div className="relative">
@@ -95,18 +129,17 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      {!envConfig.isProduction && (
-        <Alert className="mx-6 mt-4 border-orange-200 bg-orange-50">
-          <AlertTriangle className="h-4 w-4 text-orange-600" />
-          <AlertDescription className="text-orange-800">
-            <strong>Dev Only:</strong> Test environment active (test level: {envConfig.testLevel})
-          </AlertDescription>
-        </Alert>
-      )}
+      <Alert className="mx-6 mt-4">
+        <Shield className="h-4 w-4" />
+        <AlertDescription>
+          You are in <strong>Superadmin Mode</strong>. All actions are logged and audited. 
+          Use these tools responsibly and only as necessary for platform management.
+        </AlertDescription>
+      </Alert>
 
       <div className="container mx-auto px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-9">
             {adminTabs
               .filter(tab => !tab.condition || tab.condition())
               .map((tab) => {
@@ -212,6 +245,10 @@ export default function AdminDashboard() {
                 <AdminTestRunner />
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="superadmins">
+            <SuperadminManagement />
           </TabsContent>
 
           <TabsContent value="tests">

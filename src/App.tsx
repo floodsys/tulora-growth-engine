@@ -18,6 +18,7 @@ import SettingsTeams from "@/pages/SettingsTeams";
 import SettingsOrganization from "@/pages/SettingsOrganization";
 import ActivityLogs from "@/pages/ActivityLogs";
 import AdminDashboard from "@/pages/AdminDashboard";
+import AdminSetup from "@/pages/AdminSetup";
 import AdminInviteTests from "@/pages/AdminInviteTests";
 import AdminOrgLogs from "@/pages/AdminOrgLogs";
 
@@ -43,6 +44,7 @@ function App() {
             <Route path="/demo" element={<Demo />} />
             <Route path="/activity-logs" element={<ActivityLogs />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin-setup" element={<AdminSetup />} />
             <Route path="/admin/logs/org/:orgId" element={<AdminOrgLogs />} />
             <Route path="/admin/tests/invites" element={<AdminInviteTests />} />
             <Route path="*" element={<NotFound />} />
