@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/select"
 import { Bot, Phone, Star, Play, Pause, Settings, Plus, BarChart3, FileText, Zap } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useUserOrganization } from "@/hooks/useUserOrganization"
+import { AgentCatalog } from "@/components/AgentCatalog"
 
 interface Agent {
   id: string
@@ -334,21 +336,15 @@ const PerformanceTab = () => (
   </div>
 )
 
-const TemplatesTab = () => (
-  <div className="space-y-6">
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileText className="h-5 w-5" />
-          Agent Templates
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-muted-foreground">Pre-built agent configurations for common use cases coming soon...</p>
-      </CardContent>
-    </Card>
-  </div>
-)
+const TemplatesTab = () => {
+  const { organization } = useUserOrganization()
+  
+  return (
+    <div className="space-y-6">
+      <AgentCatalog onAgentCreated={() => window.location.reload()} />
+    </div>
+  )
+}
 
 const AutomationTab = () => (
   <div className="space-y-6">

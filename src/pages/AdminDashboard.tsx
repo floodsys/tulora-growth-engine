@@ -24,6 +24,7 @@ import { OrganizationsDirectory } from '@/components/admin/OrganizationsDirector
 import { MembersAdmin } from '@/components/admin/MembersAdmin';
 import { AnalyticsDashboard } from '@/components/admin/AnalyticsDashboard';
 import { BillingAdmin } from '@/components/admin/BillingAdmin';
+import { AgentCatalogAdmin } from '@/components/admin/AgentCatalogAdmin';
 
 const adminTabs = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -188,14 +189,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="agent-catalog">
-            <Card>
-              <CardHeader>
-                <CardTitle>Agent Catalog</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Agent catalog coming soon...</p>
-              </CardContent>
-            </Card>
+            <AgentCatalogAdmin />
           </TabsContent>
 
           <TabsContent value="logs">
