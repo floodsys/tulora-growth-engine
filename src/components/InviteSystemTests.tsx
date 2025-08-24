@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle, XCircle, Play, Loader2, AlertTriangle, ShieldAlert } from "lucide-react";
-import { runAllTests, TestSuite, TestResult, getTestLevel, isTestingEnabled, areWriteTestsEnabled, isTestSetupValid, getTestOrgId } from "@/lib/invite-tests";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { CheckCircle, XCircle, Play, Loader2, AlertTriangle, ShieldAlert, ChevronDown, Zap, Settings } from "lucide-react";
+import { runAllTests, TestSuite, TestResult, getTestLevel, isTestingEnabled, areWriteTestsEnabled, isTestSetupValid, getTestOrgId, testReadOnlyAccess } from "@/lib/invite-tests";
 import { useToast } from "@/hooks/use-toast";
 
 interface InviteSystemTestsProps {
@@ -15,6 +17,8 @@ interface InviteSystemTestsProps {
 export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
   const [testing, setTesting] = useState(false);
   const [testResults, setTestResults] = useState<TestSuite[]>([]);
+  const [selectedTestMode, setSelectedTestMode] = useState<'smoke' | 'full'>('smoke');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const { toast } = useToast();
   
   const testLevel = getTestLevel();
@@ -22,6 +26,22 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
   const writeTestsEnabled = areWriteTestsEnabled();
   const testSetup = isTestSetupValid();
   const testOrgId = getTestOrgId();
+
+  // Auto-select based on test level  
+  useEffect(() => {
+    if (testLevel === 'full') {
+      setSelectedTestMode('full');
+    } else {
+      setSelectedTestMode('smoke');
+    }
+  }, [testLevel]);
+
+  const canRunSelectedMode = () => {
+    if (selectedTestMode === 'full' && testLevel !== 'full') {
+      return false;
+    }
+    return true;
+  };
 
   const runTests = async () => {
     if (!testSetup.valid) {
@@ -32,13 +52,25 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
       });
       return;
     }
+
+    if (!canRunSelectedMode()) {
+      toast({
+        title: "Insufficient Test Level",
+        description: `Cannot run ${selectedTestMode} tests with RUN_TEST_LEVEL=${testLevel}. Set RUN_TEST_LEVEL=full to run full test suite.`,
+        variant: "destructive"
+      });
+      return;
+    }
     
     setTesting(true);
     setTestResults([]);
+    setShowConfirmModal(false);
     
     try {
-      // Always use configured test org, ignore passed organizationId
-      const results = await runAllTests();
+      // Run tests based on selected mode, overriding environment level
+      const results = selectedTestMode === 'smoke' 
+        ? [await testReadOnlyAccess(testOrgId!)]
+        : await runAllTests();
       setTestResults(results);
       
       const allPassed = results.every(suite => suite.passed);
@@ -59,6 +91,18 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
     }
   };
 
+  const handleRunTests = () => {
+    if (!canRunSelectedMode()) {
+      toast({
+        title: "Insufficient Test Level",
+        description: `Cannot run ${selectedTestMode} tests with RUN_TEST_LEVEL=${testLevel}. Set RUN_TEST_LEVEL=full to run full test suite.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    setShowConfirmModal(true);
+  };
+
   const getResultIcon = (passed: boolean) => {
     return passed ? (
       <CheckCircle className="h-4 w-4 text-green-600" />
@@ -73,6 +117,38 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
         {passed ? "PASS" : "FAIL"}
       </Badge>
     );
+  };
+
+  const getTestModeInfo = (mode: 'smoke' | 'full') => {
+    switch (mode) {
+      case 'smoke':
+        return {
+          label: 'Smoke (Prod)',
+          description: 'Read-only validation tests safe for production',
+          icon: <Settings className="h-4 w-4" />,
+          effects: [
+            'Validates test environment configuration',
+            'Reads organization and member data',
+            'Reads existing invitations',
+            'No data creation or modification',
+            'Safe for production use'
+          ]
+        };
+      case 'full':
+        return {
+          label: 'Full Suite (CI)',
+          description: 'Complete test suite with write operations',
+          icon: <Zap className="h-4 w-4" />,
+          effects: [
+            'Creates test invitations',
+            'Tests invitation acceptance flow',
+            'Tests role validation and normalization',
+            'Tests admin and member permissions',
+            'Modifies test organization data',
+            'Only safe in CI/staging environments'
+          ]
+        };
+    }
   };
 
   return (
@@ -102,36 +178,130 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
             {!testSetup.valid && ' Testing configuration required.'}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button
-            onClick={runTests}
-            disabled={testing || !testSetup.valid}
-            className="w-full"
-          >
-            {testing ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Running Tests...
-              </>
-            ) : !testSetup.valid ? (
-              <>
-                <ShieldAlert className="h-4 w-4 mr-2" />
-                Setup Required
-              </>
-            ) : (
-              <>
-                <Play className="h-4 w-4 mr-2" />
-                Run {testLevel === 'smoke' ? 'Smoke' : 'All Security'} Tests
-              </>
-            )}
-          </Button>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+              <DialogTrigger asChild>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      disabled={testing || !testSetup.valid}
+                      className="flex-1"
+                    >
+                      {testing ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Running Tests...
+                        </>
+                      ) : !testSetup.valid ? (
+                        <>
+                          <ShieldAlert className="h-4 w-4 mr-2" />
+                          Setup Required
+                        </>
+                      ) : (
+                        <>
+                          {getTestModeInfo(selectedTestMode).icon}
+                          <span className="mr-2">Run Tests: {getTestModeInfo(selectedTestMode).label}</span>
+                          <ChevronDown className="h-4 w-4" />
+                        </>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setSelectedTestMode('smoke');
+                        if (canRunSelectedMode()) handleRunTests();
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Settings className="h-4 w-4" />
+                      <div className="flex flex-col">
+                        <span>Smoke (Prod)</span>
+                        <span className="text-xs text-muted-foreground">Read-only validation</span>
+                      </div>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setSelectedTestMode('full');
+                        if (canRunSelectedMode()) handleRunTests();
+                      }}
+                      className="flex items-center gap-2"
+                      disabled={testLevel !== 'full'}
+                    >
+                      <Zap className="h-4 w-4" />
+                      <div className="flex flex-col">
+                        <span>Full Suite (CI)</span>
+                        <span className="text-xs text-muted-foreground">
+                          {testLevel !== 'full' ? 'Requires RUN_TEST_LEVEL=full' : 'Complete test suite'}
+                        </span>
+                      </div>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </DialogTrigger>
+              
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    {getTestModeInfo(selectedTestMode).icon}
+                    Confirm Test Execution
+                  </DialogTitle>
+                  <DialogDescription>
+                    You are about to run <strong>{getTestModeInfo(selectedTestMode).label}</strong> tests.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="space-y-4">
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Test Target:</strong> {testOrgId}
+                      <br />
+                      <span className="text-sm text-muted-foreground">
+                        Tests will run exclusively against this dedicated test organization.
+                      </span>
+                    </AlertDescription>
+                  </Alert>
+                  
+                  <div>
+                    <h4 className="font-medium mb-2">This test will:</h4>
+                    <ul className="text-sm space-y-1 text-muted-foreground">
+                      {getTestModeInfo(selectedTestMode).effects.map((effect, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <span className="text-xs mt-1">•</span>
+                          {effect}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowConfirmModal(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={runTests}
+                    className="flex items-center gap-2"
+                  >
+                    {getTestModeInfo(selectedTestMode).icon}
+                    Run {getTestModeInfo(selectedTestMode).label}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
           
           {testSetup.valid && testOrgId && (
             <Alert className="mt-4">
               <AlertDescription>
                 Using dedicated test organization: <code className="bg-muted px-1 rounded">{testOrgId}</code>
                 <span className="block mt-1 text-sm text-muted-foreground">
-                  {testLevel === 'smoke' && 'Read-only operations only. '}
+                  {selectedTestMode === 'smoke' && 'Read-only operations only. '}
                   Email delivery disabled for tests.
                 </span>
               </AlertDescription>
@@ -208,10 +378,10 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
           <CardContent className="pt-6">
             <div className="text-center text-muted-foreground">
               <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>Click "Run {testLevel === 'smoke' ? 'Smoke' : 'All Security'} Tests" to verify your invite system security.</p>
-              {testLevel === 'smoke' && (
-                <p className="text-xs mt-2">Running in read-only mode - no data will be modified.</p>
-              )}
+              <p>Select a test mode and click "Run Tests" to verify your invite system security.</p>
+              <p className="text-xs mt-2">
+                Current selection: <strong>{getTestModeInfo(selectedTestMode).label}</strong> - {getTestModeInfo(selectedTestMode).description}
+              </p>
             </div>
           </CardContent>
         </Card>

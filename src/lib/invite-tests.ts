@@ -142,7 +142,7 @@ async function createSecondaryUser(): Promise<{ email: string; password: string 
   return { email, password };
 }
 
-// Smoke test for reading organization data (read-only)
+// Smoke test for reading organization data (read-only) - export for direct use
 export async function testReadOnlyAccess(orgId: string): Promise<TestSuite> {
   const results: TestResult[] = [];
   
