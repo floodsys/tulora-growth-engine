@@ -1145,6 +1145,29 @@ export type Database = {
         Args: { "": string } | { "": unknown } | { "": unknown }
         Returns: unknown
       }
+      list_audit_log: {
+        Args: {
+          p_cursor?: string
+          p_filters?: Json
+          p_limit?: number
+          p_org_id: string
+        }
+        Returns: {
+          action: string
+          actor_role_snapshot: string
+          actor_user_id: string
+          channel: string
+          created_at: string
+          error_code: string
+          has_more: boolean
+          id: string
+          metadata: Json
+          organization_id: string
+          status: string
+          target_id: string
+          target_type: string
+        }[]
+      }
       log_activity: {
         Args: {
           p_action: string
@@ -1171,6 +1194,21 @@ export type Database = {
           p_target_id?: string
           p_target_type: string
           p_user_agent?: string
+        }
+        Returns: string
+      }
+      log_event: {
+        Args: {
+          p_action: string
+          p_actor_role_snapshot?: string
+          p_actor_user_id?: string
+          p_channel?: string
+          p_error_code?: string
+          p_metadata?: Json
+          p_org_id: string
+          p_status?: string
+          p_target_id?: string
+          p_target_type: string
         }
         Returns: string
       }

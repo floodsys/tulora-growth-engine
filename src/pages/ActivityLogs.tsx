@@ -1,4 +1,4 @@
-import { ActivityFeed } from "@/components/ActivityFeed";
+import { AuditLogViewer } from "@/components/AuditLogViewer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, Shield, AlertTriangle, Info, Settings, Eye } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -120,13 +120,8 @@ export default function ActivityLogs() {
           </Alert>
         </div>
 
-        {/* Main Activity Feed with Channel Selection */}
-        <ActivityFeed 
-          showFilters={true} 
-          maxHeight="h-[600px]" 
-          compact={false}
-          channelFilter="all"
-        />
+        {/* Main Audit Log Viewer */}
+        <AuditLogViewer />
       </div>
     </div>
   );
