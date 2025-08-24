@@ -900,6 +900,7 @@ export type Database = {
       }
       organizations: {
         Row: {
+          analytics_config: Json | null
           billing_status: string | null
           created_at: string | null
           entitlements: Json | null
@@ -911,8 +912,10 @@ export type Database = {
           stripe_customer_id: string | null
           trial_ends_at: string | null
           trial_started_at: string | null
+          webhook_config: Json | null
         }
         Insert: {
+          analytics_config?: Json | null
           billing_status?: string | null
           created_at?: string | null
           entitlements?: Json | null
@@ -924,8 +927,10 @@ export type Database = {
           stripe_customer_id?: string | null
           trial_ends_at?: string | null
           trial_started_at?: string | null
+          webhook_config?: Json | null
         }
         Update: {
+          analytics_config?: Json | null
           billing_status?: string | null
           created_at?: string | null
           entitlements?: Json | null
@@ -937,6 +942,7 @@ export type Database = {
           stripe_customer_id?: string | null
           trial_ends_at?: string | null
           trial_started_at?: string | null
+          webhook_config?: Json | null
         }
         Relationships: []
       }
