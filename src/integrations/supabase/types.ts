@@ -142,6 +142,112 @@ export type Database = {
         }
         Relationships: []
       }
+      alert_rules: {
+        Row: {
+          conditions: Json
+          created_at: string
+          description: string
+          id: string
+          is_enabled: boolean
+          organization_id: string
+          rule_name: string
+          severity: string
+          threshold_count: number
+          time_window_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          conditions: Json
+          created_at?: string
+          description: string
+          id?: string
+          is_enabled?: boolean
+          organization_id: string
+          rule_name: string
+          severity?: string
+          threshold_count: number
+          time_window_minutes: number
+          updated_at?: string
+        }
+        Update: {
+          conditions?: Json
+          created_at?: string
+          description?: string
+          id?: string
+          is_enabled?: boolean
+          organization_id?: string
+          rule_name?: string
+          severity?: string
+          threshold_count?: number
+          time_window_minutes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      alerts: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          organization_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          rule_name: string
+          severity: string
+          source_events: Json
+          status: string
+          threshold_data: Json
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          organization_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          rule_name: string
+          severity?: string
+          source_events?: Json
+          status?: string
+          threshold_data?: Json
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          organization_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          rule_name?: string
+          severity?: string
+          source_events?: Json
+          status?: string
+          threshold_data?: Json
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alerts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           created_at: string | null
@@ -1032,6 +1138,10 @@ export type Database = {
         Args: { p_action: string; p_org_id: string; p_resource_type?: string }
         Returns: boolean
       }
+      check_alert_rules: {
+        Args: { p_org_id: string }
+        Returns: Json
+      }
       cleanup_expired_logs: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -1259,6 +1369,10 @@ export type Database = {
       normalize_role_value: {
         Args: { input_role: string }
         Returns: string
+      }
+      seed_default_alert_rules: {
+        Args: { p_org_id: string }
+        Returns: undefined
       }
       setup_user_account: {
         Args: Record<PropertyKey, never>
