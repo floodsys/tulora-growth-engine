@@ -220,7 +220,7 @@ export function useActivityLogger() {
     return logEvent({ ...data, channel: 'internal' });
   }, [logEvent]);
 
-  const logTestEvent = useCallback((data: Omit<ActivityEventData, 'channel'>) => {
+  const logTestEvent_Original = useCallback((data: Omit<ActivityEventData, 'channel'>) => {
     return logEvent({ ...data, channel: 'test_invites' });
   }, [logEvent]);
 
@@ -269,6 +269,26 @@ export function useActivityLogger() {
       metadata 
     });
   }, [logAuditEvent]);
+
+  // Test event helper that always uses test_invites channel
+  const logTestEvent = useCallback((data: Omit<ActivityEventData, 'channel'>) => {
+    // Only log test events if testing is enabled
+    const testLevel = (globalThis as any).VITE_RUN_TEST_LEVEL || 'off';
+    if (testLevel === 'off') {
+      console.log('Test logging disabled (RUN_TEST_LEVEL=off)');
+      return Promise.resolve();
+    }
+    
+    return logEvent({ 
+      ...data, 
+      channel: 'test_invites',
+      metadata: {
+        ...data.metadata,
+        test_environment: true,
+        test_level: testLevel
+      }
+    });
+  }, [logEvent]);
 
   return {
     logEvent,

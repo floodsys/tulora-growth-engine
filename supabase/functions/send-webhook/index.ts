@@ -70,6 +70,15 @@ const handler = async (req: Request): Promise<Response> => {
     // Check if event should be sent based on filters
     const filters = webhookConfig.filters || {};
     
+    // Always exclude test_invites channel from webhooks
+    if (event.channel === 'test_invites') {
+      console.log('Excluding test_invites channel from webhook');
+      return new Response(
+        JSON.stringify({ success: true, message: 'Test channel excluded from webhooks' }),
+        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+    
     if (filters.channels && !filters.channels.includes(event.channel)) {
       console.log(`Event channel ${event.channel} not in allowed channels:`, filters.channels);
       return new Response(

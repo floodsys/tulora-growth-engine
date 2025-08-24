@@ -91,6 +91,20 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending notifications to ${adminEmails.length} admins:`, adminEmails);
 
+    // Check if this alert is from test_invites channel (should not send emails)
+    if (rule_name === 'test_invites_alert' || metadata?.channel === 'test_invites') {
+      console.log('Skipping email notification for test_invites channel');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          notification_sent: false,
+          admin_count: adminEmails.length,
+          message: 'Email skipped for test channel'
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
     // Send email notifications if Resend API key is available
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (resendApiKey && adminEmails.length > 0) {

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useUserOrganization } from "@/hooks/useUserOrganization";
+import { shouldShowChannel, getEnvironmentConfig } from "@/lib/environment";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -267,8 +268,12 @@ export function ExportAndIntegrationsSettings() {
                     <SelectContent>
                       <SelectItem value="">All channels</SelectItem>
                       <SelectItem value="audit">Audit</SelectItem>
-                      <SelectItem value="internal">Internal</SelectItem>
-                      <SelectItem value="test_invites">Test Invites</SelectItem>
+                      {shouldShowChannel('internal', isOwner, isOwner) && (
+                        <SelectItem value="internal">Internal</SelectItem>
+                      )}
+                      {shouldShowChannel('test_invites', isOwner, isOwner) && (
+                        <SelectItem value="test_invites">Test Invites</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -355,28 +360,33 @@ export function ExportAndIntegrationsSettings() {
                   <div className="space-y-2">
                     <Label>Channel Filters</Label>
                     <div className="flex gap-2">
-                      {['audit', 'internal', 'test_invites'].map(channel => (
-                        <div key={channel} className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id={channel}
-                            checked={webhookConfig.filters.channels.includes(channel)}
-                            onChange={(e) => {
-                              const channels = e.target.checked
-                                ? [...webhookConfig.filters.channels, channel]
-                                : webhookConfig.filters.channels.filter(c => c !== channel);
-                              setWebhookConfig(prev => ({
-                                ...prev,
-                                filters: { ...prev.filters, channels }
-                              }));
-                            }}
-                          />
-                          <Label htmlFor={channel} className="text-sm">
-                            {channel}
-                          </Label>
-                        </div>
+                      {['audit', 'internal'].map(channel => (
+                        shouldShowChannel(channel, isOwner, isOwner) && (
+                          <div key={channel} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={channel}
+                              checked={webhookConfig.filters.channels.includes(channel)}
+                              onChange={(e) => {
+                                const channels = e.target.checked
+                                  ? [...webhookConfig.filters.channels, channel]
+                                  : webhookConfig.filters.channels.filter(c => c !== channel);
+                                setWebhookConfig(prev => ({
+                                  ...prev,
+                                  filters: { ...prev.filters, channels }
+                                }));
+                              }}
+                            />
+                            <Label htmlFor={channel} className="text-sm">
+                              {channel}
+                            </Label>
+                          </div>
+                        )
                       ))}
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Note: Test channels are automatically excluded from webhooks
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -539,11 +549,13 @@ export function ExportAndIntegrationsSettings() {
                   </div>
 
                   <div className="bg-muted p-4 rounded-lg">
-                    <h4 className="font-medium mb-2">Privacy Notice</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Only non-PII metadata is sent to analytics platforms. Personal information like emails, 
-                      IP addresses, and user agents are automatically filtered out.
-                    </p>
+                    <h4 className="font-medium mb-2">Privacy & Environment Notice</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Only non-PII metadata is sent to analytics platforms</li>
+                      <li>• Personal information like emails, IP addresses, and user agents are filtered out</li>
+                      <li>• Test channels (test_invites) are automatically excluded from analytics</li>
+                      <li>• Internal diagnostic data is only included when explicitly configured</li>
+                    </ul>
                   </div>
                 </>
               )}

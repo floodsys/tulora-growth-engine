@@ -65,6 +65,15 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Always exclude test_invites channel from analytics
+    if (event.channel === 'test_invites') {
+      console.log('Excluding test_invites channel from analytics');
+      return new Response(
+        JSON.stringify({ success: true, message: 'Test channel excluded from analytics' }),
+        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
     // Send to PostHog if configured
     if (analyticsConfig.posthog?.enabled && analyticsConfig.posthog?.api_key) {
       await sendToPostHog(event, analyticsConfig.posthog);

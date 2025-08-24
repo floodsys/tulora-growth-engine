@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserOrganization } from '@/hooks/useUserOrganization';
+import { shouldShowChannel, shouldExcludeFromCustomerView } from '@/lib/environment';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -62,34 +63,62 @@ export function OrganizationActivityViewer() {
 
     try {
       setLoading(true);
-      setError(null);
+
+      // Build filters object, excluding channels not visible to user
+      const visibleChannels = ['audit', 'internal', 'test_invites'].filter(channel => 
+        shouldShowChannel(channel, isOwner, isOwner) // Treating owner as superadmin for now
+      );
+
+      const auditFilters = { ...filters };
+      
+      // If user specified a channel, verify they can see it
+      if (auditFilters.channel && !visibleChannels.includes(auditFilters.channel)) {
+        delete auditFilters.channel;
+      }
 
       const { data, error: rpcError } = await supabase.rpc('list_audit_log', {
         p_org_id: organization.id,
-        p_filters: filters,
+        p_filters: auditFilters,
         p_cursor: reset ? null : cursor,
         p_limit: 25
       });
 
       if (rpcError) throw rpcError;
 
-      const entries = data || [];
-      const hasMoreEntries = entries.length > 0 && entries[entries.length - 1]?.has_more;
-      
-      const cleanEntries = entries.map(entry => {
-        const { has_more, ...cleanEntry } = entry;
-        return cleanEntry as AuditLogEntry;
-      });
+      if (data) {
+        // Filter out channels that shouldn't be visible in customer views
+        const filteredLogs = data.filter(log => {
+          // Always show channels the user can see
+          if (shouldShowChannel(log.channel, isOwner, isOwner)) {
+            return true;
+          }
+          
+          // Hide channels that should be excluded from customer view
+          return !shouldExcludeFromCustomerView(log.channel);
+        });
 
-      if (reset) {
-        setLogs(cleanEntries);
-        setCursor(cleanEntries.length > 0 ? cleanEntries[cleanEntries.length - 1].created_at : null);
-      } else {
-        setLogs(prev => [...prev, ...cleanEntries]);
-        setCursor(cleanEntries.length > 0 ? cleanEntries[cleanEntries.length - 1].created_at : cursor);
-      }
+        const entries = filteredLogs || [];
+        const hasMoreEntries = entries.length > 0 && entries[entries.length - 1]?.has_more;
       
-      setHasMore(hasMoreEntries);
+        
+        const cleanEntries = entries.map(entry => {
+          const { has_more, ...cleanEntry } = entry;
+          return cleanEntry as AuditLogEntry;
+        });
+
+        if (reset) {
+          setLogs(cleanEntries);
+          setCursor(cleanEntries.length > 0 ? cleanEntries[cleanEntries.length - 1].created_at : null);
+        } else {
+          setLogs(prev => [...prev, ...cleanEntries]);
+          setCursor(cleanEntries.length > 0 ? cleanEntries[cleanEntries.length - 1].created_at : cursor);
+        }
+      
+        setHasMore(hasMoreEntries);
+      } else {
+        setLogs([]);
+        setHasMore(false);
+      }
     } catch (err) {
       console.error('Error loading audit logs:', err);
       setError(err instanceof Error ? err.message : 'Failed to load audit logs');
