@@ -36,6 +36,7 @@ import { FeatureFlags } from '@/components/admin/FeatureFlags';
 import { DataFixes } from '@/components/admin/DataFixes';
 import { AdminTestRunner } from '@/components/admin/AdminTestRunner';
 import { SuperadminManagement } from '@/components/admin/SuperadminManagement';
+import GuardTests from '@/components/admin/GuardTests';
 
 const adminTabs = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -272,11 +273,17 @@ export default function AdminDashboard() {
                     </AlertDescription>
                   </Alert>
                   
-                  <div className="w-full">
-                    <a href="/admin/tests/invites" className="inline-flex items-center gap-2 px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium transition-colors w-full justify-center">
-                      <ExternalLink className="h-4 w-4" />
-                      Invite System Tests
-                    </a>
+                  <div className="space-y-4">
+                    <div className="w-full">
+                      <a href="/admin/tests/invites" className="inline-flex items-center gap-2 px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium transition-colors w-full justify-center">
+                        <ExternalLink className="h-4 w-4" />
+                        Invite System Tests
+                      </a>
+                    </div>
+                    
+                    <div className="w-full">
+                      <GuardTests />
+                    </div>
                   </div>
                 </div>
               </CardContent>

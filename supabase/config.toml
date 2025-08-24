@@ -47,3 +47,9 @@ verify_jwt = false
 
 [functions.org-billing-webhook]
 verify_jwt = false
+
+[functions.guard-tests]
+verify_jwt = false
+
+[functions.smoke-tests]  
+verify_jwt = false
