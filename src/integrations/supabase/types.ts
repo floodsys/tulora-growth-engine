@@ -202,6 +202,68 @@ export type Database = {
           },
         ]
       }
+      audit_log: {
+        Row: {
+          action: string
+          actor_role_snapshot: string
+          actor_user_id: string | null
+          channel: string
+          created_at: string
+          error_code: string | null
+          id: string
+          ip_hash: string | null
+          metadata: Json | null
+          organization_id: string
+          request_id: string | null
+          status: string
+          target_id: string | null
+          target_type: string
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_role_snapshot: string
+          actor_user_id?: string | null
+          channel?: string
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          ip_hash?: string | null
+          metadata?: Json | null
+          organization_id: string
+          request_id?: string | null
+          status?: string
+          target_id?: string | null
+          target_type: string
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_role_snapshot?: string
+          actor_user_id?: string | null
+          channel?: string
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          ip_hash?: string | null
+          metadata?: Json | null
+          organization_id?: string
+          request_id?: string | null
+          status?: string
+          target_id?: string | null
+          target_type?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calls: {
         Row: {
           agent_name: string | null
@@ -1032,6 +1094,24 @@ export type Database = {
       hnswhandler: {
         Args: { "": unknown }
         Returns: unknown
+      }
+      insert_audit_log: {
+        Args: {
+          p_action: string
+          p_actor_role_snapshot?: string
+          p_actor_user_id?: string
+          p_channel?: string
+          p_error_code?: string
+          p_ip_hash?: string
+          p_metadata?: Json
+          p_org_id: string
+          p_request_id?: string
+          p_status?: string
+          p_target_id?: string
+          p_target_type: string
+          p_user_agent?: string
+        }
+        Returns: string
       }
       is_org_admin: {
         Args: { org_id: string }
