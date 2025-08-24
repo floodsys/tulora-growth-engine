@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
+import { requireOrgActive, createBlockedResponse } from '../_shared/org-guard.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,6 +52,22 @@ Deno.serve(async (req) => {
 
     const body: InviteRequest = await req.json();
     const { action, organizationId, email, role, inviteToken } = body;
+
+    // Check organization status before proceeding (except for accept action)
+    if (action !== 'accept' && organizationId) {
+      const guardResult = await requireOrgActive({
+        organizationId,
+        action: `invite.${action}`,
+        path: '/invite-management',
+        method: req.method,
+        actorUserId: user.id,
+        supabase
+      });
+
+      if (!guardResult.ok) {
+        return createBlockedResponse(guardResult, corsHeaders);
+      }
+    }
 
     let result;
     let auditAction;

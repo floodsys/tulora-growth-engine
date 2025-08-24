@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
+import { requireOrgActive, createBlockedResponse } from '../_shared/org-guard.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -60,6 +61,29 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { type } = body; // 'agent' or 'file'
+
+    // Extract organizationId for guard check
+    const organizationId = body.organizationId;
+    if (!organizationId) {
+      return new Response(
+        JSON.stringify({ error: 'Organization ID is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check organization status before proceeding
+    const guardResult = await requireOrgActive({
+      organizationId,
+      action: `agent_management.${type}`,
+      path: '/agent-management',
+      method: req.method,
+      actorUserId: user.id,
+      supabase
+    });
+
+    if (!guardResult.ok) {
+      return createBlockedResponse(guardResult, corsHeaders);
+    }
 
     let auditAction;
     let auditTargetType;

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
+import { requireOrgActive, createBlockedResponse } from '../_shared/org-guard.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,6 +42,20 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log(`Processing webhook for organization: ${event.organization_id}, action: ${event.action}`);
+
+    // Check organization status before proceeding with webhook dispatch
+    const guardResult = await requireOrgActive({
+      organizationId: event.organization_id,
+      action: 'webhook.dispatch',
+      path: '/send-webhook',
+      method: req.method,
+      actorUserId: event.actor_user_id,
+      supabase
+    });
+
+    if (!guardResult.ok) {
+      return createBlockedResponse(guardResult, corsHeaders);
+    }
 
     // Get organization webhook configuration
     const { data: orgData, error: orgError } = await supabase

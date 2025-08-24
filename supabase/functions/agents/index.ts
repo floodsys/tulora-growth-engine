@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
+import { requireOrgActive, createBlockedResponse } from '../_shared/org-guard.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,7 +53,37 @@ serve(async (req) => {
     const requestData = await req.json()
     console.log('Request data:', JSON.stringify(requestData))
     
-    let { method, agentId, ...updates } = requestData
+    let { method, agentId, organizationId, ...updates } = requestData
+
+    // For PATCH operations, check organization status before proceeding
+    if (method === 'PATCH') {
+      if (!organizationId) {
+        // If no organizationId provided, get it from the agent
+        const { data: agent } = await supabase
+          .from('agent_profiles')
+          .select('organization_id')
+          .eq('id', agentId)
+          .single();
+        
+        if (agent) {
+          organizationId = agent.organization_id;
+        }
+      }
+
+      if (organizationId) {
+        const guardResult = await requireOrgActive({
+          organizationId,
+          action: 'agent.update',
+          path: '/agents',
+          method: req.method,
+          supabase
+        });
+
+        if (!guardResult.ok) {
+          return createBlockedResponse(guardResult, corsHeaders);
+        }
+      }
+    }
 
     // Handle legacy numeric IDs by mapping them to UUIDs
     const legacyIdMap: Record<string, string> = {
