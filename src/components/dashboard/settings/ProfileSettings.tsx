@@ -4,13 +4,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Camera, Mail, Lock } from "lucide-react"
+import { Camera, Mail, Lock, User, Shield } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/contexts/AuthContext"
 
 export function ProfileSettings() {
+  const { user } = useAuth()
   const { toast } = useToast()
-  const [fullName, setFullName] = useState("John Doe")
-  const [email] = useState("john.doe@example.com") // Non-editable
+  const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "")
+  const [email] = useState(user?.email || "") // Non-editable
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -144,6 +146,41 @@ export function ProfileSettings() {
           <Button onClick={handlePasswordUpdate}>
             Update Password
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Account Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Account Information
+          </CardTitle>
+          <CardDescription>
+            View your account details and security information
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>User ID</Label>
+              <div className="bg-muted p-2 rounded text-sm font-mono">
+                {user?.id}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Account Created</Label>
+              <div className="bg-muted p-2 rounded text-sm">
+                {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
+              </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Email Verified</Label>
+            <div className="bg-muted p-2 rounded text-sm">
+              {user?.email_confirmed_at ? 'Yes' : 'No'}
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
