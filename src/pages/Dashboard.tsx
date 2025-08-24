@@ -8,6 +8,7 @@ import { Scheduling } from "@/components/dashboard/Scheduling"
 import { UsageBilling } from "@/components/dashboard/UsageBilling"
 import { TeamManagement } from "@/components/dashboard/TeamManagement"
 import { UnifiedSettings } from "@/components/UnifiedSettings"
+import { ProfileSettingsScreen } from "@/components/dashboard/ProfileSettingsScreen"
 
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
@@ -65,6 +66,8 @@ const Dashboard = () => {
         return <TeamManagement />
       case "settings":
         return <UnifiedSettings organizationId="demo-org-id" />
+      case "profile-settings":
+        return <ProfileSettingsScreen />
       default:
         return <DashboardOverview />
     }
