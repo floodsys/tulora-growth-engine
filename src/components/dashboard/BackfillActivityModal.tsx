@@ -310,15 +310,15 @@ export function BackfillActivityModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl" aria-describedby="backfill-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
             Backfill missing activity for this organization
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="backfill-description">
             This fills in foundational events (e.g., org.created, member.added) so the Activity timeline isn't missing early history. 
-            Dry-run first — no writes, no emails, no webhooks.
+            <strong> Dry-run first</strong> — no writes, no emails, no webhooks. Safe and idempotent.
           </DialogDescription>
         </DialogHeader>
 
@@ -326,7 +326,8 @@ export function BackfillActivityModal({
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription>
-              This process is <strong>idempotent</strong> and <strong>safe</strong>. It only creates events that don't already exist and never sends notifications.
+              This process is <strong>safe and idempotent</strong>. It only creates events that don't already exist and never sends notifications. 
+              Always start with a dry-run to preview what will be created.
             </AlertDescription>
           </Alert>
 
@@ -346,9 +347,13 @@ export function BackfillActivityModal({
           </Card>
 
           {/* Mode Selection */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Mode</Label>
-            <RadioGroup value={mode} onValueChange={(value) => setMode(value as 'dry-run' | 'execute')}>
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-medium">Mode</legend>
+            <RadioGroup 
+              value={mode} 
+              onValueChange={(value) => setMode(value as 'dry-run' | 'execute')}
+              aria-label="Select backfill mode"
+            >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="dry-run" id="dry-run" />
                 <Label htmlFor="dry-run" className="flex items-center gap-2">
@@ -364,12 +369,12 @@ export function BackfillActivityModal({
                 </Label>
               </div>
             </RadioGroup>
-          </div>
+          </fieldset>
 
           {/* Event Types */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Event types (all pre-checked)</Label>
-            <div className="space-y-2">
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-medium">Event types (all included)</legend>
+            <div className="space-y-2" role="group" aria-label="Event types to backfill">
               {eventTypes.map((eventType) => (
                 <div key={eventType.id} className="flex items-start space-x-3 p-3 bg-muted/30 rounded-lg">
                   <Checkbox 
@@ -377,19 +382,20 @@ export function BackfillActivityModal({
                     checked={eventType.enabled}
                     disabled
                     className="mt-0.5"
+                    aria-describedby={`${eventType.id}-description`}
                   />
                   <div className="space-y-1">
                     <Label htmlFor={eventType.id} className="text-sm font-medium">
                       {eventType.name}
                     </Label>
-                    <p className="text-xs text-muted-foreground">
+                    <p id={`${eventType.id}-description`} className="text-xs text-muted-foreground">
                       {eventType.description}
                     </p>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </fieldset>
 
           {/* Results */}
           {result && (
@@ -428,17 +434,26 @@ export function BackfillActivityModal({
                         </div>
                       </div>
 
+                      {result.dry_run && result.events_planned === 0 && (
+                        <Alert className="border-blue-200 bg-blue-50">
+                          <Info className="h-4 w-4 text-blue-600" />
+                          <AlertDescription className="text-blue-800">
+                            <strong>No missing events found.</strong> All foundational events already exist for this organization.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
                       {result.dry_run && (
                         <Alert>
                           <Info className="h-4 w-4" />
                           <AlertDescription>
-                            <strong>Dry-run writes nothing.</strong> Emails/webhooks are disabled. This is a preview only.
+                            <strong>Dry-run writes nothing.</strong> Emails/webhooks are disabled. This is a safe preview only.
                           </AlertDescription>
                         </Alert>
                       )}
 
                       {/* Event Type Summary for Dry-run */}
-                      {result.dry_run && eventTypeSummary.length > 0 && (
+                      {result.dry_run && eventTypeSummary.length > 0 && result.events_planned > 0 && (
                         <div className="space-y-3">
                           <Label className="font-medium">Event Summary by Type</Label>
                           <div className="space-y-2">
@@ -450,7 +465,12 @@ export function BackfillActivityModal({
                                 <Card key={key}>
                                   <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(key)}>
                                     <CollapsibleTrigger asChild>
-                                      <CardHeader className="pb-2 cursor-pointer hover:bg-muted/50">
+                                      <CardHeader 
+                                        className="pb-2 cursor-pointer hover:bg-muted/50"
+                                        role="button"
+                                        aria-expanded={isExpanded}
+                                        aria-controls={`event-detail-${key}`}
+                                      >
                                         <div className="flex items-center justify-between">
                                           <div className="flex items-center gap-3">
                                             <Badge variant="outline">{summary.action}</Badge>
@@ -472,7 +492,7 @@ export function BackfillActivityModal({
                                         </div>
                                       </CardHeader>
                                     </CollapsibleTrigger>
-                                    <CollapsibleContent>
+                                    <CollapsibleContent id={`event-detail-${key}`}>
                                       <CardContent className="pt-0">
                                         <Table>
                                           <TableHeader>
@@ -562,7 +582,7 @@ export function BackfillActivityModal({
 
           {/* Execute Confirmation Modal */}
           {showConfirmation && (
-            <Alert className="border-yellow-200 bg-yellow-50">
+            <Alert className="border-yellow-200 bg-yellow-50" role="alert">
               <AlertTriangle className="h-4 w-4 text-yellow-600" />
               <AlertDescription className="space-y-3">
                 <div className="text-yellow-800 font-medium">
@@ -578,7 +598,12 @@ export function BackfillActivityModal({
                     onChange={(e) => setConfirmText(e.target.value)}
                     placeholder="Type BACKFILL to confirm"
                     className="bg-white"
+                    aria-describedby="confirm-help"
+                    autoComplete="off"
                   />
+                  <p id="confirm-help" className="text-xs text-yellow-700">
+                    This action will write events to the database. Type exactly "BACKFILL" to proceed.
+                  </p>
                 </div>
               </AlertDescription>
             </Alert>
@@ -589,10 +614,11 @@ export function BackfillActivityModal({
           <Button variant="outline" onClick={handleClose}>
             {showConfirmation ? 'Cancel' : hasSuccessfulExecute ? 'Done' : 'Close'}
           </Button>
-          {hasSuccessfulDryRun && mode === 'dry-run' && (
+          {hasSuccessfulDryRun && mode === 'dry-run' && result.events_planned > 0 && (
             <Button 
               onClick={() => setMode('execute')}
               disabled={loading}
+              aria-label="Proceed to execute backfill after dry-run"
             >
               Proceed to Execute
             </Button>
@@ -602,6 +628,7 @@ export function BackfillActivityModal({
               onClick={handleBackfill} 
               disabled={loading}
               className="min-w-[120px]"
+              aria-label="Run dry-run to preview backfill"
             >
               {loading ? (
                 <>
@@ -619,6 +646,7 @@ export function BackfillActivityModal({
               disabled={loading || (showConfirmation && confirmText !== 'BACKFILL')}
               variant={showConfirmation ? 'destructive' : 'default'}
               className="min-w-[120px]"
+              aria-label={showConfirmation ? 'Confirm and execute backfill' : 'Execute backfill'}
             >
               {loading ? (
                 <>

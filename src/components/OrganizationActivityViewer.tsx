@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ChevronDown, Filter, RefreshCw, User, Calendar, Activity, Download, Eye, ChevronRight, History } from 'lucide-react';
 import { format } from 'date-fns';
 import { useOrganizationRole } from '@/hooks/useOrganizationRole';
@@ -62,15 +63,19 @@ export function OrganizationActivityViewer() {
 
   // Check if backfill should be enabled
   const isBackfillEnabled = typeof window !== 'undefined' && 
-    (window.location.hostname === 'localhost' || 
+    (process.env.NODE_ENV === 'development' || 
+     window.location.hostname === 'localhost' || 
      window.location.hostname.includes('staging') ||
-     window.location.search.includes('backfill=true'));
+     window.location.search.includes('backfill=true') ||
+     localStorage.getItem('BACKFILL_ENABLED') === 'true');
   
   // Don't show backfill in demo/sandbox mode
   const isDemoMode = typeof window !== 'undefined' && 
-    window.location.pathname.includes('/demo');
+    (window.location.pathname.includes('/demo') ||
+     window.location.pathname.includes('/sandbox'));
   
-  const shouldShowBackfill = hasAccess && isBackfillEnabled && !isDemoMode;
+  const shouldShowBackfill = hasAccess && !isDemoMode;
+  const isBackfillButtonEnabled = shouldShowBackfill && isBackfillEnabled;
 
   const loadAuditLogs = async (reset = false) => {
     if (!organization?.id || !hasAccess) return;
@@ -276,14 +281,27 @@ export function OrganizationActivityViewer() {
             </div>
             <div className="flex gap-2">
               {shouldShowBackfill && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowBackfillModal(true)}
-                >
-                  <History className="h-4 w-4 mr-2" />
-                  Backfill Activity
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowBackfillModal(true)}
+                        disabled={!isBackfillButtonEnabled}
+                        aria-label="Backfill missing activity events"
+                      >
+                        <History className="h-4 w-4 mr-2" />
+                        Backfill Activity
+                      </Button>
+                    </TooltipTrigger>
+                    {!isBackfillButtonEnabled && (
+                      <TooltipContent>
+                        <p>Disabled by environment</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
               )}
               <Button
                 variant="outline"
@@ -574,7 +592,7 @@ export function OrganizationActivityViewer() {
       </Card>
 
       {/* Backfill Activity Modal */}
-      {shouldShowBackfill && organization && (
+      {shouldShowBackfill && organization && isBackfillButtonEnabled && (
         <BackfillActivityModal
           open={showBackfillModal}
           onOpenChange={setShowBackfillModal}
