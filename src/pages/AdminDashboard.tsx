@@ -22,6 +22,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OrganizationsDirectory } from '@/components/admin/OrganizationsDirectory';
 import { MembersAdmin } from '@/components/admin/MembersAdmin';
+import { BillingAdmin } from '@/components/admin/BillingAdmin';
 
 const adminTabs = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -178,14 +179,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="billing">
-            <Card>
-              <CardHeader>
-                <CardTitle>Billing</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Billing overview coming soon...</p>
-              </CardContent>
-            </Card>
+            <BillingAdmin />
           </TabsContent>
 
           <TabsContent value="analytics">
