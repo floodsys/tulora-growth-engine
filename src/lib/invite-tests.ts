@@ -15,8 +15,30 @@ export interface TestSuite {
   summary: string;
 }
 
+export type TestLevel = 'full' | 'smoke' | 'off';
+
+// Get current test level from environment
+export function getTestLevel(): TestLevel {
+  const level = import.meta.env.VITE_RUN_TEST_LEVEL as TestLevel;
+  return ['full', 'smoke', 'off'].includes(level) ? level : 'off';
+}
+
+// Check if tests are enabled
+export function isTestingEnabled(): boolean {
+  return getTestLevel() !== 'off';
+}
+
+// Check if write operations are allowed
+export function areWriteTestsEnabled(): boolean {
+  return getTestLevel() === 'full';
+}
+
 // Test utilities
 async function createTestOrganization(): Promise<string> {
+  if (!areWriteTestsEnabled()) {
+    throw new Error('Write operations disabled in current test level');
+  }
+  
   const { data, error } = await supabase
     .from('organizations')
     .insert({
@@ -37,6 +59,10 @@ async function getCurrentUserId(): Promise<string> {
 }
 
 async function addMemberToOrg(orgId: string, userId: string, role: string): Promise<void> {
+  if (!areWriteTestsEnabled()) {
+    throw new Error('Write operations disabled in current test level');
+  }
+  
   // Ensure role is valid for the enum
   const validRole = ['admin', 'editor', 'viewer', 'user'].includes(role) ? role : 'user';
   
@@ -53,6 +79,10 @@ async function addMemberToOrg(orgId: string, userId: string, role: string): Prom
 }
 
 async function createSecondaryUser(): Promise<{ email: string; password: string }> {
+  if (!areWriteTestsEnabled()) {
+    throw new Error('Write operations disabled in current test level');
+  }
+  
   const email = `test-${Date.now()}@example.com`;
   const password = 'TestPassword123!';
   
@@ -68,8 +98,101 @@ async function createSecondaryUser(): Promise<{ email: string; password: string 
   return { email, password };
 }
 
-// Admin permission tests
+// Smoke test for reading organization data (read-only)
+export async function testReadOnlyAccess(orgId: string): Promise<TestSuite> {
+  const results: TestResult[] = [];
+
+  // Test 1: Can read organization data
+  try {
+    const { data, error } = await supabase
+      .from('organizations')
+      .select('*')
+      .eq('id', orgId);
+
+    results.push({
+      testName: 'Can read organization data',
+      passed: !error,
+      message: error ? `Failed to read organization: ${error.message}` : 'Successfully read organization data',
+      details: { error, found: !!data?.length }
+    });
+  } catch (error) {
+    results.push({
+      testName: 'Can read organization data',
+      passed: false,
+      message: `Error: ${error}`,
+      details: error
+    });
+  }
+
+  // Test 2: Can read organization members
+  try {
+    const { data, error } = await supabase
+      .from('organization_members')
+      .select('*')
+      .eq('organization_id', orgId);
+
+    results.push({
+      testName: 'Can read organization members',
+      passed: !error,
+      message: error ? `Failed to read members: ${error.message}` : `Successfully read ${data?.length || 0} members`,
+      details: { error, dataCount: data?.length }
+    });
+  } catch (error) {
+    results.push({
+      testName: 'Can read organization members',
+      passed: false,
+      message: `Error: ${error}`,
+      details: error
+    });
+  }
+
+  // Test 3: Can read invitations (read-only)
+  try {
+    const { data, error } = await supabase
+      .from('organization_invitations')
+      .select('*')
+      .eq('organization_id', orgId);
+
+    results.push({
+      testName: 'Can read invitations',
+      passed: !error,
+      message: error ? `Failed to read invitations: ${error.message}` : `Successfully read ${data?.length || 0} invitations`,
+      details: { error, dataCount: data?.length }
+    });
+  } catch (error) {
+    results.push({
+      testName: 'Can read invitations',
+      passed: false,
+      message: `Error: ${error}`,
+      details: error
+    });
+  }
+
+  const passed = results.every(r => r.passed);
+  return {
+    suiteName: 'Read-Only Access (Smoke Test)',
+    results,
+    passed,
+    summary: `${results.filter(r => r.passed).length}/${results.length} tests passed`
+  };
+}
+
+// Admin permission tests (full test level only)
 export async function testAdminPermissions(orgId: string): Promise<TestSuite> {
+  if (!areWriteTestsEnabled()) {
+    return {
+      suiteName: 'Admin Permissions',
+      results: [{
+        testName: 'Admin Permission Tests',
+        passed: false,
+        message: 'Skipped: Write operations disabled in current test level',
+        details: { testLevel: getTestLevel() }
+      }],
+      passed: false,
+      summary: 'Skipped due to test level restrictions'
+    };
+  }
+
   const results: TestResult[] = [];
 
   // Test 1: Can call create_invite and receive a token
@@ -166,8 +289,22 @@ export async function testAdminPermissions(orgId: string): Promise<TestSuite> {
   };
 }
 
-// Non-admin member permission tests
+// Non-admin member permission tests (full test level only)
 export async function testMemberPermissions(orgId: string): Promise<TestSuite> {
+  if (!areWriteTestsEnabled()) {
+    return {
+      suiteName: 'Member Permissions',
+      results: [{
+        testName: 'Member Permission Tests',
+        passed: false,
+        message: 'Skipped: Write operations disabled in current test level',
+        details: { testLevel: getTestLevel() }
+      }],
+      passed: false,
+      summary: 'Skipped due to test level restrictions'
+    };
+  }
+
   const results: TestResult[] = [];
   const userId = await getCurrentUserId();
 
@@ -276,8 +413,22 @@ export async function testMemberPermissions(orgId: string): Promise<TestSuite> {
   };
 }
 
-// Invite flow tests
+// Invite flow tests (full test level only)
 export async function testInviteFlow(orgId: string): Promise<TestSuite> {
+  if (!areWriteTestsEnabled()) {
+    return {
+      suiteName: 'Invite Flow',
+      results: [{
+        testName: 'Invite Flow Tests',
+        passed: false,
+        message: 'Skipped: Write operations disabled in current test level',
+        details: { testLevel: getTestLevel() }
+      }],
+      passed: false,
+      summary: 'Skipped due to test level restrictions'
+    };
+  }
+
   const results: TestResult[] = [];
 
   // Test 1: accept_invite with valid token creates/updates membership
@@ -362,8 +513,22 @@ export async function testInviteFlow(orgId: string): Promise<TestSuite> {
   };
 }
 
-// Data integrity tests
+// Data integrity tests (full test level only)
 export async function testDataIntegrity(orgId: string): Promise<TestSuite> {
+  if (!areWriteTestsEnabled()) {
+    return {
+      suiteName: 'Data Integrity',
+      results: [{
+        testName: 'Data Integrity Tests',
+        passed: false,
+        message: 'Skipped: Write operations disabled in current test level',
+        details: { testLevel: getTestLevel() }
+      }],
+      passed: false,
+      summary: 'Skipped due to test level restrictions'
+    };
+  }
+
   const results: TestResult[] = [];
 
   // Test 1: Role values are normalized to lowercase and valid
@@ -456,8 +621,44 @@ export async function testDataIntegrity(orgId: string): Promise<TestSuite> {
   };
 }
 
-// Run all tests
+// Run all tests based on test level
 export async function runAllTests(orgId?: string): Promise<TestSuite[]> {
+  const testLevel = getTestLevel();
+  
+  if (testLevel === 'off') {
+    return [{
+      suiteName: 'Testing Disabled',
+      results: [{
+        testName: 'Test Execution',
+        passed: false,
+        message: 'Testing is disabled (RUN_TEST_LEVEL=off)',
+        details: { testLevel }
+      }],
+      passed: false,
+      summary: 'Tests disabled by configuration'
+    }];
+  }
+
+  // For smoke tests, use existing org and run read-only tests
+  if (testLevel === 'smoke') {
+    if (!orgId) {
+      return [{
+        suiteName: 'Smoke Tests',
+        results: [{
+          testName: 'Organization Required',
+          passed: false,
+          message: 'Organization ID required for smoke tests',
+          details: null
+        }],
+        passed: false,
+        summary: 'No organization provided'
+      }];
+    }
+    
+    return [await testReadOnlyAccess(orgId)];
+  }
+
+  // For full tests, create test org if needed and run all tests
   const testOrgId = orgId || await createTestOrganization();
   
   const suites = await Promise.all([

@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { InviteSystemTests } from '@/components/InviteSystemTests';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ShieldX } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserOrganization } from '@/hooks/useUserOrganization';
 import { useOrganizationRole } from '@/hooks/useOrganizationRole';
+import { getTestLevel, isTestingEnabled } from '@/lib/invite-tests';
 
 const AdminInviteTests = () => {
   const { user } = useAuth();
@@ -15,19 +18,18 @@ const AdminInviteTests = () => {
 
   useEffect(() => {
     const checkAccess = () => {
-      // Check if RUN_TEST_LEVEL is not "off" (environment variable check)
-      const testLevel = import.meta.env.VITE_RUN_TEST_LEVEL || 'off';
+      // Check if testing is enabled at all
+      const testingEnabled = isTestingEnabled();
       
       // Only allow access if:
       // 1. User is authenticated
-      // 2. RUN_TEST_LEVEL is not "off"
+      // 2. Testing is enabled (RUN_TEST_LEVEL !== 'off')
       // 3. User is organization owner (admin role)
       // 4. Not in demo sandbox (has real organization)
-      const isTestingEnabled = testLevel !== 'off';
       const isOwner = role === 'admin';
       const hasOrganization = organization && organization.id !== 'demo-org-id';
       
-      const access = user && isTestingEnabled && isOwner && hasOrganization;
+      const access = user && testingEnabled && isOwner && hasOrganization;
       setHasAccess(!!access);
       setLoading(false);
     };
@@ -42,7 +44,23 @@ const AdminInviteTests = () => {
   }
 
   if (!hasAccess) {
-    return <Navigate to="/dashboard" replace />;
+    // Return 403-like error page instead of redirect for better UX
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4 p-6">
+          <ShieldX className="h-16 w-16 mx-auto text-destructive" />
+          <h1 className="text-2xl font-bold">Access Denied</h1>
+          <p className="text-muted-foreground max-w-md">
+            This admin testing interface is only available when testing is enabled and you are an organization owner.
+          </p>
+          <Alert className="mt-4">
+            <AlertDescription>
+              Current test level: <code className="bg-muted px-1 rounded">{getTestLevel()}</code>
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
   }
 
   return (

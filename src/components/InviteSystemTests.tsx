@@ -4,8 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle, XCircle, Play, Loader2, AlertTriangle } from "lucide-react";
-import { runAllTests, TestSuite, TestResult } from "@/lib/invite-tests";
+import { CheckCircle, XCircle, Play, Loader2, AlertTriangle, ShieldAlert } from "lucide-react";
+import { runAllTests, TestSuite, TestResult, getTestLevel, isTestingEnabled, areWriteTestsEnabled } from "@/lib/invite-tests";
 import { useToast } from "@/hooks/use-toast";
 
 interface InviteSystemTestsProps {
@@ -16,8 +16,21 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
   const [testing, setTesting] = useState(false);
   const [testResults, setTestResults] = useState<TestSuite[]>([]);
   const { toast } = useToast();
+  
+  const testLevel = getTestLevel();
+  const testingEnabled = isTestingEnabled();
+  const writeTestsEnabled = areWriteTestsEnabled();
 
   const runTests = async () => {
+    if (!testingEnabled) {
+      toast({
+        title: "Testing Disabled",
+        description: "Tests are disabled by RUN_TEST_LEVEL configuration",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setTesting(true);
     setTestResults([]);
     
@@ -61,21 +74,35 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
 
   return (
     <div className="space-y-6">
+      {!testingEnabled && (
+        <Alert variant="destructive">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertDescription>
+            Testing is disabled (RUN_TEST_LEVEL={testLevel}). This feature is only available when testing is enabled.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" />
             Invite System Security Tests
+            <Badge variant="outline" className="text-xs">
+              Level: {testLevel.toUpperCase()}
+            </Badge>
           </CardTitle>
           <CardDescription>
             Automated tests to verify invite system security, permissions, and data integrity.
-            These tests validate admin permissions, member restrictions, invite flow, and role enforcement.
+            {testLevel === 'smoke' && ' Running in read-only mode.'}
+            {testLevel === 'full' && ' Running complete test suite with write operations.'}
+            {testLevel === 'off' && ' Testing is disabled.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button
             onClick={runTests}
-            disabled={testing}
+            disabled={testing || !testingEnabled}
             className="w-full"
           >
             {testing ? (
@@ -83,18 +110,24 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Running Tests...
               </>
+            ) : !testingEnabled ? (
+              <>
+                <ShieldAlert className="h-4 w-4 mr-2" />
+                Testing Disabled
+              </>
             ) : (
               <>
                 <Play className="h-4 w-4 mr-2" />
-                Run All Security Tests
+                Run {testLevel === 'smoke' ? 'Smoke' : 'All Security'} Tests
               </>
             )}
           </Button>
           
-          {organizationId && (
+          {organizationId && testingEnabled && (
             <Alert className="mt-4">
               <AlertDescription>
                 Testing with organization ID: <code className="bg-muted px-1 rounded">{organizationId}</code>
+                {testLevel === 'smoke' && <span className="block mt-1 text-sm text-muted-foreground">Note: Smoke tests run read-only operations only.</span>}
               </AlertDescription>
             </Alert>
           )}
@@ -164,12 +197,15 @@ export function InviteSystemTests({ organizationId }: InviteSystemTestsProps) {
         </div>
       )}
 
-      {!testing && testResults.length === 0 && (
+      {!testing && testResults.length === 0 && testingEnabled && (
         <Card>
           <CardContent className="pt-6">
             <div className="text-center text-muted-foreground">
               <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>Click "Run All Security Tests" to verify your invite system security.</p>
+              <p>Click "Run {testLevel === 'smoke' ? 'Smoke' : 'All Security'} Tests" to verify your invite system security.</p>
+              {testLevel === 'smoke' && (
+                <p className="text-xs mt-2">Running in read-only mode - no data will be modified.</p>
+              )}
             </div>
           </CardContent>
         </Card>
