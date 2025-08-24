@@ -19,7 +19,6 @@ import SettingsOrganization from "@/pages/SettingsOrganization";
 import ActivityLogs from "@/pages/ActivityLogs";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AdminInviteTests from "@/pages/AdminInviteTests";
-import AdminLogs from "@/pages/AdminLogs";
 import AdminOrgLogs from "@/pages/AdminOrgLogs";
 
 function App() {
@@ -44,7 +43,6 @@ function App() {
             <Route path="/demo" element={<Demo />} />
             <Route path="/activity-logs" element={<ActivityLogs />} />
             <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/logs" element={<AdminLogs />} />
             <Route path="/admin/logs/org/:orgId" element={<AdminOrgLogs />} />
             <Route path="/admin/tests/invites" element={<AdminInviteTests />} />
             <Route path="*" element={<NotFound />} />
