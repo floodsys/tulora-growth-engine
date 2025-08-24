@@ -20,6 +20,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { OrganizationsDirectory } from '@/components/admin/OrganizationsDirectory';
 
 const adminTabs = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -168,14 +169,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="organizations">
-            <Card>
-              <CardHeader>
-                <CardTitle>Organizations</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Organization management coming soon...</p>
-              </CardContent>
-            </Card>
+            <OrganizationsDirectory />
           </TabsContent>
 
           <TabsContent value="members">
