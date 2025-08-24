@@ -46,6 +46,7 @@ import {
   Gift,
   Receipt
 } from 'lucide-react';
+import { SeatSyncDialog } from "./SeatSyncDialog";
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -245,6 +246,14 @@ export function BillingAdmin() {
   const [selectedSubscription, setSelectedSubscription] = useState<SubscriptionSummary | null>(null);
   const [changePlanOpen, setChangePlanOpen] = useState(false);
   const [creditCouponOpen, setCreditCouponOpen] = useState(false);
+  const [syncSeatOpen, setSyncSeatOpen] = useState(false);
+  const [syncSeatData, setSyncSeatData] = useState<{
+    organizationId: string;
+    organizationName: string;
+    currentQuantity: number;
+    currentSeats: number;
+    hasSubscription: boolean;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState('subscriptions');
   const { toast } = useToast();
 
@@ -369,21 +378,28 @@ export function BillingAdmin() {
 
   const handleSyncSeats = async (subscription: SubscriptionSummary) => {
     try {
-      const { data, error } = await supabase.functions.invoke('org-update-seats', {
-        body: { orgId: subscription.organization_id }
-      });
+      // First, get current seat count to show diff
+      const { data: memberData, error: memberError } = await supabase
+        .from('organization_members')
+        .select('user_id', { count: 'exact' })
+        .eq('organization_id', subscription.organization_id)
+        .eq('seat_active', true);
 
-      if (error) throw error;
+      if (memberError) throw memberError;
 
-      toast({
-        title: "Seats synced successfully",
-        description: `Synced seats for ${subscription.organization_name}`,
-      });
+      const currentSeats = memberData?.length || 0;
       
-      loadBillingData();
+      setSyncSeatData({
+        organizationId: subscription.organization_id,
+        organizationName: subscription.organization_name,
+        currentQuantity: subscription.quantity || 0,
+        currentSeats,
+        hasSubscription: !!subscription.stripe_subscription_id
+      });
+      setSyncSeatOpen(true);
     } catch (error: any) {
       toast({
-        title: "Error syncing seats",
+        title: "Error preparing seat sync",
         description: error.message,
         variant: "destructive",
       });
@@ -601,11 +617,11 @@ export function BillingAdmin() {
                               Change Plan
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleSyncSeats(subscription)}
-                            >
-                              <RefreshCw className="h-4 w-4 mr-2" />
-                              Sync Seats
-                            </DropdownMenuItem>
+                               onClick={() => handleSyncSeats(subscription)}
+                             >
+                               <Users className="h-4 w-4 mr-2" />
+                               Recalculate Seats
+                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handleSuspendService(subscription, subscription.status !== 'suspended')}
                             >
@@ -754,6 +770,13 @@ export function BillingAdmin() {
           />
         </>
       )}
+
+      <SeatSyncDialog
+        isOpen={syncSeatOpen}
+        onClose={() => setSyncSeatOpen(false)}
+        onConfirm={loadBillingData}
+        data={syncSeatData}
+      />
     </div>
   );
 }

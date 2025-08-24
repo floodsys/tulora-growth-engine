@@ -140,6 +140,29 @@ serve(async (req) => {
       throw new Error('Failed to update subscription in database')
     }
 
+    // Log the seat sync event
+    const { error: auditError } = await supabase
+      .from('audit_log')
+      .insert({
+        organization_id: orgId,
+        actor_user_id: userData.user.id,
+        actor_role_snapshot: 'admin',
+        action: 'billing.seats_synced',
+        target_type: 'subscription',
+        target_id: subscription.stripe_subscription_id,
+        status: 'success',
+        channel: 'audit',
+        metadata: {
+          old_quantity: subscription.quantity,
+          new_quantity: seatCount,
+          stripe_subscription_id: subscription.stripe_subscription_id
+        }
+      })
+
+    if (auditError) {
+      logStep('Warning: Failed to log audit event', { error: auditError })
+    }
+
     logStep('Successfully updated seat count', { 
       orgId,
       oldQuantity: subscription.quantity,
