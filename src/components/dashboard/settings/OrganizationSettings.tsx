@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import CallHandlingSettings from "./CallHandlingSettings"
 
 export function OrganizationSettings() {
   const { toast } = useToast()
@@ -63,6 +64,8 @@ export function OrganizationSettings() {
           </Button>
         </CardContent>
       </Card>
+
+      <CallHandlingSettings />
     </div>
   )
 }
