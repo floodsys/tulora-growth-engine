@@ -1136,6 +1136,10 @@ export type Database = {
         Args: { p_token: string }
         Returns: Json
       }
+      backfill_audit_logs: {
+        Args: { p_dry_run?: boolean; p_org_id: string }
+        Returns: Json
+      }
       binary_quantize: {
         Args: { "": string } | { "": unknown }
         Returns: unknown
