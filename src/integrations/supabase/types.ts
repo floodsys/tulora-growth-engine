@@ -1377,6 +1377,10 @@ export type Database = {
         }
         Returns: string
       }
+      is_org_active: {
+        Args: { p_org_id: string }
+        Returns: boolean
+      }
       is_org_admin: {
         Args: { org_id: string }
         Returns: boolean
