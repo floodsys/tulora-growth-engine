@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { DestructiveActionDialog } from '@/components/admin/DestructiveActionDialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   Database, 
@@ -33,8 +34,8 @@ export function DataFixes() {
   const { organization, isOwner } = useUserOrganization();
   const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
-  const [confirmationText, setConfirmationText] = useState('');
   const [selectedFix, setSelectedFix] = useState<DataFix | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   
   const dataFixes: DataFix[] = [
     {
@@ -102,70 +103,30 @@ export function DataFixes() {
     }
   };
 
-  const executeDataFix = async (fix: DataFix) => {
-    if (!hasAccess || confirmationText !== fix.confirmation_text) return;
+  const executeDataFix = async (reason: string) => {
+    if (!hasAccess || !selectedFix) return;
 
-    setLoading(fix.id);
+    setLoading(selectedFix.id);
     try {
       // This would call a secure edge function to perform the data fix
       const { data, error } = await supabase.functions.invoke('admin-data-fixes', {
         body: {
-          fix_id: fix.id,
-          confirmation: confirmationText,
+          fix_id: selectedFix.id,
+          reason: reason,
           organization_id: organization?.id
         }
       });
 
       if (error) throw error;
 
-      // Log the dangerous operation
-      await supabase.rpc('insert_audit_log', {
-        p_org_id: organization?.id,
-        p_action: 'admin.data_fix_executed',
-        p_target_type: 'system',
-        p_actor_user_id: organization?.owner_user_id,
-        p_actor_role_snapshot: 'admin',
-        p_status: 'success',
-        p_channel: 'internal',
-        p_metadata: {
-          fix_id: fix.id,
-          fix_name: fix.name,
-          danger_level: fix.danger_level,
-          affected_tables: fix.affected_tables,
-          execution_result: data,
-          admin_tool: 'data_fixes'
-        }
-      });
-
       toast({
         title: 'Data Fix Completed',
-        description: `${fix.name} has been successfully executed`,
+        description: `${selectedFix.name} has been successfully executed`,
       });
-
-      setSelectedFix(null);
-      setConfirmationText('');
 
     } catch (err) {
       console.error('Data fix error:', err);
       
-      // Log the failure
-      await supabase.rpc('insert_audit_log', {
-        p_org_id: organization?.id,
-        p_action: 'admin.data_fix_failed',
-        p_target_type: 'system',
-        p_actor_user_id: organization?.owner_user_id,
-        p_actor_role_snapshot: 'admin',
-        p_status: 'error',
-        p_error_code: 'EXECUTION_FAILED',
-        p_channel: 'internal',
-        p_metadata: {
-          fix_id: fix.id,
-          fix_name: fix.name,
-          error: err instanceof Error ? err.message : 'Unknown error',
-          admin_tool: 'data_fixes'
-        }
-      });
-
       toast({
         title: 'Error',
         description: err instanceof Error ? err.message : 'Data fix failed',
@@ -174,6 +135,11 @@ export function DataFixes() {
     } finally {
       setLoading(null);
     }
+  };
+
+  const handleFixClick = (fix: DataFix) => {
+    setSelectedFix(fix);
+    setDialogOpen(true);
   };
 
   if (!hasAccess) {
@@ -237,87 +203,36 @@ export function DataFixes() {
                       </div>
                     </div>
                     
-                    <Dialog open={selectedFix?.id === fix.id} onOpenChange={(open) => {
-                      if (!open) {
-                        setSelectedFix(null);
-                        setConfirmationText('');
-                      }
-                    }}>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant={fix.danger_level === 'critical' ? 'destructive' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedFix(fix)}
-                          disabled={!!loading}
-                        >
-                          {isRunning ? 'Running...' : 'Execute'}
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle className="flex items-center gap-2">
-                            <AlertTriangle className="h-5 w-5 text-red-500" />
-                            Confirm Dangerous Operation
-                          </DialogTitle>
-                          <DialogDescription>
-                            You are about to execute: <strong>{fix.name}</strong>
-                            <br />
-                            <br />
-                            {fix.description}
-                            <br />
-                            <br />
-                            This operation will affect the following tables: {fix.affected_tables.join(', ')}
-                            <br />
-                            Estimated completion time: {fix.estimated_time}
-                          </DialogDescription>
-                        </DialogHeader>
-                        
-                        <div className="space-y-4">
-                          <Alert variant="destructive">
-                            <AlertTriangle className="h-4 w-4" />
-                            <AlertDescription>
-                              This action cannot be undone. Make sure you have a database backup.
-                            </AlertDescription>
-                          </Alert>
-                          
-                          <div>
-                            <label className="text-sm font-medium">
-                              Type "{fix.confirmation_text}" to confirm:
-                            </label>
-                            <Input
-                              value={confirmationText}
-                              onChange={(e) => setConfirmationText(e.target.value)}
-                              placeholder={fix.confirmation_text}
-                              className="mt-1"
-                            />
-                          </div>
-                        </div>
-
-                        <DialogFooter>
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedFix(null);
-                              setConfirmationText('');
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            onClick={() => executeDataFix(fix)}
-                            disabled={confirmationText !== fix.confirmation_text || isRunning}
-                          >
-                            {isRunning ? 'Executing...' : 'Execute Data Fix'}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                    <Button
+                      variant={fix.danger_level === 'critical' ? 'destructive' : 'outline'}
+                      size="sm"
+                      onClick={() => handleFixClick(fix)}
+                      disabled={!!loading}
+                    >
+                      {isRunning ? 'Running...' : 'Execute'}
+                    </Button>
                   </div>
                 </div>
               );
             })}
           </div>
+
+          {selectedFix && (
+            <DestructiveActionDialog
+              isOpen={dialogOpen}
+              onOpenChange={setDialogOpen}
+              title={`Execute ${selectedFix.name}`}
+              description={selectedFix.description}
+              actionName={selectedFix.id}
+              targetType="system"
+              targetId="data_fix"
+              confirmationText={selectedFix.confirmation_text}
+              dangerLevel={selectedFix.danger_level}
+              onConfirm={executeDataFix}
+              affectedTables={selectedFix.affected_tables}
+              estimatedTime={selectedFix.estimated_time}
+            />
+          )}
         </CardContent>
       </Card>
     </div>

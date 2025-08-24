@@ -203,13 +203,15 @@ export function AdminLogsViewer() {
       Object.entries(filters).forEach(([key, value]) => {
         if (value && key !== 'search') {
           if (key.includes('date')) {
-            query = key === 'date_from' 
-              ? query.gte('created_at', value)
-              : query.lte('created_at', value);
+            if (key === 'date_from') {
+              query = query.gte('created_at', value);
+            } else {
+              query = query.lte('created_at', value);
+            }
           } else if (key === 'action') {
             query = query.ilike(key, `%${value}%`);
           } else {
-            query = query.eq(key, value);
+            query = (query as any).eq(key, value);
           }
         }
       });

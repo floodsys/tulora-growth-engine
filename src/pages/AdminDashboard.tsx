@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useUserOrganization } from '@/hooks/useUserOrganization';
+import { useAdminAccess } from '@/hooks/useAdminAccess';
 import { getEnvironmentConfig } from '@/lib/environment';
 import { 
   Search, 
@@ -52,37 +52,18 @@ const adminTabs = [
 
 export default function AdminDashboard() {
   const { user, loading: authLoading } = useAuth();
-  const { organization, isOwner, loading: orgLoading } = useUserOrganization();
+  const { hasAccess, isChecking, AccessDeniedComponent, LoadingComponent } = useAdminAccess();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
-  const [hasAccess, setHasAccess] = useState(false);
   const envConfig = getEnvironmentConfig();
 
-  useEffect(() => {
-    if (authLoading || orgLoading) return;
-
-    // Check if user is org owner or superadmin
-    const userHasAccess = isOwner; // TODO: Add superadmin check when implemented
-    
-    if (!userHasAccess) {
-      navigate('/dashboard');
-      return;
-    }
-
-    setHasAccess(true);
-  }, [user, isOwner, authLoading, orgLoading, navigate]);
-
-  if (authLoading || orgLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    );
+  if (authLoading || isChecking) {
+    return <LoadingComponent />;
   }
 
   if (!hasAccess) {
-    return null; // Will redirect in useEffect
+    return <AccessDeniedComponent />;
   }
 
   return (

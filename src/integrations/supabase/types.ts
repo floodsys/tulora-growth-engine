@@ -1157,6 +1157,19 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_destructive_action: {
+        Args: {
+          p_action: string
+          p_confirmation: string
+          p_expected_confirmation: string
+          p_metadata?: Json
+          p_org_id?: string
+          p_reason: string
+          p_target_id: string
+          p_target_type: string
+        }
+        Returns: Json
+      }
       admin_get_all_members: {
         Args: { p_limit?: number; p_search_email?: string }
         Returns: {
