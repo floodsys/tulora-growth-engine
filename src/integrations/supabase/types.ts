@@ -1204,9 +1204,21 @@ export type Database = {
         Args: { p_action: string; p_org_id: string; p_resource_type?: string }
         Returns: boolean
       }
+      check_admin_access: {
+        Args: { org_id: string; user_id?: string }
+        Returns: boolean
+      }
       check_alert_rules: {
         Args: { p_org_id: string }
         Returns: Json
+      }
+      check_org_membership: {
+        Args: { org_id: string; user_id?: string }
+        Returns: boolean
+      }
+      check_org_ownership: {
+        Args: { org_id: string; user_id?: string }
+        Returns: boolean
       }
       cleanup_expired_logs: {
         Args: Record<PropertyKey, never>
@@ -1332,6 +1344,10 @@ export type Database = {
         Args: { org_id: string }
         Returns: boolean
       }
+      is_superadmin: {
+        Args: { user_id?: string }
+        Returns: boolean
+      }
       ivfflat_bit_support: {
         Args: { "": unknown }
         Returns: unknown
@@ -1435,6 +1451,15 @@ export type Database = {
           p_test_type: string
         }
         Returns: string
+      }
+      log_unauthorized_access: {
+        Args: {
+          p_attempted_action: string
+          p_attempted_resource: string
+          p_org_id?: string
+          p_user_id?: string
+        }
+        Returns: undefined
       }
       normalize_role_value: {
         Args: { input_role: string }
