@@ -12,6 +12,8 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useOrganizationRole } from "@/hooks/useOrganizationRole"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { useNavigate } from "react-router-dom"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { useSidebar } from "@/components/ui/sidebar"
 
 interface ProfileAvatarProps {
   activeScreen: string
@@ -21,6 +23,8 @@ interface ProfileAvatarProps {
 export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarProps) {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
+  const { state } = useSidebar()
+  const isMobile = useIsMobile()
   
   const { organizationId, isOwner } = useUserOrganization()
   const { isAdmin } = useOrganizationRole(organizationId || undefined)
@@ -52,9 +56,13 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost" 
-            className="h-auto w-full justify-start rounded-sm p-2 hover:bg-muted"
+            className={`h-auto w-full rounded-sm p-2 hover:bg-muted ${
+              state === "collapsed" && !isMobile ? "justify-center" : "justify-start"
+            }`}
           >
-            <div className="flex items-center gap-3 w-full">
+            <div className={`flex items-center w-full ${
+              state === "collapsed" && !isMobile ? "justify-center" : "gap-3"
+            }`}>
               <div className="h-8 w-8 bg-muted rounded-sm flex items-center justify-center text-sm font-medium flex-shrink-0">
                 {user?.user_metadata?.avatar_url ? (
                   <img 
@@ -66,9 +74,11 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
                   <span className="text-muted-foreground">{getUserInitials()}</span>
                 )}
               </div>
-              <span className="text-sm font-medium text-foreground truncate">
-                {user?.user_metadata?.full_name || "User"}
-              </span>
+              {(state !== "collapsed" || isMobile) && (
+                <span className="text-sm font-medium text-foreground truncate">
+                  {user?.user_metadata?.full_name || "User"}
+                </span>
+              )}
             </div>
           </Button>
         </DropdownMenuTrigger>

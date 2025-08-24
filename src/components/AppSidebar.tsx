@@ -60,7 +60,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
         isMobile 
           ? "w-full" 
           : state === "collapsed" 
-            ? "w-14" 
+            ? "w-16" 
             : "w-60"
       } 
       collapsible="icon"
@@ -68,7 +68,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
       <SidebarContent className="flex flex-col h-full">
         <div className="flex-1">
           <SidebarGroup>
-            <SidebarGroupLabel className={isMobile ? "px-4 py-3" : state === "collapsed" ? "px-2 py-3" : "px-4 py-3"}>
+            <SidebarGroupLabel className={isMobile ? "px-4 py-4" : state === "collapsed" ? "px-3 py-4" : "px-4 py-4"}>
               <div className="flex items-center justify-center">
                 {state === "collapsed" && !isMobile ? (
                   <img src={logo} alt="Logo" className="h-6 w-6 object-contain" />
@@ -84,13 +84,13 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
               </div>
             )}
             
-            <SidebarGroupContent className={state === "collapsed" && !isMobile ? "px-2" : "px-3"}>
+            <SidebarGroupContent className={state === "collapsed" && !isMobile ? "px-3" : "px-3"}>
               <SidebarMenu className="space-y-1">
                 {items.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton 
                       onClick={() => setActiveScreen(item.url)}
-                      className={`h-10 ${state === "collapsed" && !isMobile ? "px-2 justify-center" : "px-3"} ${activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
+                      className={`h-10 ${state === "collapsed" && !isMobile ? "px-3 justify-center" : "px-3"} ${activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
                     >
                       <item.icon className="h-4 w-4 flex-shrink-0" />
                       {(state !== "collapsed" || isMobile) && <span className="ml-3">{item.title}</span>}
@@ -175,18 +175,18 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
           {/* Collapsed state - icon only */}
           {state === "collapsed" && !isMobile && (
             <SidebarGroup>
-              <SidebarGroupContent className="px-2">
+              <SidebarGroupContent className="px-3">
                 <SidebarMenu className="space-y-1">
                   <SidebarMenuItem>
                     <SidebarMenuButton 
                       onClick={() => setActiveScreen("notifications")}
-                      className={`h-10 px-2 justify-center ${activeScreen === "notifications" ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
+                      className={`h-10 px-3 justify-center ${activeScreen === "notifications" ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
                     >
                       <Bell className="h-4 w-4" />
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton className="h-10 px-2 justify-center hover:bg-muted">
+                    <SidebarMenuButton className="h-10 px-3 justify-center hover:bg-muted">
                       <HelpCircle className="h-4 w-4" />
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -196,7 +196,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
           )}
 
           {/* Profile Avatar at bottom */}
-          <div className={state === "collapsed" && !isMobile ? "px-2 pt-3" : "px-3 pt-3"}>
+          <div className={state === "collapsed" && !isMobile ? "px-3 pt-3" : "px-3 pt-3"}>
             <ProfileAvatar activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
           </div>
         </div>
