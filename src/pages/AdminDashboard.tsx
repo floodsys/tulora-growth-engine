@@ -13,7 +13,9 @@ import {
   Bot, 
   FileText, 
   Settings,
-  AlertTriangle
+  AlertTriangle,
+  TestTube,
+  ExternalLink
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -26,6 +28,10 @@ import { AnalyticsDashboard } from '@/components/admin/AnalyticsDashboard';
 import { BillingAdmin } from '@/components/admin/BillingAdmin';
 import { AgentCatalogAdmin } from '@/components/admin/AgentCatalogAdmin';
 import { AdminLogsViewer } from '@/components/admin/AdminLogsViewer';
+import { AdminBackfill } from '@/components/admin/AdminBackfill';
+import { EmailIntegrations } from '@/components/admin/EmailIntegrations';
+import { FeatureFlags } from '@/components/admin/FeatureFlags';
+import { DataFixes } from '@/components/admin/DataFixes';
 
 const adminTabs = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -36,6 +42,12 @@ const adminTabs = [
   { id: 'agent-catalog', label: 'Agent Catalog', icon: Bot },
   { id: 'logs', label: 'Logs', icon: FileText },
   { id: 'utilities', label: 'Utilities', icon: Settings },
+  { 
+    id: 'tests', 
+    label: 'Hidden Tests', 
+    icon: TestTube, 
+    condition: () => process.env.NODE_ENV === 'development' 
+  }
 ];
 
 export default function AdminDashboard() {
@@ -113,7 +125,9 @@ export default function AdminDashboard() {
       <div className="container mx-auto px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-8">
-            {adminTabs.map((tab) => {
+            {adminTabs
+              .filter(tab => !tab.condition || tab.condition())
+              .map((tab) => {
               const Icon = tab.icon;
               return (
                 <TabsTrigger 
@@ -198,12 +212,53 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="utilities">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Admin Utilities</CardTitle>
+                  <CardContent className="text-sm text-muted-foreground">
+                    Safe administrative tools for system maintenance and debugging
+                  </CardContent>
+                </CardHeader>
+              </Card>
+              
+              <div className="grid gap-6">
+                <AdminBackfill />
+                <EmailIntegrations />
+                <FeatureFlags />
+                <DataFixes />
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="tests">
             <Card>
               <CardHeader>
-                <CardTitle>Admin Utilities</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <TestTube className="h-5 w-5" />
+                  Hidden Tests
+                  <Badge variant="secondary">Development Only</Badge>
+                </CardTitle>
+                <CardContent className="text-sm text-muted-foreground">
+                  Internal testing utilities only visible when RUN_TEST_LEVEL ≠ off
+                </CardContent>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">Admin utilities coming soon...</p>
+                <div className="space-y-4">
+                  <Alert>
+                    <TestTube className="h-4 w-4" />
+                    <AlertDescription>
+                      These tests are hidden from customers and only available in development environments.
+                    </AlertDescription>
+                  </Alert>
+                  
+                  <div className="w-full">
+                    <a href="/admin/tests/invites" className="inline-flex items-center gap-2 px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium transition-colors w-full justify-center">
+                      <ExternalLink className="h-4 w-4" />
+                      Invite System Tests
+                    </a>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
