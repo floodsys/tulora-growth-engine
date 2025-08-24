@@ -65,10 +65,10 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
       } 
       collapsible="icon"
     >
-      <SidebarContent className="flex flex-col h-full overflow-hidden">
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          <SidebarGroup className="space-y-0">
-            <SidebarGroupLabel className={isMobile ? "px-4 py-3 mb-2" : "px-6 py-4 mb-4"}>
+      <SidebarContent className="flex flex-col h-full">
+        <div className="flex-1 space-y-4">
+          <SidebarGroup>
+            <SidebarGroupLabel className={isMobile ? "px-4 py-4 mb-2" : "px-6 py-6 mb-3"}>
               <div className="flex items-center gap-2">
                 {state === "collapsed" && !isMobile ? (
                   <img src={logo} alt="Logo" className="h-6 w-auto object-contain" />
@@ -79,7 +79,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
             </SidebarGroupLabel>
             
             {(state !== "collapsed" || isMobile) && (
-              <div className={isMobile ? "px-4 pb-4 mb-2" : "px-6 pb-6 mb-4"}>
+              <div className={isMobile ? "px-4 py-2 mb-2" : "px-6 py-4 mb-3"}>
                 <OrgSwitcher />
               </div>
             )}
@@ -90,10 +90,10 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton 
                       onClick={() => setActiveScreen(item.url)}
-                      className={`h-10 px-3 rounded-md transition-colors ${activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
+                      className={`h-10 px-3 ${activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
                     >
-                      <item.icon className="h-4 w-4 flex-shrink-0" />
-                      {(state !== "collapsed" || isMobile) && <span className="ml-3 truncate">{item.title}</span>}
+                      <item.icon className="h-4 w-4" />
+                      {(state !== "collapsed" || isMobile) && <span className="ml-3">{item.title}</span>}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -103,20 +103,20 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
         </div>
         
         {/* Bottom section with Help, Notifications, and Profile */}
-        <div className="flex-shrink-0 border-t bg-background">
+        <div className="mt-auto border-t pt-4">
           {/* Help & Notifications */}
           {(state !== "collapsed" || isMobile) && (
-            <SidebarGroup className="py-3">
+            <SidebarGroup>
               <SidebarGroupContent className="px-3">
                 <SidebarMenu className="space-y-1">
                   {/* Notifications */}
                   <SidebarMenuItem>
                     <SidebarMenuButton 
                       onClick={() => setActiveScreen("notifications")}
-                      className={`h-10 px-3 rounded-md transition-colors ${activeScreen === "notifications" ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
+                      className={`h-10 px-3 ${activeScreen === "notifications" ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
                     >
-                      <Bell className="h-4 w-4 flex-shrink-0" />
-                      <span className="ml-3 truncate">Notifications</span>
+                      <Bell className="h-4 w-4" />
+                      <span className="ml-3">Notifications</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
@@ -125,13 +125,13 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
                     <Popover>
                       <PopoverTrigger asChild>
                         <SidebarMenuButton 
-                          className={`h-10 px-3 rounded-md transition-colors ${activeScreen === "help" ? "bg-muted text-primary font-medium" : "hover:bg-muted"} w-full justify-between`}
+                          className={`h-10 px-3 ${activeScreen === "help" ? "bg-muted text-primary font-medium" : "hover:bg-muted"} w-full justify-between`}
                         >
-                          <div className="flex items-center min-w-0">
-                            <HelpCircle className="h-4 w-4 flex-shrink-0" />
-                            <span className="ml-3 truncate">Help</span>
+                          <div className="flex items-center">
+                            <HelpCircle className="h-4 w-4" />
+                            <span className="ml-3">Help</span>
                           </div>
-                          <ChevronRight className="h-4 w-4 flex-shrink-0" />
+                          <ChevronRight className="h-4 w-4" />
                         </SidebarMenuButton>
                       </PopoverTrigger>
                       <PopoverContent 
@@ -146,13 +146,13 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
                             onClick={() => setActiveScreen("contact-us")}
                             className="flex items-center w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
                           >
-                            <MessageCircle className="h-4 w-4 mr-3 flex-shrink-0" />
-                            <span className="truncate">Contact us</span>
+                            <MessageCircle className="h-4 w-4 mr-3" />
+                            Contact us
                           </button>
                           <button className="flex items-center w-full px-3 py-2 text-sm rounded-md cursor-not-allowed opacity-60">
-                            <Users2 className="h-4 w-4 mr-3 flex-shrink-0" />
-                            <span className="truncate">Community</span>
-                            <Badge variant="secondary" className="ml-auto text-xs flex-shrink-0">
+                            <Users2 className="h-4 w-4 mr-3" />
+                            Community
+                            <Badge variant="secondary" className="ml-auto text-xs">
                               Coming Soon
                             </Badge>
                           </button>
@@ -160,8 +160,8 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
                             onClick={() => setActiveScreen("tutorials")}
                             className="flex items-center w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
                           >
-                            <PlayCircle className="h-4 w-4 mr-3 flex-shrink-0" />
-                            <span className="truncate">Tutorials</span>
+                            <PlayCircle className="h-4 w-4 mr-3" />
+                            Tutorials
                           </button>
                         </div>
                       </PopoverContent>
@@ -174,19 +174,19 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
           
           {/* Collapsed state - icon only */}
           {state === "collapsed" && !isMobile && (
-            <SidebarGroup className="py-3">
+            <SidebarGroup>
               <SidebarGroupContent className="px-3">
                 <SidebarMenu className="space-y-1">
                   <SidebarMenuItem>
                     <SidebarMenuButton 
                       onClick={() => setActiveScreen("notifications")}
-                      className={`h-10 px-3 rounded-md transition-colors ${activeScreen === "notifications" ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
+                      className={`h-10 px-3 ${activeScreen === "notifications" ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
                     >
                       <Bell className="h-4 w-4" />
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton className="h-10 px-3 rounded-md hover:bg-muted transition-colors">
+                    <SidebarMenuButton className="h-10 px-3 hover:bg-muted">
                       <HelpCircle className="h-4 w-4" />
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -196,7 +196,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
           )}
 
           {/* Profile Avatar at bottom */}
-          <div className="p-3 border-t">
+          <div className="p-3">
             <ProfileAvatar activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
           </div>
         </div>
