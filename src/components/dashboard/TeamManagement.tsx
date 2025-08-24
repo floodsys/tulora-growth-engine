@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { OrganizationRole } from "@/hooks/useOrganizationRole";
 import { Plus, Mail, Users, UserCheck, Clock, X, ToggleLeft, ToggleRight } from "lucide-react";
+import { removeMember, toggleSeatActive, acceptInvitation } from "@/lib/billing-hooks";
 
 interface TeamMember {
   id: string;
@@ -156,31 +157,31 @@ function TeamMembersTab() {
 
   const handleAcceptInvite = async (inviteId: string) => {
     try {
-      // For demo purposes, remove from invites and add to members
       const invite = invites.find(i => i.id === inviteId);
       if (!invite) return;
 
-      const newMember: TeamMember = {
-        id: `member-${Date.now()}`,
-        user_id: `user-${Date.now()}`,
-        organization_id: organizationId,
-        role: invite.role,
-        seat_active: true,
-        created_at: new Date().toISOString(),
-        profiles: {
-          full_name: "New Member",
-          email: invite.email,
-          avatar_url: ""
-        }
-      };
+      // Use the billing hooks function for proper seat sync
+      const { success } = await acceptInvitation(inviteId, invite.organization_id);
+      
+      if (success) {
+        // Update local state
+        const newMember: TeamMember = {
+          id: `member-${Date.now()}`,
+          user_id: `user-${Date.now()}`,
+          organization_id: organizationId,
+          role: invite.role,
+          seat_active: true,
+          created_at: new Date().toISOString(),
+          profiles: {
+            full_name: "New Member",
+            email: invite.email,
+            avatar_url: ""
+          }
+        };
 
-      setMembers(prev => [...prev, newMember]);
-      setInvites(prev => prev.filter(i => i.id !== inviteId));
-
-      toast({
-        title: "Invite accepted",
-        description: "You have joined the team",
-      });
+        setMembers(prev => [...prev, newMember]);
+        setInvites(prev => prev.filter(i => i.id !== inviteId));
+      }
     } catch (error) {
       console.error('Error accepting invite:', error);
       toast({
@@ -193,12 +194,15 @@ function TeamMembersTab() {
 
   const handleRemoveMember = async (memberId: string) => {
     try {
-      setMembers(prev => prev.filter(m => m.id !== memberId));
+      const member = members.find(m => m.id === memberId);
+      if (!member) return;
 
-      toast({
-        title: "Member removed",
-        description: "Team member has been removed",
-      });
+      // Use the billing hooks function for proper seat sync
+      const { success } = await removeMember(member.user_id, member.organization_id);
+      
+      if (success) {
+        setMembers(prev => prev.filter(m => m.id !== memberId));
+      }
     } catch (error) {
       console.error('Error removing member:', error);
       toast({
@@ -211,14 +215,17 @@ function TeamMembersTab() {
 
   const handleToggleSeat = async (memberId: string, currentStatus: boolean) => {
     try {
-      setMembers(prev => prev.map(m => 
-        m.id === memberId ? { ...m, seat_active: !currentStatus } : m
-      ));
+      const member = members.find(m => m.id === memberId);
+      if (!member) return;
 
-      toast({
-        title: "Seat updated",
-        description: `Seat ${!currentStatus ? 'activated' : 'deactivated'}`,
-      });
+      // Use the billing hooks function for proper seat sync
+      const { success } = await toggleSeatActive(member.user_id, member.organization_id, !currentStatus);
+      
+      if (success) {
+        setMembers(prev => prev.map(m => 
+          m.id === memberId ? { ...m, seat_active: !currentStatus } : m
+        ));
+      }
     } catch (error) {
       console.error('Error toggling seat:', error);
       toast({

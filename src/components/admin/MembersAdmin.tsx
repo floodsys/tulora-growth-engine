@@ -22,6 +22,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
+import { triggerSeatSync } from '@/lib/billing-hooks';
 
 interface Member {
   user_id: string;
@@ -175,6 +176,9 @@ export function MembersAdmin() {
             description: `Seat ${member.seat_active ? 'deactivated' : 'activated'} successfully`,
           });
 
+          // Trigger seat sync after seat toggle
+          await triggerSeatSync(member.organization_id, { showToast: false });
+
           await loadMembers();
           setConfirmDialog({ ...confirmDialog, open: false });
         } catch (error) {
@@ -215,6 +219,9 @@ export function MembersAdmin() {
             title: 'Success',
             description: `${member.email} removed from ${member.organization_name}`,
           });
+
+          // Trigger seat sync after member removal
+          await triggerSeatSync(member.organization_id, { showToast: false });
 
           await loadMembers();
           setConfirmDialog({ ...confirmDialog, open: false });

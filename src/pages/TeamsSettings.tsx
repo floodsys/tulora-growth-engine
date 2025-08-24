@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useOrganizationRole, OrganizationRole } from "@/hooks/useOrganizationRole";
 import { useUserOrganization } from "@/hooks/useUserOrganization";
 import { Plus, Mail, Users, UserCheck, Clock, X, Copy, Ban, Shield, ArrowLeft } from "lucide-react";
+import { removeMember as removeMemberBilling } from "@/lib/billing-hooks";
 
 interface TeamMember {
   id: string;
@@ -281,12 +282,15 @@ function TeamsSettings() {
 
   const removeMember = async (memberId: string) => {
     try {
-      setMembers(prev => prev.filter(member => member.id !== memberId));
+      const member = members.find(m => m.id === memberId);
+      if (!member) return;
 
-      toast({
-        title: "Member removed",
-        description: "Team member has been removed",
-      });
+      // Use billing hooks for proper seat sync
+      const { success } = await removeMemberBilling(member.user_id, member.organization_id);
+      
+      if (success) {
+        setMembers(prev => prev.filter(member => member.id !== memberId));
+      }
     } catch (error) {
       console.error('Error removing member:', error);
       toast({
