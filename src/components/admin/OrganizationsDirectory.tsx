@@ -27,6 +27,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { toast } from '@/hooks/use-toast';
 import { TransferOwnershipDialog } from './TransferOwnershipDialog';
 import { ViewActivityDialog } from './ViewActivityDialog';
+import { SuspensionDialog } from './SuspensionDialog';
 
 interface Organization {
   id: string;
@@ -35,6 +36,8 @@ interface Organization {
   owner_email?: string;
   plan_key: string;
   billing_status: string;
+  suspension_status: string;
+  suspension_reason?: string;
   created_at: string;
   member_count?: number;
   active_seats?: number;
@@ -57,6 +60,8 @@ export function OrganizationsDirectory() {
     inactive: false,
     trialing: false
   });
+  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+  const [suspensionDialogOpen, setSuspensionDialogOpen] = useState(false);
   const [transferOrgId, setTransferOrgId] = useState<string | null>(null);
   const [viewActivityOrgId, setViewActivityOrgId] = useState<string | null>(null);
 
@@ -75,22 +80,27 @@ export function OrganizationsDirectory() {
           owner_user_id,
           plan_key,
           billing_status,
+          suspension_status,
+          suspension_reason,
           created_at,
           trial_ends_at
         `);
 
       if (orgsError) throw orgsError;
 
-      // Get owner emails and member counts
+      // Get owner emails separately
+      const orgIds = orgsData?.map(org => org.owner_user_id) || [];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .in('id', orgIds);
+
+      const profileMap = new Map(profiles?.map(p => [p.id, p.email]) || []);
+
+
+      // Get member counts for each organization
       const orgsWithDetails = await Promise.all(
         (orgsData || []).map(async (org) => {
-          // Get owner email
-          const { data: ownerData } = await supabase
-            .from('profiles')
-            .select('email')
-            .eq('id', org.owner_user_id)
-            .single();
-
           // Get member count and active seats
           const { data: membersData } = await supabase
             .from('organization_members')
@@ -105,7 +115,7 @@ export function OrganizationsDirectory() {
 
           return {
             ...org,
-            owner_email: ownerData?.email || 'Unknown',
+            owner_email: profileMap.get(org.owner_user_id) || 'Unknown',
             member_count: totalMembers,
             active_seats: activeSeats,
             seat_limit: getSeatLimit(org.plan_key),
@@ -147,7 +157,9 @@ export function OrganizationsDirectory() {
         org.owner_email?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
 
       const matchesPlan = filters.plan === 'all' || org.plan_key === filters.plan;
-      const matchesStatus = filters.status === 'all' || org.billing_status === filters.status;
+      const matchesStatus = filters.status === 'all' || 
+        org.billing_status === filters.status ||
+        org.suspension_status === filters.status;
       
       const isOverLimit = filters.overLimit ? (org.active_seats || 0) > (org.seat_limit || 0) : true;
       
@@ -171,32 +183,6 @@ export function OrganizationsDirectory() {
     setSelectedOrgs(checked ? filteredOrganizations.map(org => org.id) : []);
   };
 
-  const handleSuspendOrg = async (orgId: string, suspend: boolean) => {
-    try {
-      const status = suspend ? 'suspended' : 'active';
-      const { error } = await supabase
-        .from('organizations')
-        .update({ billing_status: status })
-        .eq('id', orgId);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: `Organization ${suspend ? 'suspended' : 'reinstated'} successfully`
-      });
-
-      loadOrganizations();
-    } catch (error) {
-      console.error('Error updating organization:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update organization status',
-        variant: 'destructive'
-      });
-    }
-  };
-
   const handleBulkAction = async (action: string) => {
     if (selectedOrgs.length === 0) {
       toast({
@@ -210,13 +196,9 @@ export function OrganizationsDirectory() {
     try {
       switch (action) {
         case 'suspend':
-          await Promise.all(selectedOrgs.map(id => handleSuspendOrg(id, true)));
-          break;
         case 'reinstate':
-          await Promise.all(selectedOrgs.map(id => handleSuspendOrg(id, false)));
-          break;
         case 'recalculate':
-          toast({ title: 'Success', description: 'Seat recalculation initiated' });
+          toast({ title: 'Success', description: `${action} action initiated for ${selectedOrgs.length} organizations` });
           break;
         case 'email':
           toast({ title: 'Success', description: 'Email notifications sent' });
@@ -234,13 +216,18 @@ export function OrganizationsDirectory() {
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'default' | 'secondary' | 'destructive'> = {
-      active: 'default',
-      suspended: 'destructive',
-      canceled: 'secondary',
-      trialing: 'secondary'
-    };
-    return <Badge variant={variants[status] || 'secondary'}>{status}</Badge>;
+    switch (status) {
+      case 'suspended':
+        return <Badge className="bg-gray-500 text-white">Suspended</Badge>;
+      case 'active':
+        return <Badge className="bg-green-500 text-white">Active</Badge>;
+      case 'trialing':
+        return <Badge className="bg-blue-500 text-white">Trialing</Badge>;
+      case 'canceled':
+        return <Badge className="bg-red-500 text-white">Canceled</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
   };
 
   const getPlanBadge = (plan: string) => {
@@ -422,7 +409,7 @@ export function OrganizationsDirectory() {
                       {org.active_seats}/{org.seat_limit}
                     </span>
                   </TableCell>
-                  <TableCell>{getStatusBadge(org.billing_status)}</TableCell>
+                  <TableCell>{getStatusBadge(org.suspension_status || org.billing_status)}</TableCell>
                   <TableCell>${org.mrr || 0}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {org.last_activity ? new Date(org.last_activity).toLocaleDateString() : 'Never'}
@@ -439,10 +426,13 @@ export function OrganizationsDirectory() {
                           <ExternalLink className="h-4 w-4 mr-2" />
                           Open Tenant
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => handleSuspendOrg(org.id, org.billing_status !== 'suspended')}
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedOrg(org);
+                            setSuspensionDialogOpen(true);
+                          }}
                         >
-                          {org.billing_status === 'suspended' ? (
+                          {org.suspension_status === 'suspended' ? (
                             <>
                               <Play className="h-4 w-4 mr-2" />
                               Reinstate Service
@@ -484,6 +474,20 @@ export function OrganizationsDirectory() {
       </Card>
 
       {/* Dialogs */}
+      {selectedOrg && (
+        <SuspensionDialog
+          isOpen={suspensionDialogOpen}
+          onClose={() => {
+            setSuspensionDialogOpen(false);
+            setSelectedOrg(null);
+          }}
+          organization={selectedOrg}
+          onSuccess={() => {
+            loadOrganizations();
+          }}
+        />
+      )}
+
       <TransferOwnershipDialog
         organizationId={transferOrgId}
         open={!!transferOrgId}

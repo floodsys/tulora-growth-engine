@@ -910,6 +910,10 @@ export type Database = {
           plan_key: string | null
           retention_config: Json | null
           stripe_customer_id: string | null
+          suspended_at: string | null
+          suspended_by: string | null
+          suspension_reason: string | null
+          suspension_status: string | null
           trial_ends_at: string | null
           trial_started_at: string | null
           webhook_config: Json | null
@@ -925,6 +929,10 @@ export type Database = {
           plan_key?: string | null
           retention_config?: Json | null
           stripe_customer_id?: string | null
+          suspended_at?: string | null
+          suspended_by?: string | null
+          suspension_reason?: string | null
+          suspension_status?: string | null
           trial_ends_at?: string | null
           trial_started_at?: string | null
           webhook_config?: Json | null
@@ -940,6 +948,10 @@ export type Database = {
           plan_key?: string | null
           retention_config?: Json | null
           stripe_customer_id?: string | null
+          suspended_at?: string | null
+          suspended_by?: string | null
+          suspension_reason?: string | null
+          suspension_status?: string | null
           trial_ends_at?: string | null
           trial_started_at?: string | null
           webhook_config?: Json | null
@@ -1316,6 +1328,10 @@ export type Database = {
         Args: { org_id: string }
         Returns: boolean
       }
+      is_org_suspended: {
+        Args: { org_id: string }
+        Returns: boolean
+      }
       ivfflat_bit_support: {
         Args: { "": unknown }
         Returns: unknown
@@ -1424,6 +1440,10 @@ export type Database = {
         Args: { input_role: string }
         Returns: string
       }
+      reinstate_organization: {
+        Args: { p_org_id: string; p_reason: string; p_reinstated_by?: string }
+        Returns: Json
+      }
       seed_default_alert_rules: {
         Args: { p_org_id: string }
         Returns: undefined
@@ -1443,6 +1463,10 @@ export type Database = {
       sparsevec_typmod_in: {
         Args: { "": unknown[] }
         Returns: number
+      }
+      suspend_organization: {
+        Args: { p_org_id: string; p_reason: string; p_suspended_by?: string }
+        Returns: Json
       }
       trim_user_agent: {
         Args: { user_agent_string: string }
