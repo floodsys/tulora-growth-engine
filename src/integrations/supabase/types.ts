@@ -17,41 +17,64 @@ export type Database = {
       activity_logs: {
         Row: {
           action: string
+          actor_role_snapshot: string
+          actor_user_id: string | null
+          channel: string
           created_at: string
-          details: Json | null
+          error_code: string | null
           id: string
-          ip_address: unknown | null
+          ip_hash: string | null
+          metadata: Json | null
           organization_id: string
-          resource_id: string | null
-          resource_type: string | null
+          request_id: string | null
+          status: string
+          target_id: string | null
+          target_type: string
           user_agent: string | null
-          user_id: string | null
         }
         Insert: {
           action: string
+          actor_role_snapshot: string
+          actor_user_id?: string | null
+          channel?: string
           created_at?: string
-          details?: Json | null
+          error_code?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_hash?: string | null
+          metadata?: Json | null
           organization_id: string
-          resource_id?: string | null
-          resource_type?: string | null
+          request_id?: string | null
+          status?: string
+          target_id?: string | null
+          target_type: string
           user_agent?: string | null
-          user_id?: string | null
         }
         Update: {
           action?: string
+          actor_role_snapshot?: string
+          actor_user_id?: string | null
+          channel?: string
           created_at?: string
-          details?: Json | null
+          error_code?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_hash?: string | null
+          metadata?: Json | null
           organization_id?: string
-          resource_id?: string | null
-          resource_type?: string | null
+          request_id?: string | null
+          status?: string
+          target_id?: string | null
+          target_type?: string
           user_agent?: string | null
-          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       agent_profiles: {
         Row: {
