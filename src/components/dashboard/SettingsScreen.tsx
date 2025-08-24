@@ -9,6 +9,7 @@ import { MemberManagement } from "./settings/MemberManagement"
 import { SeatManagement } from "./settings/SeatManagement"
 import { BillingSettings } from "./settings/BillingSettings"
 import { IntegrationsSettings } from "./settings/IntegrationsSettings"
+import { AlertsSettings } from "./settings/AlertsSettings"
 import { OrganizationDangerZone } from "./settings/OrganizationDangerZone"
 
 export function SettingsScreen() {
@@ -37,6 +38,8 @@ export function SettingsScreen() {
         return <BillingSettings />
       case "integrations":
         return <IntegrationsSettings />
+      case "alerts":
+        return <AlertsSettings />
       case "org-danger":
         return <OrganizationDangerZone />
       default:
@@ -48,7 +51,7 @@ export function SettingsScreen() {
     <div className="space-y-6">
       <div className="border-b">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-10 h-auto p-1 bg-muted/50">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-11 h-auto p-1 bg-muted/50">
             <TabsTrigger value="profile" className="text-xs">PROFILE</TabsTrigger>
             <TabsTrigger value="notifications" className="text-xs">NOTIFICATIONS</TabsTrigger>
             <TabsTrigger value="security" className="text-xs">SECURITY</TabsTrigger>
@@ -60,6 +63,7 @@ export function SettingsScreen() {
                 <TabsTrigger value="seats" className="text-xs">SEATS</TabsTrigger>
                 <TabsTrigger value="billing" className="text-xs">BILLING</TabsTrigger>
                 <TabsTrigger value="integrations" className="text-xs">INTEGRATIONS</TabsTrigger>
+                <TabsTrigger value="alerts" className="text-xs">ALERTS</TabsTrigger>
                 <TabsTrigger value="org-danger" className="text-xs">ORG DANGER</TabsTrigger>
               </>
             )}
