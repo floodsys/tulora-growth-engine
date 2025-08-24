@@ -201,7 +201,7 @@ const Auth = () => {
       {/* Right Panel - Image */}
       <div className="hidden lg:flex flex-1 bg-card">
         <img
-          src={authIllustration}
+          src="/lovable-uploads/c2cd4615-0db0-4f8a-865f-93508a2e574e.png"
           alt="Dashboard illustration"
           className="w-full h-full object-cover"
         />
