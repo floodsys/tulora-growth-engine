@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Activity, Info, CheckCircle2, XCircle, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Loader2, Activity, Info, CheckCircle2, XCircle, ChevronDown, ChevronRight, AlertTriangle, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -50,6 +50,7 @@ interface BackfillResult {
     events_created: number;
     events_skipped: number;
   }>;
+  trace_id?: string;
   error?: string;
 }
 
@@ -154,15 +155,19 @@ export function BackfillActivityModal({
 
       if (data?.success) {
         setProgress(100);
+        
+        const completionMessage = mode === 'dry-run' 
+          ? `Found ${data.events_planned} events to backfill`
+          : `Backfill complete — ${data.events_created} events added, ${data.events_skipped} already present.`;
+          
         toast({
           title: mode === 'dry-run' ? 'Dry-run completed' : 'Backfill completed',
-          description: mode === 'dry-run' 
-            ? `Found ${data.events_planned} events to backfill`
-            : `Successfully created ${data.events_created} events, skipped ${data.events_skipped} existing`,
+          description: completionMessage,
         });
 
         if (mode === 'execute' && onSuccess) {
-          onSuccess();
+          // Auto-refresh the activity feed
+          setTimeout(() => onSuccess(), 1000);
         }
       } else {
         throw new Error(data?.error || 'Unknown error occurred');
@@ -178,6 +183,70 @@ export function BackfillActivityModal({
       setLoading(false);
       setShowConfirmation(false);
       setConfirmText('');
+    }
+  };
+
+  const downloadSummary = (format: 'csv' | 'json') => {
+    if (!result || !result.success) return;
+
+    const summary = {
+      organization_id: organizationId,
+      organization_name: organizationName,
+      timestamp: new Date().toISOString(),
+      mode: result.dry_run ? 'dry-run' : 'execute',
+      events_planned: result.events_planned,
+      events_created: result.events_created,
+      events_skipped: result.events_skipped,
+      trace_id: result.trace_id,
+      event_types: eventTypeSummary.map(type => ({
+        action: type.action,
+        target_type: type.target_type,
+        would_create: type.would_create,
+        would_skip: type.would_skip
+      }))
+    };
+
+    if (format === 'json') {
+      const blob = new Blob([JSON.stringify(summary, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backfill-summary-${organizationId}-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      // CSV format
+      const headers = ['Event Type', 'Target Type', 'Events Created', 'Events Skipped'];
+      const csvData = [
+        headers,
+        ...eventTypeSummary.map(type => [
+          type.action,
+          type.target_type,
+          type.would_create.toString(),
+          type.would_skip.toString()
+        ])
+      ].map(row => row.join(',')).join('\n');
+
+      const summaryInfo = [
+        `# Backfill Summary`,
+        `Organization: ${organizationName} (${organizationId})`,
+        `Mode: ${result.dry_run ? 'dry-run' : 'execute'}`,
+        `Timestamp: ${new Date().toISOString()}`,
+        `Events Planned: ${result.events_planned}`,
+        `Events Created: ${result.events_created}`,
+        `Events Skipped: ${result.events_skipped}`,
+        `Trace ID: ${result.trace_id || 'N/A'}`,
+        ``,
+        csvData
+      ].join('\n');
+
+      const blob = new Blob([summaryInfo], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backfill-summary-${organizationId}-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
     }
   };
 
@@ -237,6 +306,7 @@ export function BackfillActivityModal({
 
   const eventTypeSummary = generateEventTypeSummary();
   const hasSuccessfulDryRun = result?.success && result?.dry_run;
+  const hasSuccessfulExecute = result?.success && !result?.dry_run;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -439,6 +509,36 @@ export function BackfillActivityModal({
                         </div>
                       )}
 
+                      {/* Download Summary for completed execute */}
+                      {hasSuccessfulExecute && (
+                        <Alert className="border-green-200 bg-green-50">
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <AlertDescription className="space-y-3">
+                            <div className="text-green-800 font-medium">
+                              Backfill completed successfully! The activity feed will refresh automatically.
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => downloadSummary('csv')}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Download CSV
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => downloadSummary('json')}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Download JSON
+                              </Button>
+                            </div>
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
                       {/* Progress bar for execute mode */}
                       {mode === 'execute' && loading && (
                         <div className="space-y-2">
@@ -487,7 +587,7 @@ export function BackfillActivityModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
-            {showConfirmation ? 'Cancel' : 'Close'}
+            {showConfirmation ? 'Cancel' : hasSuccessfulExecute ? 'Done' : 'Close'}
           </Button>
           {hasSuccessfulDryRun && mode === 'dry-run' && (
             <Button 
