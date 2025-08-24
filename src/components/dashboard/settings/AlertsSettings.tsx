@@ -185,7 +185,8 @@ export function AlertsSettings() {
       'rapid_role_changes': 'Rapid Role Changes',
       'failed_invite_acceptances': 'Failed Invite Acceptances',
       'billing_payment_failures': 'Billing Payment Failures',
-      'rls_authorization_failures': 'Authorization Failures'
+      'rls_authorization_failures': 'Authorization Failures',
+      'blocked_operations_threshold': 'Blocked Operations Threshold'
     };
     return displayNames[ruleName] || ruleName;
   };

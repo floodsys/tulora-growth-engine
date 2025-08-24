@@ -18,6 +18,7 @@ export interface OrgGuardContext {
   path: string;
   method: string;
   actorUserId?: string;
+  ipAddress?: string;
   supabase: SupabaseClient;
 }
 
@@ -26,7 +27,7 @@ export interface OrgGuardContext {
  * Blocks operations when org is suspended/canceled, logs audit events for blocked attempts.
  */
 export async function requireOrgActive(context: OrgGuardContext): Promise<OrgGuardResult> {
-  const { organizationId, action, path, method, actorUserId, supabase } = context;
+  const { organizationId, action, path, method, actorUserId, ipAddress, supabase } = context;
 
   try {
     // Fetch organization status
@@ -63,7 +64,8 @@ export async function requireOrgActive(context: OrgGuardContext): Promise<OrgGua
           reason: 'suspended',
           actorUserId,
           organizationName: org.name,
-          suspensionReason: org.suspension_reason
+          suspensionReason: org.suspension_reason,
+          ipAddress
         });
 
         return {
@@ -83,7 +85,8 @@ export async function requireOrgActive(context: OrgGuardContext): Promise<OrgGua
           reason: 'canceled',
           actorUserId,
           organizationName: org.name,
-          suspensionReason: org.suspension_reason
+          suspensionReason: org.suspension_reason,
+          ipAddress
         });
 
         return {
@@ -113,7 +116,13 @@ export async function requireOrgActive(context: OrgGuardContext): Promise<OrgGua
 }
 
 /**
+ * Rate limiting tracker for blocked operations
+ */
+const rateLimitCache = new Map<string, { count: number; resetTime: number }>();
+
+/**
  * Logs blocked operations to audit log for tracking and compliance
+ * Includes rate limiting to prevent log spam
  */
 async function logBlockedOperation(
   supabase: SupabaseClient,
@@ -126,9 +135,45 @@ async function logBlockedOperation(
     actorUserId?: string;
     organizationName: string;
     suspensionReason?: string;
+    ipAddress?: string;
   }
 ) {
   try {
+    // Extract IP from request or use provided IP
+    const clientIP = params.ipAddress;
+    const rateLimitKey = `${params.organizationId}:${clientIP || 'unknown'}`;
+    const now = Date.now();
+    const windowMs = 60 * 1000; // 1 minute window
+    const maxRequests = 50; // Max 50 blocked operations per minute per org/IP
+    
+    // Check rate limit
+    const current = rateLimitCache.get(rateLimitKey);
+    if (current && current.resetTime > now) {
+      if (current.count >= maxRequests) {
+        console.log(`Rate limit exceeded for ${rateLimitKey}, skipping log`);
+        return;
+      }
+      current.count++;
+    } else {
+      rateLimitCache.set(rateLimitKey, { count: 1, resetTime: now + windowMs });
+    }
+    
+    // Clean up expired entries
+    for (const [key, value] of rateLimitCache.entries()) {
+      if (value.resetTime <= now) {
+        rateLimitCache.delete(key);
+      }
+    }
+
+    // Track blocked operation for observability and alerting
+    const trackingResult = await supabase.rpc('track_blocked_operation', {
+      p_org_id: params.organizationId,
+      p_ip_address: clientIP
+    });
+
+    console.log('Blocked operation tracking result:', trackingResult);
+
+    // Log the blocked operation
     await supabase.rpc('log_event', {
       p_org_id: params.organizationId,
       p_action: 'org.blocked_operation',
@@ -142,6 +187,8 @@ async function logBlockedOperation(
         block_reason: params.reason,
         organization_name: params.organizationName,
         suspension_reason: params.suspensionReason,
+        ip_address: clientIP,
+        rate_limit_applied: current?.count > 1,
         timestamp: new Date().toISOString()
       }
     });

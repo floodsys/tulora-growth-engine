@@ -370,6 +370,50 @@ export type Database = {
           },
         ]
       }
+      blocked_operations_tracking: {
+        Row: {
+          blocked_count: number
+          created_at: string
+          first_blocked_at: string
+          id: string
+          ip_address: unknown | null
+          last_blocked_at: string
+          organization_id: string
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          blocked_count?: number
+          created_at?: string
+          first_blocked_at?: string
+          id?: string
+          ip_address?: unknown | null
+          last_blocked_at?: string
+          organization_id: string
+          updated_at?: string
+          window_start?: string
+        }
+        Update: {
+          blocked_count?: number
+          created_at?: string
+          first_blocked_at?: string
+          id?: string
+          ip_address?: unknown | null
+          last_blocked_at?: string
+          organization_id?: string
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blocked_operations_tracking_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calls: {
         Row: {
           agent_name: string | null
@@ -1552,6 +1596,10 @@ export type Database = {
       }
       suspend_organization: {
         Args: { p_org_id: string; p_reason: string; p_suspended_by?: string }
+        Returns: Json
+      }
+      track_blocked_operation: {
+        Args: { p_ip_address?: unknown; p_org_id: string }
         Returns: Json
       }
       trim_user_agent: {
