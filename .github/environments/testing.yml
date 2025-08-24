@@ -1,0 +1,26 @@
+# GitHub Environment Configuration for Testing
+# 
+# This file documents the required secrets for the testing environment.
+# These secrets should be configured in GitHub repository settings under:
+# Settings > Environments > testing
+
+# Required secrets for testing environment:
+secrets:
+  # Test Organization Configuration
+  TEST_ORG_ID: "uuid-of-dedicated-test-organization"
+  
+  # Supabase Configuration
+  VITE_SUPABASE_URL: "https://your-project.supabase.co"
+  VITE_SUPABASE_PUBLISHABLE_KEY: "your-anon-key"
+  VITE_SUPABASE_PROJECT_ID: "your-project-id"
+  SUPABASE_SERVICE_ROLE_KEY: "your-service-role-key"
+
+# Environment protection rules (recommended):
+protection_rules:
+  required_reviewers: 0  # Allow automated testing
+  wait_timer: 0         # No delay for testing
+  deployment_branch_policy:
+    protected_branches: true    # Only protected branches
+    custom_branch_policies: 
+      - "main"
+      - "develop"

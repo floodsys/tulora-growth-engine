@@ -1,0 +1,25 @@
+# GitHub Environment Configuration for Production
+# 
+# This file documents the required secrets for the production environment.
+# These secrets should be configured in GitHub repository settings under:
+# Settings > Environments > production
+
+# Required secrets for production environment:
+secrets:
+  # Production Test Organization (separate from testing)
+  PROD_TEST_ORG_ID: "uuid-of-production-test-organization"
+  
+  # Production Supabase Configuration
+  VITE_SUPABASE_URL: "https://your-production-project.supabase.co"
+  VITE_SUPABASE_PUBLISHABLE_KEY: "your-production-anon-key"
+  VITE_SUPABASE_PROJECT_ID: "your-production-project-id"
+  SUPABASE_SERVICE_ROLE_KEY: "your-production-service-role-key"
+
+# Environment protection rules (recommended):
+protection_rules:
+  required_reviewers: 1         # Require approval for production access
+  wait_timer: 5                # 5 minute delay
+  deployment_branch_policy:
+    protected_branches: true    # Only protected branches
+    custom_branch_policies: 
+      - "main"                 # Only main branch for production

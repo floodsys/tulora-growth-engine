@@ -1,0 +1,105 @@
+name: Production Smoke Tests
+
+on:
+  schedule:
+    # Run smoke tests every 6 hours in production
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Allow manual triggers
+  deployment_status: # Run after deployments
+
+jobs:
+  smoke-tests:
+    name: Production Smoke Tests
+    runs-on: ubuntu-latest
+    
+    # Only run on successful deployments or manual triggers
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'deployment_status' && github.event.deployment_status.state == 'success')
+    
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run Production Smoke Tests
+        env:
+          # Smoke Test Configuration (Read-only)
+          VITE_RUN_TEST_LEVEL: "smoke"
+          VITE_TEST_ORG_ID: ${{ secrets.PROD_TEST_ORG_ID }}
+          VITE_DISABLE_EMAIL_DELIVERY_FOR_TESTS: "true"
+          VITE_ANALYTICS_EXCLUDE_ORGS: '["${{ secrets.PROD_TEST_ORG_ID }}"]'
+          
+          # Production Supabase Configuration
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+          
+          # Read-only access for smoke tests
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          
+        run: node scripts/run-invite-tests.js --mode=smoke
+        
+      - name: Upload smoke test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: smoke-test-results
+          path: test-results/
+          retention-days: 7
+          
+      - name: Notify on smoke test failure
+        uses: actions/github-script@v6
+        if: failure()
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              const results = JSON.parse(fs.readFileSync('test-results/invite-tests.json', 'utf8'));
+              const failedTests = results.filter(suite => !suite.passed);
+              
+              const body = `## 🚨 Production Smoke Tests Failed
+              
+              **Failed Test Suites:** ${failedTests.length}/${results.length}
+              
+              ${failedTests.map(suite => 
+                `### ❌ ${suite.suiteName}
+                ${suite.summary}
+                
+                **Failed Tests:**
+                ${suite.results.filter(test => !test.passed).map(test => 
+                  `- ${test.testName}: ${test.message}`
+                ).join('\n')}`
+              ).join('\n\n')}
+              
+              **Action Required:** Investigate production environment issues.
+              `;
+              
+              // Create an issue for failed smoke tests
+              github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 Production Smoke Tests Failed - ${new Date().toISOString().split('T')[0]}`,
+                body: body,
+                labels: ['bug', 'production', 'smoke-test-failure']
+              });
+            } catch (error) {
+              console.log('Could not create issue for smoke test failure:', error.message);
+              
+              // Fallback notification
+              github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 Production Smoke Tests Failed - ${new Date().toISOString().split('T')[0]}`,
+                body: 'Production smoke tests failed but could not read detailed results. Please check the workflow logs.',
+                labels: ['bug', 'production', 'smoke-test-failure']
+              });
+            }

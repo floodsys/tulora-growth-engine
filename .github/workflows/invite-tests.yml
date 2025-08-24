@@ -1,0 +1,96 @@
+name: Invite System Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: # Allow manual triggers
+
+jobs:
+  invite-tests:
+    name: Full Invite System Test Suite
+    runs-on: ubuntu-latest
+    
+    environment: testing # Use GitHub environment for secrets
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build application
+        run: npm run build
+        
+      - name: Run Full Invite Test Suite
+        env:
+          # Test Configuration
+          VITE_RUN_TEST_LEVEL: "full"
+          VITE_TEST_ORG_ID: ${{ secrets.TEST_ORG_ID }}
+          VITE_DISABLE_EMAIL_DELIVERY_FOR_TESTS: "true"
+          VITE_ANALYTICS_EXCLUDE_ORGS: '["${{ secrets.TEST_ORG_ID }}"]'
+          
+          # Supabase Configuration
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+          
+          # Service Role for CI Testing
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          
+        run: node scripts/run-invite-tests.js --mode=full
+        
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: invite-test-results
+          path: test-results/
+          retention-days: 30
+          
+      - name: Comment PR with test results
+        uses: actions/github-script@v6
+        if: github.event_name == 'pull_request' && always()
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              const results = JSON.parse(fs.readFileSync('test-results/invite-tests.json', 'utf8'));
+              const passed = results.every(suite => suite.passed);
+              const passedCount = results.filter(s => s.passed).length;
+              const totalCount = results.length;
+              
+              const status = passed ? '✅ PASSED' : '❌ FAILED';
+              const summary = `${passedCount}/${totalCount} test suites passed`;
+              
+              const body = `## 🔒 Invite System Test Results ${status}
+              
+              **Summary:** ${summary}
+              
+              ${results.map(suite => 
+                `### ${suite.passed ? '✅' : '❌'} ${suite.suiteName}
+                ${suite.summary}
+                
+                ${suite.results.map(test => 
+                  `- ${test.passed ? '✅' : '❌'} ${test.testName}: ${test.message}`
+                ).join('\n')}`
+              ).join('\n\n')}
+              `;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            } catch (error) {
+              console.log('Could not read test results:', error.message);
+            }
