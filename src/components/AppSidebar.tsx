@@ -61,7 +61,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
         isMobile 
           ? "w-full" 
           : state === "collapsed" 
-            ? "w-16" 
+            ? "w-20" 
             : "w-60"
       } 
       collapsible="icon"
