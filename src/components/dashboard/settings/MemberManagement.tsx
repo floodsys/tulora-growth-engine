@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useActivityLogger } from "@/hooks/useActivityLogger"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -26,7 +27,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-// import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 const currentMembers = [
   {

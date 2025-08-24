@@ -1,9 +1,10 @@
+import { useActivityLogger } from "@/hooks/useActivityLogger"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { CreditCard, ExternalLink, Calendar, Users, Phone, Bot } from "lucide-react"
-// import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 const billingData = {
   plan: "Pro",
@@ -22,9 +23,18 @@ const billingData = {
 }
 
 export function BillingSettings() {
-  const handleManageSubscription = () => {
-    // TODO: Implement Stripe Customer Portal redirect
-    console.log("Redirecting to billing portal...")
+  const { logBillingAction } = useActivityLogger();
+  
+  const handleManageSubscription = async () => {
+    try {
+      await logBillingAction('subscription.renewed', 'subscription', {
+        accessed_via: 'settings_panel'
+      });
+      console.log("Redirecting to billing portal...");
+      toast.success("Redirecting to billing portal...");
+    } catch (error) {
+      console.error('Error logging billing action:', error);
+    }
   }
 
   const getUsagePercentage = (used: number, limit: number) => {
