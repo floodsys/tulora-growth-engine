@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface SuspensionRequest {
-  action: 'suspend' | 'reinstate';
+  action: 'suspend' | 'reinstate' | 'cancel';
   org_id: string;
   reason: string;
   confirmation_phrase: string;
@@ -56,6 +56,8 @@ serve(async (req) => {
     // Validate confirmation phrase
     const expectedPhrase = action === 'suspend' ? 
       `SUSPEND ORG ${org_id}` : 
+      action === 'cancel' ?
+      `CANCEL ORG ${org_id}` :
       `REINSTATE ORG ${org_id}`;
     
     if (confirmation_phrase !== expectedPhrase) {
@@ -71,6 +73,16 @@ serve(async (req) => {
         p_org_id: org_id,
         p_reason: reason,
         p_suspended_by: user.id
+      });
+
+      if (error) throw error;
+      result = data;
+    } else if (action === 'cancel') {
+      // Call cancel function
+      const { data, error } = await supabaseClient.rpc('cancel_organization', {
+        p_org_id: org_id,
+        p_reason: reason,
+        p_canceled_by: user.id
       });
 
       if (error) throw error;
@@ -111,9 +123,10 @@ serve(async (req) => {
           });
           
           // TODO: Implement actual email sending service
+          // const statusText = action === 'suspend' ? 'Suspended' : action === 'cancel' ? 'Canceled' : 'Reinstated';
           // await sendEmail({
           //   to: orgData.profiles.email,
-          //   subject: `Organization ${action === 'suspend' ? 'Suspended' : 'Reinstated'}: ${orgData.name}`,
+          //   subject: `Organization ${statusText}: ${orgData.name}`,
           //   body: `Your organization "${orgData.name}" has been ${action}d. Reason: ${reason}`
           // });
         }

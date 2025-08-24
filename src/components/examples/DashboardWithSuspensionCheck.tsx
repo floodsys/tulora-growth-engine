@@ -32,6 +32,7 @@ export function DashboardWithSuspensionCheck() {
           suspensionStatus={organization.suspension_status}
           suspensionReason={organization.suspension_reason}
           suspendedAt={organization.suspended_at}
+          canceledAt={organization.canceled_at}
           isOwnerOrAdmin={isOwnerOrAdmin}
         />
       )}

@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Ban, Play } from 'lucide-react';
+import { AlertTriangle, Ban, Play, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -25,6 +25,7 @@ interface SuspensionDialogProps {
     name: string;
     suspension_status?: string;
   };
+  action?: 'suspend' | 'reinstate' | 'cancel';
   onSuccess?: () => void;
 }
 
@@ -32,6 +33,7 @@ export function SuspensionDialog({
   isOpen, 
   onClose, 
   organization, 
+  action,
   onSuccess 
 }: SuspensionDialogProps) {
   const [reason, setReason] = useState('');
@@ -41,14 +43,15 @@ export function SuspensionDialog({
   const { toast } = useToast();
 
   const isSuspended = organization.suspension_status === 'suspended';
-  const action = isSuspended ? 'reinstate' : 'suspend';
-  const expectedPhrase = `${action.toUpperCase()} ORG ${organization.id}`;
+  const isCanceled = organization.suspension_status === 'canceled';
+  const currentAction = action || (isSuspended || isCanceled ? 'reinstate' : 'suspend');
+  const expectedPhrase = `${currentAction.toUpperCase()} ORG ${organization.id}`;
 
   const handleSubmit = async () => {
     if (!reason.trim()) {
       toast({
         title: "Reason required",
-        description: "Please provide a reason for this action",
+        description: "Please provide a reason for this action.",
         variant: "destructive",
       });
       return;
@@ -56,120 +59,128 @@ export function SuspensionDialog({
 
     if (confirmationPhrase !== expectedPhrase) {
       toast({
-        title: "Invalid confirmation",
-        description: `Please type exactly: ${expectedPhrase}`,
+        title: "Confirmation required",
+        description: `Please type "${expectedPhrase}" to confirm.`,
         variant: "destructive",
       });
       return;
     }
 
-    try {
-      setIsLoading(true);
+    setIsLoading(true);
 
-      const { data, error } = await supabase.functions.invoke('org-suspension', {
-        body: {
-          action,
-          org_id: organization.id,
-          reason: reason.trim(),
-          confirmation_phrase: confirmationPhrase,
-          notify_owner: notifyOwner
-        }
-      });
-
-      if (error) throw error;
-
-      if (!data.success) {
-        throw new Error(data.error || 'Operation failed');
+    const { data, error } = await supabase.functions.invoke('org-suspension', {
+      body: {
+        action: currentAction,
+        org_id: organization.id,
+        reason,
+        confirmation_phrase: confirmationPhrase,
+        notify_owner: notifyOwner
       }
+    });
 
+    if (error || !data?.success) {
       toast({
-        title: `Organization ${action}d`,
-        description: `Successfully ${action}d ${organization.name}`,
+        title: "Action failed",
+        description: data?.error || error?.message || "Failed to complete the action.",
+        variant: "destructive",
       });
-
-      onSuccess?.();
-      onClose();
-      
-      // Reset form
+    } else {
+      const actionMap = {
+        suspend: 'suspended',
+        cancel: 'canceled', 
+        reinstate: 'reinstated'
+      };
+      toast({
+        title: "Success",
+        description: `Organization ${actionMap[currentAction]} successfully.`,
+      });
       setReason('');
       setConfirmationPhrase('');
       setNotifyOwner(false);
-
-    } catch (error: any) {
-      console.error(`Error ${action}ing organization:`, error);
-      toast({
-        title: `Failed to ${action} organization`,
-        description: error.message || `An error occurred while ${action}ing the organization`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      onClose();
+      onSuccess?.();
     }
+
+    setIsLoading(false);
+  };
+
+  const isFormValid = reason.trim() && confirmationPhrase === expectedPhrase;
+  
+  const getTitle = () => {
+    if (currentAction === 'cancel') return 'Cancel Organization';
+    if (currentAction === 'suspend') return 'Suspend Organization';
+    return 'Reinstate Organization';
+  };
+  
+  const getDescription = () => {
+    if (currentAction === 'cancel') {
+      return 'This will cancel the organization, disabling all services. This is typically used for organizations that have terminated their service.';
+    }
+    if (currentAction === 'suspend') {
+      return 'This will suspend the organization, disabling agents, API access, and invites. Billing and settings remain accessible.';
+    }
+    return 'This will reinstate the organization and restore all services.';
+  };
+
+  const getIcon = () => {
+    if (currentAction === 'cancel') return <XCircle className="h-5 w-5 text-destructive" />;
+    if (currentAction === 'suspend') return <Ban className="h-5 w-5 text-warning" />;
+    return <Play className="h-5 w-5 text-success" />;
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {isSuspended ? (
-              <><Play className="h-5 w-5 text-green-600" />Reinstate Organization</>
-            ) : (
-              <><Ban className="h-5 w-5 text-red-600" />Suspend Organization</>
-            )}
+            {getIcon()}
+            {getTitle()}
           </DialogTitle>
           <DialogDescription>
-            {isSuspended 
-              ? `Restore full access to ${organization.name}. This will re-enable agents, API access, and invitations.`
-              : `Suspend ${organization.name}. This will disable agents, API access, and invitations while preserving data and billing access.`
-            }
+            {getDescription()}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <Alert className={isSuspended ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}>
-            <AlertTriangle className={`h-4 w-4 ${isSuspended ? 'text-green-600' : 'text-red-600'}`} />
-            <AlertDescription className={isSuspended ? "text-green-800" : "text-red-800"}>
-              <strong>Warning:</strong> This action will immediately {action} all services for this organization.
-              {!isSuspended && " Users will receive a suspension notice and lose access to operational features."}
-            </AlertDescription>
-          </Alert>
-
-          <div>
-            <Label htmlFor="reason">Reason for {action}</Label>
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="reason">
+              Reason for {currentAction}
+            </Label>
             <Textarea
               id="reason"
-              placeholder={`Explain why you are ${action}ing this organization...`}
+              placeholder={`Why are you ${currentAction === 'reinstate' ? 'reinstating' : currentAction + 'ing'} this organization?`}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="mt-1"
+              className="resize-none"
               rows={3}
             />
           </div>
 
-          <div>
+          <div className="grid gap-2">
             <Label htmlFor="confirmation">
-              Type <code className="text-xs bg-muted px-1 py-0.5 rounded">{expectedPhrase}</code> to confirm
+              Type "{expectedPhrase}" to confirm
             </Label>
             <Input
               id="confirmation"
               value={confirmationPhrase}
               onChange={(e) => setConfirmationPhrase(e.target.value)}
               placeholder={expectedPhrase}
-              className="mt-1 font-mono"
+              className="font-mono"
             />
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="notify-owner"
-              checked={notifyOwner}
-              onCheckedChange={(checked) => setNotifyOwner(checked as boolean)}
-            />
-            <Label htmlFor="notify-owner" className="text-sm">
-              Notify organization owner by email
-            </Label>
-          </div>
+          {currentAction !== 'reinstate' && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="notify"
+                checked={notifyOwner}
+                onCheckedChange={(checked) => setNotifyOwner(checked as boolean)}
+              />
+              <Label htmlFor="notify" className="text-sm">
+                Notify organization owner via email
+              </Label>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -178,17 +189,11 @@ export function SuspensionDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={
-              isLoading || 
-              !reason.trim() || 
-              confirmationPhrase !== expectedPhrase
-            }
-            className={isSuspended ? 
-              "bg-green-600 hover:bg-green-700" : 
-              "bg-red-600 hover:bg-red-700"
-            }
+            disabled={!isFormValid || isLoading}
+            className="w-full"
+            variant={currentAction === 'reinstate' ? 'default' : 'destructive'}
           >
-            {isLoading ? `${action}ing...` : `${action} Organization`}
+            {isLoading ? "Processing..." : `${currentAction === 'reinstate' ? 'Reinstate' : currentAction === 'cancel' ? 'Cancel' : 'Suspend'} Organization`}
           </Button>
         </DialogFooter>
       </DialogContent>

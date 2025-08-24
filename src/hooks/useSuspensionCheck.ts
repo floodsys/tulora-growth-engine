@@ -9,6 +9,7 @@ interface Organization {
   suspension_reason?: string;
   suspended_at?: string;
   suspended_by?: string;
+  canceled_at?: string;
 }
 
 interface OrganizationRole {
@@ -43,6 +44,7 @@ export function useSuspensionCheck() {
           suspension_reason,
           suspended_at,
           suspended_by,
+          canceled_at,
           owner_user_id
         `)
         .eq('owner_user_id', user?.id)
@@ -75,7 +77,8 @@ export function useSuspensionCheck() {
             suspension_status,
             suspension_reason,
             suspended_at,
-            suspended_by
+            suspended_by,
+            canceled_at
           `)
           .eq('id', memberData.organization_id)
           .single();
@@ -105,24 +108,28 @@ export function useSuspensionCheck() {
   };
 
   const isSuspended = organization?.suspension_status === 'suspended';
+  const isCanceled = organization?.suspension_status === 'canceled';
+  const isBlocked = isSuspended || isCanceled;
   const isOwnerOrAdmin = userRole?.role === 'admin' || userRole?.role === 'owner';
 
   // Check if specific actions are allowed
-  const canCreateAgents = !isSuspended;
-  const canMakeCalls = !isSuspended;
-  const canCreateInvites = !isSuspended;
-  const canAccessAPI = !isSuspended;
-  const canAccessWebhooks = !isSuspended;
+  const canCreateAgents = !isBlocked;
+  const canMakeCalls = !isBlocked;
+  const canCreateInvites = !isBlocked;
+  const canAccessAPI = !isBlocked;
+  const canAccessWebhooks = !isBlocked;
   
-  // Always allow read-only access to settings and billing
-  const canAccessSettings = true;
-  const canAccessBilling = true;
+  // Allow read-only access to settings and billing for suspended, but restrict for canceled
+  const canAccessSettings = !isCanceled;
+  const canAccessBilling = !isCanceled;
 
   return {
     organization,
     userRole,
     isLoading,
     isSuspended,
+    isCanceled,
+    isBlocked,
     isOwnerOrAdmin,
     permissions: {
       canCreateAgents,

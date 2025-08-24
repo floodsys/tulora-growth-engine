@@ -902,6 +902,7 @@ export type Database = {
         Row: {
           analytics_config: Json | null
           billing_status: string | null
+          canceled_at: string | null
           created_at: string | null
           entitlements: Json | null
           id: string
@@ -921,6 +922,7 @@ export type Database = {
         Insert: {
           analytics_config?: Json | null
           billing_status?: string | null
+          canceled_at?: string | null
           created_at?: string | null
           entitlements?: Json | null
           id?: string
@@ -940,6 +942,7 @@ export type Database = {
         Update: {
           analytics_config?: Json | null
           billing_status?: string | null
+          canceled_at?: string | null
           created_at?: string | null
           entitlements?: Json | null
           id?: string
@@ -1217,6 +1220,10 @@ export type Database = {
         Args: { p_action: string; p_org_id: string; p_resource_type?: string }
         Returns: boolean
       }
+      cancel_organization: {
+        Args: { p_canceled_by?: string; p_org_id: string; p_reason: string }
+        Returns: Json
+      }
       check_admin_access: {
         Args: { org_id: string; user_id?: string }
         Returns: boolean
@@ -1354,6 +1361,10 @@ export type Database = {
         Returns: boolean
       }
       is_org_suspended: {
+        Args: { org_id: string }
+        Returns: boolean
+      }
+      is_org_suspended_or_canceled: {
         Args: { org_id: string }
         Returns: boolean
       }

@@ -14,7 +14,9 @@ import {
   Mail,
   Trash2,
   RefreshCw,
-  Download
+  Download,
+  XCircle,
+  Ban
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -62,6 +64,7 @@ export function OrganizationsDirectory() {
   });
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
   const [suspensionDialogOpen, setSuspensionDialogOpen] = useState(false);
+  const [suspensionAction, setSuspensionAction] = useState<'suspend' | 'reinstate' | 'cancel' | undefined>(undefined);
   const [transferOrgId, setTransferOrgId] = useState<string | null>(null);
   const [viewActivityOrgId, setViewActivityOrgId] = useState<string | null>(null);
 
@@ -429,21 +432,35 @@ export function OrganizationsDirectory() {
                         <DropdownMenuItem
                           onClick={() => {
                             setSelectedOrg(org);
+                            setSuspensionAction(undefined);
                             setSuspensionDialogOpen(true);
                           }}
                         >
-                          {org.suspension_status === 'suspended' ? (
+                          {org.suspension_status === 'suspended' || org.suspension_status === 'canceled' ? (
                             <>
                               <Play className="h-4 w-4 mr-2" />
                               Reinstate Service
                             </>
                           ) : (
                             <>
-                              <Pause className="h-4 w-4 mr-2" />
+                              <Ban className="h-4 w-4 mr-2" />
                               Suspend Service
                             </>
                           )}
                         </DropdownMenuItem>
+                        
+                        {org.suspension_status !== 'canceled' && org.suspension_status !== 'suspended' && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedOrg(org);
+                              setSuspensionAction('cancel');
+                              setSuspensionDialogOpen(true);
+                            }}
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Cancel Service
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => navigate(`/admin/billing?org=${org.id}`)}>
                           <CreditCard className="h-4 w-4 mr-2" />
                           Open Billing
@@ -480,8 +497,10 @@ export function OrganizationsDirectory() {
           onClose={() => {
             setSuspensionDialogOpen(false);
             setSelectedOrg(null);
+            setSuspensionAction(undefined);
           }}
           organization={selectedOrg}
+          action={suspensionAction}
           onSuccess={() => {
             loadOrganizations();
           }}
