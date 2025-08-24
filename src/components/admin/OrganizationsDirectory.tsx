@@ -16,7 +16,11 @@ import {
   RefreshCw,
   Download,
   XCircle,
-  Ban
+  Ban,
+  Shield,
+  Info,
+  Users,
+  Settings
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -26,6 +30,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
 import { TransferOwnershipDialog } from './TransferOwnershipDialog';
 import { ViewActivityDialog } from './ViewActivityDialog';
@@ -218,18 +224,23 @@ export function OrganizationsDirectory() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'suspended':
-        return <Badge className="bg-gray-500 text-white">Suspended</Badge>;
+  const getStatusBadge = (suspensionStatus: string, billingStatus: string) => {
+    // Suspension status takes precedence
+    if (suspensionStatus === 'suspended') {
+      return <Badge variant="destructive" className="bg-yellow-500 hover:bg-yellow-600"><Pause className="h-3 w-3 mr-1" />Suspended</Badge>;
+    }
+    if (suspensionStatus === 'canceled') {
+      return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Canceled</Badge>;
+    }
+    
+    // Fall back to billing status
+    switch (billingStatus) {
       case 'active':
-        return <Badge className="bg-green-500 text-white">Active</Badge>;
+        return <Badge variant="default" className="bg-green-500 hover:bg-green-600"><Play className="h-3 w-3 mr-1" />Active</Badge>;
       case 'trialing':
-        return <Badge className="bg-blue-500 text-white">Trialing</Badge>;
-      case 'canceled':
-        return <Badge className="bg-red-500 text-white">Canceled</Badge>;
+        return <Badge variant="secondary" className="bg-blue-500 hover:bg-blue-600 text-white"><Shield className="h-3 w-3 mr-1" />Trial</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline">{billingStatus}</Badge>;
     }
   };
 
@@ -371,6 +382,58 @@ export function OrganizationsDirectory() {
         </CardContent>
       </Card>
 
+      {/* What Gets Blocked Info Panel */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Info className="h-5 w-5" />
+            What Gets Blocked When Organizations Are Suspended?
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                <XCircle className="h-4 w-4 text-destructive" />
+                Suspended Services
+              </h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Agent operations (calls, API access)</li>
+                <li>• Webhook dispatching</li>
+                <li>• New member invitations</li>
+                <li>• Data operations (CRUD)</li>
+                <li>• File uploads and processing</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                <Play className="h-4 w-4 text-green-500" />
+                Available Services
+              </h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Billing portal access</li>
+                <li>• Settings (read-only)</li>
+                <li>• Support contacts</li>
+                <li>• Authentication flows</li>
+                <li>• Account management</li>
+              </ul>
+            </div>
+          </div>
+          <Separator />
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Organizations retain access to billing and essential account functions during suspension.
+            </p>
+            <Button variant="outline" size="sm" asChild>
+              <a href="/admin/guard-tests" target="_blank" rel="noopener noreferrer">
+                <Shield className="h-4 w-4 mr-2" />
+                Test Guard System
+              </a>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Organizations Table */}
       <Card>
         <CardContent className="p-0">
@@ -412,7 +475,9 @@ export function OrganizationsDirectory() {
                       {org.active_seats}/{org.seat_limit}
                     </span>
                   </TableCell>
-                  <TableCell>{getStatusBadge(org.suspension_status || org.billing_status)}</TableCell>
+                  <TableCell>
+                    {getStatusBadge(org.suspension_status || 'active', org.billing_status)}
+                  </TableCell>
                   <TableCell>${org.mrr || 0}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {org.last_activity ? new Date(org.last_activity).toLocaleDateString() : 'Never'}
@@ -424,56 +489,212 @@ export function OrganizationsDirectory() {
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuContent align="end" className="w-56">
                         <DropdownMenuItem onClick={() => window.open(`/dashboard?org=${org.id}`, '_blank')}>
                           <ExternalLink className="h-4 w-4 mr-2" />
-                          Open Tenant
+                          Open Dashboard
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedOrg(org);
-                            setSuspensionAction(undefined);
-                            setSuspensionDialogOpen(true);
-                          }}
-                        >
-                          {org.suspension_status === 'suspended' || org.suspension_status === 'canceled' ? (
-                            <>
-                              <Play className="h-4 w-4 mr-2" />
-                              Reinstate Service
-                            </>
-                          ) : (
-                            <>
-                              <Ban className="h-4 w-4 mr-2" />
-                              Suspend Service
-                            </>
-                          )}
-                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         
-                        {org.suspension_status !== 'canceled' && org.suspension_status !== 'suspended' && (
+                        {/* Suspension Actions */}
+                        {org.suspension_status === 'suspended' || org.suspension_status === 'canceled' ? (
                           <DropdownMenuItem
                             onClick={() => {
                               setSelectedOrg(org);
-                              setSuspensionAction('cancel');
+                              setSuspensionAction('reinstate');
                               setSuspensionDialogOpen(true);
                             }}
                           >
-                            <XCircle className="h-4 w-4 mr-2" />
-                            Cancel Service
+                            <Play className="h-4 w-4 mr-2 text-green-500" />
+                            Reinstate Service
                           </DropdownMenuItem>
+                        ) : (
+                          <>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedOrg(org);
+                                setSuspensionAction('suspend');
+                                setSuspensionDialogOpen(true);
+                              }}
+                            >
+                              <Pause className="h-4 w-4 mr-2 text-yellow-500" />
+                              Suspend Service
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedOrg(org);
+                                setSuspensionAction('cancel');
+                                setSuspensionDialogOpen(true);
+                              }}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Cancel Service
+                            </DropdownMenuItem>
+                          </>
                         )}
-                        <DropdownMenuItem onClick={() => navigate(`/admin/billing?org=${org.id}`)}>
-                          <CreditCard className="h-4 w-4 mr-2" />
-                          Open Billing
-                        </DropdownMenuItem>
+                        
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => setTransferOrgId(org.id)}>
-                          <ArrowRightLeft className="h-4 w-4 mr-2" />
-                          Transfer Ownership
-                        </DropdownMenuItem>
+                        
+                        {/* Management Actions */}
                         <DropdownMenuItem onClick={() => setViewActivityOrgId(org.id)}>
                           <FileText className="h-4 w-4 mr-2" />
                           View Activity
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setTransferOrgId(org.id)}>
+                          <ArrowRightLeft className="h-4 w-4 mr-2" />
+                          Transfer Ownership
+                        </DropdownMenuItem>
+                        
+                        <DropdownMenuSeparator />
+                        
+                        {/* Billing & Support */}
+                        <DropdownMenuItem asChild>
+                          <a 
+                            href={`https://dashboard.stripe.com/customers/${org.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            View in Stripe
+                          </a>
+                        </DropdownMenuItem>
+                        
+                        {/* Side Panel Trigger */}
+                        <Sheet>
+                          <SheetTrigger asChild>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                              <Info className="h-4 w-4 mr-2" />
+                              Organization Details
+                            </DropdownMenuItem>
+                          </SheetTrigger>
+                          <SheetContent className="w-[500px] sm:w-[540px]">
+                            <SheetHeader>
+                              <SheetTitle className="flex items-center gap-2">
+                                <Users className="h-5 w-5" />
+                                {org.name}
+                              </SheetTitle>
+                            </SheetHeader>
+                            <div className="mt-6 space-y-6">
+                              {/* Organization Info */}
+                              <div>
+                                <h3 className="font-medium mb-3">Organization Details</h3>
+                                <div className="space-y-2 text-sm">
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">ID:</span>
+                                    <span className="font-mono">{org.id}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Owner:</span>
+                                    <span>{org.owner_email}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Plan:</span>
+                                    {getPlanBadge(org.plan_key)}
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Status:</span>
+                                    {getStatusBadge(org.suspension_status || 'active', org.billing_status)}
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Seats:</span>
+                                    <span>{org.active_seats}/{org.seat_limit}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">MRR:</span>
+                                    <span>${org.mrr || 0}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <Separator />
+                              
+                              {/* Status Impact */}
+                              <div>
+                                <h3 className="font-medium mb-3">Service Status Impact</h3>
+                                {org.suspension_status === 'suspended' ? (
+                                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                    <p className="text-sm text-yellow-800 mb-2">
+                                      <strong>Service Suspended</strong>
+                                    </p>
+                                    <p className="text-xs text-yellow-700">
+                                      Blocked: Agents, API, Invites, Data operations
+                                    </p>
+                                    <p className="text-xs text-yellow-700">
+                                      Available: Billing, Settings (read-only), Support
+                                    </p>
+                                  </div>
+                                ) : org.suspension_status === 'canceled' ? (
+                                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                                    <p className="text-sm text-red-800 mb-2">
+                                      <strong>Service Canceled</strong>
+                                    </p>
+                                    <p className="text-xs text-red-700">
+                                      All services blocked except billing portal for final account access.
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                    <p className="text-sm text-green-800 mb-2">
+                                      <strong>All Services Active</strong>
+                                    </p>
+                                    <p className="text-xs text-green-700">
+                                      Organization has full access to all platform features.
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <Separator />
+                              
+                              {/* Quick Actions */}
+                              <div>
+                                <h3 className="font-medium mb-3">Quick Actions</h3>
+                                <div className="space-y-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="w-full justify-start"
+                                    asChild
+                                  >
+                                    <a 
+                                      href={`/dashboard?org=${org.id}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      <ExternalLink className="h-4 w-4 mr-2" />
+                                      Open Dashboard
+                                    </a>
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="w-full justify-start"
+                                    asChild
+                                  >
+                                    <a 
+                                      href={`https://dashboard.stripe.com/customers/${org.id}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      <CreditCard className="h-4 w-4 mr-2" />
+                                      Billing Portal
+                                    </a>
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="w-full justify-start"
+                                    onClick={() => setViewActivityOrgId(org.id)}
+                                  >
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    View Activity Log
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </SheetContent>
+                        </Sheet>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

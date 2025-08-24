@@ -107,19 +107,19 @@ export function SuspensionDialog({
   const isFormValid = reason.trim() && confirmationPhrase === expectedPhrase;
   
   const getTitle = () => {
-    if (currentAction === 'cancel') return 'Cancel Organization';
-    if (currentAction === 'suspend') return 'Suspend Organization';
-    return 'Reinstate Organization';
+    if (currentAction === 'cancel') return 'Cancel Organization Service';
+    if (currentAction === 'suspend') return 'Suspend Organization Service';
+    return 'Reinstate Organization Service';
   };
   
   const getDescription = () => {
     if (currentAction === 'cancel') {
-      return 'This will cancel the organization, disabling all services. This is typically used for organizations that have terminated their service.';
+      return 'This will cancel the organization service permanently. All operations will be blocked except billing portal access. This action is typically used for organizations that have terminated their contract.';
     }
     if (currentAction === 'suspend') {
-      return 'This will suspend the organization, disabling agents, API access, and invites. Billing and settings remain accessible.';
+      return 'This will temporarily suspend organization services. Agents, API access, and invites will be blocked. Billing portal and read-only settings remain accessible.';
     }
-    return 'This will reinstate the organization and restore all services.';
+    return 'This will reinstate the organization and restore all services to full functionality.';
   };
 
   const getIcon = () => {
@@ -130,7 +130,7 @@ export function SuspensionDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {getIcon()}
@@ -140,6 +140,15 @@ export function SuspensionDialog({
             {getDescription()}
           </DialogDescription>
         </DialogHeader>
+
+        {currentAction === 'cancel' && (
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Warning:</strong> This is a permanent action that will completely disable all organization services. Only use for terminated contracts.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
@@ -165,7 +174,7 @@ export function SuspensionDialog({
               value={confirmationPhrase}
               onChange={(e) => setConfirmationPhrase(e.target.value)}
               placeholder={expectedPhrase}
-              className="font-mono"
+              className="font-mono text-sm"
             />
           </div>
 
