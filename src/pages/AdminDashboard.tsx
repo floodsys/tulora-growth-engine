@@ -25,6 +25,7 @@ import { MembersAdmin } from '@/components/admin/MembersAdmin';
 import { AnalyticsDashboard } from '@/components/admin/AnalyticsDashboard';
 import { BillingAdmin } from '@/components/admin/BillingAdmin';
 import { AgentCatalogAdmin } from '@/components/admin/AgentCatalogAdmin';
+import { AdminLogsViewer } from '@/components/admin/AdminLogsViewer';
 
 const adminTabs = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -193,14 +194,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="logs">
-            <Card>
-              <CardHeader>
-                <CardTitle>System Logs</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">System logs coming soon...</p>
-              </CardContent>
-            </Card>
+            <AdminLogsViewer />
           </TabsContent>
 
           <TabsContent value="utilities">
