@@ -5,9 +5,13 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Activity, Info, CheckCircle2, XCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Loader2, Activity, Info, CheckCircle2, XCircle, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -32,6 +36,13 @@ interface BackfillResult {
   events_planned: number;
   events_created: number;
   events_skipped: number;
+  events_preview?: Array<{
+    action: string;
+    target_type: string;
+    target_id: string;
+    created_at: string;
+    organization_id: string;
+  }>;
   organization_summary?: Array<{
     organization_id: string;
     organization_name: string;
@@ -40,6 +51,19 @@ interface BackfillResult {
     events_skipped: number;
   }>;
   error?: string;
+}
+
+interface EventTypeSummary {
+  action: string;
+  target_type: string;
+  would_create: number;
+  would_skip: number;
+  preview_events: Array<{
+    action: string;
+    target_type: string;
+    target_id: string;
+    created_at: string;
+  }>;
 }
 
 export function BackfillActivityModal({ 
@@ -53,6 +77,10 @@ export function BackfillActivityModal({
   const [mode, setMode] = useState<'dry-run' | 'execute'>('dry-run');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BackfillResult | null>(null);
+  const [confirmText, setConfirmText] = useState('');
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set());
   const [eventTypes] = useState<EventType[]>([
     {
       id: 'org_created',
@@ -93,8 +121,23 @@ export function BackfillActivityModal({
   ]);
 
   const handleBackfill = async () => {
+    if (mode === 'execute' && !showConfirmation) {
+      setShowConfirmation(true);
+      return;
+    }
+
+    if (mode === 'execute' && confirmText !== 'BACKFILL') {
+      toast({
+        title: 'Invalid confirmation',
+        description: 'Please type "BACKFILL" to confirm',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     setResult(null);
+    setProgress(0);
 
     try {
       const { data, error } = await supabase.rpc('backfill_audit_logs' as any, {
@@ -110,6 +153,7 @@ export function BackfillActivityModal({
       setResult(data as BackfillResult);
 
       if (data?.success) {
+        setProgress(100);
         toast({
           title: mode === 'dry-run' ? 'Dry-run completed' : 'Backfill completed',
           description: mode === 'dry-run' 
@@ -132,14 +176,67 @@ export function BackfillActivityModal({
       });
     } finally {
       setLoading(false);
+      setShowConfirmation(false);
+      setConfirmText('');
     }
+  };
+
+  const generateEventTypeSummary = (): EventTypeSummary[] => {
+    if (!result?.events_preview) return [];
+
+    const summaryMap = new Map<string, EventTypeSummary>();
+
+    result.events_preview.forEach(event => {
+      const key = `${event.action}-${event.target_type}`;
+      
+      if (!summaryMap.has(key)) {
+        summaryMap.set(key, {
+          action: event.action,
+          target_type: event.target_type,
+          would_create: 0,
+          would_skip: 0,
+          preview_events: []
+        });
+      }
+
+      const summary = summaryMap.get(key)!;
+      summary.would_create++;
+      
+      if (summary.preview_events.length < 25) {
+        summary.preview_events.push({
+          action: event.action,
+          target_type: event.target_type,
+          target_id: event.target_id,
+          created_at: event.created_at
+        });
+      }
+    });
+
+    return Array.from(summaryMap.values());
+  };
+
+  const toggleExpanded = (key: string) => {
+    const newExpanded = new Set(expandedTypes);
+    if (newExpanded.has(key)) {
+      newExpanded.delete(key);
+    } else {
+      newExpanded.add(key);
+    }
+    setExpandedTypes(newExpanded);
   };
 
   const handleClose = () => {
     setResult(null);
     setMode('dry-run');
+    setConfirmText('');
+    setShowConfirmation(false);
+    setProgress(0);
+    setExpandedTypes(new Set());
     onOpenChange(false);
   };
+
+  const eventTypeSummary = generateEventTypeSummary();
+  const hasSuccessfulDryRun = result?.success && result?.dry_run;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -228,7 +325,7 @@ export function BackfillActivityModal({
           {result && (
             <Card>
               <CardContent className="pt-4">
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     {result.success ? (
                       <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -241,19 +338,117 @@ export function BackfillActivityModal({
                   </div>
                   
                   {result.success ? (
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <div className="text-muted-foreground">Events planned</div>
-                        <div className="text-lg font-semibold">{result.events_planned}</div>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <div className="text-muted-foreground">Events planned</div>
+                          <div className="text-lg font-semibold">{result.events_planned}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">
+                            {result.dry_run ? 'Would create' : 'Events created'}
+                          </div>
+                          <div className="text-lg font-semibold text-green-600">{result.events_created}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">
+                            {result.dry_run ? 'Would skip' : 'Events skipped'}
+                          </div>
+                          <div className="text-lg font-semibold text-muted-foreground">{result.events_skipped}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-muted-foreground">Events created</div>
-                        <div className="text-lg font-semibold text-green-600">{result.events_created}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">Events skipped</div>
-                        <div className="text-lg font-semibold text-muted-foreground">{result.events_skipped}</div>
-                      </div>
+
+                      {result.dry_run && (
+                        <Alert>
+                          <Info className="h-4 w-4" />
+                          <AlertDescription>
+                            <strong>Dry-run writes nothing.</strong> Emails/webhooks are disabled. This is a preview only.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      {/* Event Type Summary for Dry-run */}
+                      {result.dry_run && eventTypeSummary.length > 0 && (
+                        <div className="space-y-3">
+                          <Label className="font-medium">Event Summary by Type</Label>
+                          <div className="space-y-2">
+                            {eventTypeSummary.map((summary) => {
+                              const key = `${summary.action}-${summary.target_type}`;
+                              const isExpanded = expandedTypes.has(key);
+                              
+                              return (
+                                <Card key={key}>
+                                  <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(key)}>
+                                    <CollapsibleTrigger asChild>
+                                      <CardHeader className="pb-2 cursor-pointer hover:bg-muted/50">
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-3">
+                                            <Badge variant="outline">{summary.action}</Badge>
+                                            <Badge variant="secondary">{summary.target_type}</Badge>
+                                          </div>
+                                          <div className="flex items-center gap-3 text-sm">
+                                            <span className="text-green-600 font-medium">
+                                              +{summary.would_create} create
+                                            </span>
+                                            <span className="text-muted-foreground">
+                                              {summary.would_skip} skip
+                                            </span>
+                                            {isExpanded ? (
+                                              <ChevronDown className="h-4 w-4" />
+                                            ) : (
+                                              <ChevronRight className="h-4 w-4" />
+                                            )}
+                                          </div>
+                                        </div>
+                                      </CardHeader>
+                                    </CollapsibleTrigger>
+                                    <CollapsibleContent>
+                                      <CardContent className="pt-0">
+                                        <Table>
+                                          <TableHeader>
+                                            <TableRow>
+                                              <TableHead>Target ID</TableHead>
+                                              <TableHead>Created At</TableHead>
+                                            </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                            {summary.preview_events.slice(0, 25).map((event, idx) => (
+                                              <TableRow key={idx}>
+                                                <TableCell className="font-mono text-xs">
+                                                  {event.target_id || 'N/A'}
+                                                </TableCell>
+                                                <TableCell className="text-xs">
+                                                  {new Date(event.created_at).toLocaleString()}
+                                                </TableCell>
+                                              </TableRow>
+                                            ))}
+                                          </TableBody>
+                                        </Table>
+                                        {summary.preview_events.length > 25 && (
+                                          <p className="text-xs text-muted-foreground mt-2">
+                                            Showing first 25 of {summary.preview_events.length} events
+                                          </p>
+                                        )}
+                                      </CardContent>
+                                    </CollapsibleContent>
+                                  </Collapsible>
+                                </Card>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Progress bar for execute mode */}
+                      {mode === 'execute' && loading && (
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Processing events...</span>
+                            <span>{Math.round(progress)}%</span>
+                          </div>
+                          <Progress value={progress} className="w-full" />
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <Alert variant="destructive">
@@ -264,26 +459,79 @@ export function BackfillActivityModal({
               </CardContent>
             </Card>
           )}
+
+          {/* Execute Confirmation Modal */}
+          {showConfirmation && (
+            <Alert className="border-yellow-200 bg-yellow-50">
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+              <AlertDescription className="space-y-3">
+                <div className="text-yellow-800 font-medium">
+                  You are about to execute the backfill for this organization. This will create {result?.events_planned || 0} audit events.
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm" className="text-yellow-800">
+                    Type <strong>BACKFILL</strong> to confirm:
+                  </Label>
+                  <Input
+                    id="confirm"
+                    value={confirmText}
+                    onChange={(e) => setConfirmText(e.target.value)}
+                    placeholder="Type BACKFILL to confirm"
+                    className="bg-white"
+                  />
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
-            Cancel
+            {showConfirmation ? 'Cancel' : 'Close'}
           </Button>
-          <Button 
-            onClick={handleBackfill} 
-            disabled={loading}
-            className="min-w-[120px]"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Running...
-              </>
-            ) : (
-              `Run ${mode === 'dry-run' ? 'Dry-run' : 'Execute'}`
-            )}
-          </Button>
+          {hasSuccessfulDryRun && mode === 'dry-run' && (
+            <Button 
+              onClick={() => setMode('execute')}
+              disabled={loading}
+            >
+              Proceed to Execute
+            </Button>
+          )}
+          {mode === 'dry-run' && (
+            <Button 
+              onClick={handleBackfill} 
+              disabled={loading}
+              className="min-w-[120px]"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Running...
+                </>
+              ) : (
+                'Run Dry-run'
+              )}
+            </Button>
+          )}
+          {mode === 'execute' && (
+            <Button 
+              onClick={handleBackfill} 
+              disabled={loading || (showConfirmation && confirmText !== 'BACKFILL')}
+              variant={showConfirmation ? 'destructive' : 'default'}
+              className="min-w-[120px]"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Executing...
+                </>
+              ) : showConfirmation ? (
+                'Confirm Execute'
+              ) : (
+                'Execute Backfill'
+              )}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
