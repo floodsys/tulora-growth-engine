@@ -61,7 +61,7 @@ export async function requireOrgActive(context: OrgGuardContext): Promise<OrgGua
           action,
           path,
           method,
-          reason: 'suspended',
+          reason: 'ORG_SUSPENDED',
           actorUserId,
           organizationName: org.name,
           suspensionReason: org.suspension_reason,
@@ -71,7 +71,7 @@ export async function requireOrgActive(context: OrgGuardContext): Promise<OrgGua
         return {
           ok: false,
           status: 423, // Locked
-          reason: 'suspended',
+          reason: 'ORG_SUSPENDED',
           organization: org
         };
 
@@ -82,7 +82,7 @@ export async function requireOrgActive(context: OrgGuardContext): Promise<OrgGua
           action,
           path,
           method,
-          reason: 'canceled',
+          reason: 'ORG_CANCELED',
           actorUserId,
           organizationName: org.name,
           suspensionReason: org.suspension_reason,
@@ -92,7 +92,7 @@ export async function requireOrgActive(context: OrgGuardContext): Promise<OrgGua
         return {
           ok: false,
           status: 410, // Gone
-          reason: 'canceled',
+          reason: 'ORG_CANCELED',
           organization: org
         };
 
@@ -203,8 +203,8 @@ async function logBlockedOperation(
  */
 export function createBlockedResponse(result: OrgGuardResult, corsHeaders: Record<string, string>): Response {
   const messages = {
-    suspended: "Organization is suspended. Please contact your owner/admin.",
-    canceled: "Organization is canceled. Contact support.",
+    ORG_SUSPENDED: "Your organization's service has been temporarily suspended. Please contact your organization owner or admin for assistance.",
+    ORG_CANCELED: "Your organization's service has been canceled. Please contact support for assistance.",
     organization_not_found: "Organization not found.",
     unknown_status: "Organization status is unknown.",
     internal_error: "Internal error occurred."

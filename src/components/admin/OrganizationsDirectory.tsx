@@ -33,6 +33,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
+import { getOrgStatusMessage } from '@/lib/error-codes';
 import { TransferOwnershipDialog } from './TransferOwnershipDialog';
 import { ViewActivityDialog } from './ViewActivityDialog';
 import { SuspensionDialog } from './SuspensionDialog';
@@ -615,7 +616,10 @@ export function OrganizationsDirectory() {
                                 {org.suspension_status === 'suspended' ? (
                                   <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                                     <p className="text-sm text-yellow-800 mb-2">
-                                      <strong>Service Suspended</strong>
+                                      <strong>Service Suspended (HTTP 423)</strong>
+                                    </p>
+                                    <p className="text-xs text-yellow-700">
+                                      Error Code: ORG_SUSPENDED
                                     </p>
                                     <p className="text-xs text-yellow-700">
                                       Blocked: Agents, API, Invites, Data operations
@@ -627,7 +631,10 @@ export function OrganizationsDirectory() {
                                 ) : org.suspension_status === 'canceled' ? (
                                   <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                                     <p className="text-sm text-red-800 mb-2">
-                                      <strong>Service Canceled</strong>
+                                      <strong>Service Canceled (HTTP 410)</strong>
+                                    </p>
+                                    <p className="text-xs text-red-700">
+                                      Error Code: ORG_CANCELED
                                     </p>
                                     <p className="text-xs text-red-700">
                                       All services blocked except billing portal for final account access.
