@@ -32,6 +32,7 @@ import { AdminBackfill } from '@/components/admin/AdminBackfill';
 import { EmailIntegrations } from '@/components/admin/EmailIntegrations';
 import { FeatureFlags } from '@/components/admin/FeatureFlags';
 import { DataFixes } from '@/components/admin/DataFixes';
+import { AdminTestRunner } from '@/components/admin/AdminTestRunner';
 
 const adminTabs = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -203,11 +204,12 @@ export default function AdminDashboard() {
                 </CardHeader>
               </Card>
               
-              <div className="grid gap-6">
+               <div className="grid gap-6">
                 <AdminBackfill />
                 <EmailIntegrations />
                 <FeatureFlags />
                 <DataFixes />
+                <AdminTestRunner />
               </div>
             </div>
           </TabsContent>
