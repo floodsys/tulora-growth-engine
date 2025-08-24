@@ -42,7 +42,6 @@ const items = [
   { title: "Scheduling", url: "scheduling", icon: Calendar },
   { title: "Team", url: "team", icon: Users },
   { title: "Usage & Billing", url: "billing", icon: CreditCard },
-  { title: "Invite Tests", url: "invite-tests", icon: PlayCircle },
 ]
 
 interface AppSidebarProps {

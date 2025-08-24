@@ -8,7 +8,7 @@ import { Scheduling } from "@/components/dashboard/Scheduling"
 import { UsageBilling } from "@/components/dashboard/UsageBilling"
 import { TeamManagement } from "@/components/dashboard/TeamManagement"
 import { UnifiedSettings } from "@/components/UnifiedSettings"
-import { InviteSystemTests } from "@/components/InviteSystemTests"
+
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -65,8 +65,6 @@ const Dashboard = () => {
         return <TeamManagement />
       case "settings":
         return <UnifiedSettings organizationId="demo-org-id" />
-      case "invite-tests":
-        return <InviteSystemTests />
       default:
         return <DashboardOverview />
     }
@@ -84,7 +82,6 @@ const Dashboard = () => {
               <h1 className="text-lg font-semibold capitalize truncate">
                 {activeScreen === "overview" ? "Dashboard" : 
                  activeScreen === "settings" ? "Settings" :
-                 activeScreen === "invite-tests" ? "Invite System Tests" :
                  activeScreen}
               </h1>
             </div>
