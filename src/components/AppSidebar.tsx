@@ -54,8 +54,6 @@ interface AppSidebarProps {
 export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
   const { state } = useSidebar()
   const isMobile = useIsMobile()
-  
-  console.log('Sidebar state:', state, 'isMobile:', isMobile)
 
   return (
     <Sidebar 
