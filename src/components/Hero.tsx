@@ -56,7 +56,7 @@ const Hero = () => {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row items-start gap-4 pt-4">
-                <Link to="/signup">
+                <Link to="/auth">
                   <Button 
                     size="lg" 
                     className="px-8 py-4 text-lg font-semibold bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 shadow-lg hover:shadow-xl transition-all duration-300"

@@ -35,12 +35,14 @@ const Navigation = () => {
               <Link to="/dashboard" className="text-foreground hover:text-brand transition-colors duration-200">
                 Dashboard
               </Link>
-              <a href="/signin" className="text-foreground hover:text-brand transition-colors duration-200">
+              <Link to="/auth" className="text-foreground hover:text-brand transition-colors duration-200">
                 Login
-              </a>
-              <Button className="btn-primary px-6" onClick={() => window.location.href = '/signup'}>
-                Sign Up
-              </Button>
+              </Link>
+              <Link to="/auth">
+                <Button className="btn-primary px-6">
+                  Sign Up
+                </Button>
+              </Link>
             </div>
           </div>
 
@@ -67,13 +69,15 @@ const Navigation = () => {
               <a href="#blog" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
                 Blog
               </a>
-              <a href="/signin" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
+              <Link to="/auth" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
                 Login
-              </a>
+              </Link>
               <div className="px-3 py-2">
-                <Button className="btn-primary w-full" onClick={() => window.location.href = '/signup'}>
-                  Sign Up
-                </Button>
+                <Link to="/auth">
+                  <Button className="btn-primary w-full" onClick={() => setIsMenuOpen(false)}>
+                    Sign Up
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>}
