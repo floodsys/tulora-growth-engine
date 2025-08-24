@@ -22,6 +22,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OrganizationsDirectory } from '@/components/admin/OrganizationsDirectory';
 import { MembersAdmin } from '@/components/admin/MembersAdmin';
+import { AnalyticsDashboard } from '@/components/admin/AnalyticsDashboard';
 import { BillingAdmin } from '@/components/admin/BillingAdmin';
 
 const adminTabs = [
@@ -178,19 +179,12 @@ export default function AdminDashboard() {
             <MembersAdmin />
           </TabsContent>
 
-          <TabsContent value="billing">
-            <BillingAdmin />
+          <TabsContent value="analytics">
+            <AnalyticsDashboard />
           </TabsContent>
 
-          <TabsContent value="analytics">
-            <Card>
-              <CardHeader>
-                <CardTitle>Analytics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Analytics dashboard coming soon...</p>
-              </CardContent>
-            </Card>
+          <TabsContent value="billing">
+            <BillingAdmin />
           </TabsContent>
 
           <TabsContent value="agent-catalog">
