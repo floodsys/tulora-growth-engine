@@ -37,6 +37,7 @@ import { DataFixes } from '@/components/admin/DataFixes';
 import { AdminTestRunner } from '@/components/admin/AdminTestRunner';
 import { SuperadminManagement } from '@/components/admin/SuperadminManagement';
 import GuardTests from '@/components/admin/GuardTests';
+import { SuspensionSystemTest } from '@/components/admin/SuspensionSystemTest';
 
 const adminTabs = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -283,6 +284,10 @@ export default function AdminDashboard() {
                     
                     <div className="w-full">
                       <GuardTests />
+                    </div>
+                    
+                    <div className="w-full">
+                      <SuspensionSystemTest />
                     </div>
                   </div>
                 </div>

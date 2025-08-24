@@ -1305,6 +1305,10 @@ export type Database = {
         Args: { p_org_id: string }
         Returns: Json
       }
+      check_org_member_access: {
+        Args: { target_org_id: string; target_user_id: string }
+        Returns: boolean
+      }
       check_org_membership: {
         Args: { org_id: string; user_id?: string }
         Returns: boolean
