@@ -54,6 +54,8 @@ interface AppSidebarProps {
 export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
   const { state } = useSidebar()
   const isMobile = useIsMobile()
+  
+  console.log('Sidebar state:', state, 'isMobile:', isMobile)
 
   return (
     <Sidebar 
@@ -72,7 +74,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
             <SidebarGroupLabel className={isMobile ? "px-4 py-4 mb-2" : state === "collapsed" ? "px-3 py-4 mb-3" : "px-6 py-6 mb-3"}>
               {state === "collapsed" && !isMobile ? (
                 <div className="flex justify-center">
-                  <img src={iconLogo} alt="Logo" className="h-8 w-auto object-contain" />
+                  <img src={iconLogo} alt="Icon Logo" className="h-8 w-8 object-contain" />
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
