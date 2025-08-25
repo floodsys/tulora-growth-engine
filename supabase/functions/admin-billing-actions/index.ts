@@ -48,12 +48,6 @@ serve(async (req) => {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
-
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "forbidden" }), {
@@ -62,31 +56,35 @@ serve(async (req) => {
       });
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) {
-      return new Response(JSON.stringify({ error: "forbidden" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
-      });
-    }
-    
-    const user = userData.user;
-    if (!user?.email) {
+    // Use ANON client with user's auth header
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { 
+        auth: { persistSession: false },
+        global: { headers: { Authorization: authHeader } }
+      }
+    );
+
+    // Check if user is superadmin - this will use the user's auth context
+    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin');
+    if (superadminError || !isSuperadmin) {
+      logStep("Superadmin check failed", { error: superadminError, isSuperadmin });
       return new Response(JSON.stringify({ error: "forbidden" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 403,
       });
     }
 
-    // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.
-    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin');
-    if (superadminError || !isSuperadmin) {
+    // Get user info for logging
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: "forbidden" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 403,
       });
     }
+
     logStep("Superadmin access verified", { userId: user.id, email: user.email });
 
     const body: ActionRequest = await req.json();

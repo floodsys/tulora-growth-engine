@@ -15,10 +15,7 @@ interface EmailTestResult {
   details?: any;
 }
 
-const supabaseClient = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-);
+// Note: We'll create the client with user auth in the serve function
 
 async function testResendConnectivity(): Promise<EmailTestResult> {
   const apiKey = Deno.env.get('RESEND_API_KEY');
@@ -184,24 +181,21 @@ serve(async (req) => {
       );
     }
 
-    // Set auth for supabase client
-    supabaseClient.auth.setSession({
-      access_token: authHeader.replace('Bearer ', ''),
-      refresh_token: '',
-    });
+    // Use ANON client with user's auth header
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { 
+        auth: { persistSession: false },
+        global: { headers: { Authorization: authHeader } }
+      }
+    );
 
-    // Check if user is superadmin via RPC
+    // Check if user is superadmin - this will use the user's auth context
     const { data: isSuperadmin, error: authError } = await supabaseClient.rpc('is_superadmin');
     
-    if (authError) {
-      console.error('Auth error:', authError);
-      return new Response(
-        JSON.stringify({ error: 'Authorization check failed' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!isSuperadmin) {
+    if (authError || !isSuperadmin) {
+      console.error('Superadmin check failed:', authError);
       return new Response(
         JSON.stringify({ error: 'Insufficient permissions' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
