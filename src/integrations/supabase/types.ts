@@ -1080,6 +1080,87 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limit_configs: {
+        Row: {
+          created_at: string
+          endpoint: string
+          exponential_backoff_base_seconds: number | null
+          id: string
+          is_active: boolean
+          max_backoff_seconds: number | null
+          max_requests_per_hour: number | null
+          max_requests_per_minute: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          endpoint: string
+          exponential_backoff_base_seconds?: number | null
+          id?: string
+          is_active?: boolean
+          max_backoff_seconds?: number | null
+          max_requests_per_hour?: number | null
+          max_requests_per_minute: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string
+          exponential_backoff_base_seconds?: number | null
+          id?: string
+          is_active?: boolean
+          max_backoff_seconds?: number | null
+          max_requests_per_hour?: number | null
+          max_requests_per_minute?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rate_limits: {
+        Row: {
+          action_type: string
+          blocked_until: string | null
+          created_at: string
+          endpoint: string
+          exponential_backoff_level: number | null
+          id: string
+          ip_address: unknown | null
+          last_request_at: string
+          request_count: number
+          updated_at: string
+          user_id: string | null
+          window_start: string
+        }
+        Insert: {
+          action_type: string
+          blocked_until?: string | null
+          created_at?: string
+          endpoint: string
+          exponential_backoff_level?: number | null
+          id?: string
+          ip_address?: unknown | null
+          last_request_at?: string
+          request_count?: number
+          updated_at?: string
+          user_id?: string | null
+          window_start?: string
+        }
+        Update: {
+          action_type?: string
+          blocked_until?: string | null
+          created_at?: string
+          endpoint?: string
+          exponential_backoff_level?: number | null
+          id?: string
+          ip_address?: unknown | null
+          last_request_at?: string
+          request_count?: number
+          updated_at?: string
+          user_id?: string | null
+          window_start?: string
+        }
+        Relationships: []
+      }
       step_up_sessions: {
         Row: {
           created_at: string
@@ -1347,6 +1428,15 @@ export type Database = {
         Args: { org_id: string; user_id?: string }
         Returns: boolean
       }
+      check_rate_limit: {
+        Args: {
+          p_endpoint: string
+          p_ip_address?: unknown
+          p_user_agent?: string
+          p_user_id?: string
+        }
+        Returns: Json
+      }
       check_step_up_auth: {
         Args: { p_action?: string }
         Returns: boolean
@@ -1356,6 +1446,10 @@ export type Database = {
         Returns: boolean
       }
       cleanup_expired_logs: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_rate_limits: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
@@ -1594,6 +1688,19 @@ export type Database = {
       }
       log_mfa_required: {
         Args: { p_action: string; p_resource: string }
+        Returns: undefined
+      }
+      log_rate_limit_violation: {
+        Args: {
+          p_backoff_level: number
+          p_current_count: number
+          p_endpoint: string
+          p_ip_address: unknown
+          p_limit: number
+          p_user_agent?: string
+          p_user_id: string
+          p_violation_type: string
+        }
         Returns: undefined
       }
       log_test_outcome: {
