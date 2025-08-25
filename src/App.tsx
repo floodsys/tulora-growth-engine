@@ -28,8 +28,8 @@ function App() {
   return (
     <AuthProvider>
       <TooltipProvider>
-        <AdminSecurityWrapper>
-          <Router>
+        <Router>
+          <AdminSecurityWrapper>
             <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={<Dashboard />} />
@@ -54,8 +54,8 @@ function App() {
             <Route path="*" element={<NotFound />} />
             </Routes>
             <Toaster />
-          </Router>
-        </AdminSecurityWrapper>
+          </AdminSecurityWrapper>
+        </Router>
       </TooltipProvider>
     </AuthProvider>
   );
