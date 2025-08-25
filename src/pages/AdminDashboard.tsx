@@ -42,6 +42,7 @@ import { FeatureFlags } from '@/components/admin/FeatureFlags';
 import { DataFixes } from '@/components/admin/DataFixes';
 import { AdminTestRunner } from '@/components/admin/AdminTestRunner';
 import { SuperadminManagement } from '@/components/admin/SuperadminManagement';
+import SuperadminTestHarness from '@/components/admin/SuperadminTestHarness';
 import GuardTests from '@/components/admin/GuardTests';
 import { SuspensionSystemTest } from '@/components/admin/SuspensionSystemTest';
 import { OrgStatusGuardTest } from '@/components/admin/OrgStatusGuardTest';
@@ -60,6 +61,7 @@ const adminTabs = [
   { id: 'logs', label: 'Logs', icon: FileText },
   { id: 'utilities', label: 'Utilities', icon: Settings },
   { id: 'superadmins', label: 'Superadmins', icon: Shield },
+  { id: 'auth-test', label: 'Auth Test', icon: AlertTriangle },
   { 
     id: 'tests', 
     label: 'Hidden Tests', 
@@ -175,7 +177,7 @@ export default function AdminDashboard() {
 
       <div className="container mx-auto px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-9">
+          <TabsList className="grid w-full grid-cols-10">
             {adminTabs
               .filter(tab => !tab.condition || tab.condition())
               .map((tab) => {
@@ -285,6 +287,10 @@ export default function AdminDashboard() {
 
           <TabsContent value="superadmins">
             <SuperadminManagement />
+          </TabsContent>
+
+          <TabsContent value="auth-test">
+            <SuperadminTestHarness />
           </TabsContent>
 
           <TabsContent value="tests">
