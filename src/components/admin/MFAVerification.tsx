@@ -308,25 +308,39 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
           
           <div className="text-center space-y-4">
             <p className="text-sm text-muted-foreground">
-              Enter the code from your authenticator app
+              Enter the current 6-digit code from your authenticator app
             </p>
             
             <div className="flex justify-center">
-              <InputOTP 
-                value={verificationCode} 
-                onChange={setVerificationCode}
-                maxLength={6}
-                disabled={!throttling.canAttempt || isLoading}
-              >
-                <InputOTPGroup>
-                  <InputOTPSlot index={0} />
-                  <InputOTPSlot index={1} />
-                  <InputOTPSlot index={2} />
-                  <InputOTPSlot index={3} />
-                  <InputOTPSlot index={4} />
-                  <InputOTPSlot index={5} />
-                </InputOTPGroup>
-              </InputOTP>
+              <fieldset>
+                <legend className="sr-only">6-digit MFA verification code</legend>
+                <InputOTP 
+                  value={verificationCode} 
+                  onChange={setVerificationCode}
+                  maxLength={6}
+                  disabled={!throttling.canAttempt || isLoading}
+                  autoFocus
+                  aria-label="6-digit verification code for superadmin access"
+                  aria-describedby="code-hints"
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </fieldset>
+            </div>
+
+            <div id="code-hints" className="text-xs text-muted-foreground space-y-1">
+              <div>💡 <strong>Hint:</strong> Use the current code from your authenticator app</div>
+              <div>⏱️ Codes refresh every 30 seconds</div>
+              {challengeId && (
+                <div>🔑 Challenge active (expires in ~5 minutes)</div>
+              )}
             </div>
             
             <div className="flex space-x-2">
@@ -334,28 +348,41 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
                 onClick={verifyMFA} 
                 disabled={isLoading || verificationCode.length !== 6 || !throttling.canAttempt}
                 className="flex-1"
+                aria-describedby="verify-status"
               >
-                {isLoading ? 'Verifying...' : 'Verify'}
+                {isLoading ? 'Verifying...' : 'Verify & Access Admin'}
               </Button>
               <Button 
                 variant="outline" 
                 onClick={createNewChallenge}
                 disabled={isLoading}
                 title="Create new challenge if current one expired"
+                aria-label="Start a new verification challenge"
               >
                 <RefreshCw className="h-4 w-4" />
+                <span className="sr-only">New Challenge</span>
               </Button>
-              <Button variant="outline" onClick={onCancel}>
+              <Button 
+                variant="outline" 
+                onClick={onCancel}
+                aria-label="Cancel MFA verification and return"
+              >
                 Cancel
               </Button>
             </div>
 
-            {/* Challenge status */}
-            {challengeId && (
-              <div className="text-xs text-muted-foreground">
-                Challenge ID: <code className="bg-muted px-1 rounded">{challengeId.slice(0, 8)}...</code>
-              </div>
-            )}
+            <div id="verify-status" className="text-xs text-muted-foreground space-y-1">
+              {isLoading && <div>🔄 Verifying your code...</div>}
+              {!throttling.canAttempt && (
+                <div>⏳ Wait {Math.ceil(throttling.cooldownTime / 1000)}s before next attempt</div>
+              )}
+              {throttling.attemptsLeft < 5 && throttling.canAttempt && (
+                <div>⚠️ {throttling.attemptsLeft} attempts remaining</div>
+              )}
+              {challengeId && (
+                <div>Challenge: <code className="bg-muted px-1 rounded">{challengeId.slice(0, 8)}...</code></div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

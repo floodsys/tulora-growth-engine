@@ -8,6 +8,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, QrCode, Key, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { mfaObservability } from '@/lib/mfa-observability';
 
 interface MFASetupProps {
   onSetupComplete: () => void;
@@ -26,6 +27,13 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
 
   const startMFASetup = async () => {
     setIsLoading(true);
+    
+    mfaObservability.addBreadcrumb({
+      page: 'mfa_setup',
+      action: 'start_enrollment',
+      result: 'pending'
+    });
+
     try {
       // Ensure we're running on the client with a valid session
       if (typeof window === 'undefined') {
@@ -44,6 +52,14 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
 
       if (error) {
         if (error.message?.includes('already exists') || error.message?.includes('conflict')) {
+          mfaObservability.logMFAEvent({
+            action: 'enroll',
+            page: 'mfa_setup',
+            success: false,
+            error: new Error('Factor already exists'),
+            metadata: { reason: 'duplicate_factor' }
+          });
+
           toast({
             title: 'MFA Already Configured',
             description: 'TOTP factor already exists. You can proceed to verification.',
@@ -55,11 +71,30 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
         throw error;
       }
 
+      mfaObservability.logMFAEvent({
+        action: 'enroll',
+        page: 'mfa_setup',
+        factorId: data.id,
+        success: true,
+        metadata: { 
+          factor_type: 'totp',
+          friendly_name: 'Superadmin TOTP'
+        }
+      });
+
       setQrCode(data.totp.qr_code);
       setSecret(data.totp.secret);
       setFactorId(data.id); // Store the factor ID
       setStep('scan');
     } catch (error: any) {
+      mfaObservability.logMFAEvent({
+        action: 'enroll',
+        page: 'mfa_setup',
+        success: false,
+        error,
+        metadata: { step: 'initial_setup' }
+      });
+
       toast({
         title: 'MFA Setup Error',
         description: error.message || 'Failed to start MFA setup',
@@ -231,19 +266,19 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
             <>
               <div className="text-center space-y-4">
                 <QrCode className="w-8 h-8 mx-auto text-primary" />
-                <h3 className="font-semibold">Scan QR Code</h3>
+                <h3 className="font-semibold">Scan QR Code or Enter Secret</h3>
                 
-                <div className="bg-white p-4 rounded-lg border">
+                <div className="bg-white p-4 rounded-lg border" role="img" aria-label="QR code for TOTP setup">
                   <img 
                     src={qrCode} 
-                    alt="MFA QR Code" 
+                    alt="QR code containing TOTP secret for authenticator app setup" 
                     className="mx-auto max-w-full h-auto"
                   />
                 </div>
                 
                 <div className="text-left space-y-2">
                   <Label htmlFor="secret" className="text-sm font-medium">
-                    Manual Entry Key (if you can't scan):
+                    Manual Entry Key (if you can't scan the QR code):
                   </Label>
                   <div className="relative">
                     <Input
@@ -251,14 +286,28 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
                       value={secret}
                       readOnly
                       className="font-mono text-xs"
+                      aria-label="TOTP secret key for manual entry into authenticator app"
+                      title="Copy this key to manually add to your authenticator app"
                     />
                     <Key className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Open your authenticator app (Google Authenticator, Authy, etc.) and either:
+                    <br />• Scan the QR code above, or
+                    <br />• Add account manually using the key above
+                  </p>
                 </div>
                 
-                <Button onClick={() => createChallenge()} className="w-full">
-                  I've Added It to My App
+                <Button 
+                  onClick={() => createChallenge()} 
+                  className="w-full"
+                  aria-describedby="setup-help"
+                >
+                  I've Added It to My Authenticator App
                 </Button>
+                <div id="setup-help" className="text-xs text-muted-foreground">
+                  Click this button after you've successfully added the account to your authenticator app
+                </div>
               </div>
             </>
           )}
@@ -269,24 +318,34 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
                 <CheckCircle className="w-8 h-8 mx-auto text-primary" />
                 <h3 className="font-semibold">Enter Verification Code</h3>
                 <p className="text-sm text-muted-foreground">
-                  Enter the 6-digit code from your authenticator app
+                  Enter the 6-digit code from your authenticator app to complete setup
                 </p>
                 
                 <div className="flex justify-center">
-                  <InputOTP 
-                    value={verificationCode} 
-                    onChange={setVerificationCode}
-                    maxLength={6}
-                  >
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSlot index={2} />
-                      <InputOTPSlot index={3} />
-                      <InputOTPSlot index={4} />
-                      <InputOTPSlot index={5} />
-                    </InputOTPGroup>
-                  </InputOTP>
+                  <fieldset>
+                    <legend className="sr-only">6-digit verification code</legend>
+                    <InputOTP 
+                      value={verificationCode} 
+                      onChange={setVerificationCode}
+                      maxLength={6}
+                      autoFocus
+                      aria-label="6-digit verification code from authenticator app"
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </fieldset>
+                </div>
+
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div>💡 <strong>Hint:</strong> Codes refresh every 30 seconds</div>
+                  <div>⏱️ If the code doesn't work, wait for the next one</div>
                 </div>
                 
                 <div className="flex space-x-2">
@@ -294,12 +353,20 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
                     onClick={verifyAndComplete} 
                     disabled={isLoading || verificationCode.length !== 6}
                     className="flex-1"
+                    aria-describedby="verify-help"
                   >
-                    {isLoading ? 'Verifying...' : 'Verify & Complete'}
+                    {isLoading ? 'Verifying...' : 'Verify & Complete Setup'}
                   </Button>
-                  <Button variant="outline" onClick={() => setStep('scan')}>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setStep('scan')}
+                    aria-label="Go back to QR code step"
+                  >
                     Back
                   </Button>
+                </div>
+                <div id="verify-help" className="text-xs text-muted-foreground">
+                  This will complete your MFA setup and grant superadmin access
                 </div>
               </div>
             </>
