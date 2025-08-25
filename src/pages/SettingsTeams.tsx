@@ -15,6 +15,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserOrganization } from "@/hooks/useUserOrganization";
 import { useOrganizationRole, OrganizationRole } from "@/hooks/useOrganizationRole";
 import { Plus, Mail, Users, UserCheck, Clock, X, Copy, Ban, ArrowLeft, Trash2 } from "lucide-react";
+import { useFreePlanLimits } from "@/hooks/useFreePlanLimits";
+import { UpgradeModal } from "@/components/ui/UpgradeModal";
+import { createInviteWithLimits } from "@/lib/freePlanUtils";
 
 interface TeamMember {
   id: string;
@@ -53,9 +56,11 @@ export default function SettingsTeams() {
   const [inviteRole, setInviteRole] = useState<OrganizationRole>('viewer');
   const [emailError, setEmailError] = useState('');
   const [inviting, setInviting] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
   const { organizationId, isOwner, loading: orgLoading } = useUserOrganization();
   const { isAdmin, loading: roleLoading } = useOrganizationRole(organizationId || undefined);
+  const { canAddTeamMember, hasPendingBilling } = useFreePlanLimits();
 
   useEffect(() => {
     if (!orgLoading && !roleLoading && organizationId) {
@@ -148,19 +153,18 @@ export default function SettingsTeams() {
       return;
     }
 
+    // Check free plan limits before inviting
+    if (!canAddTeamMember) {
+      setUpgradeModalOpen(true);
+      return;
+    }
+
     if (!organizationId) return;
 
     setInviting(true);
     try {
-      const { data, error } = await supabase.rpc('create_invite', {
-        p_org: organizationId,
-        p_email: email,
-        p_role: inviteRole
-      });
+      const result = await createInviteWithLimits(organizationId, email, inviteRole);
 
-      if (error) throw error;
-
-      const result = data as any;
       if (result?.success) {
         // Create invite link
         const inviteLink = `${window.location.origin}/invite/accept?token=${result.token}`;
@@ -179,10 +183,16 @@ export default function SettingsTeams() {
         setInviteRole('viewer');
         setEmailError('');
       } else {
-        throw new Error(result?.error || 'Failed to create invitation');
+        throw new Error('Failed to create invitation');
       }
     } catch (error) {
       console.error('Error sending invite:', error);
+      
+      if (error instanceof Error && error.message === 'UPGRADE_REQUIRED') {
+        setUpgradeModalOpen(true);
+        return;
+      }
+      
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to send invitation",
@@ -420,12 +430,17 @@ export default function SettingsTeams() {
                 <Button 
                   onClick={handleInvite} 
                   className="w-full"
-                  disabled={inviting}
+                  disabled={inviting || !canAddTeamMember}
                 >
                   {inviting ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                       Sending...
+                    </>
+                  ) : !canAddTeamMember ? (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Upgrade to Add More
                     </>
                   ) : (
                     <>
@@ -592,6 +607,13 @@ export default function SettingsTeams() {
           </div>
         </CardContent>
       </Card>
+      
+      <UpgradeModal
+        open={upgradeModalOpen}
+        onOpenChange={setUpgradeModalOpen}
+        limitType="team_cap"
+        hasPendingBilling={hasPendingBilling}
+      />
     </div>
   );
 }
