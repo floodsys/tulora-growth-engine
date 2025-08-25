@@ -1,0 +1,128 @@
+name: Superadmin Authorization Tests
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  test-superadmin-auth:
+    runs-on: ubuntu-latest
+    
+    env:
+      # Test configuration
+      VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      VITE_SUPERADMINS_EMAILS: "admin@axionstack.xyz" # Cosmetic only
+      TEST_SUPERADMIN_JWT: ${{ secrets.TEST_SUPERADMIN_JWT }}
+      TEST_REGULAR_USER_JWT: ${{ secrets.TEST_REGULAR_USER_JWT }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build project
+        run: npm run build
+        
+      - name: Run superadmin authorization tests
+        run: npm run test:superadmin
+        
+      - name: Run full test suite
+        run: npm run test:ci
+        
+      - name: Lint codebase for authorization violations
+        run: |
+          echo "🔍 Checking for forbidden authorization patterns..."
+          
+          # Check for env-based authorization (should only be cosmetic)
+          if grep -r --include="*.ts" --include="*.tsx" --exclude-dir=node_modules \
+            -E "(import\.meta\.env\.VITE_SUPERADMINS_EMAILS.*if|process\.env\.SUPERADMINS_EMAILS.*if|Deno\.env\.get.*SUPERADMIN.*if)" .; then
+            echo "❌ VIOLATION: Environment variables used for authorization logic!"
+            echo "Environment variables should only be used for UI hints and logging."
+            echo "All authorization must use supabase.rpc('is_superadmin')"
+            exit 1
+          fi
+          
+          # Check for direct email comparisons in authorization
+          if grep -r --include="*.ts" --include="*.tsx" --exclude-dir=node_modules \
+            -E "(email.*===.*admin|admin.*===.*email).*return" .; then
+            echo "❌ VIOLATION: Direct email comparison used for authorization!"
+            echo "All authorization must use DB RPC: supabase.rpc('is_superadmin')"
+            exit 1
+          fi
+          
+          # Verify DB RPC usage in admin hooks
+          if ! grep -r --include="*.ts" --include="*.tsx" \
+            "supabase\.rpc.*is_superadmin" src/hooks/; then
+            echo "❌ VIOLATION: Admin hooks not using DB RPC for authorization!"
+            exit 1
+          fi
+          
+          # Verify edge functions use DB RPC
+          if grep -r --include="*.ts" --exclude="*.test.ts" \
+            -L "supabaseClient\.rpc.*is_superadmin" supabase/functions/admin-* supabase/functions/org-suspension/; then
+            echo "❌ VIOLATION: Admin edge functions not using DB RPC!"
+            exit 1
+          fi
+          
+          echo "✅ All authorization patterns comply with DB-RPC policy"
+          
+      - name: Check security documentation
+        run: |
+          echo "📖 Verifying security documentation..."
+          
+          if [[ ! -f "SECURITY.md" ]]; then
+            echo "❌ SECURITY.md missing!"
+            exit 1
+          fi
+          
+          if ! grep -q "Source of truth = DB" SECURITY.md; then
+            echo "❌ SECURITY.md missing DB source of truth policy!"
+            exit 1
+          fi
+          
+          if ! grep -q "Environment variables are COSMETIC ONLY" SECURITY.md; then
+            echo "❌ SECURITY.md missing env vars policy!"
+            exit 1
+          fi
+          
+          echo "✅ Security documentation is complete"
+          
+      - name: Generate test report
+        run: |
+          echo "## 🔒 Superadmin Authorization Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Endpoints Tested:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ admin-billing-actions (Edge Function)" >> $GITHUB_STEP_SUMMARY  
+          echo "- ✅ admin-billing-overview (Edge Function)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ org-suspension (Edge Function)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Client route guards (/admin)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ DB RPC authorization policy" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Security Policy Verification:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ No environment variable authorization" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ DB RPC as single source of truth" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Standardized error messages" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Security documentation complete" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Report test status
+        if: failure()
+        run: |
+          echo "## ❌ Superadmin Authorization Tests Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Authorization policy violations detected!**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This PR cannot be merged until all authorization paths use the DB RPC:" >> $GITHUB_STEP_SUMMARY
+          echo '`supabase.rpc("is_superadmin")`' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Environment variables must only be used for UI hints and logging." >> $GITHUB_STEP_SUMMARY
