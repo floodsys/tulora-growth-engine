@@ -18,6 +18,8 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
   const [step, setStep] = useState<'start' | 'scan' | 'verify'>('start');
   const [qrCode, setQrCode] = useState<string>('');
   const [secret, setSecret] = useState<string>('');
+  const [factorId, setFactorId] = useState<string>('');
+  const [challengeId, setChallengeId] = useState<string>('');
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -34,6 +36,7 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
 
       setQrCode(data.totp.qr_code);
       setSecret(data.totp.secret);
+      setFactorId(data.id); // Store the factor ID
       setStep('scan');
     } catch (error: any) {
       toast({
@@ -46,8 +49,41 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
     }
   };
 
+  const createChallenge = async () => {
+    if (!factorId) {
+      toast({
+        title: 'Missing Factor ID',
+        description: 'No factor ID available. Please restart MFA setup.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data: challenge, error } = await supabase.auth.mfa.challenge({
+        factorId: factorId
+      });
+
+      if (error) throw error;
+      
+      setChallengeId(challenge.id);
+      setStep('verify');
+    } catch (error: any) {
+      toast({
+        title: 'Challenge Failed',
+        description: error.message || 'Failed to create MFA challenge',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const verifyAndComplete = async () => {
-    if (verificationCode.length !== 6) {
+    // Strip spaces and validate code
+    const cleanCode = verificationCode.replace(/\s/g, '');
+    if (cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) {
       toast({
         title: 'Invalid Code',
         description: 'Please enter a 6-digit verification code',
@@ -56,20 +92,22 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
       return;
     }
 
+    // Check for required UUIDs
+    if (!factorId || !challengeId) {
+      toast({
+        title: 'Missing UUIDs',
+        description: 'Missing factor_id or challenge_id. Please start a challenge first.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // Get the enrolled factor to get its ID
-      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
-      if (factorsError) throw factorsError;
-
-      const enrolledFactor = factors.totp?.find(factor => factor.friendly_name === 'Superadmin TOTP');
-      if (!enrolledFactor) {
-        throw new Error('Could not find enrolled TOTP factor');
-      }
-
-      const { data, error } = await supabase.auth.mfa.challengeAndVerify({
-        factorId: enrolledFactor.id,
-        code: verificationCode
+      const { error } = await supabase.auth.mfa.verify({
+        factorId: factorId,
+        challengeId: challengeId,
+        code: cleanCode
       });
 
       if (error) throw error;
@@ -174,7 +212,7 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
                   </div>
                 </div>
                 
-                <Button onClick={() => setStep('verify')} className="w-full">
+                <Button onClick={() => createChallenge()} className="w-full">
                   I've Added It to My App
                 </Button>
               </div>

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,12 +14,55 @@ interface MFAVerificationProps {
 }
 
 export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerificationProps) {
+  const navigate = useNavigate();
   const [verificationCode, setVerificationCode] = useState('');
+  const [factorId, setFactorId] = useState<string>('');
+  const [challengeId, setChallengeId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  useEffect(() => {
+    initializeMFA();
+  }, []);
+
+  const initializeMFA = async () => {
+    try {
+      // Get user's MFA factors
+      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+      if (factorsError) throw factorsError;
+
+      const totpFactor = factors.totp?.[0];
+      if (!totpFactor) {
+        toast({
+          title: 'No MFA Factor',
+          description: 'No TOTP factor found. Please set up MFA first.',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      setFactorId(totpFactor.id);
+
+      // Create initial challenge
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: totpFactor.id
+      });
+      if (challengeError) throw challengeError;
+
+      setChallengeId(challenge.id);
+    } catch (error: any) {
+      toast({
+        title: 'MFA Initialization Failed',
+        description: error.message || 'Failed to initialize MFA',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const verifyMFA = async () => {
-    if (verificationCode.length !== 6) {
+    // Strip spaces and validate code
+    const cleanCode = verificationCode.replace(/\s/g, '');
+    if (cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) {
       toast({
         title: 'Invalid Code',
         description: 'Please enter a 6-digit verification code',
@@ -27,28 +71,23 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
       return;
     }
 
+    // Check for required UUIDs
+    if (!factorId || !challengeId) {
+      toast({
+        title: 'Missing UUIDs',
+        description: 'Missing factor_id or challenge_id. Start a challenge first.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // Get user's MFA factors
-      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
-      if (factorsError) throw factorsError;
-
-      const totpFactor = factors.totp?.[0];
-      if (!totpFactor) {
-        throw new Error('No TOTP factor found');
-      }
-
-      // Create challenge
-      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
-        factorId: totpFactor.id
-      });
-      if (challengeError) throw challengeError;
-
-      // Verify code
+      // Verify code with proper UUIDs
       const { error: verifyError } = await supabase.auth.mfa.verify({
-        factorId: totpFactor.id,
-        challengeId: challenge.id,
-        code: verificationCode
+        factorId: factorId,
+        challengeId: challengeId,
+        code: cleanCode
       });
       if (verifyError) throw verifyError;
 
@@ -69,11 +108,16 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
         }
       });
 
+      // Refresh session to ensure it's updated
+      await supabase.auth.refreshSession();
+
       toast({
         title: 'MFA Verified',
         description: 'You have been authenticated for the next 12 hours',
       });
 
+      // Navigate to admin dashboard
+      navigate('/admin');
       onVerificationSuccess();
     } catch (error: any) {
       toast({
