@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
+import { useMFAVerification } from '@/hooks/useMFAVerification';
+import { MFASetup } from '@/components/admin/MFASetup';
+import { MFAVerification } from '@/components/admin/MFAVerification';
 import { AdminModeChip } from '@/components/ui/AdminModeChip';
 import { getEnvironmentConfig } from '@/lib/environment';
 import { 
@@ -60,6 +63,7 @@ const adminTabs = [
 export default function AdminDashboard() {
   const { user, loading: authLoading } = useAuth();
   const { isSuperadmin, isLoading } = useSuperadmin();
+  const mfaStatus = useMFAVerification(isSuperadmin);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,7 +82,7 @@ export default function AdminDashboard() {
     }
   }, [user, isSuperadmin, isLoading, authLoading, navigate]);
 
-  if (authLoading || isLoading) {
+  if (authLoading || isLoading || mfaStatus.isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -104,6 +108,25 @@ export default function AdminDashboard() {
           </CardHeader>
         </Card>
       </div>
+    );
+  }
+
+  // MFA enforcement for superadmins
+  if (mfaStatus.needsSetup) {
+    return (
+      <MFASetup 
+        onSetupComplete={() => mfaStatus.refreshMFAStatus()}
+        onCancel={() => navigate('/dashboard')}
+      />
+    );
+  }
+
+  if (mfaStatus.needsVerification) {
+    return (
+      <MFAVerification 
+        onVerificationSuccess={() => mfaStatus.markAsVerified()}
+        onCancel={() => navigate('/dashboard')}
+      />
     );
   }
 
