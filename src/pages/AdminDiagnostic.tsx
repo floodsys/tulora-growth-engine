@@ -4,9 +4,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { RefreshCw, CheckCircle, XCircle, AlertTriangle, Copy, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Switch } from '@/components/ui/switch';
 import { BUILD_ID, clearAllCaches, forceReload, getBuildInfo, getCosmenticEnvVars, type CacheClearResult } from '@/lib/build-info';
 
 interface DiagnosticData {
@@ -22,9 +23,14 @@ interface ApiProbeResult {
   name: string;
   method: string;
   url: string;
+  fullUrl: string;
   status: number | null;
+  responseBody: string;
   responseSnippet: string;
+  headers: Record<string, string>;
+  authHeaderSent: boolean;
   error?: string;
+  timestamp: string;
 }
 
 export default function AdminDiagnostic() {
@@ -41,6 +47,9 @@ export default function AdminDiagnostic() {
   const [isProbing, setIsProbing] = useState(false);
   const [isCacheClearing, setIsCacheClearing] = useState(false);
   const [cacheResult, setCacheResult] = useState<CacheClearResult | null>(null);
+  const [showAuthDetails, setShowAuthDetails] = useState(false);
+  const [probeWithoutAuth, setProbeWithoutAuth] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
   const runDiagnostics = async () => {
     setIsLoading(true);
@@ -88,9 +97,10 @@ export default function AdminDiagnostic() {
     }
   };
 
-  const runApiProbes = async () => {
+  const runApiProbes = async (withoutAuth = false) => {
     setIsProbing(true);
     const probes: ApiProbeResult[] = [];
+    const timestamp = new Date().toISOString();
 
     // Define all admin APIs used by the admin UI
     const adminApis = [
@@ -107,36 +117,77 @@ export default function AdminDiagnostic() {
 
     for (const api of adminApis) {
       try {
-        const { data, error } = await supabase.functions.invoke(api.function, {
-          body: api.body
+        // Get Supabase function URL from environment
+        const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        const fullUrl = `${baseUrl}/functions/v1/${api.function}`;
+        
+        // Make direct fetch to capture full response details
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'x-client-info': 'supabase-js-web/2.55.0',
+          'apikey': apiKey
+        };
+        
+        let authHeaderSent = false;
+        if (!withoutAuth) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            headers['Authorization'] = `Bearer ${session.access_token}`;
+            authHeaderSent = true;
+          }
+        }
+
+        const response = await fetch(fullUrl, {
+          method: api.method,
+          headers,
+          body: JSON.stringify(api.body)
         });
 
-        let responseSnippet = '';
-        let status = null;
+        // Extract response details
+        const responseHeaders: Record<string, string> = {};
+        response.headers.forEach((value, key) => {
+          responseHeaders[key] = value;
+        });
 
-        if (error) {
-          status = error.status || 500;
-          responseSnippet = error.message || 'Unknown error';
-        } else {
-          status = 200;
-          responseSnippet = typeof data === 'string' ? data.substring(0, 200) : JSON.stringify(data).substring(0, 200);
+        let responseBody = '';
+        let responseSnippet = '';
+        try {
+          responseBody = await response.text();
+          responseSnippet = responseBody.substring(0, 1000);
+        } catch {
+          responseBody = 'Failed to read response body';
+          responseSnippet = responseBody;
         }
 
         probes.push({
           name: api.name,
           method: api.method,
-          url: `${api.function} edge function`,
-          status,
+          url: api.function,
+          fullUrl,
+          status: response.status,
+          responseBody,
           responseSnippet,
-          error: error?.message
+          headers: responseHeaders,
+          authHeaderSent,
+          timestamp,
+          error: response.ok ? undefined : `HTTP ${response.status}`
         });
       } catch (err) {
+        const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const fullUrl = `${baseUrl}/functions/v1/${api.function}`;
+        
         probes.push({
           name: api.name,
           method: api.method,
-          url: `${api.function} edge function`,
+          url: api.function,
+          fullUrl,
           status: null,
+          responseBody: `Exception: ${err instanceof Error ? err.message : String(err)}`,
           responseSnippet: `Exception: ${err instanceof Error ? err.message : String(err)}`,
+          headers: {},
+          authHeaderSent: !withoutAuth,
+          timestamp,
           error: err instanceof Error ? err.message : String(err)
         });
       }
@@ -181,14 +232,79 @@ export default function AdminDiagnostic() {
 
   const handleRecheck = async () => {
     await runDiagnostics();
-    await runApiProbes();
+    await runApiProbes(probeWithoutAuth);
+  };
+
+  const copyDiagnostics = async () => {
+    const diagnosticsText = `
+# Admin Diagnostic Report
+Generated: ${new Date().toISOString()}
+Build ID: ${BUILD_ID}
+
+## Authentication Session
+- User ID: ${diagnosticData.authUid || 'Not authenticated'}
+- Email: ${diagnosticData.authEmail || 'Not available'}
+
+## Database RPC Check
+- Result: ${diagnosticData.dbSuperadminCheck !== null ? String(diagnosticData.dbSuperadminCheck) : 'Error/Unknown'}
+
+## Environment Variables (Cosmetic)
+- Frontend: ${diagnosticData.frontendEnv || 'Not set'}
+
+## Final Decision
+- Access Granted: ${diagnosticData.finalGuardDecision !== null ? String(diagnosticData.finalGuardDecision) : 'Unknown'}
+
+## API Probe Results
+Auth Headers: ${probeWithoutAuth ? 'Disabled' : 'Enabled'}
+${apiProbeResults.map(result => `
+### ${result.name}
+- Method: ${result.method}
+- URL: ${result.fullUrl}
+- Status: ${result.status || 'Error'}
+- Auth Header Sent: ${result.authHeaderSent}
+- Headers: ${JSON.stringify(result.headers, null, 2)}
+- Response Body (first 1000 chars):
+${result.responseBody}
+`).join('\n')}
+
+## Build Information
+- Build ID: ${BUILD_ID}
+- User Agent: ${navigator.userAgent}
+- Cache API: ${('caches' in window) ? 'Available' : 'Not Available'}
+- Service Worker: ${('serviceWorker' in navigator) ? 'Available' : 'Not Available'}
+`.trim();
+
+    try {
+      await navigator.clipboard.writeText(diagnosticsText);
+      alert('Diagnostics copied to clipboard!');
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+      // Fallback: create a text area and select it
+      const textArea = document.createElement('textarea');
+      textArea.value = diagnosticsText;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('Diagnostics copied to clipboard!');
+    }
+  };
+
+  const toggleRowExpansion = (index: number) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index);
+    } else {
+      newExpanded.add(index);
+    }
+    setExpandedRows(newExpanded);
   };
 
   useEffect(() => {
     runDiagnostics();
     // Only run API probes in development mode for security
     if (import.meta.env.DEV) {
-      runApiProbes();
+      runApiProbes(probeWithoutAuth);
     }
   }, []);
 
@@ -224,6 +340,13 @@ export default function AdminDiagnostic() {
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isCacheClearing ? 'animate-spin' : ''}`} />
               Hard Refresh Cache
+            </Button>
+            <Button 
+              onClick={copyDiagnostics} 
+              variant="outline"
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy Diagnostics
             </Button>
           </div>
         </div>
@@ -400,52 +523,134 @@ export default function AdminDiagnostic() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Testing all admin APIs with current session JWT. All should return 200 for superadmins, 403 for non-superadmins.
-            </p>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Testing all admin APIs. All should return 200 for superadmins, 403 for non-superadmins.
+              </p>
+              
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Switch 
+                    id="probe-without-auth"
+                    checked={probeWithoutAuth}
+                    onCheckedChange={setProbeWithoutAuth}
+                  />
+                  <label htmlFor="probe-without-auth" className="text-sm">
+                    Probe without Authorization header (expect 403s)
+                  </label>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Switch 
+                    id="show-auth-details"
+                    checked={showAuthDetails}
+                    onCheckedChange={setShowAuthDetails}
+                  />
+                  <label htmlFor="show-auth-details" className="text-sm">
+                    Show detailed headers
+                  </label>
+                </div>
+              </div>
+            </div>
             
             {apiProbeResults.length > 0 ? (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto mt-6">
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8"></TableHead>
                       <TableHead>API Endpoint</TableHead>
                       <TableHead>Method</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Response Snippet</TableHead>
+                      <TableHead>Auth</TableHead>
+                      <TableHead>Response</TableHead>
+                      {showAuthDetails && <TableHead>Headers</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {apiProbeResults.map((result, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium text-sm">
-                          {result.name}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{result.method}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={
-                              result.status === 200 ? "default" : 
-                              result.status === 403 ? "destructive" : 
-                              "secondary"
-                            }
-                            className={
-                              result.status === 200 ? "bg-green-500" :
-                              result.status === 403 ? "" :
-                              "bg-yellow-500"
-                            }
-                          >
-                            {result.status || 'Error'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-xs">
-                          <code className="text-xs bg-muted px-2 py-1 rounded text-wrap">
-                            {result.responseSnippet}
-                          </code>
-                        </TableCell>
-                      </TableRow>
+                      <>
+                        <TableRow key={index} className="cursor-pointer" onClick={() => toggleRowExpansion(index)}>
+                          <TableCell>
+                            <Button variant="ghost" size="sm" className="p-0 h-6 w-6">
+                              {expandedRows.has(index) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                            </Button>
+                          </TableCell>
+                          <TableCell className="font-medium text-sm">
+                            {result.name}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{result.method}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={
+                                result.status === 200 ? "default" : 
+                                result.status === 403 ? "destructive" : 
+                                "secondary"
+                              }
+                              className={
+                                result.status === 200 ? "bg-green-500" :
+                                result.status === 403 ? "" :
+                                "bg-yellow-500"
+                              }
+                            >
+                              {result.status || 'Error'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={result.authHeaderSent ? "default" : "outline"}>
+                              {result.authHeaderSent ? "Sent" : "None"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-xs">
+                            <code className="text-xs bg-muted px-2 py-1 rounded break-all">
+                              {result.responseSnippet.substring(0, 100)}
+                              {result.responseSnippet.length > 100 && '...'}
+                            </code>
+                          </TableCell>
+                          {showAuthDetails && (
+                            <TableCell className="max-w-xs">
+                              <code className="text-xs bg-muted px-2 py-1 rounded">
+                                {Object.keys(result.headers).length} headers
+                                {result.headers['x-request-id'] && ` • ${result.headers['x-request-id'].substring(0, 8)}...`}
+                              </code>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                        {expandedRows.has(index) && (
+                          <TableRow key={`${index}-expanded`}>
+                            <TableCell colSpan={showAuthDetails ? 7 : 6} className="bg-muted/30">
+                              <div className="space-y-3 p-3">
+                                <div>
+                                  <strong className="text-sm">Full URL:</strong>
+                                  <code className="block text-xs bg-muted px-2 py-1 rounded mt-1 break-all">
+                                    {result.fullUrl}
+                                  </code>
+                                </div>
+                                
+                                <div>
+                                  <strong className="text-sm">Response Headers:</strong>
+                                  <pre className="text-xs bg-muted px-2 py-1 rounded mt-1 overflow-x-auto">
+                                    {JSON.stringify(result.headers, null, 2)}
+                                  </pre>
+                                </div>
+                                
+                                <div>
+                                  <strong className="text-sm">Response Body (first 1000 chars):</strong>
+                                  <pre className="text-xs bg-muted px-2 py-1 rounded mt-1 overflow-x-auto whitespace-pre-wrap">
+                                    {result.responseBody}
+                                  </pre>
+                                </div>
+                                
+                                <div className="text-xs text-muted-foreground">
+                                  Timestamp: {result.timestamp}
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
                     ))}
                   </TableBody>
                 </Table>
@@ -456,9 +661,9 @@ export default function AdminDiagnostic() {
               </div>
             )}
 
-            <div className="mt-4">
+            <div className="mt-4 flex gap-2">
               <Button 
-                onClick={runApiProbes} 
+                onClick={() => runApiProbes(probeWithoutAuth)} 
                 disabled={isProbing}
                 variant="outline"
                 size="sm"
@@ -466,6 +671,17 @@ export default function AdminDiagnostic() {
                 <RefreshCw className={`h-4 w-4 mr-2 ${isProbing ? 'animate-spin' : ''}`} />
                 Re-probe APIs
               </Button>
+              
+              {apiProbeResults.length > 0 && (
+                <Button 
+                  onClick={copyDiagnostics}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy Results
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
