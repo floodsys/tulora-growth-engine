@@ -9,6 +9,8 @@ import { UsageBilling } from "@/components/dashboard/UsageBilling"
 import { TeamManagement } from "@/components/dashboard/TeamManagement"
 import { UnifiedSettings } from "@/components/UnifiedSettings"
 import { ProfileSettingsScreen } from "@/components/dashboard/ProfileSettingsScreen"
+import SettingsTeams from "@/pages/SettingsTeams"
+import SettingsOrganization from "@/pages/SettingsOrganization"
 
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
@@ -64,6 +66,10 @@ const Dashboard = () => {
         return <UsageBilling />
       case "team":
         return <TeamManagement />
+      case "teams":
+        return <SettingsTeams />
+      case "organization":
+        return <SettingsOrganization />
       case "settings":
         return <UnifiedSettings organizationId="demo-org-id" />
       case "profile-settings":
