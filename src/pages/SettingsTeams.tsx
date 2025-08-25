@@ -159,7 +159,7 @@ export default function SettingsTeams() {
       const result = data as any;
       if (result?.success) {
         // Create invite link
-        const inviteLink = `${window.location.origin}/invite/accept-new?token=${result.token}`;
+        const inviteLink = `${window.location.origin}/invite/accept?token=${result.token}`;
         
         // Copy to clipboard
         await navigator.clipboard.writeText(inviteLink);
@@ -191,7 +191,7 @@ export default function SettingsTeams() {
 
   const copyInviteLink = async (token: string) => {
     try {
-      const inviteLink = `${window.location.origin}/invite/accept-new?token=${token}`;
+      const inviteLink = `${window.location.origin}/invite/accept?token=${token}`;
       await navigator.clipboard.writeText(inviteLink);
       toast({
         title: "Link copied",

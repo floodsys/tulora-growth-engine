@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,8 +37,9 @@ function InviteAccept() {
   const token = searchParams.get('token');
 
   useEffect(() => {
+    // Require token parameter
     if (!token) {
-      setError('Invalid invitation link - no token provided');
+      setError('Invalid invitation link - missing token parameter');
       setLoading(false);
       return;
     }
@@ -151,74 +153,147 @@ function InviteAccept() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <Skeleton className="h-12 w-12 rounded-full mx-auto" />
-              <Skeleton className="h-6 w-48 mx-auto" />
-              <Skeleton className="h-4 w-64 mx-auto" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
+      <>
+        <Helmet>
+          <meta name="robots" content="noindex, nofollow" />
+          <title>Loading Invitation - Tulora</title>
+        </Helmet>
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <Card className="w-full max-w-md">
+            <CardContent className="pt-6">
+              <div className="text-center space-y-4">
+                <Skeleton className="h-12 w-12 rounded-full mx-auto" />
+                <Skeleton className="h-6 w-48 mx-auto" />
+                <Skeleton className="h-4 w-64 mx-auto" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      </>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
-              <XCircle className="h-6 w-6 text-destructive" />
-            </div>
-            <CardTitle className="text-xl">Invalid Invitation</CardTitle>
-            <CardDescription className="text-base">{error}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button 
-              onClick={requestNewInvite} 
-              className="w-full"
-            >
-              <Mail className="h-4 w-4 mr-2" />
-              Request New Invite
-            </Button>
-            <Button 
-              onClick={() => navigate('/')} 
-              variant="outline" 
-              className="w-full"
-            >
-              Return to Home
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <>
+        <Helmet>
+          <meta name="robots" content="noindex, nofollow" />
+          <title>Invalid Invitation - Tulora</title>
+        </Helmet>
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                <XCircle className="h-6 w-6 text-destructive" />
+              </div>
+              <CardTitle className="text-xl">Invalid Invitation</CardTitle>
+              <CardDescription className="text-base">{error}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button 
+                onClick={requestNewInvite} 
+                className="w-full"
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Request New Invite
+              </Button>
+              <Button 
+                onClick={() => navigate('/')} 
+                variant="outline" 
+                className="w-full"
+              >
+                Return to Home
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </>
     );
   }
 
   if (!user) {
     return (
+      <>
+        <Helmet>
+          <meta name="robots" content="noindex, nofollow" />
+          <title>Team Invitation - Tulora</title>
+        </Helmet>
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
+              <CardTitle className="text-xl">Team Invitation</CardTitle>
+              <CardDescription className="text-base">
+                You've been invited to join <strong>{invite?.organizations?.name}</strong>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-muted p-4 rounded-lg space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Email:</span>
+                  <span className="text-sm">{invite?.email}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Role:</span>
+                  <Badge variant={getRoleBadgeVariant(invite?.role || '')}>
+                    {formatRole(invite?.role || '')}
+                  </Badge>
+                </div>
+              </div>
+              
+              <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-amber-800 dark:text-amber-200">Sign in required</h4>
+                    <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                      Please sign in with the email address this invitation was sent to
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <Button 
+                onClick={() => navigate(`/auth?redirect=${encodeURIComponent(`/invite/accept?token=${token}`)}`)} 
+                className="w-full"
+              >
+                Sign In to Accept
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+        <title>Accept Team Invitation - Tulora</title>
+      </Helmet>
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Users className="h-6 w-6 text-primary" />
+            <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
+              <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
-            <CardTitle className="text-xl">Team Invitation</CardTitle>
+            <CardTitle className="text-xl">You're Invited!</CardTitle>
             <CardDescription className="text-base">
-              You've been invited to join <strong>{invite?.organizations?.name}</strong>
+              Join <strong>{invite?.organizations?.name}</strong> as a team member
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-muted p-4 rounded-lg space-y-2">
+            <div className="bg-muted p-4 rounded-lg space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Email:</span>
+                <span className="text-sm font-medium">Your email:</span>
                 <span className="text-sm">{invite?.email}</span>
               </div>
               <div className="flex justify-between items-center">
@@ -227,93 +302,44 @@ function InviteAccept() {
                   {formatRole(invite?.role || '')}
                 </Badge>
               </div>
-            </div>
-            
-            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h4 className="font-medium text-amber-800 dark:text-amber-200">Sign in required</h4>
-                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                    Please sign in with the email address this invitation was sent to
-                  </p>
-                </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Expires:</span>
+                <span className="text-sm text-muted-foreground">
+                  {invite?.expires_at ? new Date(invite.expires_at).toLocaleDateString() : 'Unknown'}
+                </span>
               </div>
             </div>
             
-            <Button 
-              onClick={() => navigate('/auth')} 
-              className="w-full"
-            >
-              Sign In to Accept
-            </Button>
+            <div className="space-y-2">
+              <Button 
+                onClick={handleAcceptInvite} 
+                className="w-full"
+                disabled={accepting}
+              >
+                {accepting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Accepting...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Accept Invitation
+                  </>
+                )}
+              </Button>
+              <Button 
+                onClick={() => navigate('/')} 
+                variant="outline" 
+                className="w-full"
+              >
+                Decline
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
-            <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
-          </div>
-          <CardTitle className="text-xl">You're Invited!</CardTitle>
-          <CardDescription className="text-base">
-            Join <strong>{invite?.organizations?.name}</strong> as a team member
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="bg-muted p-4 rounded-lg space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Your email:</span>
-              <span className="text-sm">{invite?.email}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Role:</span>
-              <Badge variant={getRoleBadgeVariant(invite?.role || '')}>
-                {formatRole(invite?.role || '')}
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Expires:</span>
-              <span className="text-sm text-muted-foreground">
-                {invite?.expires_at ? new Date(invite.expires_at).toLocaleDateString() : 'Unknown'}
-              </span>
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <Button 
-              onClick={handleAcceptInvite} 
-              className="w-full"
-              disabled={accepting}
-            >
-              {accepting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                  Accepting...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Accept Invitation
-                </>
-              )}
-            </Button>
-            <Button 
-              onClick={() => navigate('/')} 
-              variant="outline" 
-              className="w-full"
-            >
-              Decline
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    </>
   );
 }
 

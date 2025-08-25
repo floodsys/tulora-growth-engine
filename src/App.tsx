@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AdminSecurityWrapper } from "@/components/AdminSecurityWrapper";
+import { InviteAcceptRedirect } from "@/components/InviteAcceptRedirect";
 import Index from "@/pages/Index";
 import Dashboard from "@/pages/Dashboard";
 import Auth from "@/pages/Auth";
@@ -11,7 +12,6 @@ import NotFound from "@/pages/NotFound";
 import AgentSettings from "@/pages/AgentSettings";
 import TeamsSettings from "@/pages/TeamsSettings";
 import InviteAccept from "@/pages/InviteAccept";
-import InviteAcceptPage from "@/pages/InviteAcceptPage";
 import Demo from "@/pages/Demo";
 import SettingsLayout from "@/pages/SettingsLayout";
 
@@ -43,7 +43,7 @@ function App() {
               <Route path="organization" element={<SettingsOrganization />} />
             </Route>
             <Route path="/invite/accept" element={<InviteAccept />} />
-            <Route path="/invite/accept-new" element={<InviteAcceptPage />} />
+            <Route path="/invite/accept-new" element={<InviteAcceptRedirect />} />
             <Route path="/demo" element={<Demo />} />
             <Route path="/activity-logs" element={<ActivityLogs />} />
             <Route path="/admin" element={<AdminDashboard />} />

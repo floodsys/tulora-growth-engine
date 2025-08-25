@@ -641,7 +641,7 @@ export const InviteSystemTest = () => {
           <Shield className="h-4 w-4" />
           <AlertDescription>
             Comprehensive testing of invite creation, acceptance, revocation, and security controls.
-            Tests are org-scoped and never send real emails.
+            Tests are org-scoped and never send real emails. Use "Copy Invite Link" instead.
           </AlertDescription>
         </Alert>
 
@@ -763,15 +763,15 @@ export const InviteSystemTest = () => {
                       <Download className="h-4 w-4 mr-2" />
                       Export JSON
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => window.open(`/admin/logs/org/${currentRun.organizationId}?filter=test_invites&run_id=${currentRun.id}`, '_blank')}
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      View Audit Events
-                    </Button>
-                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => window.open(`/admin/logs/org/${currentRun.organizationId}?filter=test_invites&run_id=${currentRun.id}`, '_blank')}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View Audit Events
+                  </Button>
+                </div>
                 </div>
 
                 <div className="grid grid-cols-4 gap-4">
