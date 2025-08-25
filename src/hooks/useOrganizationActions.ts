@@ -58,7 +58,7 @@ export function useOrganizationActions(): UseOrganizationActionsReturn {
 
   return {
     isBlocked,
-    organizationStatus: organization?.suspension_status,
+    organizationStatus: organization?.status,
     checkActionAllowed,
     showBlockedModal,
   };

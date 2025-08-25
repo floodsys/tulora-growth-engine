@@ -45,7 +45,7 @@ interface Organization {
   owner_email?: string;
   plan_key: string;
   billing_status: string;
-  suspension_status: string;
+  status: string;
   suspension_reason?: string;
   created_at: string;
   member_count?: number;
@@ -90,7 +90,7 @@ export function OrganizationsDirectory() {
           owner_user_id,
           plan_key,
           billing_status,
-          suspension_status,
+          status,
           suspension_reason,
           created_at,
           trial_ends_at
@@ -169,7 +169,7 @@ export function OrganizationsDirectory() {
       const matchesPlan = filters.plan === 'all' || org.plan_key === filters.plan;
       const matchesStatus = filters.status === 'all' || 
         org.billing_status === filters.status ||
-        org.suspension_status === filters.status;
+        org.status === filters.status;
       
       const isOverLimit = filters.overLimit ? (org.active_seats || 0) > (org.seat_limit || 0) : true;
       
@@ -477,7 +477,7 @@ export function OrganizationsDirectory() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    {getStatusBadge(org.suspension_status || 'active', org.billing_status)}
+                     {getStatusBadge(org.status || 'active', org.billing_status)}
                   </TableCell>
                   <TableCell>${org.mrr || 0}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
@@ -498,7 +498,7 @@ export function OrganizationsDirectory() {
                         <DropdownMenuSeparator />
                         
                         {/* Suspension Actions */}
-                        {org.suspension_status === 'suspended' || org.suspension_status === 'canceled' ? (
+                        {org.status === 'suspended' || org.status === 'canceled' ? (
                           <DropdownMenuItem
                             onClick={() => {
                               setSelectedOrg(org);
@@ -595,7 +595,7 @@ export function OrganizationsDirectory() {
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-muted-foreground">Status:</span>
-                                    {getStatusBadge(org.suspension_status || 'active', org.billing_status)}
+                                    {getStatusBadge(org.status || 'active', org.billing_status)}
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-muted-foreground">Seats:</span>
@@ -613,7 +613,7 @@ export function OrganizationsDirectory() {
                               {/* Status Impact */}
                               <div>
                                 <h3 className="font-medium mb-3">Service Status Impact</h3>
-                                {org.suspension_status === 'suspended' ? (
+                                {org.status === 'suspended' ? (
                                   <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                                     <p className="text-sm text-yellow-800 mb-2">
                                       <strong>Service Suspended (HTTP 423)</strong>
@@ -628,7 +628,7 @@ export function OrganizationsDirectory() {
                                       Available: Billing, Settings (read-only), Support
                                     </p>
                                   </div>
-                                ) : org.suspension_status === 'canceled' ? (
+                                ) : org.status === 'canceled' ? (
                                   <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                                     <p className="text-sm text-red-800 mb-2">
                                       <strong>Service Canceled (HTTP 410)</strong>

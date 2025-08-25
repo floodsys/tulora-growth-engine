@@ -29,7 +29,7 @@ export function DashboardWithSuspensionCheck() {
       {/* Suspension Banner */}
       {organization && (
         <SuspensionBanner
-          suspensionStatus={organization.suspension_status}
+          suspensionStatus={organization.status}
           suspensionReason={organization.suspension_reason}
           suspendedAt={organization.suspended_at}
           canceledAt={organization.canceled_at}
@@ -133,7 +133,7 @@ export function DashboardWithSuspensionCheck() {
                   isSuspended,
                   isOwnerOrAdmin,
                   permissions,
-                  organizationStatus: organization?.suspension_status,
+                  organizationStatus: organization?.status,
                   userRole: userRole?.role
                 }, null, 2)}
               </pre>

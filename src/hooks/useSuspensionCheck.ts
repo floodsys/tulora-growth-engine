@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 interface Organization {
   id: string;
   name: string;
-  suspension_status?: string;
+  status?: string;
   suspension_reason?: string;
   suspended_at?: string;
   suspended_by?: string;
@@ -40,7 +40,7 @@ export function useSuspensionCheck() {
         .select(`
           id,
           name,
-          suspension_status,
+          status,
           suspension_reason,
           suspended_at,
           suspended_by,
@@ -74,7 +74,7 @@ export function useSuspensionCheck() {
           .select(`
             id,
             name,
-            suspension_status,
+            status,
             suspension_reason,
             suspended_at,
             suspended_by,
@@ -107,8 +107,8 @@ export function useSuspensionCheck() {
     }
   };
 
-  const isSuspended = organization?.suspension_status === 'suspended';
-  const isCanceled = organization?.suspension_status === 'canceled';
+  const isSuspended = organization?.status === 'suspended';
+  const isCanceled = organization?.status === 'canceled';
   const isBlocked = isSuspended || isCanceled;
   const isOwnerOrAdmin = userRole?.role === 'admin' || userRole?.role === 'owner';
 

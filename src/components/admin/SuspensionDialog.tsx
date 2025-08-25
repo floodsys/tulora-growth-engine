@@ -23,7 +23,7 @@ interface SuspensionDialogProps {
   organization: {
     id: string;
     name: string;
-    suspension_status?: string;
+    status?: string;
   };
   action?: 'suspend' | 'reinstate' | 'cancel';
   onSuccess?: () => void;
@@ -42,8 +42,8 @@ export function SuspensionDialog({
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const isSuspended = organization.suspension_status === 'suspended';
-  const isCanceled = organization.suspension_status === 'canceled';
+  const isSuspended = organization.status === 'suspended';
+  const isCanceled = organization.status === 'canceled';
   const currentAction = action || (isSuspended || isCanceled ? 'reinstate' : 'suspend');
   const expectedPhrase = `${currentAction.toUpperCase()} ORG ${organization.id}`;
 

@@ -14,10 +14,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserOrganization } from "@/hooks/useUserOrganization";
 import { useOrganizationRole, OrganizationRole } from "@/hooks/useOrganizationRole";
-import { Plus, Mail, Users, UserCheck, Clock, X, Copy, Ban, ArrowLeft, Trash2 } from "lucide-react";
+import { Plus, Mail, Users, UserCheck, Clock, X, Copy, Ban, ArrowLeft, Trash2, Crown } from "lucide-react";
 import { useFreePlanLimits } from "@/hooks/useFreePlanLimits";
 import { UpgradeModal } from "@/components/ui/UpgradeModal";
 import { createInviteWithLimits } from "@/lib/freePlanUtils";
+import { useOwnerInfo } from "@/hooks/useOwnerInfo";
+import { TransferOwnershipDialog } from "@/components/ui/TransferOwnershipDialog";
 
 interface TeamMember {
   id: string;
@@ -57,10 +59,12 @@ export default function SettingsTeams() {
   const [emailError, setEmailError] = useState('');
   const [inviting, setInviting] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [transferOwnershipOpen, setTransferOwnershipOpen] = useState(false);
 
-  const { organizationId, isOwner, loading: orgLoading } = useUserOrganization();
+  const { organizationId, isOwner: isOrgOwner, loading: orgLoading } = useUserOrganization();
   const { isAdmin, loading: roleLoading } = useOrganizationRole(organizationId || undefined);
   const { canAddTeamMember, hasPendingBilling } = useFreePlanLimits();
+  const { isCurrentUserOwner, organizationOwnerId } = useOwnerInfo();
 
   useEffect(() => {
     if (!orgLoading && !roleLoading && organizationId) {
@@ -299,7 +303,12 @@ export default function SettingsTeams() {
     return role.charAt(0).toUpperCase() + role.slice(1);
   };
 
-  const getRoleBadgeVariant = (role: OrganizationRole) => {
+  const isOwnerMember = (member: TeamMember) => {
+    return member.user_id === organizationOwnerId;
+  };
+
+  const getRoleBadgeVariant = (role: OrganizationRole, isOwnerMember: boolean) => {
+    if (isOwnerMember) return 'default';
     switch (role) {
       case 'admin': return 'default';
       case 'editor': return 'secondary';
@@ -480,7 +489,7 @@ export default function SettingsTeams() {
                     <TableRow key={invite.id}>
                       <TableCell className="font-medium">{invite.email}</TableCell>
                       <TableCell>
-                        <Badge variant={getRoleBadgeVariant(invite.role)}>
+                        <Badge variant={getRoleBadgeVariant(invite.role, false)}>
                           {formatRole(invite.role)}
                         </Badge>
                       </TableCell>
@@ -550,56 +559,85 @@ export default function SettingsTeams() {
                         </div>
                       </div>
                     </TableCell>
+                      <TableCell>
+                        {isOwnerMember(member) ? (
+                          <Badge variant="default" className="bg-primary">
+                            <Crown className="h-3 w-3 mr-1" />
+                            Owner
+                          </Badge>
+                        ) : (
+                          <Badge variant={getRoleBadgeVariant(member.role, false)}>
+                            {formatRole(member.role)}
+                          </Badge>
+                        )}
+                      </TableCell>
                      <TableCell>
-                       <Select
-                         value={member.role}
-                         onValueChange={(value) => updateMemberRole(member.id, value as OrganizationRole)}
-                         disabled={member.user_id === user?.id} // Can't change own role
-                       >
-                         <SelectTrigger className="w-32">
-                           <SelectValue />
-                         </SelectTrigger>
-                         <SelectContent>
-                           <SelectItem value="admin">Admin</SelectItem>
-                           <SelectItem value="editor">Editor</SelectItem>
-                           <SelectItem value="viewer">Viewer</SelectItem>
-                           <SelectItem value="user">User</SelectItem>
-                         </SelectContent>
-                       </Select>
+                       {new Date(member.created_at).toLocaleDateString()}
                      </TableCell>
-                    <TableCell>
-                      {new Date(member.created_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={member.seat_active ? 'default' : 'secondary'}>
-                        {member.seat_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </TableCell>
                      <TableCell>
-                       {member.user_id !== user?.id && (
-                         <AlertDialog>
-                           <AlertDialogTrigger asChild>
-                             <Button variant="outline" size="sm">
-                               <Trash2 className="h-4 w-4" />
-                             </Button>
-                           </AlertDialogTrigger>
-                           <AlertDialogContent>
-                             <AlertDialogHeader>
-                               <AlertDialogTitle>Remove Member</AlertDialogTitle>
-                               <AlertDialogDescription>
-                                 Are you sure you want to remove {member.profiles?.full_name || member.profiles?.email} from the team? This action cannot be undone.
-                               </AlertDialogDescription>
-                             </AlertDialogHeader>
-                             <AlertDialogFooter>
-                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                               <AlertDialogAction onClick={() => removeMember(member.id)}>
-                                 Remove
-                               </AlertDialogAction>
-                             </AlertDialogFooter>
-                           </AlertDialogContent>
-                         </AlertDialog>
-                       )}
+                       <Badge variant={member.seat_active ? 'default' : 'secondary'}>
+                         {member.seat_active ? 'Active' : 'Inactive'}
+                       </Badge>
                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {!isOwnerMember(member) && (isOrgOwner || isAdmin) && (
+                            <>
+                              <Select
+                                value={member.role}
+                                onValueChange={(value) => updateMemberRole(member.id, value as OrganizationRole)}
+                              >
+                                <SelectTrigger className="w-24">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                  <SelectItem value="editor">Editor</SelectItem>
+                                  <SelectItem value="viewer">Viewer</SelectItem>
+                                  <SelectItem value="user">User</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="outline" size="sm">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Remove Team Member</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to remove {member.profiles?.full_name || member.profiles?.email} from the team? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => removeMember(member.id)}>
+                                      Remove
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </>
+                          )}
+                          
+                          {isOwnerMember(member) && isCurrentUserOwner && (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setTransferOwnershipOpen(true)}
+                            >
+                              <Crown className="h-4 w-4 mr-1" />
+                              Transfer Ownership
+                            </Button>
+                          )}
+                          
+                          {isOwnerMember(member) && !isCurrentUserOwner && (
+                            <span className="text-xs text-muted-foreground">Protected</span>
+                          )}
+                        </div>
+                      </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -613,6 +651,15 @@ export default function SettingsTeams() {
         onOpenChange={setUpgradeModalOpen}
         limitType="team_cap"
         hasPendingBilling={hasPendingBilling}
+      />
+      
+      <TransferOwnershipDialog
+        open={transferOwnershipOpen}
+        onOpenChange={setTransferOwnershipOpen}
+        organizationId={organizationId!}
+        organizationName="Current Organization" // You might want to get this from organization data
+        availableMembers={members.filter(m => !isOwnerMember(m))}
+        onTransferComplete={fetchTeamData}
       />
     </div>
   );
