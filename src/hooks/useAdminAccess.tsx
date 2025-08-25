@@ -20,16 +20,30 @@ export function useAdminAccess() {
       setIsChecking(true);
       
       try {
-        // Check if user is authenticated
-        const { data: { user } } = await supabase.auth.getUser();
+        // Wait for session to be fully ready (not just user)
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        if (!user) {
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          navigate('/auth');
+          return;
+        }
+        
+        if (!session?.user) {
           await logUnauthorizedAccess('admin_dashboard_access', 'admin_panel', null);
           navigate('/auth');
           return;
         }
 
+        // Ensure session has access_token before making RPC call
+        if (!session.access_token) {
+          console.warn('Session missing access token, redirecting to auth');
+          navigate('/auth');
+          return;
+        }
+
         // Source of truth = DB RPC (public.superadmins + GUC fallback inside is_superadmin)
+        // This RPC call will now have the proper Authorization header
         const { data: isSuperadmin, error: rpcError } = await supabase.rpc('is_superadmin');
         
         if (rpcError) {
@@ -40,7 +54,7 @@ export function useAdminAccess() {
         const userHasAccess = isSuperadmin || false;
 
         if (!userHasAccess) {
-          await logUnauthorizedAccess('admin_dashboard_access', 'admin_panel', user.id, organization?.id);
+          await logUnauthorizedAccess('admin_dashboard_access', 'admin_panel', session.user.id, organization?.id);
           toast({
             title: 'Access Denied',
             description: 'Superadmin privileges required. Access denied by database authorization.',
