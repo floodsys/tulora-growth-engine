@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserOrganization } from "@/hooks/useUserOrganization";
 import { useOrganizationRole, OrganizationRole } from "@/hooks/useOrganizationRole";
-import { Plus, Mail, Users, UserCheck, Clock, X, Copy, Ban, Shield, ArrowLeft, Trash2 } from "lucide-react";
+import { Plus, Mail, Users, UserCheck, Clock, X, Copy, Ban, ArrowLeft, Trash2 } from "lucide-react";
 
 interface TeamMember {
   id: string;
@@ -55,23 +55,13 @@ export default function SettingsTeams() {
   const [inviting, setInviting] = useState(false);
 
   const { organizationId, isOwner, loading: orgLoading } = useUserOrganization();
-  const { isAdmin, isEditor, isViewer, loading: roleLoading } = useOrganizationRole(organizationId || undefined);
-
-  // Determine access levels
-  const canManageTeam = isOwner || isAdmin;
-  const hasTeamAccess = canManageTeam || isEditor || isViewer;
+  const { isAdmin, loading: roleLoading } = useOrganizationRole(organizationId || undefined);
 
   useEffect(() => {
-    // Redirect users without team access
-    if (!orgLoading && !roleLoading && !hasTeamAccess) {
-      navigate('/dashboard');
-      return;
-    }
-
-    if (!orgLoading && !roleLoading && hasTeamAccess && organizationId) {
+    if (!orgLoading && !roleLoading && organizationId) {
       fetchTeamData();
     }
-  }, [hasTeamAccess, canManageTeam, roleLoading, orgLoading, organizationId, navigate]);
+  }, [roleLoading, orgLoading, organizationId]);
 
   const fetchTeamData = async () => {
     if (!organizationId) return;
@@ -316,28 +306,6 @@ export default function SettingsTeams() {
     );
   }
 
-  if (!hasTeamAccess) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-muted-foreground" />
-              Access Restricted
-            </CardTitle>
-            <CardDescription>
-              You need team access permissions to view team management.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Contact your organization admin to access team settings.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   const totalMembers = members.length;
   const activeSeats = members.filter(m => m.seat_active).length;
@@ -352,10 +320,7 @@ export default function SettingsTeams() {
           Team Management
         </h1>
         <p className="text-muted-foreground mt-2">
-          {canManageTeam 
-            ? "Manage your team members, roles, and permissions"
-            : "View team members and their roles (read-only access)"
-          }
+          Manage your team members, roles, and permissions
         </p>
       </div>
 
@@ -396,9 +361,8 @@ export default function SettingsTeams() {
         </Card>
       </div>
 
-      {/* Invite Form - Only show for admins/owners */}
-      {canManageTeam && (
-        <Card>
+      {/* Invite Form */}
+      <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Mail className="h-5 w-5" />
@@ -464,10 +428,9 @@ export default function SettingsTeams() {
             </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* Pending Invitations - Only show for admins/owners */}
-      {canManageTeam && invites.filter(i => i.status === 'pending').length > 0 && (
+      {/* Pending Invitations */}
+      {invites.filter(i => i.status === 'pending').length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Pending Invitations</CardTitle>
@@ -534,10 +497,7 @@ export default function SettingsTeams() {
         <CardHeader>
           <CardTitle>Team Members</CardTitle>
           <CardDescription>
-            {canManageTeam 
-              ? "Manage roles and permissions for your team members"
-              : "View team members and their roles"
-            }
+            Manage roles and permissions for your team members
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -565,29 +525,23 @@ export default function SettingsTeams() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      {canManageTeam ? (
-                        <Select
-                          value={member.role}
-                          onValueChange={(value) => updateMemberRole(member.id, value as OrganizationRole)}
-                          disabled={member.user_id === user?.id} // Can't change own role
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="editor">Editor</SelectItem>
-                            <SelectItem value="viewer">Viewer</SelectItem>
-                            <SelectItem value="user">User</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Badge variant={getRoleBadgeVariant(member.role)}>
-                          {formatRole(member.role)}
-                        </Badge>
-                      )}
-                    </TableCell>
+                     <TableCell>
+                       <Select
+                         value={member.role}
+                         onValueChange={(value) => updateMemberRole(member.id, value as OrganizationRole)}
+                         disabled={member.user_id === user?.id} // Can't change own role
+                       >
+                         <SelectTrigger className="w-32">
+                           <SelectValue />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="admin">Admin</SelectItem>
+                           <SelectItem value="editor">Editor</SelectItem>
+                           <SelectItem value="viewer">Viewer</SelectItem>
+                           <SelectItem value="user">User</SelectItem>
+                         </SelectContent>
+                       </Select>
+                     </TableCell>
                     <TableCell>
                       {new Date(member.created_at).toLocaleDateString()}
                     </TableCell>
@@ -596,34 +550,31 @@ export default function SettingsTeams() {
                         {member.seat_active ? 'Active' : 'Inactive'}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      {canManageTeam && member.user_id !== user?.id && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Remove Member</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to remove {member.profiles?.full_name || member.profiles?.email} from the team? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => removeMember(member.id)}>
-                                Remove
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                      {!canManageTeam && (
-                        <span className="text-xs text-muted-foreground">Read-only</span>
-                      )}
-                    </TableCell>
+                     <TableCell>
+                       {member.user_id !== user?.id && (
+                         <AlertDialog>
+                           <AlertDialogTrigger asChild>
+                             <Button variant="outline" size="sm">
+                               <Trash2 className="h-4 w-4" />
+                             </Button>
+                           </AlertDialogTrigger>
+                           <AlertDialogContent>
+                             <AlertDialogHeader>
+                               <AlertDialogTitle>Remove Member</AlertDialogTitle>
+                               <AlertDialogDescription>
+                                 Are you sure you want to remove {member.profiles?.full_name || member.profiles?.email} from the team? This action cannot be undone.
+                               </AlertDialogDescription>
+                             </AlertDialogHeader>
+                             <AlertDialogFooter>
+                               <AlertDialogCancel>Cancel</AlertDialogCancel>
+                               <AlertDialogAction onClick={() => removeMember(member.id)}>
+                                 Remove
+                               </AlertDialogAction>
+                             </AlertDialogFooter>
+                           </AlertDialogContent>
+                         </AlertDialog>
+                       )}
+                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

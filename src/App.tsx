@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AdminSecurityWrapper } from "@/components/AdminSecurityWrapper";
+import { HelmetProvider } from "react-helmet-async";
 import { InviteAcceptRedirect } from "@/components/InviteAcceptRedirect";
 import Index from "@/pages/Index";
 import Dashboard from "@/pages/Dashboard";
@@ -13,6 +14,7 @@ import AgentSettings from "@/pages/AgentSettings";
 import InviteAccept from "@/pages/InviteAccept";
 import Demo from "@/pages/Demo";
 import SettingsLayout from "@/pages/SettingsLayout";
+import { TeamAccessGuard } from "@/components/guards/TeamAccessGuard";
 
 import SettingsTeams from "@/pages/SettingsTeams";
 import SettingsOrganization from "@/pages/SettingsOrganization";
@@ -25,9 +27,10 @@ import AdminAccessDenied from "@/pages/AdminAccessDenied";
 
 function App() {
   return (
-    <AuthProvider>
-      <TooltipProvider>
-        <Router>
+    <HelmetProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Router>
           <AdminSecurityWrapper>
             <Routes>
             <Route path="/" element={<Index />} />
@@ -37,7 +40,7 @@ function App() {
             <Route path="/agent-settings" element={<AgentSettings />} />
             <Route path="/settings" element={<SettingsLayout />}>
               
-              <Route path="teams" element={<SettingsTeams />} />
+              <Route path="teams" element={<TeamAccessGuard><SettingsTeams /></TeamAccessGuard>} />
               <Route path="organization" element={<SettingsOrganization />} />
             </Route>
             <Route path="/invite/accept" element={<InviteAccept />} />
@@ -56,6 +59,7 @@ function App() {
         </Router>
       </TooltipProvider>
     </AuthProvider>
+    </HelmetProvider>
   );
 }
 
