@@ -8,10 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useUserOrganization } from "@/hooks/useUserOrganization";
 import { useOrganizationRole } from "@/hooks/useOrganizationRole";
-import { Building2, Shield, Activity, Users } from "lucide-react";
+import { Building2, Shield, Activity, Users, FileText } from "lucide-react";
 import { OrganizationActivityViewer } from "@/components/OrganizationActivityViewer";
 import { RetentionSettings } from "@/components/RetentionSettings";
 import SettingsTeams from "@/pages/SettingsTeams";
+import { AdminLogsViewer } from "@/components/admin/AdminLogsViewer";
 
 export default function SettingsOrganization() {
   const { toast } = useToast();
@@ -84,7 +85,7 @@ export default function SettingsOrganization() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="general" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             General
@@ -97,6 +98,12 @@ export default function SettingsOrganization() {
             <Activity className="h-4 w-4" />
             Activity
           </TabsTrigger>
+          {isOwner && (
+            <TabsTrigger value="logs" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Admin Logs
+            </TabsTrigger>
+          )}
           <TabsTrigger value="privacy" className="flex items-center gap-2" disabled={!isOwner}>
             <Shield className="h-4 w-4" />
             Privacy
@@ -211,6 +218,12 @@ export default function SettingsOrganization() {
         <TabsContent value="activity" className="space-y-6">
           <OrganizationActivityViewer />
         </TabsContent>
+
+        {isOwner && (
+          <TabsContent value="logs" className="space-y-6">
+            <AdminLogsViewer />
+          </TabsContent>
+        )}
 
         <TabsContent value="privacy" className="space-y-6">
           {isOwner && organization && (

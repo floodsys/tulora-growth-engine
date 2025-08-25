@@ -90,15 +90,6 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
             <User className="mr-2 h-4 w-4" />
             <span>Profile Settings</span>
           </DropdownMenuItem>
-          {isOwner && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/admin/logs')}>
-                <Settings className="mr-2 h-4 w-4" />
-                Admin Logs
-              </DropdownMenuItem>
-            </>
-          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem 
             onClick={handleSignOut}
