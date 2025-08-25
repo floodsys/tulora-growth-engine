@@ -8,6 +8,7 @@ import { MFASetup } from '@/components/admin/MFASetup';
 import { MFAVerification } from '@/components/admin/MFAVerification';
 import { AdminSessionExpiredModal } from '@/components/admin/AdminSessionExpiredModal';
 import { AdminModeChip } from '@/components/ui/AdminModeChip';
+import { BUILD_ID } from '@/lib/build-info';
 import { getEnvironmentConfig } from '@/lib/environment';
 import { 
   Search, 
@@ -349,6 +350,23 @@ export default function AdminDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Admin Footer with Build ID */}
+      <footer className="border-t bg-card mt-8">
+        <div className="container mx-auto px-6 py-3">
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="flex items-center space-x-4">
+              <span>Admin Dashboard</span>
+              <span>•</span>
+              <span>Build ID: <code className="bg-muted px-1 rounded text-xs">{BUILD_ID}</code></span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Shield className="h-3 w-3" />
+              <span>Superadmin Mode Active</span>
+            </div>
+          </div>
+        </div>
+      </footer>
 
       {/* Admin Session Expired Modal */}
       <AdminSessionExpiredModal

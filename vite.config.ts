@@ -5,6 +5,12 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    // Generate BUILD_ID at build time
+    'import.meta.env.VITE_BUILD_ID': JSON.stringify(
+      process.env.VITE_BUILD_ID || `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    ),
+  },
   server: {
     host: "::",
     port: 8080,

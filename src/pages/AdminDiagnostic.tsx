@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { RefreshCw, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { BUILD_ID, clearAllCaches, forceReload, getBuildInfo, type CacheClearResult } from '@/lib/build-info';
 
 interface DiagnosticData {
   authUid: string | null;
@@ -38,6 +39,8 @@ export default function AdminDiagnostic() {
   const [apiProbeResults, setApiProbeResults] = useState<ApiProbeResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isProbing, setIsProbing] = useState(false);
+  const [isCacheClearing, setIsCacheClearing] = useState(false);
+  const [cacheResult, setCacheResult] = useState<CacheClearResult | null>(null);
 
   const runDiagnostics = async () => {
     setIsLoading(true);
@@ -143,6 +146,39 @@ export default function AdminDiagnostic() {
     setIsProbing(false);
   };
 
+  const handleCacheClear = async () => {
+    setIsCacheClearing(true);
+    setCacheResult(null);
+    
+    try {
+      const result = await clearAllCaches();
+      setCacheResult(result);
+      
+      if (result.success) {
+        // Show success message and prompt reload
+        setTimeout(() => {
+          if (confirm(
+            `Cache cleared successfully!\n\n` +
+            `Service Workers: ${result.serviceWorkersCleared} unregistered\n` +
+            `Caches: ${result.cachesCleared.length} cleared\n\n` +
+            `Click OK to reload and load fresh code.`
+          )) {
+            forceReload();
+          }
+        }, 500);
+      }
+    } catch (error) {
+      setCacheResult({
+        serviceWorkersCleared: 0,
+        cachesCleared: [],
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    } finally {
+      setIsCacheClearing(false);
+    }
+  };
+
   const handleRecheck = async () => {
     await runDiagnostics();
     await runApiProbes();
@@ -169,12 +205,24 @@ export default function AdminDiagnostic() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Admin Diagnostic</h1>
-            <p className="text-muted-foreground">Diagnosing superadmin authorization flow</p>
+            <p className="text-muted-foreground">
+              Diagnosing superadmin authorization flow • Build ID: <code className="bg-muted px-1 rounded text-sm">{BUILD_ID}</code>
+            </p>
           </div>
-          <Button onClick={handleRecheck} disabled={isLoading || isProbing}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${(isLoading || isProbing) ? 'animate-spin' : ''}`} />
-            Re-check All
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleRecheck} disabled={isLoading || isProbing}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${(isLoading || isProbing) ? 'animate-spin' : ''}`} />
+              Re-check All
+            </Button>
+            <Button 
+              onClick={handleCacheClear} 
+              disabled={isCacheClearing}
+              variant="outline"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isCacheClearing ? 'animate-spin' : ''}`} />
+              Hard Refresh Cache
+            </Button>
+          </div>
         </div>
 
         {diagnosticData.error && (
@@ -213,7 +261,26 @@ export default function AdminDiagnostic() {
                 <code className="text-sm bg-muted px-2 py-1 rounded">
                   {diagnosticData.authEmail || 'Not available'}
                 </code>
-              </div>
+        </div>
+
+        {cacheResult && (
+          <Alert variant={cacheResult.success ? "default" : "destructive"}>
+            <RefreshCw className="h-4 w-4" />
+            <AlertDescription>
+              {cacheResult.success ? (
+                <>
+                  <strong>Cache cleared successfully!</strong><br />
+                  Service Workers: {cacheResult.serviceWorkersCleared} unregistered<br />
+                  Caches: {cacheResult.cachesCleared.length} cleared ({cacheResult.cachesCleared.join(', ')})
+                </>
+              ) : (
+                <>
+                  <strong>Cache clear failed:</strong> {cacheResult.error}
+                </>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
             </CardContent>
           </Card>
 
@@ -384,6 +451,36 @@ export default function AdminDiagnostic() {
                 <RefreshCw className={`h-4 w-4 mr-2 ${isProbing ? 'animate-spin' : ''}`} />
                 Re-probe APIs
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Build Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex justify-between">
+              <span className="font-medium">Build ID:</span>
+              <code className="text-sm bg-muted px-2 py-1 rounded">{BUILD_ID}</code>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">User Agent:</span>
+              <code className="text-sm bg-muted px-2 py-1 rounded max-w-xs truncate">
+                {navigator.userAgent}
+              </code>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">Cache API Support:</span>
+              <Badge variant={('caches' in window) ? "default" : "secondary"}>
+                {('caches' in window) ? 'Available' : 'Not Available'}
+              </Badge>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">Service Worker Support:</span>
+              <Badge variant={('serviceWorker' in navigator) ? "default" : "secondary"}>
+                {('serviceWorker' in navigator) ? 'Available' : 'Not Available'}
+              </Badge>
             </div>
           </CardContent>
         </Card>
