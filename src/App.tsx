@@ -16,8 +16,7 @@ import Demo from "@/pages/Demo";
 import SettingsLayout from "@/pages/SettingsLayout";
 import { TeamAccessGuard } from "@/components/guards/TeamAccessGuard";
 
-import SettingsTeams from "@/pages/SettingsTeams";
-import SettingsOrganization from "@/pages/SettingsOrganization";
+import SettingsUnified from "@/pages/SettingsUnified";
 import ActivityLogs from "@/pages/ActivityLogs";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AdminSetup from "@/pages/AdminSetup";
@@ -40,8 +39,7 @@ function App() {
             <Route path="/agent-settings" element={<AgentSettings />} />
             <Route path="/settings" element={<SettingsLayout />}>
               
-              <Route path="teams" element={<TeamAccessGuard><SettingsTeams /></TeamAccessGuard>} />
-              <Route path="organization" element={<SettingsOrganization />} />
+              <Route path="teams-org" element={<SettingsUnified />} />
             </Route>
             <Route path="/invite/accept" element={<InviteAccept />} />
             <Route path="/invite/accept-new" element={<InviteAcceptRedirect />} />
