@@ -76,7 +76,7 @@ interface StripeSmokeTestResult {
   };
 }
 
-export default function AdminDiagnostic() {
+function AdminDiagnostic() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [diagnosticData, setDiagnosticData] = useState<DiagnosticData>({
@@ -107,10 +107,12 @@ export default function AdminDiagnostic() {
       superadminPass: number;
       nonSuperadminCorrect403: number;
       total: number;
-      unexpected: ApiProbeResult[];
+      unexpected: (ApiProbeResult & { context: string })[];
     };
   } | null>(null);
   const [isDualRoleProbing, setIsDualRoleProbing] = useState(false);
+
+  const checkSecrets = async () => {
     try {
       setIsCheckingSecrets(true);
       const { data, error } = await supabase.functions.invoke('check-secrets');
