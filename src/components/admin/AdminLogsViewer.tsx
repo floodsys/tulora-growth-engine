@@ -395,14 +395,14 @@ export function AdminLogsViewer() {
             <div>
               <Label htmlFor="organization">Organization</Label>
               <Select
-                value={filters.organization_id || ''}
-                onValueChange={(value) => setFilters(prev => ({ ...prev, organization_id: value || undefined }))}
+                value={filters.organization_id || 'all'}
+                onValueChange={(value) => setFilters(prev => ({ ...prev, organization_id: value === 'all' ? undefined : value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All organizations" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All organizations</SelectItem>
+                  <SelectItem value="all">All organizations</SelectItem>
                   {organizations.map(org => (
                     <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
                   ))}
@@ -412,14 +412,14 @@ export function AdminLogsViewer() {
             <div>
               <Label htmlFor="status">Status</Label>
               <Select
-                value={filters.status || ''}
-                onValueChange={(value) => setFilters(prev => ({ ...prev, status: value || undefined }))}
+                value={filters.status || 'all'}
+                onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === 'all' ? undefined : value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All statuses</SelectItem>
+                  <SelectItem value="all">All statuses</SelectItem>
                   <SelectItem value="success">Success</SelectItem>
                   <SelectItem value="error">Error</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
@@ -430,14 +430,14 @@ export function AdminLogsViewer() {
             <div>
               <Label htmlFor="target_type">Target Type</Label>
               <Select
-                value={filters.target_type || ''}
-                onValueChange={(value) => setFilters(prev => ({ ...prev, target_type: value || undefined }))}
+                value={filters.target_type || 'all'}
+                onValueChange={(value) => setFilters(prev => ({ ...prev, target_type: value === 'all' ? undefined : value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All types</SelectItem>
+                  <SelectItem value="all">All types</SelectItem>
                   <SelectItem value="organization">Organization</SelectItem>
                   <SelectItem value="member">Member</SelectItem>
                   <SelectItem value="agent">Agent</SelectItem>
