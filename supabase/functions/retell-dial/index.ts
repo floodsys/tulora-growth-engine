@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
+import { requireOrgActive, createBlockedResponse } from '../_shared/org-guard.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,6 +43,51 @@ serve(async (req) => {
     const { agentId, phoneNumber, agentProfileId }: DialRequest = await req.json()
     
     console.log('Dialing with agent:', agentId, 'to:', phoneNumber)
+
+    // Get authenticated user first
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { 
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    // Get user's organization to check status
+    const { data: membership } = await supabase
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .eq('seat_active', true)
+      .single()
+
+    if (!membership) {
+      return new Response(
+        JSON.stringify({ error: 'No active organization membership found' }),
+        { 
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    // Check organization status with guard
+    const guardResult = await requireOrgActive({
+      organizationId: membership.organization_id,
+      action: 'retell.dial',
+      path: '/retell-dial',
+      method: req.method,
+      actorUserId: user.id,
+      ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
+      supabase
+    })
+
+    if (!guardResult.ok) {
+      return createBlockedResponse(guardResult, corsHeaders)
+    }
 
     // Validate inputs
     if (!agentId || !phoneNumber) {
@@ -111,44 +157,24 @@ serve(async (req) => {
     const callData = await retellResponse.json()
     console.log('Call initiated:', callData.call_id)
 
-    // Get user's organization
-    const { data: userProfile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', (await supabase.auth.getUser()).data.user?.id)
-      .single()
-
-    if (profileError) {
-      console.error('Error fetching user profile:', profileError)
-    }
-
-    // Get user's organization via memberships
-    const { data: membership } = await supabase
-      .from('memberships')
-      .select('organization_id')
-      .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-      .eq('status', 'active')
-      .single()
-
-    if (membership) {
-      // Save call record to database
-      const { error: callError } = await supabase
-        .from('calls')
-        .insert({
-          id: callData.call_id,
-          organization_id: membership.organization_id,
+    // Save call record to database
+    const { error: callError } = await supabase
+      .from('calls')
+      .insert({
+        id: callData.call_id,
+        organization_id: membership.organization_id,
+        agent_name: agentId,
+        phone_number: phoneNumber,
+        status: 'scheduled',
+        metadata: {
+          retell_agent_id: agentId,
           agent_profile_id: agentProfileId,
-          phone_number: phoneNumber,
-          status: 'scheduled',
-          metadata: {
-            retell_agent_id: agentId,
-            test_call: true
-          }
-        })
+          initiated_by: user.id
+        }
+      })
 
-      if (callError) {
-        console.error('Error saving call record:', callError)
-      }
+    if (callError) {
+      console.error('Error saving call record:', callError)
     }
 
     return new Response(

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
+import { requireOrgActive, createBlockedResponse } from '../_shared/org-guard.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,6 +52,23 @@ Deno.serve(async (req) => {
 
     const body: OrgSettingsRequest = await req.json();
     const { organizationId, updates } = body;
+
+    // Check organization status with guard (read-only settings for read operations, but block updates)
+    if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+      const guardResult = await requireOrgActive({
+        organizationId,
+        action: 'org.settings_update',
+        path: '/org-settings',
+        method: req.method,
+        actorUserId: user.id,
+        ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
+        supabase
+      })
+
+      if (!guardResult.ok) {
+        return createBlockedResponse(guardResult, corsHeaders)
+      }
+    }
 
     // Get current organization settings for diff
     const { data: currentOrg, error: fetchError } = await supabase

@@ -230,6 +230,34 @@ export function SuspensionSystemTest() {
       return result;
     });
 
+    // Test member management
+    await runTest('Block Member Management', 'API Blocking', async () => {
+      const result = await testEdgeFunction('member-management', {
+        organizationId: orgId,
+        action: 'add',
+        userId: '00000000-0000-0000-0000-000000000001'
+      }, 423, 'ORG_SUSPENDED');
+      return result;
+    });
+
+    // Test org settings update
+    await runTest('Block Organization Settings', 'API Blocking', async () => {
+      const result = await testEdgeFunction('org-settings', {
+        organizationId: orgId,
+        updates: { name: 'Updated Name' }
+      }, 423, 'ORG_SUSPENDED');
+      return result;
+    });
+
+    // Test retell dial (voice session)
+    await runTest('Block Retell Voice Session', 'API Blocking', async () => {
+      const result = await testEdgeFunction('retell-dial', {
+        agentId: 'test_agent',
+        phoneNumber: '+1234567890'
+      }, 423, 'ORG_SUSPENDED');
+      return result;
+    });
+
     // === PHASE 3: VERIFY RLS BLOCKS DIRECT DB ACCESS ===
     
     await runTest('RLS Blocks Agent Profiles Insert', 'RLS Defense', async () => {

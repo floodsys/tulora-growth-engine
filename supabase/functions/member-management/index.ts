@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
+import { requireOrgActive, createBlockedResponse } from '../_shared/org-guard.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,6 +52,21 @@ Deno.serve(async (req) => {
 
     const body: MemberRequest = await req.json();
     const { action, organizationId, userId, newRole, oldRole } = body;
+
+    // Check organization status with guard
+    const guardResult = await requireOrgActive({
+      organizationId,
+      action: `member.${action}`,
+      path: '/member-management',
+      method: req.method,
+      actorUserId: user.id,
+      ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
+      supabase
+    })
+
+    if (!guardResult.ok) {
+      return createBlockedResponse(guardResult, corsHeaders)
+    }
 
     let result;
     let auditAction;
