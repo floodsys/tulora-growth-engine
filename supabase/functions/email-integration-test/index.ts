@@ -43,6 +43,20 @@ async function testResendConnectivity(): Promise<EmailTestResult> {
 
     if (!domainsResponse.ok) {
       const errorText = await domainsResponse.text();
+      
+      // Handle sending-only API keys (401 with restricted_api_key)
+      if (domainsResponse.status === 401 && errorText.includes('restricted_api_key')) {
+        return {
+          ok: true,
+          provider: 'resend',
+          status: 'Connected (Send-only)',
+          details: { 
+            key_type: 'sending_only',
+            note: 'API key has sending permissions but cannot list domains'
+          }
+        };
+      }
+      
       return {
         ok: false,
         provider: 'resend',
@@ -57,8 +71,9 @@ async function testResendConnectivity(): Promise<EmailTestResult> {
     return {
       ok: true,
       provider: 'resend',
-      status: 'Connected',
+      status: 'Connected (Full Access)',
       details: { 
+        key_type: 'full_access',
         domains_count: domains.data?.length || 0,
         verified_domains: domains.data?.filter((d: any) => d.status === 'verified').length || 0
       }
