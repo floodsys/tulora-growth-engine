@@ -795,7 +795,15 @@ export type Database = {
           trial_end?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_org_stripe_subscriptions_organization_id"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       org_subscriptions: {
         Row: {
@@ -847,6 +855,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_org_subscriptions_org_id"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "org_subscriptions_org_id_fkey"
             columns: ["org_id"]
