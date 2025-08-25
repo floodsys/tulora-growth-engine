@@ -113,7 +113,7 @@ export default function AdminDashboard() {
             </div>
             <CardTitle>Access Denied</CardTitle>
             <CardDescription>
-              You don't have permission to access the admin dashboard.
+              Superadmin privileges required. Access denied by database authorization.
             </CardDescription>
           </CardHeader>
         </Card>

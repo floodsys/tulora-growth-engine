@@ -63,7 +63,7 @@ export default function AdminAccessDenied() {
             <div className="space-y-2">
               <CardTitle className="text-xl font-semibold">Access Denied</CardTitle>
               <CardDescription>
-                You don't have permission to access the admin dashboard.
+                Superadmin privileges required. Access denied by database authorization.
               </CardDescription>
             </div>
           </CardHeader>
@@ -71,7 +71,7 @@ export default function AdminAccessDenied() {
             <Alert variant="destructive">
               <Shield className="h-4 w-4" />
               <AlertDescription>
-                <strong>403 Forbidden:</strong> Admin access requires superadmin privileges. This attempt has been logged for security purposes.
+                <strong>403 Forbidden:</strong> Superadmin privileges required. Access denied by database authorization. This attempt has been logged for security purposes.
               </AlertDescription>
             </Alert>
 

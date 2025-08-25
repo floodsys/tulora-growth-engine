@@ -44,8 +44,12 @@ serve(async (req) => {
     const user = userData.user;
     if (!user?.email) throw new Error("User not authenticated");
 
-    // TODO: Add proper admin role check
-    logStep("User authenticated", { userId: user.id, email: user.email });
+    // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.
+    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin');
+    if (superadminError || !isSuperadmin) {
+      throw new Error("Access denied: Superadmin privileges required");
+    }
+    logStep("Superadmin access verified", { userId: user.id, email: user.email });
 
     const body: OverviewRequest = await req.json();
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });

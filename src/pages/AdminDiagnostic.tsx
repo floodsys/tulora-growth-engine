@@ -59,7 +59,7 @@ export default function AdminDiagnostic() {
         authUid: currentUser?.id || null,
         authEmail: currentUser?.email || null,
         dbSuperadminCheck: dbCheck,
-        frontendEnv: import.meta.env.VITE_SUPERADMINS_EMAILS || null,
+        frontendEnv: import.meta.env.VITE_SUPERADMINS_EMAILS || null, // Cosmetic only - not used for auth
         finalGuardDecision: guardDecision,
         error
       });

@@ -42,7 +42,7 @@ export function useAdminAccess() {
           await logUnauthorizedAccess('admin_dashboard_access', 'admin_panel', user.id, organization?.id);
           toast({
             title: 'Access Denied',
-            description: 'You do not have permission to access the admin panel',
+            description: 'Superadmin privileges required. Access denied by database authorization.',
             variant: 'destructive'
           });
           navigate('/dashboard');
@@ -54,7 +54,7 @@ export function useAdminAccess() {
         console.error('Error checking admin access:', error);
         toast({
           title: 'Error',
-          description: 'Failed to verify admin access',
+          description: 'Failed to verify superadmin access via database',
           variant: 'destructive'
         });
         navigate('/dashboard');
@@ -90,7 +90,7 @@ export function useAdminAccess() {
         <Alert variant="destructive" className="max-w-md">
           <Shield className="h-4 w-4" />
           <AlertDescription>
-            Access denied. Only organization owners and superadmins can access the admin panel.
+            Superadmin privileges required. Access denied by database authorization.
             This attempt has been logged.
           </AlertDescription>
         </Alert>
