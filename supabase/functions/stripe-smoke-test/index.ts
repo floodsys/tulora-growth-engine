@@ -230,7 +230,116 @@ serve(async (req) => {
       });
     }
 
-    // Test 7: Check for common environment variables
+    // Test 7: Validate billing endpoints capabilities
+    try {
+      // Test creating a test customer for billing operations
+      const testCustomer = await stripe.customers.create({
+        email: 'test-smoke-test@example.com',
+        metadata: { test: 'smoke_test', created_at: new Date().toISOString() }
+      });
+
+      results.push({
+        test_name: "Customer Creation (Billing Foundation)",
+        status: "pass",
+        message: "Successfully created test customer for billing operations",
+        details: { customer_id: testCustomer.id }
+      });
+
+      // Test billing portal session creation (Portal endpoint validation)
+      try {
+        const portalSession = await stripe.billingPortal.sessions.create({
+          customer: testCustomer.id,
+          return_url: 'https://example.com/return'
+        });
+        results.push({
+          test_name: "Billing Portal Session Creation",
+          status: "pass",
+          message: "Portal endpoint ready - can create billing portal sessions",
+          details: { session_id: portalSession.id, url: portalSession.url.substring(0, 50) + '...' }
+        });
+      } catch (error) {
+        results.push({
+          test_name: "Billing Portal Session Creation",
+          status: "fail",
+          message: `Portal endpoint failing: ${error.message}`,
+          details: { error: error.message }
+        });
+      }
+
+      // Test subscription operations (Subscriptions/Sync/Cancel endpoint validation)
+      try {
+        const subscriptions = await stripe.subscriptions.list({
+          customer: testCustomer.id,
+          limit: 1
+        });
+        results.push({
+          test_name: "Subscription Operations",
+          status: "pass",
+          message: "Subscription endpoints ready - can list/manage subscriptions",
+          details: { subscriptions_accessible: true, customer_has_subscriptions: subscriptions.data.length > 0 }
+        });
+      } catch (error) {
+        results.push({
+          test_name: "Subscription Operations", 
+          status: "fail",
+          message: `Subscription endpoints failing: ${error.message}`,
+          details: { error: error.message }
+        });
+      }
+
+      // Clean up test customer
+      try {
+        await stripe.customers.del(testCustomer.id);
+      } catch (error) {
+        console.log('Warning: Could not clean up test customer:', error.message);
+      }
+
+    } catch (error) {
+      results.push({
+        test_name: "Billing Endpoints Validation",
+        status: "fail",
+        message: `Cannot validate billing endpoints: ${error.message}`,
+        details: { error: error.message }
+      });
+    }
+
+    // Test 8: Validate invoice operations
+    try {
+      const invoices = await stripe.invoices.list({ limit: 1 });
+      results.push({
+        test_name: "Invoice Operations",
+        status: "pass",
+        message: "Invoice endpoints ready - can list invoices",
+        details: { invoices_count: invoices.data.length }
+      });
+    } catch (error) {
+      results.push({
+        test_name: "Invoice Operations",
+        status: "fail",
+        message: `Invoice endpoints failing: ${error.message}`,
+        details: { error: error.message }
+      });
+    }
+
+    // Test 9: Validate webhook events access
+    try {
+      const events = await stripe.events.list({ limit: 1 });
+      results.push({
+        test_name: "Webhook Events Access",
+        status: "pass",
+        message: "Webhook endpoints ready - can access events",
+        details: { events_accessible: true, recent_events: events.data.length }
+      });
+    } catch (error) {
+      results.push({
+        test_name: "Webhook Events Access",
+        status: "fail",
+        message: `Webhook endpoints failing: ${error.message}`,
+        details: { error: error.message }
+      });
+    }
+
+    // Test 10: Check for common environment variables
     const stripeWebhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
     const stripePortalReturnUrl = Deno.env.get("STRIPE_PORTAL_RETURN_URL");
     

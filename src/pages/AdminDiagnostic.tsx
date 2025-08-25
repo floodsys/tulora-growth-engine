@@ -450,6 +450,29 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
     setExpandedRows(newExpanded);
   };
 
+  const getStripeValidationForEndpoint = (endpointName: string): string | null => {
+    if (!stripeResults) return null;
+    
+    // Map billing endpoints to Stripe test results
+    const endpointMapping: Record<string, string> = {
+      'Admin Billing Overview - Subscriptions': 'Subscription Operations',
+      'Admin Billing Overview - Invoices': 'Invoice Operations', 
+      'Admin Billing Overview - Webhooks': 'Webhook Events Access',
+      'Admin Billing Actions - Portal': 'Billing Portal Session Creation',
+      'Admin Billing Actions - Sync Subscription': 'Subscription Operations',
+      'Admin Billing Actions - Cancel Subscription': 'Subscription Operations'
+    };
+    
+    const stripeTestName = endpointMapping[endpointName];
+    if (!stripeTestName) return null;
+    
+    const stripeTest = stripeResults.results.find(test => test.test_name === stripeTestName);
+    if (!stripeTest) return null;
+    
+    const statusEmoji = stripeTest.status === 'pass' ? '✅' : stripeTest.status === 'fail' ? '❌' : '⚠️';
+    return `${statusEmoji} ${stripeTest.status}`;
+  };
+
   useEffect(() => {
     const initializeChecks = async () => {
       await runDiagnostics();
@@ -985,7 +1008,14 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
                             </Button>
                           </TableCell>
                           <TableCell className="font-medium text-sm">
-                            {result.name}
+                            <div className="space-y-1">
+                              <div>{result.name}</div>
+                              {getStripeValidationForEndpoint(result.name) && (
+                                <div className="text-xs text-muted-foreground">
+                                  Stripe: {getStripeValidationForEndpoint(result.name)}
+                                </div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Badge variant="secondary">{result.method}</Badge>
