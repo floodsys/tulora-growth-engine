@@ -262,8 +262,9 @@ export function OrganizationSettings() {
           {!isOwnerOrAdmin && (
             <div className="p-3 bg-muted/50 rounded-md">
               <p className="text-sm text-muted-foreground">
-                {isEditor ? "Editors have read-only access to organization profile. Contact an admin to make changes." 
-                          : "Only owners and admins can update organization profile."}
+                <strong>Admins only.</strong> {isEditor 
+                  ? "Editors have read-only access to the organization profile." 
+                  : "You have read-only access."}
               </p>
             </div>
           )}

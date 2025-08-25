@@ -3,6 +3,7 @@ import { ProfileUpdateTests } from "./ProfileUpdateTests"
 import { DemoArtifactLinter } from "./DemoArtifactLinter"
 import { OrganizationProfileTests } from "./OrganizationProfileTests"
 import { TeamsConsolidationTests } from "./TeamsConsolidationTests"
+import { HiddenTestsRunner } from "./HiddenTestsRunner"
 
 export function TestDashboard() {
   return (
@@ -17,6 +18,7 @@ export function TestDashboard() {
       <div className="grid gap-6">
         <OrganizationProfileTests />
         <TeamsConsolidationTests />
+        <HiddenTestsRunner />
         <OrgSwitcherTests />
         <ProfileUpdateTests />
         <DemoArtifactLinter />
