@@ -1,6 +1,7 @@
 import { OrgSwitcherTests } from "./OrgSwitcherTests"
 import { ProfileUpdateTests } from "./ProfileUpdateTests"
 import { DemoArtifactLinter } from "./DemoArtifactLinter"
+import { OrganizationProfileTests } from "./OrganizationProfileTests"
 import { TeamsConsolidationTests } from "./TeamsConsolidationTests"
 
 export function TestDashboard() {
@@ -14,6 +15,7 @@ export function TestDashboard() {
       </div>
 
       <div className="grid gap-6">
+        <OrganizationProfileTests />
         <TeamsConsolidationTests />
         <OrgSwitcherTests />
         <ProfileUpdateTests />
