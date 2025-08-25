@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
 import { useMFAVerification } from '@/hooks/useMFAVerification';
+import { useAdminSessionPolicy } from '@/hooks/useAdminSessionPolicy';
 import { MFASetup } from '@/components/admin/MFASetup';
 import { MFAVerification } from '@/components/admin/MFAVerification';
+import { AdminSessionExpiredModal } from '@/components/admin/AdminSessionExpiredModal';
 import { AdminModeChip } from '@/components/ui/AdminModeChip';
 import { getEnvironmentConfig } from '@/lib/environment';
 import { 
@@ -66,6 +68,7 @@ export default function AdminDashboard() {
   const { user, loading: authLoading } = useAuth();
   const { isSuperadmin, isLoading } = useSuperadmin();
   const mfaStatus = useMFAVerification(isSuperadmin);
+  const { sessionExpired, sessionAgeHours, maxAllowedHours, forceReLogin } = useAdminSessionPolicy();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,8 +81,9 @@ export default function AdminDashboard() {
       return;
     }
     
+    // Redirect non-superadmins to AdminAccessDenied instead of dashboard
     if (!isLoading && !isSuperadmin && user) {
-      navigate('/dashboard');
+      navigate('/admin/access-denied');
       return;
     }
   }, [user, isSuperadmin, isLoading, authLoading, navigate]);
@@ -329,6 +333,14 @@ export default function AdminDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Admin Session Expired Modal */}
+      <AdminSessionExpiredModal
+        isOpen={sessionExpired}
+        sessionAgeHours={sessionAgeHours}
+        maxAllowedHours={maxAllowedHours}
+        onForceReLogin={forceReLogin}
+      />
     </div>
   );
 }

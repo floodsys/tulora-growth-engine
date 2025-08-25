@@ -21,6 +21,7 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import AdminSetup from "@/pages/AdminSetup";
 import AdminInviteTests from "@/pages/AdminInviteTests";
 import AdminOrgLogs from "@/pages/AdminOrgLogs";
+import AdminAccessDenied from "@/pages/AdminAccessDenied";
 
 function App() {
   return (
@@ -44,6 +45,7 @@ function App() {
             <Route path="/demo" element={<Demo />} />
             <Route path="/activity-logs" element={<ActivityLogs />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/access-denied" element={<AdminAccessDenied />} />
             <Route path="/admin-setup" element={<AdminSetup />} />
             <Route path="/admin/logs/org/:orgId" element={<AdminOrgLogs />} />
             <Route path="/admin/tests/invites" element={<AdminInviteTests />} />
