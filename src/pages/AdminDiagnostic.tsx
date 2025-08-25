@@ -270,7 +270,6 @@ function AdminDiagnostic() {
       { name: 'Admin Billing Actions - Sync Subscription', method: 'POST', function: 'admin-billing-actions', body: { action: 'sync_subscription', subscription_id: 'test' } },
       { name: 'Admin Billing Actions - Cancel Subscription', method: 'POST', function: 'admin-billing-actions', body: { action: 'cancel_subscription', subscription_id: 'test' } },
       { name: 'Org Suspension - Suspend', method: 'POST', function: 'org-suspension', body: { action: 'suspend', org_id: 'test-org-id', reason: 'Test probe', confirmation_phrase: 'SUSPEND ORG test-org-id' } },
-      { name: 'Data Fixes', method: 'POST', function: 'admin-data-fixes', body: { action: 'test_probe' } },
       { name: 'Email Integration Test', method: 'POST', function: 'email-integration-test', body: {} },
     ];
 
