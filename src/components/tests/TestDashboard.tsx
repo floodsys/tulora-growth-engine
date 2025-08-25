@@ -1,6 +1,7 @@
 import { OrgSwitcherTests } from "./OrgSwitcherTests"
 import { ProfileUpdateTests } from "./ProfileUpdateTests"
 import { DemoArtifactLinter } from "./DemoArtifactLinter"
+import { TeamsConsolidationTests } from "./TeamsConsolidationTests"
 
 export function TestDashboard() {
   return (
@@ -8,11 +9,12 @@ export function TestDashboard() {
       <div>
         <h1 className="text-2xl font-semibold mb-2">Organization System Tests</h1>
         <p className="text-muted-foreground">
-          Testing free vs paid user behavior, profile updates, and demo artifact removal
+          Testing consolidation, routing, RBAC, UI invariants, and system integrity
         </p>
       </div>
 
       <div className="grid gap-6">
+        <TeamsConsolidationTests />
         <OrgSwitcherTests />
         <ProfileUpdateTests />
         <DemoArtifactLinter />
