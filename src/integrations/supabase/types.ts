@@ -1317,6 +1317,10 @@ export type Database = {
         Args: { org_id: string; user_id?: string }
         Returns: boolean
       }
+      check_superadmin_mfa_recent: {
+        Args: { user_id?: string }
+        Returns: boolean
+      }
       cleanup_expired_logs: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -1539,6 +1543,10 @@ export type Database = {
           p_target_type: string
         }
         Returns: string
+      }
+      log_mfa_required: {
+        Args: { p_action: string; p_resource: string }
+        Returns: undefined
       }
       log_test_outcome: {
         Args: {

@@ -70,6 +70,26 @@ const Auth = () => {
 
         if (error) throw error;
 
+        // Check if user is superadmin and needs MFA
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: isSuperadmin } = await supabase.rpc('is_superadmin');
+          
+          if (isSuperadmin) {
+            // Log superadmin login for audit
+            await supabase.functions.invoke('auth-logger', {
+              body: {
+                action: 'superadmin_login',
+                userId: user.id,
+                metadata: {
+                  email: user.email,
+                  timestamp: new Date().toISOString()
+                }
+              }
+            });
+          }
+        }
+
         toast({
           title: "Welcome back!",
           description: "You've been signed in successfully.",
