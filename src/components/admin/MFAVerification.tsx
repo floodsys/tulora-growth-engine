@@ -27,17 +27,42 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
 
   const initializeMFA = async () => {
     try {
+      // Ensure we're running on the client with a valid session
+      if (typeof window === 'undefined') {
+        console.warn('MFA initialization attempted on server-side');
+        return;
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: 'No Session',
+          description: 'Please log in first to set up MFA',
+          variant: 'destructive'
+        });
+        onCancel();
+        return;
+      }
+
       // Get user's MFA factors
       const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
-      if (factorsError) throw factorsError;
+      if (factorsError) {
+        toast({
+          title: 'MFA Access Error',
+          description: `Failed to check MFA factors: ${factorsError.message}`,
+          variant: 'destructive'
+        });
+        return;
+      }
 
       const totpFactor = factors.totp?.[0];
       if (!totpFactor) {
         toast({
-          title: 'No MFA Factor',
-          description: 'No TOTP factor found. Please set up MFA first.',
+          title: 'No MFA Factor Found',
+          description: 'No TOTP factor found. Please set up MFA first before accessing admin features.',
           variant: 'destructive'
         });
+        onCancel();
         return;
       }
 
@@ -47,13 +72,21 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
         factorId: totpFactor.id
       });
-      if (challengeError) throw challengeError;
+      
+      if (challengeError) {
+        toast({
+          title: 'Challenge Creation Failed',
+          description: `Failed to create MFA challenge: ${challengeError.message}`,
+          variant: 'destructive'
+        });
+        return;
+      }
 
       setChallengeId(challenge.id);
     } catch (error: any) {
       toast({
         title: 'MFA Initialization Failed',
-        description: error.message || 'Failed to initialize MFA',
+        description: error.message || 'Failed to initialize MFA verification',
         variant: 'destructive'
       });
     }
@@ -75,9 +108,11 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
     if (!factorId || !challengeId) {
       toast({
         title: 'Missing UUIDs',
-        description: 'Missing factor_id or challenge_id. Start a challenge first.',
+        description: 'Missing factor_id or challenge_id. Please refresh the page and try again.',
         variant: 'destructive'
       });
+      // Try to reinitialize
+      initializeMFA();
       return;
     }
 
@@ -89,7 +124,32 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
         challengeId: challengeId,
         code: cleanCode
       });
-      if (verifyError) throw verifyError;
+      
+      if (verifyError) {
+        // Handle specific error cases
+        if (verifyError.message?.includes('expired') || verifyError.message?.includes('invalid')) {
+          toast({
+            title: 'Challenge Expired or Invalid',
+            description: 'The verification challenge has expired. Creating a new challenge...',
+            variant: 'destructive'
+          });
+          // Create new challenge and retry
+          initializeMFA();
+          return;
+        }
+        
+        if (verifyError.message?.includes('code')) {
+          toast({
+            title: 'Invalid Code',
+            description: 'The verification code is incorrect. Please check your authenticator app and try again.',
+            variant: 'destructive'
+          });
+          setVerificationCode('');
+          return;
+        }
+        
+        throw verifyError;
+      }
 
       // Set MFA verification timestamp in localStorage (expires in 12 hours)
       const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).getTime();

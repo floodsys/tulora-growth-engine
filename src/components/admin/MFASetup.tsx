@@ -27,12 +27,33 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
   const startMFASetup = async () => {
     setIsLoading(true);
     try {
+      // Ensure we're running on the client with a valid session
+      if (typeof window === 'undefined') {
+        throw new Error('MFA setup must be completed on the client side');
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Please log in first to set up MFA');
+      }
+
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
         friendlyName: 'Superadmin TOTP'
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('already exists') || error.message?.includes('conflict')) {
+          toast({
+            title: 'MFA Already Configured',
+            description: 'TOTP factor already exists. You can proceed to verification.',
+            variant: 'default'
+          });
+          onSetupComplete();
+          return;
+        }
+        throw error;
+      }
 
       setQrCode(data.totp.qr_code);
       setSecret(data.totp.secret);
@@ -40,7 +61,7 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
       setStep('scan');
     } catch (error: any) {
       toast({
-        title: 'Error',
+        title: 'MFA Setup Error',
         description: error.message || 'Failed to start MFA setup',
         variant: 'destructive'
       });
@@ -96,9 +117,10 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
     if (!factorId || !challengeId) {
       toast({
         title: 'Missing UUIDs',
-        description: 'Missing factor_id or challenge_id. Please start a challenge first.',
+        description: 'Missing factor_id or challenge_id. Please restart MFA setup.',
         variant: 'destructive'
       });
+      setStep('start');
       return;
     }
 
@@ -110,7 +132,29 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
         code: cleanCode
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('expired') || error.message?.includes('invalid')) {
+          toast({
+            title: 'Challenge Expired',
+            description: 'The verification challenge has expired. Please create a new challenge.',
+            variant: 'destructive'
+          });
+          setStep('scan');
+          return;
+        }
+        
+        if (error.message?.includes('code')) {
+          toast({
+            title: 'Invalid Code',
+            description: 'The verification code is incorrect. Please check your authenticator app.',
+            variant: 'destructive'
+          });
+          setVerificationCode('');
+          return;
+        }
+        
+        throw error;
+      }
 
       // Log MFA enrollment
       await supabase.functions.invoke('auth-logger', {
