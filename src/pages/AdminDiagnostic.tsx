@@ -397,12 +397,16 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
   };
 
   useEffect(() => {
-    runDiagnostics();
-    checkSecrets();
-    // Only run API probes in development mode for security
-    if (import.meta.env.DEV) {
-      runApiProbes(probeWithoutAuth);
-    }
+    const initializeChecks = async () => {
+      await runDiagnostics();
+      await checkSecrets();
+      // Only run API probes in development mode for security
+      if (import.meta.env.DEV) {
+        await runApiProbes(probeWithoutAuth);
+      }
+    };
+    
+    initializeChecks();
   }, []);
 
   const StatusIcon = ({ status }: { status: boolean | null }) => {
