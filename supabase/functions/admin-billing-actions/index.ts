@@ -258,12 +258,27 @@ serve(async (req) => {
       }
 
       default:
-        throw new Error(`Unknown action: ${body.action}`);
+        // Return 400 for unsupported actions
+        return new Response(JSON.stringify({ 
+          error: `Unsupported action: ${body.action}`,
+          supported_actions: ['create_portal_session', 'change_plan', 'suspend_service', 'reinstate_service', 'issue_credit', 'create_coupon'],
+          timestamp: new Date().toISOString()
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        });
     }
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
+    
+    // Determine if this is a client error (400) or server error (500)
+    const isClientError = error instanceof Error && (
+      error.message.includes('is required') ||
+      error.message.includes('Invalid') ||
+      error.message.includes('Missing')
+    );
     
     // Return structured error response
     return new Response(JSON.stringify({ 
@@ -271,7 +286,7 @@ serve(async (req) => {
       timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      status: isClientError ? 400 : 500,
     });
   }
 });

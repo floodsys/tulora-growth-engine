@@ -267,10 +267,12 @@ function AdminDiagnostic() {
       { name: 'Admin Billing Overview - Invoices', method: 'POST', function: 'admin-billing-overview', body: { action: 'list_invoices' } },
       { name: 'Admin Billing Overview - Webhooks', method: 'POST', function: 'admin-billing-overview', body: { action: 'list_webhook_events' } },
       { name: 'Admin Billing Actions - Portal', method: 'POST', function: 'admin-billing-actions', body: { action: 'create_portal_session', customer_id: 'test' } },
-      { name: 'Admin Billing Actions - Sync Subscription', method: 'POST', function: 'admin-billing-actions', body: { action: 'sync_subscription', subscription_id: 'test' } },
-      { name: 'Admin Billing Actions - Cancel Subscription', method: 'POST', function: 'admin-billing-actions', body: { action: 'cancel_subscription', subscription_id: 'test' } },
+      { name: 'Admin Billing Actions - Sync Subscription', method: 'POST', function: 'admin-billing-actions', body: { action: 'change_plan', subscription_id: 'test', new_plan: 'basic' } },
+      { name: 'Admin Billing Actions - Cancel Subscription', method: 'POST', function: 'admin-billing-actions', body: { action: 'suspend_service', org_id: 'test-org-id' } },
       { name: 'Org Suspension - Suspend', method: 'POST', function: 'org-suspension', body: { action: 'suspend', org_id: 'test-org-id', reason: 'Test probe', confirmation_phrase: 'SUSPEND ORG test-org-id' } },
       { name: 'Email Integration Test', method: 'POST', function: 'email-integration-test', body: {} },
+      { name: 'Check Secrets', method: 'POST', function: 'check-secrets', body: {} },
+      { name: 'Stripe Smoke Test', method: 'POST', function: 'stripe-smoke-test', body: {} },
     ];
 
     for (const api of adminApis) {
