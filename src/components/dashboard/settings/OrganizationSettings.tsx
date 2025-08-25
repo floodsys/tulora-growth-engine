@@ -66,19 +66,29 @@ export function OrganizationSettings() {
           setOriginalData(data)
         }
 
-        // Check if user is admin
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          const { data: adminCheck } = await supabase.rpc('is_org_admin', { org_id: organization.id })
-          setIsAdmin(!!adminCheck)
+        // Check if user is admin or owner
+        setIsAdmin(isOwner || false)
+        
+        // Double-check with RPC if not owner
+        if (!isOwner) {
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user) {
+            const { data: adminCheck } = await supabase.rpc('is_org_admin', { org_id: organization.id })
+            setIsAdmin(!!adminCheck)
+          }
         }
       } catch (error) {
         console.error('Error loading organization data:', error)
+        toast({
+          title: "Error loading data",
+          description: "Failed to load organization settings.",
+          variant: "destructive"
+        })
       }
     }
 
     loadOrganizationData()
-  }, [organization])
+  }, [organization, isOwner, toast])
 
   const hasChanges = JSON.stringify(formData) !== JSON.stringify(originalData)
 
@@ -92,7 +102,16 @@ export function OrganizationSettings() {
   }
 
   const handleUpdateOrganization = async () => {
-    if (!organization || !isAdmin) {
+    if (!organization) {
+      toast({
+        title: "Error",
+        description: "Organization not found.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!isOwner && !isAdmin) {
       toast({
         title: "Access denied",
         description: "You need admin access to update organization settings.",
@@ -168,7 +187,7 @@ export function OrganizationSettings() {
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               placeholder="Enter organization name"
-              disabled={!isAdmin}
+              disabled={!isOwner && !isAdmin}
             />
           </div>
 
@@ -179,7 +198,7 @@ export function OrganizationSettings() {
               value={formData.website}
               onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
               placeholder="https://example.com"
-              disabled={!isAdmin}
+              disabled={!isOwner && !isAdmin}
             />
           </div>
 
@@ -188,7 +207,7 @@ export function OrganizationSettings() {
             <Select 
               value={formData.industry} 
               onValueChange={(value) => setFormData(prev => ({ ...prev, industry: value }))}
-              disabled={!isAdmin}
+              disabled={!isOwner && !isAdmin}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select industry" />
@@ -208,7 +227,7 @@ export function OrganizationSettings() {
             <Select 
               value={formData.size_band} 
               onValueChange={(value) => setFormData(prev => ({ ...prev, size_band: value }))}
-              disabled={!isAdmin}
+              disabled={!isOwner && !isAdmin}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select organization size" />
@@ -223,7 +242,7 @@ export function OrganizationSettings() {
             </Select>
           </div>
 
-          {!isAdmin && (
+          {!isOwner && !isAdmin && (
             <p className="text-sm text-muted-foreground">
               You need admin access to update organization settings.
             </p>
@@ -231,7 +250,7 @@ export function OrganizationSettings() {
 
           <Button 
             onClick={handleUpdateOrganization}
-            disabled={!hasChanges || !isAdmin || saving}
+            disabled={!hasChanges || (!isOwner && !isAdmin) || saving}
           >
             {saving ? "Saving..." : "Save Changes"}
           </Button>
