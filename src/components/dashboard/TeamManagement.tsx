@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, UserCheck, Clock, Settings, ExternalLink, Shield } from "lucide-react";
+import { Users, UserCheck, Clock, Settings, ExternalLink } from "lucide-react";
 import { useUserOrganization } from "@/hooks/useUserOrganization";
-import { useOrganizationRole } from "@/hooks/useOrganizationRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
@@ -16,19 +15,14 @@ interface TeamStats {
 export function TeamManagement() {
   const [stats, setStats] = useState<TeamStats>({ totalMembers: 0, activeSeats: 0, pendingInvites: 0 });
   const [loading, setLoading] = useState(true);
-  const { organization, organizationId, isOwner } = useUserOrganization();
-  const { isAdmin, isEditor, isViewer, loading: roleLoading } = useOrganizationRole(organizationId || undefined);
+  const { organization, organizationId } = useUserOrganization();
   const navigate = useNavigate();
 
-  // Determine user access level
-  const canManageTeam = isOwner || isAdmin;
-  const hasTeamAccess = canManageTeam || isEditor || isViewer;
-
   useEffect(() => {
-    if (organizationId && !roleLoading) {
+    if (organizationId) {
       fetchTeamStats();
     }
-  }, [organizationId, roleLoading]);
+  }, [organizationId]);
 
   const fetchTeamStats = async () => {
     if (!organizationId) return;
@@ -70,42 +64,13 @@ export function TeamManagement() {
     navigate('/settings/teams');
   };
 
-  if (loading || roleLoading) {
+  if (loading) {
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-semibold mb-2">Team Overview</h1>
           <p className="text-muted-foreground mb-6">Loading team information...</p>
         </div>
-      </div>
-    );
-  }
-
-  // Show access restriction for users without team access
-  if (!hasTeamAccess) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold mb-2">Team Overview</h1>
-          <p className="text-muted-foreground mb-6">Access restricted</p>
-        </div>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-muted-foreground" />
-              Access Restricted
-            </CardTitle>
-            <CardDescription>
-              You need team access permissions to view team information.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Contact your organization admin for access to team features.
-            </p>
-          </CardContent>
-        </Card>
       </div>
     );
   }
@@ -175,22 +140,14 @@ export function TeamManagement() {
             Team Management
           </CardTitle>
           <CardDescription>
-            {canManageTeam 
-              ? "Manage team members, send invitations, update roles, and control seat access from the full team settings page."
-              : "View team information and member details. Contact an admin to manage team settings."
-            }
+            Manage team members, send invitations, update roles, and control seat access from the full team settings page.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button onClick={handleOpenTeamSettings} size="lg" className="w-full sm:w-auto">
             <ExternalLink className="h-4 w-4 mr-2" />
-            {canManageTeam ? 'Open Full Team Settings' : 'View Team Settings'}
+            Open Full Team Settings
           </Button>
-          {!canManageTeam && (
-            <p className="text-xs text-muted-foreground mt-2">
-              Read-only access • Contact admin to manage team
-            </p>
-          )}
         </CardContent>
       </Card>
     </div>

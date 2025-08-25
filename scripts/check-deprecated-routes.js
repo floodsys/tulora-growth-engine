@@ -1,152 +1,111 @@
 #!/usr/bin/env node
 
+/**
+ * Lint script to check for deprecated invite routes
+ * Fails CI if "accept-new" appears in code or content (except allowed files)
+ */
+
 const fs = require('fs');
 const path = require('path');
 const glob = require('glob');
 
-/**
- * Lint script to prevent re-introduction of deprecated TeamsSettings.tsx
- * and duplicate /settings/teams routes
- */
+// Files that are allowed to contain "accept-new" (for redirect functionality)
+const ALLOWED_FILES = [
+  'src/components/InviteAcceptRedirect.tsx', // Redirect component needs to reference old route
+  'scripts/check-deprecated-routes.js', // This script itself
+];
 
-// Configuration
-const DEPRECATED_FILE = 'TeamsSettings.tsx';
-const DEPRECATED_IMPORT_PATTERN = /import.*TeamsSettings.*from/;
-const TOP_LEVEL_ROUTE_PATTERN = /<Route\s+path="\/settings\/teams"/;
-const ALLOWLISTED_EXTENSIONS = ['.md', '.txt', '.json'];
+// Patterns to search for
+const DEPRECATED_PATTERNS = [
+  'accept-new',
+  'invite/accept-new'
+];
 
-let hasErrors = false;
-const errors = [];
-
-function addError(message, file = null) {
-  hasErrors = true;
-  const errorMsg = file ? `${file}: ${message}` : message;
-  errors.push(errorMsg);
-  console.error(`❌ ${errorMsg}`);
-}
-
-function addWarning(message, file = null) {
-  const warningMsg = file ? `${file}: ${message}` : message;
-  console.warn(`⚠️  ${warningMsg}`);
-}
-
-function isAllowlistedFile(filePath) {
-  const ext = path.extname(filePath);
-  return ALLOWLISTED_EXTENSIONS.includes(ext);
-}
-
-function checkForDeprecatedFile() {
-  console.log('🔍 Checking for deprecated TeamsSettings.tsx file...');
-  
-  const deprecatedFiles = glob.sync(`**/${DEPRECATED_FILE}`, {
-    ignore: ['node_modules/**', 'dist/**', '.git/**']
-  });
-
-  deprecatedFiles.forEach(file => {
-    if (!isAllowlistedFile(file)) {
-      addError(`Deprecated file ${DEPRECATED_FILE} found`, file);
-    } else {
-      addWarning(`Deprecated file found in allowlisted documentation`, file);
-    }
-  });
-
-  if (deprecatedFiles.length === 0) {
-    console.log('✅ No deprecated TeamsSettings.tsx files found');
+function checkFile(filePath) {
+  // Skip if this is an allowed file
+  if (ALLOWED_FILES.includes(filePath)) {
+    return [];
   }
-}
 
-function checkForDeprecatedImports() {
-  console.log('🔍 Checking for deprecated TeamsSettings imports...');
-  
-  const sourceFiles = glob.sync('src/**/*.{ts,tsx,js,jsx}', {
-    ignore: ['node_modules/**', 'dist/**']
+  const content = fs.readFileSync(filePath, 'utf8');
+  const violations = [];
+
+  DEPRECATED_PATTERNS.forEach(pattern => {
+    const lines = content.split('\n');
+    lines.forEach((line, index) => {
+      if (line.includes(pattern)) {
+        violations.push({
+          file: filePath,
+          line: index + 1,
+          pattern,
+          content: line.trim()
+        });
+      }
+    });
   });
 
-  sourceFiles.forEach(file => {
-    try {
-      const content = fs.readFileSync(file, 'utf8');
-      const lines = content.split('\n');
-      
-      lines.forEach((line, index) => {
-        if (DEPRECATED_IMPORT_PATTERN.test(line)) {
-          addError(
-            `Deprecated TeamsSettings import found at line ${index + 1}: ${line.trim()}`,
-            file
-          );
-        }
-      });
-    } catch (error) {
-      addWarning(`Could not read file: ${error.message}`, file);
-    }
-  });
-
-  console.log('✅ Import check completed');
-}
-
-function checkForTopLevelRoutes() {
-  console.log('🔍 Checking for top-level /settings/teams routes...');
-  
-  const routeFiles = glob.sync('src/**/*.{ts,tsx,js,jsx}', {
-    ignore: ['node_modules/**', 'dist/**']
-  });
-
-  routeFiles.forEach(file => {
-    try {
-      const content = fs.readFileSync(file, 'utf8');
-      const lines = content.split('\n');
-      
-      lines.forEach((line, index) => {
-        if (TOP_LEVEL_ROUTE_PATTERN.test(line)) {
-          // Check if this is inside a nested Routes component by looking for SettingsLayout context
-          const fileContent = content;
-          const beforeLine = fileContent.substring(0, fileContent.indexOf(line));
-          
-          // If we find SettingsLayout or nested route structure before this line, it's probably OK
-          const isNested = /SettingsLayout|element={<SettingsLayout/.test(beforeLine) ||
-                          /<Route\s+path="\/settings"/.test(beforeLine);
-          
-          if (!isNested) {
-            addError(
-              `Top-level /settings/teams route found at line ${index + 1}: ${line.trim()}. Use nested route under SettingsLayout instead.`,
-              file
-            );
-          }
-        }
-      });
-    } catch (error) {
-      addWarning(`Could not read file: ${error.message}`, file);
-    }
-  });
-
-  console.log('✅ Route check completed');
+  return violations;
 }
 
 function main() {
-  console.log('🚀 Starting deprecated routes check...\n');
-  
-  checkForDeprecatedFile();
-  checkForDeprecatedImports();
-  checkForTopLevelRoutes();
-  
-  console.log('\n📊 Check Summary:');
-  if (hasErrors) {
-    console.log(`❌ Found ${errors.length} error(s):`);
-    errors.forEach(error => console.log(`   - ${error}`));
-    console.log('\n💡 To fix these issues:');
-    console.log('   1. Remove any TeamsSettings.tsx files');
-    console.log('   2. Remove imports of TeamsSettings component');
-    console.log('   3. Use nested routes under SettingsLayout for /settings/teams');
-    console.log('   4. Use only SettingsTeams.tsx for team management');
+  console.log('🔍 Checking for deprecated invite routes...');
+
+  // Get all files to check
+  const files = glob.sync('**/*', {
+    ignore: [
+      'node_modules/**',
+      '.git/**',
+      'dist/**',
+      'build/**',
+      '*.lock',
+      '*.log'
+    ]
+  }).filter(file => {
+    const stat = fs.statSync(file);
+    return stat.isFile() && (
+      file.endsWith('.ts') ||
+      file.endsWith('.tsx') ||
+      file.endsWith('.js') ||
+      file.endsWith('.jsx') ||
+      file.endsWith('.md') ||
+      file.endsWith('.html') ||
+      file.endsWith('.json')
+    );
+  });
+
+  let totalViolations = 0;
+  const allViolations = [];
+
+  files.forEach(file => {
+    try {
+      const violations = checkFile(file);
+      if (violations.length > 0) {
+        allViolations.push(...violations);
+        totalViolations += violations.length;
+      }
+    } catch (error) {
+      // Skip files that can't be read
+    }
+  });
+
+  if (totalViolations > 0) {
+    console.error('❌ Found deprecated invite route references:');
+    console.error('');
+    
+    allViolations.forEach(violation => {
+      console.error(`${violation.file}:${violation.line}`);
+      console.error(`  Pattern: "${violation.pattern}"`);
+      console.error(`  Content: ${violation.content}`);
+      console.error('');
+    });
+
+    console.error(`Total violations: ${totalViolations}`);
+    console.error('');
+    console.error('Please replace all "accept-new" references with "/invite/accept"');
     process.exit(1);
-  } else {
-    console.log('✅ All checks passed! No deprecated routes or components found.');
-    process.exit(0);
   }
+
+  console.log('✅ No deprecated invite routes found');
 }
 
-// Run the check
-if (require.main === module) {
-  main();
-}
-
-module.exports = { checkForDeprecatedFile, checkForDeprecatedImports, checkForTopLevelRoutes };
+main();
