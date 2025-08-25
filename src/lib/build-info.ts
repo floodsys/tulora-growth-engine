@@ -4,6 +4,21 @@
 export const BUILD_ID = import.meta.env.VITE_BUILD_ID || `dev-${Date.now()}`;
 export const BUILD_TIMESTAMP = new Date().toISOString();
 
+// COSMETIC ONLY - These environment variables are NEVER used for authorization
+// Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin)
+export function getCosmenticEnvVars() {
+  // Frontend env (client-side only)
+  const frontendEnv = import.meta.env.VITE_SUPERADMINS_EMAILS || null;
+  
+  return {
+    frontend: frontendEnv,
+    // Note: Server/edge env vars (SUPERADMINS_EMAILS, superadmins_emails) 
+    // are not accessible from client-side code and should only be read
+    // in edge functions for logging/UI hints, never for authorization
+    note: "These are for UI hints and logging only. Authorization always uses DB RPC."
+  };
+}
+
 export interface CacheClearResult {
   serviceWorkersCleared: number;
   cachesCleared: string[];

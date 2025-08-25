@@ -71,3 +71,15 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Security
+
+### Superadmin Authorization Policy
+
+**Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.**
+
+- All superadmin authorization uses `supabase.rpc('is_superadmin')` exclusively
+- Environment variables (VITE_SUPERADMINS_EMAILS, SUPERADMINS_EMAILS, etc.) are for UI hints and logging only
+- Never use environment variables for authorization decisions
+
+See [SECURITY.md](./SECURITY.md) for complete security policy and verification procedures.

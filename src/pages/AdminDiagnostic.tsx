@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { RefreshCw, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BUILD_ID, clearAllCaches, forceReload, getBuildInfo, type CacheClearResult } from '@/lib/build-info';
+import { BUILD_ID, clearAllCaches, forceReload, getBuildInfo, getCosmenticEnvVars, type CacheClearResult } from '@/lib/build-info';
 
 interface DiagnosticData {
   authUid: string | null;
@@ -74,7 +74,7 @@ export default function AdminDiagnostic() {
         authUid: currentUser?.id || null,
         authEmail: currentUser?.email || null,
         dbSuperadminCheck: dbCheck,
-        frontendEnv: import.meta.env.VITE_SUPERADMINS_EMAILS || null, // Cosmetic only - not used for auth
+        frontendEnv: getCosmenticEnvVars().frontend, // Cosmetic only - not used for auth
         finalGuardDecision: guardDecision,
         error
       });
@@ -309,19 +309,31 @@ export default function AdminDiagnostic() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                Frontend Environment (Cosmetic Only)
+                Environment Variables (Cosmetic Only - Never Used for Auth)
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="flex justify-between">
-                <span className="font-medium">VITE_SUPERADMINS_EMAILS:</span>
-                <code className="text-sm bg-muted px-2 py-1 rounded">
-                  {diagnosticData.frontendEnv || 'Not set'}
-                </code>
+            <CardContent className="space-y-3">
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>CRITICAL:</strong> These environment variables are NEVER used for authorization decisions. 
+                  Source of truth = DB RPC only.
+                </AlertDescription>
+              </Alert>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="font-medium">VITE_SUPERADMINS_EMAILS (Frontend):</span>
+                  <code className="text-sm bg-muted px-2 py-1 rounded">
+                    {diagnosticData.frontendEnv || 'Not set'}
+                  </code>
+                </div>
+                
+                <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
+                  <p><strong>Note:</strong> Server-side env vars (SUPERADMINS_EMAILS, superadmins_emails) are not accessible from client-side code.</p>
+                  <p><strong>Policy:</strong> All env vars are for UI hints and logging only. Authorization always uses <code>supabase.rpc('is_superadmin')</code>.</p>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground mt-2">
-                This env var is for UI hints only and should NOT block access to /admin.
-              </p>
             </CardContent>
           </Card>
 
