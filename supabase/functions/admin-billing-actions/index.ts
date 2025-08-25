@@ -55,19 +55,37 @@ serve(async (req) => {
     );
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "forbidden" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+      });
+    }
 
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
+    if (userError) {
+      return new Response(JSON.stringify({ error: "forbidden" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+      });
+    }
     
     const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated");
+    if (!user?.email) {
+      return new Response(JSON.stringify({ error: "forbidden" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+      });
+    }
 
     // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.
     const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin');
     if (superadminError || !isSuperadmin) {
-      throw new Error("Access denied: Superadmin privileges required");
+      return new Response(JSON.stringify({ error: "forbidden" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+      });
     }
     logStep("Superadmin access verified", { userId: user.id, email: user.email });
 
@@ -248,7 +266,12 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    
+    // Return structured error response
+    return new Response(JSON.stringify({ 
+      error: errorMessage,
+      timestamp: new Date().toISOString()
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
