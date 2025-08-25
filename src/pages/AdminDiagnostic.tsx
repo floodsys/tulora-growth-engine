@@ -4,10 +4,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, CheckCircle, XCircle, AlertTriangle, Copy, Eye, EyeOff } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { RefreshCw, CheckCircle, XCircle, AlertTriangle, Copy, Eye, EyeOff, Shield, Database, CreditCard, Mail, ExternalLink, Settings, Lock, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/hooks/use-toast';
 import { BUILD_ID, clearAllCaches, forceReload, getBuildInfo, getCosmenticEnvVars, type CacheClearResult } from '@/lib/build-info';
 
 interface DiagnosticData {
@@ -33,8 +34,32 @@ interface ApiProbeResult {
   timestamp: string;
 }
 
+interface SecretCheck {
+  name: string;
+  present: boolean;
+  category: string;
+  required: boolean;
+  description?: string;
+}
+
+interface SecretsCheckResult {
+  success: boolean;
+  timestamp: string;
+  summary: {
+    total_checked: number;
+    present: number;
+    missing_required: number;
+    missing_optional: number;
+  };
+  categorized: Record<string, SecretCheck[]>;
+  missing_required: SecretCheck[];
+  missing_optional: SecretCheck[];
+  blocking_for_admin_apis: SecretCheck[];
+}
+
 export default function AdminDiagnostic() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [diagnosticData, setDiagnosticData] = useState<DiagnosticData>({
     authUid: null,
     authEmail: null,
@@ -43,13 +68,47 @@ export default function AdminDiagnostic() {
     finalGuardDecision: null,
   });
   const [apiProbeResults, setApiProbeResults] = useState<ApiProbeResult[]>([]);
+  const [secretsResults, setSecretsResults] = useState<SecretsCheckResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isProbing, setIsProbing] = useState(false);
+  const [isCheckingSecrets, setIsCheckingSecrets] = useState(false);
   const [isCacheClearing, setIsCacheClearing] = useState(false);
   const [cacheResult, setCacheResult] = useState<CacheClearResult | null>(null);
   const [showAuthDetails, setShowAuthDetails] = useState(false);
   const [probeWithoutAuth, setProbeWithoutAuth] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+
+  const checkSecrets = async () => {
+    try {
+      setIsCheckingSecrets(true);
+      const { data, error } = await supabase.functions.invoke('check-secrets');
+      
+      if (error) {
+        console.error('Secrets check error:', error);
+        toast({
+          title: "Error checking secrets",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSecretsResults(data);
+      toast({
+        title: "Secrets check completed",
+        description: `Checked ${data.summary.total_checked} secrets`,
+      });
+    } catch (error) {
+      console.error('Secrets check failed:', error);
+      toast({
+        title: "Secrets check failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCheckingSecrets(false);
+    }
+  };
 
   const runDiagnostics = async () => {
     setIsLoading(true);
@@ -290,6 +349,43 @@ ${result.responseBody}
     }
   };
 
+  const copySecretsResults = () => {
+    if (!secretsResults) return;
+    
+    const diagnosticsText = `SECRETS DIAGNOSTICS
+Generated: ${secretsResults.timestamp}
+
+SUMMARY:
+- Total Checked: ${secretsResults.summary.total_checked}
+- Present: ${secretsResults.summary.present}
+- Missing Required: ${secretsResults.summary.missing_required}
+- Missing Optional: ${secretsResults.summary.missing_optional}
+
+BLOCKING FOR ADMIN APIS:
+${secretsResults.blocking_for_admin_apis.length > 0 
+  ? secretsResults.blocking_for_admin_apis.map(s => `❌ ${s.name} - ${s.description}`).join('\n')
+  : '✅ No blocking secrets missing'
+}
+
+MISSING REQUIRED SECRETS:
+${secretsResults.missing_required.length > 0 
+  ? secretsResults.missing_required.map(s => `❌ ${s.name} (${s.category}) - ${s.description}`).join('\n')
+  : '✅ All required secrets present'
+}
+
+BY CATEGORY:
+${Object.entries(secretsResults.categorized).map(([category, secrets]) => 
+  `${category}:\n${secrets.map(s => `  ${s.present ? '✅' : '❌'} ${s.name}${s.required ? ' (required)' : ''}`).join('\n')}`
+).join('\n\n')}
+`;
+
+    navigator.clipboard.writeText(diagnosticsText);
+    toast({
+      title: "Copied to clipboard",
+      description: "Secrets diagnostics copied to clipboard",
+    });
+  };
+
   const toggleRowExpansion = (index: number) => {
     const newExpanded = new Set(expandedRows);
     if (newExpanded.has(index)) {
@@ -302,6 +398,7 @@ ${result.responseBody}
 
   useEffect(() => {
     runDiagnostics();
+    checkSecrets();
     // Only run API probes in development mode for security
     if (import.meta.env.DEV) {
       runApiProbes(probeWithoutAuth);
@@ -366,6 +463,158 @@ ${result.responseBody}
             <strong>Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.</strong>
           </AlertDescription>
         </Alert>
+
+        {/* Secrets Checklist Section */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Secrets Checklist
+              </CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  onClick={checkSecrets}
+                  disabled={isCheckingSecrets}
+                  variant="outline"
+                  size="sm"
+                >
+                  {isCheckingSecrets ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Checking...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Refresh
+                    </>
+                  )}
+                </Button>
+                {secretsResults && (
+                  <Button
+                    onClick={copySecretsResults}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy Results
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {!secretsResults ? (
+              <div className="text-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                <p>Loading secrets checklist...</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Summary */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-3 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{secretsResults.summary.total_checked}</div>
+                    <div className="text-sm text-muted-foreground">Total Checked</div>
+                  </div>
+                  <div className="text-center p-3 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{secretsResults.summary.present}</div>
+                    <div className="text-sm text-muted-foreground">Present</div>
+                  </div>
+                  <div className="text-center p-3 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-red-600">{secretsResults.summary.missing_required}</div>
+                    <div className="text-sm text-muted-foreground">Missing Required</div>
+                  </div>
+                  <div className="text-center p-3 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-yellow-600">{secretsResults.summary.missing_optional}</div>
+                    <div className="text-sm text-muted-foreground">Missing Optional</div>
+                  </div>
+                </div>
+
+                {/* Blocking for Admin APIs */}
+                {secretsResults.blocking_for_admin_apis.length > 0 && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Blocking for Admin APIs</AlertTitle>
+                    <AlertDescription>
+                      The following required secrets are missing and may cause 500 errors:
+                      <ul className="list-disc list-inside mt-2 space-y-1">
+                        {secretsResults.blocking_for_admin_apis.map((secret) => (
+                          <li key={secret.name}>
+                            <strong>{secret.name}</strong> - {secret.description}
+                          </li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Missing Required Secrets */}
+                {secretsResults.missing_required.length > 0 && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Missing Required Secrets</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-disc list-inside space-y-1">
+                        {secretsResults.missing_required.map((secret) => (
+                          <li key={secret.name}>
+                            <strong>{secret.name}</strong> ({secret.category}) - {secret.description}
+                          </li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Secrets by Category */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Secrets by Category</h3>
+                  {Object.entries(secretsResults.categorized).map(([category, secrets]) => (
+                    <div key={category} className="border rounded-lg p-4">
+                      <h4 className="font-medium mb-3 flex items-center gap-2">
+                        {category === 'Stripe' && <CreditCard className="h-4 w-4" />}
+                        {category === 'Supabase' && <Database className="h-4 w-4" />}
+                        {category === 'Email' && <Mail className="h-4 w-4" />}
+                        {category === 'Admin' && <Shield className="h-4 w-4" />}
+                        {category === 'External' && <ExternalLink className="h-4 w-4" />}
+                        {category === 'Environment' && <Settings className="h-4 w-4" />}
+                        {category === 'Security' && <Lock className="h-4 w-4" />}
+                        {category}
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {secrets.map((secret) => (
+                          <div key={secret.name} className="flex items-center gap-2 text-sm">
+                            {secret.present ? (
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-red-600" />
+                            )}
+                            <span className={secret.required ? 'font-medium' : ''}>
+                              {secret.name}
+                              {secret.required && <span className="text-red-600 ml-1">*</span>}
+                            </span>
+                            {secret.description && (
+                              <span className="text-muted-foreground text-xs">
+                                - {secret.description}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="text-xs text-muted-foreground">
+                  * Required secrets. Missing required secrets may cause functionality to fail.
+                  <br />
+                  Last checked: {new Date(secretsResults.timestamp).toLocaleString()}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid gap-6">
           <Card>
