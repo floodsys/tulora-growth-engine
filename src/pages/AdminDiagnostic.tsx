@@ -89,10 +89,12 @@ export default function AdminDiagnostic() {
   const [apiProbeResults, setApiProbeResults] = useState<ApiProbeResult[]>([]);
   const [secretsResults, setSecretsResults] = useState<SecretsCheckResult | null>(null);
   const [stripeResults, setStripeResults] = useState<StripeSmokeTestResult | null>(null);
+  const [emailResults, setEmailResults] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isProbing, setIsProbing] = useState(false);
   const [isCheckingSecrets, setIsCheckingSecrets] = useState(false);
   const [isCheckingStripe, setIsCheckingStripe] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [isCacheClearing, setIsCacheClearing] = useState(false);
   const [cacheResult, setCacheResult] = useState<CacheClearResult | null>(null);
   const [showAuthDetails, setShowAuthDetails] = useState(false);
@@ -161,6 +163,39 @@ export default function AdminDiagnostic() {
       });
     } finally {
       setIsCheckingStripe(false);
+    }
+  };
+
+  const checkEmailIntegration = async () => {
+    try {
+      setIsCheckingEmail(true);
+      const { data, error } = await supabase.functions.invoke('email-integration-test');
+      
+      if (error) {
+        console.error('Email integration test error:', error);
+        toast({
+          title: "Error checking email integration",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setEmailResults(data);
+      toast({
+        title: "Email integration test completed",
+        description: data.ok ? data.summary : data.reason,
+        variant: data.ok ? "default" : "destructive",
+      });
+    } catch (error) {
+      console.error('Email integration test failed:', error);
+      toast({
+        title: "Email integration test failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCheckingEmail(false);
     }
   };
 
@@ -471,6 +506,20 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
     
     const statusEmoji = stripeTest.status === 'pass' ? '✅' : stripeTest.status === 'fail' ? '❌' : '⚠️';
     return `${statusEmoji} ${stripeTest.status}`;
+  };
+
+  const getEmailValidationForEndpoint = (endpointName: string): string | null => {
+    if (!emailResults) return null;
+    
+    // Map email-related endpoints to test results
+    if (endpointName.includes('send-alert-notification') || 
+        endpointName.includes('email') || 
+        endpointName.includes('notification')) {
+      const statusEmoji = emailResults.ok ? '✅' : '❌';
+      return `${statusEmoji} ${emailResults.status}`;
+    }
+    
+    return null;
   };
 
   useEffect(() => {
@@ -798,6 +847,111 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
           </CardContent>
         </Card>
 
+        {/* Email Integration Tests Section */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Email Integration Tests
+              </CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  onClick={checkEmailIntegration}
+                  disabled={isCheckingEmail}
+                  variant="outline"
+                  size="sm"
+                >
+                  {isCheckingEmail ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Testing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Run Tests
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {!emailResults ? (
+              <div className="text-center py-8">
+                <Mail className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
+                <p>Click "Run Tests" to check email provider connectivity and configuration</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Overall Status */}
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="font-medium">Overall Status:</span>
+                  <Badge 
+                    variant={emailResults.ok ? "default" : "destructive"}
+                    className={emailResults.ok ? "bg-green-500" : ""}
+                  >
+                    {emailResults.status}
+                  </Badge>
+                  {emailResults.summary && (
+                    <span className="text-muted-foreground">({emailResults.summary})</span>
+                  )}
+                </div>
+
+                {emailResults.reason && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Configuration Issue</AlertTitle>
+                    <AlertDescription>
+                      {emailResults.reason}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {emailResults.providers && (
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold">Provider Status</h3>
+                    {emailResults.providers.map((provider: any, index: number) => (
+                      <div key={index} className="border rounded-lg p-4">
+                        <div className="flex items-center gap-3 mb-2">
+                          {provider.ok ? (
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                          ) : (
+                            <XCircle className="h-5 w-5 text-red-600" />
+                          )}
+                          <span className="font-medium capitalize">{provider.provider}</span>
+                          <Badge 
+                            variant={provider.ok ? "default" : "destructive"}
+                            className={provider.ok ? "bg-green-500" : ""}
+                          >
+                            {provider.status}
+                          </Badge>
+                        </div>
+                        {provider.reason && (
+                          <p className="text-sm text-muted-foreground mb-2">{provider.reason}</p>
+                        )}
+                        {provider.details && (
+                          <details className="text-xs">
+                            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">View details</summary>
+                            <pre className="mt-2 bg-muted p-2 rounded overflow-x-auto">
+                              {JSON.stringify(provider.details, null, 2)}
+                            </pre>
+                          </details>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="text-xs text-muted-foreground">
+                  Last tested: {emailResults.details?.tested_at ? new Date(emailResults.details.tested_at).toLocaleString() : 'Unknown'}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <div className="grid gap-6">
           <Card>
             <CardHeader>
@@ -1010,9 +1164,14 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
                           <TableCell className="font-medium text-sm">
                             <div className="space-y-1">
                               <div>{result.name}</div>
-                              {getStripeValidationForEndpoint(result.name) && (
+                               {getStripeValidationForEndpoint(result.name) && (
                                 <div className="text-xs text-muted-foreground">
                                   Stripe: {getStripeValidationForEndpoint(result.name)}
+                                </div>
+                              )}
+                              {getEmailValidationForEndpoint(result.name) && (
+                                <div className="text-xs text-muted-foreground">
+                                  Email: {getEmailValidationForEndpoint(result.name)}
                                 </div>
                               )}
                             </div>
