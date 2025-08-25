@@ -954,11 +954,11 @@ export type Database = {
           owner_user_id: string | null
           plan_key: string | null
           retention_config: Json | null
+          status: string | null
           stripe_customer_id: string | null
           suspended_at: string | null
           suspended_by: string | null
           suspension_reason: string | null
-          suspension_status: string | null
           trial_ends_at: string | null
           trial_started_at: string | null
           webhook_config: Json | null
@@ -974,11 +974,11 @@ export type Database = {
           owner_user_id?: string | null
           plan_key?: string | null
           retention_config?: Json | null
+          status?: string | null
           stripe_customer_id?: string | null
           suspended_at?: string | null
           suspended_by?: string | null
           suspension_reason?: string | null
-          suspension_status?: string | null
           trial_ends_at?: string | null
           trial_started_at?: string | null
           webhook_config?: Json | null
@@ -994,11 +994,11 @@ export type Database = {
           owner_user_id?: string | null
           plan_key?: string | null
           retention_config?: Json | null
+          status?: string | null
           stripe_customer_id?: string | null
           suspended_at?: string | null
           suspended_by?: string | null
           suspension_reason?: string | null
-          suspension_status?: string | null
           trial_ends_at?: string | null
           trial_started_at?: string | null
           webhook_config?: Json | null
@@ -1581,6 +1581,10 @@ export type Database = {
         Args: { org_id: string }
         Returns: boolean
       }
+      is_organization_owner: {
+        Args: { org_id: string; user_id?: string }
+        Returns: boolean
+      }
       is_superadmin: {
         Args: { user_id?: string }
         Returns: boolean
@@ -1773,6 +1777,14 @@ export type Database = {
         Args: { p_ip_address?: unknown; p_org_id: string }
         Returns: Json
       }
+      transfer_organization_ownership: {
+        Args: {
+          p_keep_old_owner_as_admin?: boolean
+          p_new_owner_user_id: string
+          p_org_id: string
+        }
+        Returns: Json
+      }
       trim_user_agent: {
         Args: { user_agent_string: string }
         Returns: string
@@ -1808,6 +1820,10 @@ export type Database = {
       verify_step_up_auth: {
         Args: { p_mfa_code?: string; p_password?: string }
         Returns: Json
+      }
+      would_leave_org_without_admins: {
+        Args: { org_id: string; user_id_to_remove: string }
+        Returns: boolean
       }
     }
     Enums: {
