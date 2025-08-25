@@ -77,6 +77,7 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const envConfig = getEnvironmentConfig();
 
+  // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.
   // Check authentication and superadmin status
   useEffect(() => {
     if (!user && !authLoading) {

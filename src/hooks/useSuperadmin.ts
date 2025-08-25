@@ -25,6 +25,7 @@ export function useSuperadmin(): UseSuperadminReturn {
     }
   }, [user]);
 
+  // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.
   const checkSuperadmin = async (): Promise<boolean> => {
     if (!user) {
       setIsSuperadmin(false);
@@ -33,6 +34,7 @@ export function useSuperadmin(): UseSuperadminReturn {
     }
 
     try {
+      // Only use DB RPC call - no env fallbacks for authorization
       const { data, error } = await supabase.rpc('is_superadmin');
       
       if (error) {

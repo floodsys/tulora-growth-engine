@@ -29,14 +29,12 @@ export function useAdminAccess() {
           return;
         }
 
-        // Check if user is org owner or superadmin
+        // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.
         let userHasAccess = isOwner;
         
-        // Check if user is superadmin
-        if (!userHasAccess && organization) {
-          const { data: isSuperadmin } = await supabase.rpc('is_superadmin', {
-            user_id: user.id
-          });
+        // Check if user is superadmin using only DB RPC
+        if (!userHasAccess) {
+          const { data: isSuperadmin } = await supabase.rpc('is_superadmin');
           userHasAccess = isSuperadmin || false;
         }
 
