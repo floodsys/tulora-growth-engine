@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Building2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
+import { useOrganizationRole } from "@/hooks/useOrganizationRole"
 import { supabase } from "@/integrations/supabase/client"
 import CallHandlingSettings from "./CallHandlingSettings"
 
@@ -34,6 +35,7 @@ const SIZE_OPTIONS = [
 export function OrganizationSettings() {
   const { toast } = useToast()
   const { organization, isOwner, loading } = useUserOrganization()
+  const { role, isAdmin: isRoleAdmin, isEditor } = useOrganizationRole(organization?.id)
   const [formData, setFormData] = useState({
     name: "",
     website: "",
@@ -42,7 +44,9 @@ export function OrganizationSettings() {
   })
   const [originalData, setOriginalData] = useState(formData)
   const [saving, setSaving] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(false)
+  
+  // Compute combined permissions: Owner OR Admin role can edit organization profile
+  const isOwnerOrAdmin = isOwner || isRoleAdmin
 
   useEffect(() => {
     async function loadOrganizationData() {
@@ -65,18 +69,6 @@ export function OrganizationSettings() {
           setFormData(data)
           setOriginalData(data)
         }
-
-        // Check if user is admin or owner
-        setIsAdmin(isOwner || false)
-        
-        // Double-check with RPC if not owner
-        if (!isOwner) {
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
-            const { data: adminCheck } = await supabase.rpc('is_org_admin', { org_id: organization.id })
-            setIsAdmin(!!adminCheck)
-          }
-        }
       } catch (error) {
         console.error('Error loading organization data:', error)
         toast({
@@ -88,7 +80,7 @@ export function OrganizationSettings() {
     }
 
     loadOrganizationData()
-  }, [organization, isOwner, toast])
+  }, [organization, toast])
 
   const hasChanges = JSON.stringify(formData) !== JSON.stringify(originalData)
 
@@ -111,10 +103,10 @@ export function OrganizationSettings() {
       return
     }
 
-    if (!isOwner && !isAdmin) {
+    if (!isOwnerOrAdmin) {
       toast({
         title: "Access denied",
-        description: "You need admin access to update organization settings.",
+        description: "Only owners and admins can update organization settings.",
         variant: "destructive"
       })
       return
@@ -143,11 +135,36 @@ export function OrganizationSettings() {
       })
     } catch (error: any) {
       console.error('Error updating organization:', error)
-      toast({
-        title: "Update failed",
-        description: error.message || "Failed to update organization settings.",
-        variant: "destructive"
-      })
+      
+      // Check if this is a permissions error
+      if (error.code === 'PGRST301' || error.message?.includes('access denied')) {
+        // Log the denied access attempt
+        try {
+          await supabase.rpc('log_event', {
+            p_org_id: organization.id,
+            p_action: 'admin.access_denied',
+            p_target_type: 'organization_profile',
+            p_actor_user_id: (await supabase.auth.getUser()).data.user?.id,
+            p_status: 'error',
+            p_error_code: 'ORG_PROFILE_FORBIDDEN',
+            p_metadata: { path: '/settings/organization/profile', role: role }
+          })
+        } catch (logError) {
+          console.error('Failed to log access denied:', logError)
+        }
+        
+        toast({
+          title: "Access denied",
+          description: "Only owners and admins can update organization profile.",
+          variant: "destructive"
+        })
+      } else {
+        toast({
+          title: "Update failed",
+          description: error.message || "Failed to update organization settings.",
+          variant: "destructive"
+        })
+      }
     } finally {
       setSaving(false)
     }
@@ -187,7 +204,7 @@ export function OrganizationSettings() {
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               placeholder="Enter organization name"
-              disabled={!isOwner && !isAdmin}
+              disabled={!isOwnerOrAdmin}
             />
           </div>
 
@@ -198,7 +215,7 @@ export function OrganizationSettings() {
               value={formData.website}
               onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
               placeholder="https://example.com"
-              disabled={!isOwner && !isAdmin}
+              disabled={!isOwnerOrAdmin}
             />
           </div>
 
@@ -207,7 +224,7 @@ export function OrganizationSettings() {
             <Select 
               value={formData.industry} 
               onValueChange={(value) => setFormData(prev => ({ ...prev, industry: value }))}
-              disabled={!isOwner && !isAdmin}
+              disabled={!isOwnerOrAdmin}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select industry" />
@@ -227,7 +244,7 @@ export function OrganizationSettings() {
             <Select 
               value={formData.size_band} 
               onValueChange={(value) => setFormData(prev => ({ ...prev, size_band: value }))}
-              disabled={!isOwner && !isAdmin}
+              disabled={!isOwnerOrAdmin}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select organization size" />
@@ -242,15 +259,18 @@ export function OrganizationSettings() {
             </Select>
           </div>
 
-          {!isOwner && !isAdmin && (
-            <p className="text-sm text-muted-foreground">
-              You need admin access to update organization settings.
-            </p>
+          {!isOwnerOrAdmin && (
+            <div className="p-3 bg-muted/50 rounded-md">
+              <p className="text-sm text-muted-foreground">
+                {isEditor ? "Editors have read-only access to organization profile. Contact an admin to make changes." 
+                          : "Only owners and admins can update organization profile."}
+              </p>
+            </div>
           )}
 
           <Button 
             onClick={handleUpdateOrganization}
-            disabled={!hasChanges || (!isOwner && !isAdmin) || saving}
+            disabled={!hasChanges || !isOwnerOrAdmin || saving}
           >
             {saving ? "Saving..." : "Save Changes"}
           </Button>
