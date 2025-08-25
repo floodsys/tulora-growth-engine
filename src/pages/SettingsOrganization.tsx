@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,12 +14,15 @@ import { OrganizationActivityViewer } from "@/components/OrganizationActivityVie
 import { RetentionSettings } from "@/components/RetentionSettings";
 import SettingsTeams from "@/pages/SettingsTeams";
 import { AdminLogsViewer } from "@/components/admin/AdminLogsViewer";
+import { TeamAccessGuard } from "@/components/guards/TeamAccessGuard";
 
 export default function SettingsOrganization() {
   const { toast } = useToast();
   const { organization, isOwner } = useUserOrganization();
   const { isAdmin } = useOrganizationRole(organization?.id);
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("general");
   
   const [formData, setFormData] = useState({
     name: organization?.name || '',
@@ -26,6 +30,13 @@ export default function SettingsOrganization() {
     size: '1-10',
     website: '',
   });
+
+  // Set active tab based on URL
+  useEffect(() => {
+    if (location.pathname.endsWith('/team')) {
+      setActiveTab('team');
+    }
+  }, [location.pathname]);
 
   // Check if user has access (Owner or Admin)
   const hasAccess = isOwner || isAdmin;
@@ -84,7 +95,7 @@ export default function SettingsOrganization() {
         </p>
       </div>
 
-      <Tabs defaultValue="general" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="general" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
@@ -212,7 +223,9 @@ export default function SettingsOrganization() {
         </TabsContent>
 
         <TabsContent value="team" className="space-y-6">
-          <SettingsTeams />
+          <TeamAccessGuard>
+            <SettingsTeams />
+          </TeamAccessGuard>
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-6">

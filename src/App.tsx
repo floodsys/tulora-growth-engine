@@ -5,6 +5,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AdminSecurityWrapper } from "@/components/AdminSecurityWrapper";
 import { HelmetProvider } from "react-helmet-async";
 import { InviteAcceptRedirect } from "@/components/InviteAcceptRedirect";
+import { RedirectToOrganizationTeam } from "@/components/RedirectToOrganizationTeam";
 import Index from "@/pages/Index";
 import Dashboard from "@/pages/Dashboard";
 import Auth from "@/pages/Auth";
@@ -40,8 +41,9 @@ function App() {
             <Route path="/agent-settings" element={<AgentSettings />} />
             <Route path="/settings" element={<SettingsLayout />}>
               
-              <Route path="teams" element={<TeamAccessGuard><SettingsTeams /></TeamAccessGuard>} />
+              <Route path="teams" element={<RedirectToOrganizationTeam />} />
               <Route path="organization" element={<SettingsOrganization />} />
+              <Route path="organization/team" element={<SettingsOrganization />} />
             </Route>
             <Route path="/invite/accept" element={<InviteAccept />} />
             <Route path="/invite/accept-new" element={<InviteAcceptRedirect />} />

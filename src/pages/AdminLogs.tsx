@@ -245,13 +245,13 @@ export default function AdminLogs() {
   const getDeepLink = (log: AuditLogEntry) => {
     switch (log.target_type) {
       case 'member':
-        return '/settings/teams';
+        return '/settings/organization/team';
       case 'agent':
         return '/dashboard'; // Agents section
       case 'org':
         return '/settings/organization';
       case 'invite':
-        return '/settings/teams';
+        return '/settings/organization/team';
       default:
         return null;
     }

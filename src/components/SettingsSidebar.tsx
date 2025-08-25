@@ -16,7 +16,8 @@ export function SettingsSidebar({ onBack }: SettingsSidebarProps) {
   const currentPath = location.pathname;
 
   const getNavClasses = (path: string) => {
-    const isActive = currentPath === path;
+    const isActive = currentPath === path || 
+      (path === '/settings/organization/team' && currentPath.startsWith('/settings/organization'));
     return `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent ${
       isActive 
         ? 'bg-accent text-accent-foreground font-medium' 
@@ -50,11 +51,11 @@ export function SettingsSidebar({ onBack }: SettingsSidebarProps) {
               </h3>
 
 
-              {/* Teams - Admins and Owners */}
+              {/* Team - Admins and Owners */}
               {(isAdmin || isOwner) && (
-                <NavLink to="/settings/teams" className={getNavClasses('/settings/teams')}>
+                <NavLink to="/settings/organization/team" className={getNavClasses('/settings/organization/team')}>
                   <Users className="h-4 w-4" />
-                  Teams
+                  Team
                 </NavLink>
               )}
 

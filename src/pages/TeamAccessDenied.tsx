@@ -24,11 +24,11 @@ export default function TeamAccessDenied() {
             p_target_type: 'admin_resource',
             p_actor_user_id: user.id,
             p_actor_role_snapshot: 'unauthorized',
-            p_target_id: '/settings/teams',
+            p_target_id: '/settings/organization/team',
             p_status: 'error',
             p_channel: 'internal',
             p_metadata: {
-              path: '/settings/teams',
+              path: '/settings/organization/team',
               security_event: true,
               timestamp: new Date().toISOString()
             },

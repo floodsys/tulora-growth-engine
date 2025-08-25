@@ -6,14 +6,15 @@ const glob = require('glob');
 
 /**
  * Lint script to prevent re-introduction of deprecated TeamsSettings.tsx
- * and duplicate /settings/teams routes
+ * and usage of the old /settings/teams route (except in redirect component)
  */
 
 // Configuration
 const DEPRECATED_FILE = 'TeamsSettings.tsx';
 const DEPRECATED_IMPORT_PATTERN = /import.*TeamsSettings.*from/;
-const TOP_LEVEL_ROUTE_PATTERN = /<Route\s+path="\/settings\/teams"/;
+const DEPRECATED_ROUTE_USAGE = /\/settings\/teams(?!.*RedirectToOrganizationTeam)/;
 const ALLOWLISTED_EXTENSIONS = ['.md', '.txt', '.json'];
+const ALLOWLISTED_FILES = ['RedirectToOrganizationTeam.tsx', 'check-deprecated-routes.js'];
 
 let hasErrors = false;
 const errors = [];
@@ -32,7 +33,8 @@ function addWarning(message, file = null) {
 
 function isAllowlistedFile(filePath) {
   const ext = path.extname(filePath);
-  return ALLOWLISTED_EXTENSIONS.includes(ext);
+  const fileName = path.basename(filePath);
+  return ALLOWLISTED_EXTENSIONS.includes(ext) || ALLOWLISTED_FILES.includes(fileName);
 }
 
 function checkForDeprecatedFile() {
@@ -83,34 +85,28 @@ function checkForDeprecatedImports() {
   console.log('✅ Import check completed');
 }
 
-function checkForTopLevelRoutes() {
-  console.log('🔍 Checking for top-level /settings/teams routes...');
+function checkForDeprecatedRouteUsage() {
+  console.log('🔍 Checking for deprecated /settings/teams usage...');
   
-  const routeFiles = glob.sync('src/**/*.{ts,tsx,js,jsx}', {
+  const sourceFiles = glob.sync('src/**/*.{ts,tsx,js,jsx}', {
     ignore: ['node_modules/**', 'dist/**']
   });
 
-  routeFiles.forEach(file => {
+  sourceFiles.forEach(file => {
+    if (isAllowlistedFile(file)) {
+      return; // Skip allowlisted files
+    }
+
     try {
       const content = fs.readFileSync(file, 'utf8');
       const lines = content.split('\n');
       
       lines.forEach((line, index) => {
-        if (TOP_LEVEL_ROUTE_PATTERN.test(line)) {
-          // Check if this is inside a nested Routes component by looking for SettingsLayout context
-          const fileContent = content;
-          const beforeLine = fileContent.substring(0, fileContent.indexOf(line));
-          
-          // If we find SettingsLayout or nested route structure before this line, it's probably OK
-          const isNested = /SettingsLayout|element={<SettingsLayout/.test(beforeLine) ||
-                          /<Route\s+path="\/settings"/.test(beforeLine);
-          
-          if (!isNested) {
-            addError(
-              `Top-level /settings/teams route found at line ${index + 1}: ${line.trim()}. Use nested route under SettingsLayout instead.`,
-              file
-            );
-          }
+        if (DEPRECATED_ROUTE_USAGE.test(line)) {
+          addError(
+            `Deprecated /settings/teams route usage found at line ${index + 1}: ${line.trim()}. Use /settings/organization/team instead.`,
+            file
+          );
         }
       });
     } catch (error) {
@@ -118,7 +114,7 @@ function checkForTopLevelRoutes() {
     }
   });
 
-  console.log('✅ Route check completed');
+  console.log('✅ Route usage check completed');
 }
 
 function main() {
@@ -126,7 +122,7 @@ function main() {
   
   checkForDeprecatedFile();
   checkForDeprecatedImports();
-  checkForTopLevelRoutes();
+  checkForDeprecatedRouteUsage();
   
   console.log('\n📊 Check Summary:');
   if (hasErrors) {
@@ -135,8 +131,8 @@ function main() {
     console.log('\n💡 To fix these issues:');
     console.log('   1. Remove any TeamsSettings.tsx files');
     console.log('   2. Remove imports of TeamsSettings component');
-    console.log('   3. Use nested routes under SettingsLayout for /settings/teams');
-    console.log('   4. Use only SettingsTeams.tsx for team management');
+    console.log('   3. Replace /settings/teams usage with /settings/organization/team');
+    console.log('   4. Use only the Team tab in Organization settings');
     process.exit(1);
   } else {
     console.log('✅ All checks passed! No deprecated routes or components found.');
@@ -149,4 +145,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { checkForDeprecatedFile, checkForDeprecatedImports, checkForTopLevelRoutes };
+module.exports = { checkForDeprecatedFile, checkForDeprecatedImports, checkForDeprecatedRouteUsage };
