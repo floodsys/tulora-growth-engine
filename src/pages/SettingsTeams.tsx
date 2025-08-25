@@ -55,19 +55,23 @@ export default function SettingsTeams() {
   const [inviting, setInviting] = useState(false);
 
   const { organizationId, isOwner, loading: orgLoading } = useUserOrganization();
-  const { isAdmin, loading: roleLoading } = useOrganizationRole(organizationId || undefined);
+  const { isAdmin, isEditor, isViewer, loading: roleLoading } = useOrganizationRole(organizationId || undefined);
+
+  // Determine access levels
+  const canManageTeam = isOwner || isAdmin;
+  const hasTeamAccess = canManageTeam || isEditor || isViewer;
 
   useEffect(() => {
-    // Redirect non-admins and non-owners
-    if (!orgLoading && !roleLoading && !isAdmin && !isOwner) {
+    // Redirect users without team access
+    if (!orgLoading && !roleLoading && !hasTeamAccess) {
       navigate('/dashboard');
       return;
     }
 
-    if (!orgLoading && !roleLoading && (isAdmin || isOwner) && organizationId) {
+    if (!orgLoading && !roleLoading && hasTeamAccess && organizationId) {
       fetchTeamData();
     }
-  }, [isAdmin, isOwner, roleLoading, orgLoading, organizationId, navigate]);
+  }, [hasTeamAccess, canManageTeam, roleLoading, orgLoading, organizationId, navigate]);
 
   const fetchTeamData = async () => {
     if (!organizationId) return;
@@ -312,7 +316,7 @@ export default function SettingsTeams() {
     );
   }
 
-  if (!isAdmin && !isOwner) {
+  if (!hasTeamAccess) {
     return (
       <div className="space-y-6">
         <Card>
@@ -322,7 +326,7 @@ export default function SettingsTeams() {
               Access Restricted
             </CardTitle>
             <CardDescription>
-              Only organization admins and owners can access team management.
+              You need team access permissions to view team management.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -348,7 +352,10 @@ export default function SettingsTeams() {
           Team Management
         </h1>
         <p className="text-muted-foreground mt-2">
-          Manage your team members, roles, and permissions
+          {canManageTeam 
+            ? "Manage your team members, roles, and permissions"
+            : "View team members and their roles (read-only access)"
+          }
         </p>
       </div>
 
@@ -389,76 +396,78 @@ export default function SettingsTeams() {
         </Card>
       </div>
 
-      {/* Invite Form */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Invite Team Member
-          </CardTitle>
-          <CardDescription>
-            Send an invitation to add a new member to your team
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="md:col-span-2 space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter email address"
-                value={inviteEmail}
-                onChange={(e) => {
-                  setInviteEmail(e.target.value);
-                  if (emailError) setEmailError('');
-                }}
-                className={emailError ? 'border-destructive' : ''}
-              />
-              {emailError && (
-                <p className="text-sm text-destructive">{emailError}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <Select value={inviteRole} onValueChange={(value) => setInviteRole(value as OrganizationRole)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="editor">Editor</SelectItem>
-                  <SelectItem value="viewer">Viewer</SelectItem>
-                  <SelectItem value="user">User</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-transparent">Action</Label>
-              <Button 
-                onClick={handleInvite} 
-                className="w-full"
-                disabled={inviting}
-              >
-                {inviting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Send Invite
-                  </>
+      {/* Invite Form - Only show for admins/owners */}
+      {canManageTeam && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              Invite Team Member
+            </CardTitle>
+            <CardDescription>
+              Send an invitation to add a new member to your team
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-2 space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter email address"
+                  value={inviteEmail}
+                  onChange={(e) => {
+                    setInviteEmail(e.target.value);
+                    if (emailError) setEmailError('');
+                  }}
+                  className={emailError ? 'border-destructive' : ''}
+                />
+                {emailError && (
+                  <p className="text-sm text-destructive">{emailError}</p>
                 )}
-              </Button>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="role">Role</Label>
+                <Select value={inviteRole} onValueChange={(value) => setInviteRole(value as OrganizationRole)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="editor">Editor</SelectItem>
+                    <SelectItem value="viewer">Viewer</SelectItem>
+                    <SelectItem value="user">User</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-transparent">Action</Label>
+                <Button 
+                  onClick={handleInvite} 
+                  className="w-full"
+                  disabled={inviting}
+                >
+                  {inviting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Send Invite
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Pending Invitations */}
-      {invites.filter(i => i.status === 'pending').length > 0 && (
+      {/* Pending Invitations - Only show for admins/owners */}
+      {canManageTeam && invites.filter(i => i.status === 'pending').length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Pending Invitations</CardTitle>
@@ -525,7 +534,10 @@ export default function SettingsTeams() {
         <CardHeader>
           <CardTitle>Team Members</CardTitle>
           <CardDescription>
-            Manage roles and permissions for your team members
+            {canManageTeam 
+              ? "Manage roles and permissions for your team members"
+              : "View team members and their roles"
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -554,21 +566,27 @@ export default function SettingsTeams() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Select
-                        value={member.role}
-                        onValueChange={(value) => updateMemberRole(member.id, value as OrganizationRole)}
-                        disabled={member.user_id === user?.id} // Can't change own role
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="editor">Editor</SelectItem>
-                          <SelectItem value="viewer">Viewer</SelectItem>
-                          <SelectItem value="user">User</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {canManageTeam ? (
+                        <Select
+                          value={member.role}
+                          onValueChange={(value) => updateMemberRole(member.id, value as OrganizationRole)}
+                          disabled={member.user_id === user?.id} // Can't change own role
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="editor">Editor</SelectItem>
+                            <SelectItem value="viewer">Viewer</SelectItem>
+                            <SelectItem value="user">User</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge variant={getRoleBadgeVariant(member.role)}>
+                          {formatRole(member.role)}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       {new Date(member.created_at).toLocaleDateString()}
@@ -579,7 +597,7 @@ export default function SettingsTeams() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {member.user_id !== user?.id && (
+                      {canManageTeam && member.user_id !== user?.id && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="outline" size="sm">
@@ -601,6 +619,9 @@ export default function SettingsTeams() {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
+                      )}
+                      {!canManageTeam && (
+                        <span className="text-xs text-muted-foreground">Read-only</span>
                       )}
                     </TableCell>
                   </TableRow>

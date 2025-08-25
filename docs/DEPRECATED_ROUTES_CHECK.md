@@ -1,43 +1,49 @@
-# Deprecated Routes Lint Check
+# Deprecated Routes Check
 
-## Overview
-This project includes automated checks to prevent the use of deprecated invite routes, specifically `accept-new` patterns.
+This document explains the automated check that prevents regression of deprecated team management components and routes.
 
-## Scripts
+## Background
 
-### Manual Check
+The team management functionality was consolidated to prevent confusion and ensure a single source of truth:
+
+- **Deprecated**: `TeamsSettings.tsx` (mock data component)
+- **Deprecated**: Top-level route `path="/settings/teams"` 
+- **Current**: `SettingsTeams.tsx` under `SettingsLayout` at `/settings/teams`
+
+## What the Check Does
+
+The `scripts/check-deprecated-routes.js` script prevents:
+
+1. **File Reintroduction**: Blocks re-adding `TeamsSettings.tsx` file
+2. **Import Prevention**: Detects imports of the deprecated `TeamsSettings` component  
+3. **Route Duplication**: Prevents top-level `/settings/teams` routes outside of `SettingsLayout`
+
+## Running the Check
+
 ```bash
-npm run lint:routes
-# or
-node scripts/check-deprecated-routes.js
+# Manual check
+npm run check:deprecated-routes
+
+# As part of CI
+npm run lint
 ```
 
-### CI Integration
-The check runs automatically on:
-- Push to `main` or `develop` branches  
-- Pull requests to `main` or `develop` branches
+## Allowed Files
 
-## What it checks
-- Searches for `accept-new` and `invite/accept-new` patterns
-- Checks `.ts`, `.tsx`, `.js`, `.jsx`, `.md`, `.html`, `.json` files
-- Excludes `node_modules`, `.git`, build directories
+Documentation files (`.md`, `.txt`, `.json`) that mention `TeamsSettings` are allowed and will show warnings instead of errors.
 
-## Allowed exceptions
-- `src/components/InviteAcceptRedirect.tsx` - needed for redirect functionality
-- `scripts/check-deprecated-routes.js` - the check script itself
+## Fix Instructions
 
-## How to fix violations
-Replace any `accept-new` references with `/invite/accept`:
+If the check fails:
 
-❌ `/invite/accept-new?token=xyz`  
-✅ `/invite/accept?token=xyz`
+1. **Remove** any `TeamsSettings.tsx` files
+2. **Remove** imports of `TeamsSettings` component
+3. **Use** nested routes under `SettingsLayout` for `/settings/teams`
+4. **Use only** `SettingsTeams.tsx` for team management functionality
 
-## Adding to package.json
-To add the script to package.json (when editable):
-```json
-{
-  "scripts": {
-    "lint:routes": "node scripts/check-deprecated-routes.js"
-  }
-}
-```
+## Implementation Details
+
+- **Canonical Route**: `/settings/teams` renders `SettingsTeams` inside `SettingsLayout`
+- **RBAC**: Both dashboard and settings views use same permission hooks
+- **Data Source**: All team operations use Supabase tables and `create_invite` RPC
+- **Invite Links**: All invites use `/invite/accept?token=...` format
