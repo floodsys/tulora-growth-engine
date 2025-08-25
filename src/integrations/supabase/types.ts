@@ -951,11 +951,13 @@ export type Database = {
           entitlements: Json | null
           export_before_purge: Json | null
           id: string
+          industry: string | null
           legal_hold_enabled: boolean | null
           name: string
           owner_user_id: string | null
           plan_key: string | null
           retention_config: Json | null
+          size_band: string | null
           status: string | null
           stripe_customer_id: string | null
           suspended_at: string | null
@@ -964,6 +966,7 @@ export type Database = {
           trial_ends_at: string | null
           trial_started_at: string | null
           webhook_config: Json | null
+          website: string | null
         }
         Insert: {
           analytics_config?: Json | null
@@ -973,11 +976,13 @@ export type Database = {
           entitlements?: Json | null
           export_before_purge?: Json | null
           id?: string
+          industry?: string | null
           legal_hold_enabled?: boolean | null
           name: string
           owner_user_id?: string | null
           plan_key?: string | null
           retention_config?: Json | null
+          size_band?: string | null
           status?: string | null
           stripe_customer_id?: string | null
           suspended_at?: string | null
@@ -986,6 +991,7 @@ export type Database = {
           trial_ends_at?: string | null
           trial_started_at?: string | null
           webhook_config?: Json | null
+          website?: string | null
         }
         Update: {
           analytics_config?: Json | null
@@ -995,11 +1001,13 @@ export type Database = {
           entitlements?: Json | null
           export_before_purge?: Json | null
           id?: string
+          industry?: string | null
           legal_hold_enabled?: boolean | null
           name?: string
           owner_user_id?: string | null
           plan_key?: string | null
           retention_config?: Json | null
+          size_band?: string | null
           status?: string | null
           stripe_customer_id?: string | null
           suspended_at?: string | null
@@ -1008,6 +1016,7 @@ export type Database = {
           trial_ends_at?: string | null
           trial_started_at?: string | null
           webhook_config?: Json | null
+          website?: string | null
         }
         Relationships: []
       }

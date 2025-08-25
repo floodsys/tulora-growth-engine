@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Building2, Check, ChevronsUpDown, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -17,25 +17,78 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { useFreePlanLimits } from "@/hooks/useFreePlanLimits"
+import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { UpgradeModal } from "@/components/ui/UpgradeModal"
+import { supabase } from "@/integrations/supabase/client"
 
 interface Organization {
   id: string
   name: string
-  slug: string
+  slug?: string
 }
-
-const mockOrgs: Organization[] = [
-  { id: "1", name: "Acme Corp", slug: "acme" },
-  { id: "2", name: "TechStart Inc", slug: "techstart" },
-  { id: "3", name: "Global Solutions", slug: "global" },
-]
 
 export function OrgSwitcher() {
   const [open, setOpen] = useState(false)
-  const [selectedOrg, setSelectedOrg] = useState<Organization>(mockOrgs[0])
+  const [organizations, setOrganizations] = useState<Organization[]>([])
+  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null)
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
-  const { canCreateOrganization, hasPendingBilling } = useFreePlanLimits()
+  const { canCreateOrganization, hasPendingBilling, isNonPaying } = useFreePlanLimits()
+  const { organization, loading } = useUserOrganization()
+
+  useEffect(() => {
+    async function fetchOrganizations() {
+      if (loading || !organization) return
+
+      if (isNonPaying) {
+        // Free users see only their single org
+        const userOrg = { id: organization.id, name: organization.name }
+        setOrganizations([userOrg])
+        setSelectedOrg(userOrg)
+      } else {
+        // Paid users see all their orgs
+        try {
+          const { data: { user } } = await supabase.auth.getUser()
+          if (!user) return
+
+          // Get owned orgs
+          const { data: ownedOrgs } = await supabase
+            .from('organizations')
+            .select('id, name')
+            .eq('owner_user_id', user.id)
+
+          // Get member orgs
+          const { data: memberOrgs } = await supabase
+            .from('organization_members')
+            .select(`
+              organizations!inner (
+                id,
+                name
+              )
+            `)
+            .eq('user_id', user.id)
+            .eq('seat_active', true)
+
+          const allOrgs = [
+            ...(ownedOrgs || []),
+            ...(memberOrgs?.map(m => Array.isArray(m.organizations) ? m.organizations[0] : m.organizations) || [])
+          ].filter((org, index, self) => 
+            org && self.findIndex(o => o.id === org.id) === index
+          ) as Organization[]
+
+          setOrganizations(allOrgs)
+          setSelectedOrg(organization ? { id: organization.id, name: organization.name } : allOrgs[0])
+        } catch (error) {
+          console.error('Error fetching organizations:', error)
+          // Fallback to current org
+          const userOrg = { id: organization.id, name: organization.name }
+          setOrganizations([userOrg])
+          setSelectedOrg(userOrg)
+        }
+      }
+    }
+
+    fetchOrganizations()
+  }, [organization, loading, isNonPaying])
 
   const handleCreateOrganization = () => {
     if (!canCreateOrganization) {
@@ -44,6 +97,29 @@ export function OrgSwitcher() {
     }
     // TODO: Implement organization creation logic
     console.log("Creating new organization...")
+  }
+
+  if (loading || !selectedOrg) {
+    return (
+      <Button variant="outline" className="w-full justify-between" disabled>
+        <div className="flex items-center gap-2">
+          <Building2 className="h-4 w-4" />
+          <span>Loading...</span>
+        </div>
+      </Button>
+    )
+  }
+
+  // For free users with only one org, don't show the dropdown
+  if (isNonPaying && organizations.length === 1) {
+    return (
+      <Button variant="outline" className="w-full justify-between" disabled>
+        <div className="flex items-center gap-2">
+          <Building2 className="h-4 w-4" />
+          <span className="truncate">{selectedOrg.name}</span>
+        </div>
+      </Button>
+    )
   }
 
   return (
@@ -65,11 +141,11 @@ export function OrgSwitcher() {
         </PopoverTrigger>
         <PopoverContent className="w-[200px] p-0">
           <Command>
-            <CommandInput placeholder="Search organizations..." />
+            {!isNonPaying && <CommandInput placeholder="Search organizations..." />}
             <CommandList>
               <CommandEmpty>No organizations found.</CommandEmpty>
               <CommandGroup>
-                {mockOrgs.map((org) => (
+                {organizations.map((org) => (
                   <CommandItem
                     key={org.id}
                     value={org.id}
@@ -91,19 +167,23 @@ export function OrgSwitcher() {
                   </CommandItem>
                 ))}
               </CommandGroup>
-              <CommandSeparator />
-              <CommandGroup>
-                <CommandItem 
-                  onSelect={handleCreateOrganization}
-                  disabled={!canCreateOrganization}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Organization
-                  {!canCreateOrganization && (
-                    <span className="ml-auto text-xs text-muted-foreground">Upgrade</span>
-                  )}
-                </CommandItem>
-              </CommandGroup>
+              {!isNonPaying && (
+                <>
+                  <CommandSeparator />
+                  <CommandGroup>
+                    <CommandItem 
+                      onSelect={handleCreateOrganization}
+                      disabled={!canCreateOrganization}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Organization
+                      {!canCreateOrganization && (
+                        <span className="ml-auto text-xs text-muted-foreground">Upgrade</span>
+                      )}
+                    </CommandItem>
+                  </CommandGroup>
+                </>
+              )}
             </CommandList>
           </Command>
         </PopoverContent>
