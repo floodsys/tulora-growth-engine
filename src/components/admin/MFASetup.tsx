@@ -58,8 +58,17 @@ export function MFASetup({ onSetupComplete, onCancel }: MFASetupProps) {
 
     setIsLoading(true);
     try {
+      // Get the enrolled factor to get its ID
+      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+      if (factorsError) throw factorsError;
+
+      const enrolledFactor = factors.totp?.find(factor => factor.friendly_name === 'Superadmin TOTP');
+      if (!enrolledFactor) {
+        throw new Error('Could not find enrolled TOTP factor');
+      }
+
       const { data, error } = await supabase.auth.mfa.challengeAndVerify({
-        factorId: qrCode.split('totp:')[1]?.split('?')[0] || '',
+        factorId: enrolledFactor.id,
         code: verificationCode
       });
 

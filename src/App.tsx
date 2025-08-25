@@ -26,6 +26,7 @@ import AdminInviteTests from "@/pages/AdminInviteTests";
 import AdminOrgLogs from "@/pages/AdminOrgLogs";
 import AdminAccessDenied from "@/pages/AdminAccessDenied";
 import SecureDiagnostic from "@/pages/SecureDiagnostic";
+import AdminMFADiag from "@/pages/AdminMFADiag";
 
 function App() {
   return (
@@ -52,6 +53,7 @@ function App() {
             <Route path="/activity-logs" element={<ActivityLogs />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/_diag" element={<SecureDiagnostic />} />
+            <Route path="/admin/_mfa_diag" element={<AdminMFADiag />} />
             <Route path="/admin/access-denied" element={<AdminAccessDenied />} />
             <Route path="/admin-setup" element={<AdminSetup />} />
             <Route path="/admin/logs/org/:orgId" element={<AdminOrgLogs />} />
