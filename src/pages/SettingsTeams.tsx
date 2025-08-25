@@ -250,13 +250,24 @@ export default function SettingsTeams() {
   };
 
   const updateMemberRole = async (memberId: string, newRole: OrganizationRole) => {
+    if (!organizationId) return;
+    
     try {
-      const { error } = await supabase
-        .from('organization_members')
-        .update({ role: newRole })
-        .eq('id', memberId);
+      // Get the member's user_id first
+      const member = members.find(m => m.id === memberId);
+      if (!member) throw new Error('Member not found');
+
+      const { data, error } = await supabase.rpc('admin_change_member_role', {
+        p_organization_id: organizationId,
+        p_user_id: member.user_id,
+        p_new_role: newRole
+      });
 
       if (error) throw error;
+
+      if (!(data as any)?.success) {
+        throw new Error((data as any)?.error || 'Failed to update role');
+      }
 
       toast({
         title: "Role updated",
@@ -268,20 +279,30 @@ export default function SettingsTeams() {
       console.error('Error updating role:', error);
       toast({
         title: "Error",
-        description: "Failed to update role",
+        description: error instanceof Error ? error.message : "Failed to update role",
         variant: "destructive",
       });
     }
   };
 
   const removeMember = async (memberId: string) => {
+    if (!organizationId) return;
+    
     try {
-      const { error } = await supabase
-        .from('organization_members')
-        .delete()
-        .eq('id', memberId);
+      // Get the member's user_id first
+      const member = members.find(m => m.id === memberId);
+      if (!member) throw new Error('Member not found');
+
+      const { data, error } = await supabase.rpc('admin_remove_member', {
+        p_organization_id: organizationId,
+        p_user_id: member.user_id
+      });
 
       if (error) throw error;
+
+      if (!(data as any)?.success) {
+        throw new Error((data as any)?.error || 'Failed to remove member');
+      }
 
       toast({
         title: "Member removed",
@@ -293,7 +314,7 @@ export default function SettingsTeams() {
       console.error('Error removing member:', error);
       toast({
         title: "Error",
-        description: "Failed to remove member",
+        description: error instanceof Error ? error.message : "Failed to remove member",
         variant: "destructive",
       });
     }
