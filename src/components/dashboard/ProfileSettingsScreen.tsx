@@ -80,6 +80,16 @@ export function ProfileSettingsScreen() {
                     />
                   </div>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="userId">User ID</Label>
+                  <Input
+                    id="userId"
+                    value={user?.id || ""}
+                    readOnly
+                    className="bg-muted font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">Your unique user identifier. This cannot be changed.</p>
+                </div>
                 <Button onClick={handleUpdateProfile}>
                   Update Profile
                 </Button>

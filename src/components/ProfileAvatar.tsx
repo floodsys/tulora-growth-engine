@@ -81,8 +81,6 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
         >
           <div className="px-3 py-2">
             <p className="text-sm font-medium">{user?.user_metadata?.full_name || "User"}</p>
-            <p className="text-xs text-muted-foreground">{user?.email}</p>
-            <p className="text-xs text-muted-foreground font-mono">ID: {user?.id}</p>
           </div>
           <DropdownMenuSeparator />
           <DropdownMenuItem 
