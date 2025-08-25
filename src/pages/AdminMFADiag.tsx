@@ -9,6 +9,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, Shield, Key, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { MFAFactorManager } from '@/components/admin/MFAFactorManager';
 
 interface MFAFactor {
   id: string;
@@ -350,6 +351,9 @@ export default function AdminMFADiag() {
             </CardContent>
           </Card>
         )}
+
+        {/* Factor Management */}
+        <MFAFactorManager onFactorChanged={loadMFAInfo} />
       </div>
     </div>
   );

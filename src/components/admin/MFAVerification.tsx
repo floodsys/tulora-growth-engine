@@ -5,8 +5,9 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, Clock } from 'lucide-react';
+import { Shield, Clock, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useMFAAttemptThrottling } from '@/hooks/useMFAAttemptThrottling';
 
 interface MFAVerificationProps {
   onVerificationSuccess: () => void;
@@ -19,7 +20,9 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
   const [factorId, setFactorId] = useState<string>('');
   const [challengeId, setChallengeId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [lastError, setLastError] = useState<any>(null);
   const { toast } = useToast();
+  const throttling = useMFAAttemptThrottling(5, 2000);
 
   useEffect(() => {
     initializeMFA();
@@ -93,11 +96,22 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
   };
 
   const verifyMFA = async () => {
+    // Check throttling first
+    if (!throttling.canAttempt) {
+      const waitTime = Math.ceil(throttling.cooldownTime / 1000);
+      toast({
+        title: 'Too Many Attempts',
+        description: `Please wait ${waitTime} seconds before trying again. Attempts left: ${throttling.attemptsLeft}`,
+        variant: 'destructive'
+      });
+      return;
+    }
+
     // Strip spaces and validate code
     const cleanCode = verificationCode.replace(/\s/g, '');
     if (cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) {
       toast({
-        title: 'Invalid Code',
+        title: 'Invalid Code Format',
         description: 'Please enter a 6-digit verification code',
         variant: 'destructive'
       });
@@ -107,16 +121,17 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
     // Check for required UUIDs
     if (!factorId || !challengeId) {
       toast({
-        title: 'Missing UUIDs',
-        description: 'Missing factor_id or challenge_id. Please refresh the page and try again.',
+        title: 'Missing Challenge',
+        description: 'Missing factor_id or challenge_id. Creating new challenge...',
         variant: 'destructive'
       });
-      // Try to reinitialize
       initializeMFA();
       return;
     }
 
     setIsLoading(true);
+    setLastError(null);
+    
     try {
       // Verify code with proper UUIDs
       const { error: verifyError } = await supabase.auth.mfa.verify({
@@ -126,30 +141,60 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
       });
       
       if (verifyError) {
-        // Handle specific error cases
-        if (verifyError.message?.includes('expired') || verifyError.message?.includes('invalid')) {
+        // Store structured error for debugging
+        const structuredError = {
+          ok: false,
+          error: verifyError.message || 'Verification failed',
+          hint: getErrorHint(verifyError),
+          cause: verifyError.name || 'MFAError',
+          timestamp: new Date().toISOString()
+        };
+        setLastError(structuredError);
+
+        // Handle specific error cases with clear messaging
+        if (verifyError.message?.includes('expired') || verifyError.message?.includes('invalid_challenge')) {
           toast({
-            title: 'Challenge Expired or Invalid',
-            description: 'The verification challenge has expired. Creating a new challenge...',
+            title: 'Challenge Expired',
+            description: 'Your verification challenge has expired. Creating a new one...',
             variant: 'destructive'
           });
-          // Create new challenge and retry
           initializeMFA();
           return;
         }
         
-        if (verifyError.message?.includes('code')) {
+        if (verifyError.message?.includes('code') || verifyError.message?.includes('invalid_totp')) {
+          // Record failed attempt for throttling
+          throttling.recordFailedAttempt();
+          
           toast({
-            title: 'Invalid Code',
-            description: 'The verification code is incorrect. Please check your authenticator app and try again.',
+            title: 'Incorrect Verification Code',
+            description: `The code is incorrect. ${throttling.attemptsLeft - 1} attempts remaining.`,
             variant: 'destructive'
           });
           setVerificationCode('');
           return;
         }
+
+        if (verifyError.message?.includes('rate_limit') || verifyError.message?.includes('too_many_requests')) {
+          toast({
+            title: 'Rate Limited',
+            description: 'Too many verification attempts. Please wait before trying again.',
+            variant: 'destructive'
+          });
+          return;
+        }
         
-        throw verifyError;
+        // Generic error
+        toast({
+          title: 'Verification Failed',
+          description: structuredError.error,
+          variant: 'destructive'
+        });
+        return;
       }
+
+      // Success - reset throttling
+      throttling.reset();
 
       // Set MFA verification timestamp in localStorage (expires in 12 hours)
       const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).getTime();
@@ -163,7 +208,8 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
           metadata: {
             factor_type: 'totp',
             superadmin: true,
-            expires_at: expiresAt
+            expires_at: expiresAt,
+            attempts_before_success: 5 - throttling.attemptsLeft
           }
         }
       });
@@ -172,7 +218,7 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
       await supabase.auth.refreshSession();
 
       toast({
-        title: 'MFA Verified',
+        title: 'MFA Verified Successfully',
         description: 'You have been authenticated for the next 12 hours',
       });
 
@@ -180,14 +226,36 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
       navigate('/admin');
       onVerificationSuccess();
     } catch (error: any) {
+      const structuredError = {
+        ok: false,
+        error: error.message || 'Unknown verification error',
+        hint: 'Check your network connection and try again',
+        cause: error.name || 'NetworkError',
+        timestamp: new Date().toISOString()
+      };
+      setLastError(structuredError);
+      
       toast({
-        title: 'Verification Failed',
-        description: error.message || 'Failed to verify MFA code',
+        title: 'Verification Error',
+        description: structuredError.error,
         variant: 'destructive'
       });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getErrorHint = (error: any): string => {
+    if (error.message?.includes('expired')) return 'Try creating a new challenge';
+    if (error.message?.includes('code')) return 'Check your authenticator app for the current code';
+    if (error.message?.includes('rate_limit')) return 'Wait a few minutes before trying again';
+    if (error.message?.includes('network')) return 'Check your internet connection';
+    return 'Try refreshing the page or contact support';
+  };
+
+  const createNewChallenge = async () => {
+    setLastError(null);
+    await initializeMFA();
   };
 
   return (
@@ -207,6 +275,36 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
               This session will be valid for 12 hours.
             </AlertDescription>
           </Alert>
+
+          {/* Throttling Warning */}
+          {!throttling.canAttempt && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Too many failed attempts. Please wait {Math.ceil(throttling.cooldownTime / 1000)} seconds before trying again.
+                {throttling.attemptsLeft > 0 && ` (${throttling.attemptsLeft} attempts remaining)`}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Error Display */}
+          {lastError && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-2">
+                  <div><strong>Error:</strong> {lastError.error}</div>
+                  <div><strong>Hint:</strong> {lastError.hint}</div>
+                  <details className="text-xs">
+                    <summary className="cursor-pointer">Debug Info</summary>
+                    <pre className="mt-1 text-xs overflow-auto">
+                      {JSON.stringify(lastError, null, 2)}
+                    </pre>
+                  </details>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
           
           <div className="text-center space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -218,6 +316,7 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
                 value={verificationCode} 
                 onChange={setVerificationCode}
                 maxLength={6}
+                disabled={!throttling.canAttempt || isLoading}
               >
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
@@ -233,15 +332,30 @@ export function MFAVerification({ onVerificationSuccess, onCancel }: MFAVerifica
             <div className="flex space-x-2">
               <Button 
                 onClick={verifyMFA} 
-                disabled={isLoading || verificationCode.length !== 6}
+                disabled={isLoading || verificationCode.length !== 6 || !throttling.canAttempt}
                 className="flex-1"
               >
                 {isLoading ? 'Verifying...' : 'Verify'}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={createNewChallenge}
+                disabled={isLoading}
+                title="Create new challenge if current one expired"
+              >
+                <RefreshCw className="h-4 w-4" />
               </Button>
               <Button variant="outline" onClick={onCancel}>
                 Cancel
               </Button>
             </div>
+
+            {/* Challenge status */}
+            {challengeId && (
+              <div className="text-xs text-muted-foreground">
+                Challenge ID: <code className="bg-muted px-1 rounded">{challengeId.slice(0, 8)}...</code>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
