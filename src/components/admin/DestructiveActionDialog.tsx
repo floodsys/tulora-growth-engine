@@ -9,6 +9,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { StepUpAuthModal } from './StepUpAuthModal';
+import { useStepUpAuth } from '@/hooks/useStepUpAuth';
 
 interface DestructiveActionDialogProps {
   isOpen: boolean;
@@ -41,9 +43,11 @@ export function DestructiveActionDialog({
 }: DestructiveActionDialogProps) {
   const { organization } = useUserOrganization();
   const { toast } = useToast();
+  const { requireStepUpAuth } = useStepUpAuth();
   const [inputConfirmation, setInputConfirmation] = useState('');
   const [reason, setReason] = useState('');
   const [executing, setExecuting] = useState(false);
+  const [showStepUpModal, setShowStepUpModal] = useState(false);
 
   const getDangerColor = (level: string) => {
     switch (level) {
@@ -74,6 +78,26 @@ export function DestructiveActionDialog({
       return;
     }
 
+    // Check step-up authentication requirement first
+    const stepUpResult = await requireStepUpAuth(actionName) as any;
+    if (!stepUpResult?.success) {
+      if (stepUpResult?.error_code === 'step_up_required') {
+        setShowStepUpModal(true);
+        return;
+      } else {
+        toast({
+          title: 'Authentication Error',
+          description: stepUpResult?.error || 'Failed to verify authentication',
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
+
+    await executeAction();
+  };
+
+  const executeAction = async () => {
     setExecuting(true);
     try {
       // Use the secure RPC function for destructive actions
@@ -124,6 +148,11 @@ export function DestructiveActionDialog({
     }
   };
 
+  const handleStepUpSuccess = () => {
+    setShowStepUpModal(false);
+    executeAction();
+  };
+
   const handleCancel = () => {
     setInputConfirmation('');
     setReason('');
@@ -133,20 +162,21 @@ export function DestructiveActionDialog({
   const isFormValid = inputConfirmation === confirmationText && reason.trim().length > 0;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-red-500" />
-            Confirm Destructive Action
-            <Badge className={getDangerColor(dangerLevel)}>
-              {dangerLevel} risk
-            </Badge>
-          </DialogTitle>
-          <DialogDescription>
-            {title}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Confirm Destructive Action
+              <Badge className={getDangerColor(dangerLevel)}>
+                {dangerLevel} risk
+              </Badge>
+            </DialogTitle>
+            <DialogDescription>
+              {title}
+            </DialogDescription>
+          </DialogHeader>
         
         <div className="space-y-6">
           <Alert variant="destructive">
@@ -229,5 +259,14 @@ export function DestructiveActionDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <StepUpAuthModal
+      isOpen={showStepUpModal}
+      onOpenChange={setShowStepUpModal}
+      onSuccess={handleStepUpSuccess}
+      actionName={actionName}
+      actionDescription={description}
+    />
+  </>
   );
 }

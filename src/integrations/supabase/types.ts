@@ -1080,6 +1080,36 @@ export type Database = {
         }
         Relationships: []
       }
+      step_up_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          session_token: string
+          used_for_actions: string[] | null
+          user_id: string
+          verification_method: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          session_token?: string
+          used_for_actions?: string[] | null
+          user_id: string
+          verification_method: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          session_token?: string
+          used_for_actions?: string[] | null
+          user_id?: string
+          verification_method?: string
+        }
+        Relationships: []
+      }
       superadmins: {
         Row: {
           added_by: string | null
@@ -1315,6 +1345,10 @@ export type Database = {
       }
       check_org_ownership: {
         Args: { org_id: string; user_id?: string }
+        Returns: boolean
+      }
+      check_step_up_auth: {
+        Args: { p_action?: string }
         Returns: boolean
       }
       check_superadmin_mfa_recent: {
@@ -1600,6 +1634,10 @@ export type Database = {
         Args: { p_user_email: string }
         Returns: Json
       }
+      require_step_up_auth: {
+        Args: { p_action: string }
+        Returns: Json
+      }
       seed_default_alert_rules: {
         Args: { p_org_id: string }
         Returns: undefined
@@ -1659,6 +1697,10 @@ export type Database = {
       vector_typmod_in: {
         Args: { "": unknown[] }
         Returns: number
+      }
+      verify_step_up_auth: {
+        Args: { p_mfa_code?: string; p_password?: string }
+        Returns: Json
       }
     }
     Enums: {
