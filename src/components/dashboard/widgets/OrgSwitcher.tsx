@@ -90,13 +90,22 @@ export function OrgSwitcher() {
     fetchOrganizations()
   }, [organization, loading, isNonPaying])
 
-  const handleCreateOrganization = () => {
+  const handleCreateOrganization = async () => {
     if (!canCreateOrganization) {
       setUpgradeModalOpen(true)
       return
     }
-    // TODO: Implement organization creation logic
-    console.log("Creating new organization...")
+
+    try {
+      // For now, just show the upgrade modal - organization creation will be implemented separately
+      console.log("Creating new organization...")
+      // TODO: Implement organization creation UI/modal
+    } catch (error: any) {
+      console.error('Error creating organization:', error)
+      if (error.status === 402) {
+        setUpgradeModalOpen(true)
+      }
+    }
   }
 
   if (loading || !selectedOrg) {
