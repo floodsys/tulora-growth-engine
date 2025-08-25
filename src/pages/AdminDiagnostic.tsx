@@ -260,14 +260,14 @@ export default function AdminDiagnostic() {
       { name: 'Admin Billing Actions - Cancel Subscription', method: 'POST', function: 'admin-billing-actions', body: { action: 'cancel_subscription', subscription_id: 'test' } },
       { name: 'Org Suspension - Suspend', method: 'POST', function: 'org-suspension', body: { action: 'suspend', org_id: 'test-org-id', reason: 'Test probe', confirmation_phrase: 'SUSPEND ORG test-org-id' } },
       { name: 'Data Fixes', method: 'POST', function: 'admin-data-fixes', body: { action: 'test_probe' } },
-      { name: 'Email Integration Test', method: 'POST', function: 'send-test-email', body: { to: 'test@example.com', subject: 'Probe Test' } },
+      { name: 'Email Integration Test', method: 'POST', function: 'email-integration-test', body: {} },
     ];
 
     for (const api of adminApis) {
       try {
-        // Get Supabase function URL from environment
-        const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        // Use correct Supabase URLs (not VITE_ env vars)
+        const baseUrl = 'https://nkjxbeypbiclvouqfjyc.supabase.co';
+        const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ranhiZXlwYmljbHZvdXFmanljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0Nzg2NDEsImV4cCI6MjA3MTA1NDY0MX0.iuFFcJSX97MKkiBvSYLmIao9aTMrQm7zqnf4kEDraQg';
         const fullUrl = `${baseUrl}/functions/v1/${api.function}`;
         
         // Make direct fetch to capture full response details
@@ -289,6 +289,8 @@ export default function AdminDiagnostic() {
         const response = await fetch(fullUrl, {
           method: api.method,
           headers,
+          mode: 'cors',
+          credentials: 'omit',
           body: JSON.stringify(api.body)
         });
 
@@ -322,7 +324,7 @@ export default function AdminDiagnostic() {
           error: response.ok ? undefined : `HTTP ${response.status}`
         });
       } catch (err) {
-        const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const baseUrl = 'https://nkjxbeypbiclvouqfjyc.supabase.co';
         const fullUrl = `${baseUrl}/functions/v1/${api.function}`;
         
         probes.push({
@@ -594,6 +596,40 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
             <strong>Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.</strong>
           </AlertDescription>
         </Alert>
+
+        {/* Configuration Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Configuration Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">Supabase Configuration</h4>
+                  <div className="space-y-1 text-sm font-mono">
+                    <div><strong>Project ID:</strong> nkjxbeypbiclvouqfjyc</div>
+                    <div><strong>Base URL:</strong> https://nkjxbeypbiclvouqfjyc.supabase.co</div>
+                    <div><strong>Functions URL:</strong> https://nkjxbeypbiclvouqfjyc.supabase.co/functions/v1/</div>
+                    <div><strong>Region:</strong> us-east-1 (default)</div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">CORS & Request Settings</h4>
+                  <div className="space-y-1 text-sm">
+                    <div><strong>Mode:</strong> cors</div>
+                    <div><strong>Credentials:</strong> omit</div>
+                    <div><strong>Auth Header:</strong> Bearer {user ? '[Present]' : '[Missing]'}</div>
+                    <div className="font-mono"><strong>API Key:</strong> eyJ...{`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ranhiZXlwYmljbHZvdXFmanljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0Nzg2NDEsImV4cCI6MjA3MTA1NDY0MX0.iuFFcJSX97MKkiBvSYLmIao9aTMrQm7zqnf4kEDraQg`.slice(-8)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Secrets Checklist Section */}
         <Card>
