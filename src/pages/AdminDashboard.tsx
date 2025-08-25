@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSuperadmin } from '@/hooks/useSuperadmin';
+import { useAdminAccess } from '@/hooks/useAdminAccess';
 import { useMFAVerification } from '@/hooks/useMFAVerification';
 import { useAdminSessionPolicy } from '@/hooks/useAdminSessionPolicy';
 import { MFASetup } from '@/components/admin/MFASetup';
@@ -72,56 +72,22 @@ const adminTabs = [
 
 export default function AdminDashboard() {
   const { user, loading: authLoading } = useAuth();
-  const { isSuperadmin, isLoading } = useSuperadmin();
-  const mfaStatus = useMFAVerification(isSuperadmin);
+  const { hasAccess, isChecking, LoadingComponent } = useAdminAccess();
+  const mfaStatus = useMFAVerification(hasAccess);
   const { sessionExpired, sessionAgeHours, maxAllowedHours, forceReLogin } = useAdminSessionPolicy();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const envConfig = getEnvironmentConfig();
 
-  // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.
-  // Check authentication and superadmin status
-  useEffect(() => {
-    if (!user && !authLoading) {
-      navigate('/auth');
-      return;
-    }
-    
-    // Redirect non-superadmins to AdminAccessDenied instead of dashboard
-    if (!isLoading && !isSuperadmin && user) {
-      navigate('/admin/access-denied');
-      return;
-    }
-  }, [user, isSuperadmin, isLoading, authLoading, navigate]);
-
-  if (authLoading || isLoading || mfaStatus.isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Shield className="h-8 w-8 mx-auto animate-pulse text-primary" />
-          <p className="text-muted-foreground">Checking admin access...</p>
-        </div>
-      </div>
-    );
+  // Loading state while checking access
+  if (isChecking) {
+    return <LoadingComponent />;
   }
 
-  if (!isSuperadmin) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
-              <AlertTriangle className="w-6 h-6 text-destructive" />
-            </div>
-            <CardTitle>Access Denied</CardTitle>
-            <CardDescription>
-              Superadmin privileges required. Access denied by database authorization.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
+  // Access denied is handled by useAdminAccess hook
+  if (!hasAccess) {
+    return null; // useAdminAccess will handle redirect
   }
 
   // MFA enforcement for superadmins
