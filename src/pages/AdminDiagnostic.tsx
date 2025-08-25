@@ -356,6 +356,104 @@ export default function AdminDiagnostic() {
     setIsProbing(false);
   };
 
+  const runDualRoleProbe = async () => {
+    setIsDualRoleProbing(true);
+    
+    try {
+      // Store original session
+      const originalSession = await supabase.auth.getSession();
+      
+      // Step 1: Run as current (superadmin) user
+      toast({
+        title: "Dual-Role Probe Started",
+        description: "Running probes as superadmin...",
+      });
+      
+      await runApiProbes(false); // Run with auth
+      const superadminResults = [...apiProbeResults];
+      
+      // Step 2: Create/sign in as test user
+      const testUserEmail = 'test-user@example.com';
+      const testUserPassword = 'TestPassword123!';
+      
+      toast({
+        title: "Creating test user",
+        description: "Setting up non-superadmin test account...",
+      });
+      
+      // Try to sign up test user (will fail if exists, which is fine)
+      await supabase.auth.signUp({
+        email: testUserEmail,
+        password: testUserPassword,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`
+        }
+      });
+      
+      // Sign in as test user
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: testUserEmail,
+        password: testUserPassword
+      });
+      
+      if (signInError) {
+        throw new Error(`Failed to sign in as test user: ${signInError.message}`);
+      }
+      
+      // Wait a moment for session to establish
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      toast({
+        title: "Testing as non-superadmin",
+        description: "Running probes as regular user...",
+      });
+      
+      // Step 3: Run probes as non-superadmin
+      await runApiProbes(false); // Run with auth (but now as test user)
+      const nonSuperadminResults = [...apiProbeResults];
+      
+      // Step 4: Restore original session
+      if (originalSession.data.session) {
+        await supabase.auth.setSession(originalSession.data.session);
+        // Wait for session to restore
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      // Step 5: Analyze results
+      const summary = {
+        superadminPass: superadminResults.filter(r => r.status === 200).length,
+        nonSuperadminCorrect403: nonSuperadminResults.filter(r => r.status === 403).length,
+        total: superadminResults.length,
+        unexpected: [
+          ...superadminResults.filter(r => r.status !== 200).map(r => ({ ...r, context: 'superadmin' })),
+          ...nonSuperadminResults.filter(r => r.status !== 403 && r.status !== null).map(r => ({ ...r, context: 'non-superadmin' }))
+        ] as (ApiProbeResult & { context: string })[]
+      };
+      
+      setDualRoleResults({
+        superadmin: superadminResults,
+        nonSuperadmin: nonSuperadminResults,
+        summary
+      });
+      
+      toast({
+        title: "Dual-Role Probe Complete",
+        description: `Superadmin: ${summary.superadminPass}/${summary.total} passed, Non-superadmin: ${summary.nonSuperadminCorrect403}/${summary.total} correctly denied`,
+        variant: summary.unexpected.length === 0 ? "default" : "destructive"
+      });
+      
+    } catch (error) {
+      console.error('Dual role probe failed:', error);
+      toast({
+        title: "Dual-Role Probe Failed",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDualRoleProbing(false);
+    }
+  };
+
   const handleCacheClear = async () => {
     setIsCacheClearing(true);
     setCacheResult(null);
