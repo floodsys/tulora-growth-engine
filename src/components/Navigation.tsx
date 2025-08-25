@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/logo.svg";
 const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, loading } = useAuth();
   return <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
@@ -31,18 +33,28 @@ const Navigation = () => {
             </div>
             
             {/* Auth Links - Far Right */}
-            <div className="flex items-center space-x-4">
-              <Link to="/dashboard" className="text-foreground hover:text-brand transition-colors duration-200">
-                Dashboard
-              </Link>
-              <Link to="/auth" className="text-foreground hover:text-brand transition-colors duration-200">
-                Login
-              </Link>
-              <Link to="/auth">
-                <Button className="btn-primary px-6">
-                  Sign Up
-                </Button>
-              </Link>
+            <div className="flex items-center space-x-4" aria-live="polite">
+              {loading ? (
+                // Placeholder to prevent layout shift
+                <div className="w-20 h-6"></div>
+              ) : user ? (
+                // Signed in: show Dashboard
+                <Link to="/dashboard" className="text-foreground hover:text-brand transition-colors duration-200">
+                  Dashboard
+                </Link>
+              ) : (
+                // Signed out: show Login and Sign Up
+                <>
+                  <Link to="/auth" className="text-foreground hover:text-brand transition-colors duration-200">
+                    Sign in
+                  </Link>
+                  <Link to="/auth">
+                    <Button className="btn-primary px-6">
+                      Get started
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
 
@@ -63,22 +75,31 @@ const Navigation = () => {
               <a href="#pricing" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
                 Pricing
               </a>
-              <a href="#docs" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
-                Docs
-              </a>
-              <a href="#blog" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
-                Blog
-              </a>
-              <Link to="/auth" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
-                Login
+              <Link to="/talk-to-us" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
+                Talk to Us
               </Link>
-              <div className="px-3 py-2">
-                <Link to="/auth">
-                  <Button className="btn-primary w-full" onClick={() => setIsMenuOpen(false)}>
-                    Sign Up
-                  </Button>
+              {loading ? (
+                <div className="px-3 py-2">
+                  <div className="w-20 h-6"></div>
+                </div>
+              ) : user ? (
+                <Link to="/dashboard" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
+                  Dashboard
                 </Link>
-              </div>
+              ) : (
+                <>
+                  <Link to="/auth" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
+                    Sign in
+                  </Link>
+                  <div className="px-3 py-2">
+                    <Link to="/auth">
+                      <Button className="btn-primary w-full" onClick={() => setIsMenuOpen(false)}>
+                        Get started
+                      </Button>
+                    </Link>
+                  </div>
+                </>
+              )}
             </div>
           </div>}
       </div>
