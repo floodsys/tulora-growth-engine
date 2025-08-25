@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useRateLimitHandler } from '@/hooks/useRateLimitHandler';
 
 interface StepUpSession {
   success: boolean;
@@ -15,6 +16,7 @@ export function useStepUpAuth() {
   const [isLoading, setIsLoading] = useState(false);
   const [hasValidSession, setHasValidSession] = useState(false);
   const { toast } = useToast();
+  const { handleRateLimitedResponse } = useRateLimitHandler();
 
   const verifyMFA = useCallback(async (code: string): Promise<boolean> => {
     setIsLoading(true);
@@ -56,6 +58,8 @@ export function useStepUpAuth() {
           description: 'Step-up authentication successful with MFA'
         });
         return true;
+      } else if (handleRateLimitedResponse(result as any)) {
+        return false; // Rate limited
       } else {
         throw new Error(result.error || 'Failed to create step-up session');
       }
@@ -106,6 +110,8 @@ export function useStepUpAuth() {
           description: 'Step-up authentication successful with password'
         });
         return true;
+      } else if (handleRateLimitedResponse(result as any)) {
+        return false; // Rate limited
       } else {
         throw new Error(result.error || 'Failed to create step-up session');
       }
