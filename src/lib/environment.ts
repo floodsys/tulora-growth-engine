@@ -8,7 +8,10 @@ export function getEnvironmentConfig() {
     isTestingEnabled: testLevel !== 'off',
     showInternalChannels: testLevel !== 'off',
     showTestChannels: testLevel !== 'off',
-    isProduction: testLevel === 'off'
+    isProduction: testLevel === 'off',
+    // For admin testing - in a real app this would come from environment variables
+    // For now, return null to disable admin testing that requires a specific org ID
+    testOrgId: null as string | null
   };
 }
 

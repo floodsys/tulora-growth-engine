@@ -68,7 +68,10 @@ export function getAdminTestLevel(): AdminTestLevel {
 }
 
 export function getAdminTestOrgId(): string | null {
-  return process.env.TEST_ORG_ID || null;
+  // In browser environment, we can't access process.env directly
+  // This should be configured through environment config or hardcoded for testing
+  const envConfig = getEnvironmentConfig();
+  return envConfig.testOrgId || null;
 }
 
 export function isAdminTestingEnabled(): boolean {
