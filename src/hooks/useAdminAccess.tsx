@@ -29,14 +29,15 @@ export function useAdminAccess() {
           return;
         }
 
-        // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.
-        let userHasAccess = isOwner;
+        // Source of truth = DB RPC (public.superadmins + GUC fallback inside is_superadmin)
+        const { data: isSuperadmin, error: rpcError } = await supabase.rpc('is_superadmin');
         
-        // Check if user is superadmin using only DB RPC
-        if (!userHasAccess) {
-          const { data: isSuperadmin } = await supabase.rpc('is_superadmin');
-          userHasAccess = isSuperadmin || false;
+        if (rpcError) {
+          console.error('Error checking superadmin status:', rpcError);
+          throw new Error(`Database check failed: ${rpcError.message}`);
         }
+        
+        const userHasAccess = isSuperadmin || false;
 
         if (!userHasAccess) {
           await logUnauthorizedAccess('admin_dashboard_access', 'admin_panel', user.id, organization?.id);
