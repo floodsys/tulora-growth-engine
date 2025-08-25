@@ -47,6 +47,7 @@ import { OrgStatusGuardTest } from '@/components/admin/OrgStatusGuardTest';
 import { StepUpAuthTest } from '@/components/admin/StepUpAuthTest';
 import { RateLimitTest } from '@/components/admin/RateLimitTest';
 import { InviteSystemTest } from '@/components/admin/InviteSystemTest';
+import { InviteAcceptanceTests } from '@/components/admin/InviteAcceptanceTests';
 
 const adminTabs = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -335,6 +336,10 @@ export default function AdminDashboard() {
 
                     <div className="w-full">
                       <InviteSystemTest />
+                    </div>
+
+                    <div className="w-full">
+                      <InviteAcceptanceTests />
                     </div>
                   </div>
                 </div>
