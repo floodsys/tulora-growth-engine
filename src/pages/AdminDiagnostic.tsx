@@ -32,6 +32,13 @@ interface ApiProbeResult {
   authHeaderSent: boolean;
   error?: string;
   timestamp: string;
+  // New structured error fields
+  parsedError?: {
+    ok: boolean;
+    error: string;
+    hint?: string;
+    cause?: string;
+  };
 }
 
 interface SecretCheck {
@@ -314,12 +321,38 @@ function AdminDiagnostic() {
 
         let responseBody = '';
         let responseSnippet = '';
+        let parsedResponse: any = null;
+        
         try {
           responseBody = await response.text();
           responseSnippet = responseBody.substring(0, 1000);
+          
+          // Try to parse JSON response for structured errors
+          if (responseBody) {
+            try {
+              parsedResponse = JSON.parse(responseBody);
+            } catch {
+              // Not JSON, keep as text
+            }
+          }
         } catch {
           responseBody = 'Failed to read response body';
           responseSnippet = responseBody;
+        }
+
+        // Create user-friendly error message for display
+        let displayError = response.ok ? undefined : `HTTP ${response.status}`;
+        if (!response.ok && parsedResponse) {
+          if (parsedResponse.ok === false) {
+            // New structured error format
+            displayError = `${parsedResponse.error}`;
+            if (parsedResponse.hint) {
+              displayError += ` (${parsedResponse.hint})`;
+            }
+          } else if (parsedResponse.error) {
+            // Legacy error format
+            displayError = parsedResponse.error;
+          }
         }
 
         probes.push({
@@ -329,11 +362,11 @@ function AdminDiagnostic() {
           fullUrl,
           status: response.status,
           responseBody,
-          responseSnippet,
+          responseSnippet: displayError || responseSnippet,
           headers: responseHeaders,
           authHeaderSent,
           timestamp,
-          error: response.ok ? undefined : `HTTP ${response.status}`
+          error: displayError
         });
       } catch (err) {
         const baseUrl = 'https://nkjxbeypbiclvouqfjyc.supabase.co';

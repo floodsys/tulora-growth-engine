@@ -67,7 +67,33 @@ serve(async (req) => {
 
     logStep("Superadmin access verified", { userId: user.id, email: user.email });
 
-    const body: OverviewRequest = await req.json();
+    let body: OverviewRequest;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      return new Response(JSON.stringify({
+        ok: false,
+        error: "Invalid JSON in request body",
+        hint: "Ensure request body contains valid JSON",
+        cause: "parse_error"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    if (!body.action) {
+      return new Response(JSON.stringify({
+        ok: false,
+        error: "Missing required action field",
+        hint: "Include 'action' field with one of: list_subscriptions, list_invoices, list_webhook_events",
+        cause: "missing_action"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
     switch (body.action) {
@@ -216,17 +242,54 @@ serve(async (req) => {
       }
 
       default:
-        throw new Error(`Unknown action: ${body.action}`);
+        return new Response(JSON.stringify({
+          ok: false,
+          error: `Unsupported action: ${body.action}`,
+          hint: "Use one of: list_subscriptions, list_invoices, list_webhook_events",
+          cause: "invalid_action"
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        });
     }
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
     
-    // Return structured error response
-    return new Response(JSON.stringify({ 
-      error: errorMessage,
-      timestamp: new Date().toISOString()
+    // Categorize error types
+    if (error instanceof Error) {
+      if (error.message.includes('STRIPE_SECRET_KEY')) {
+        return new Response(JSON.stringify({
+          ok: false,
+          error: "Stripe configuration missing",
+          hint: "Configure STRIPE_SECRET_KEY in edge function secrets",
+          cause: "stripe_config_missing"
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        });
+      }
+      
+      if (error.message.includes('No such') && error.message.includes('subscription')) {
+        return new Response(JSON.stringify({
+          ok: false,
+          error: "Stripe subscription not found",
+          hint: "Subscription may have been deleted from Stripe dashboard",
+          cause: "stripe_subscription_missing"
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        });
+      }
+    }
+    
+    // Generic server error
+    return new Response(JSON.stringify({
+      ok: false,
+      error: "Unexpected server error",
+      hint: "Check function logs for details",
+      cause: "server_error"
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

@@ -66,11 +66,45 @@ serve(async (req) => {
 
     logStep("Superadmin access verified", { userId: user.id, email: user.email });
 
-    const body: SuspensionRequest = await req.json();
+    let body: SuspensionRequest;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      return new Response(JSON.stringify({
+        ok: false,
+        error: "Invalid JSON in request body",
+        hint: "Ensure request body contains valid JSON",
+        cause: "parse_error"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
     const { action, org_id, reason, confirmation_phrase, notify_owner } = body;
 
     if (!org_id || !reason || !confirmation_phrase) {
-      throw new Error("Missing required fields: org_id, reason, confirmation_phrase");
+      return new Response(JSON.stringify({
+        ok: false,
+        error: "Missing required fields",
+        hint: "Include org_id, reason, and confirmation_phrase in request",
+        cause: "missing_fields"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    if (!action || !['suspend', 'reinstate', 'cancel'].includes(action)) {
+      return new Response(JSON.stringify({
+        ok: false,
+        error: "Invalid action",
+        hint: "Use one of: suspend, reinstate, cancel",
+        cause: "invalid_action"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
     }
 
     // Validate confirmation phrase
@@ -81,7 +115,15 @@ serve(async (req) => {
       `REINSTATE ORG ${org_id}`;
     
     if (confirmation_phrase !== expectedPhrase) {
-      throw new Error(`Invalid confirmation phrase. Expected: "${expectedPhrase}"`);
+      return new Response(JSON.stringify({
+        ok: false,
+        error: "Invalid confirmation phrase",
+        hint: `Expected: "${expectedPhrase}"`,
+        cause: "invalid_confirmation"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
     }
 
     logStep(`Processing ${action}`, { orgId: org_id, reason });
@@ -172,11 +214,39 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
     
-    // Return structured error response
-    return new Response(JSON.stringify({ 
-      success: false,
-      error: errorMessage,
-      timestamp: new Date().toISOString()
+    // Categorize error types
+    if (error instanceof Error) {
+      if (errorMessage.includes('organization not found') || errorMessage.includes('does not exist')) {
+        return new Response(JSON.stringify({
+          ok: false,
+          error: "Organization not found",
+          hint: "Check that the organization ID exists in the database",
+          cause: "org_not_found"
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        });
+      }
+      
+      if (errorMessage.includes('already suspended') || errorMessage.includes('already active')) {
+        return new Response(JSON.stringify({
+          ok: false,
+          error: "Invalid state transition",
+          hint: "Organization is already in the requested state",
+          cause: "invalid_state"
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        });
+      }
+    }
+    
+    // Generic server error
+    return new Response(JSON.stringify({
+      ok: false,
+      error: "Unexpected server error",
+      hint: "Check function logs for details",
+      cause: "server_error"
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
