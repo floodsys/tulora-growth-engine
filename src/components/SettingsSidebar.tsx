@@ -50,19 +50,11 @@ export function SettingsSidebar({ onBack }: SettingsSidebarProps) {
               </h3>
 
 
-              {/* Teams - Admins and Owners */}
+              {/* Teams and Organization Settings - Admins and Owners */}
               {(isAdmin || isOwner) && (
                 <NavLink to="/settings/teams" className={getNavClasses('/settings/teams')}>
                   <Users className="h-4 w-4" />
-                  Teams
-                </NavLink>
-              )}
-
-              {/* Organization Settings - Owners only */}
-              {isOwner && (
-                <NavLink to="/settings/organization" className={getNavClasses('/settings/organization')}>
-                  <Building2 className="h-4 w-4" />
-                  Organization Settings
+                  Teams and Organization settings
                 </NavLink>
               )}
             </div>
