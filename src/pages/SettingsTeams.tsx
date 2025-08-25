@@ -67,21 +67,31 @@ export default function SettingsTeams() {
     if (!organizationId) return;
     
     try {
-      // Fetch members
+      // Fetch members with user profile data
       const { data: membersData, error: membersError } = await supabase
         .from('organization_members')
-        .select(`
-          *,
-          profiles!inner (
-            full_name,
-            email,
-            avatar_url
-          )
-        `)
+        .select('*')
         .eq('organization_id', organizationId);
 
       if (membersError) throw membersError;
-      setMembers((membersData || []) as TeamMember[]);
+
+      // Fetch profile data for each member
+      const memberProfiles = await Promise.all(
+        (membersData || []).map(async (member) => {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, email, avatar_url')
+            .eq('id', member.user_id)
+            .single();
+          
+          return {
+            ...member,
+            profiles: profile
+          };
+        })
+      );
+
+      setMembers(memberProfiles as TeamMember[]);
 
       // Fetch pending invites
       const { data: invitesData, error: invitesError } = await supabase
