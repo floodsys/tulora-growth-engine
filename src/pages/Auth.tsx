@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/logo.svg";
-import saasHero from "@/assets/saas-hero.png";
+import saasAuth from "@/assets/saas-auth.svg";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -201,8 +201,8 @@ const Auth = () => {
       {/* Right Panel - Image */}
       <div className="hidden lg:flex flex-1 bg-card">
         <img
-          src={saasHero}
-          alt="SaaS Product Management illustration"
+          src={saasAuth}
+          alt="SaaS authentication illustration"
           className="w-full h-full object-contain"
         />
       </div>
