@@ -64,10 +64,8 @@ const Dashboard = () => {
         return <Scheduling />
       case "billing":
         return <UsageBilling />
-      case "team":
-        return <TeamManagement />
       case "teams":
-        return <SettingsTeams />
+        return <SettingsOrganization />
       case "organization":
         return <SettingsOrganization />
       case "settings":

@@ -8,9 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useUserOrganization } from "@/hooks/useUserOrganization";
 import { useOrganizationRole } from "@/hooks/useOrganizationRole";
-import { Building2, Shield, Activity } from "lucide-react";
+import { Building2, Shield, Activity, Users } from "lucide-react";
 import { OrganizationActivityViewer } from "@/components/OrganizationActivityViewer";
 import { RetentionSettings } from "@/components/RetentionSettings";
+import SettingsTeams from "@/pages/SettingsTeams";
 
 export default function SettingsOrganization() {
   const { toast } = useToast();
@@ -75,7 +76,7 @@ export default function SettingsOrganization() {
       <div>
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <Building2 className="h-8 w-8" />
-          Organization Settings
+          Organization
         </h1>
         <p className="text-muted-foreground mt-2">
           Manage your organization information and preferences
@@ -83,10 +84,14 @@ export default function SettingsOrganization() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="general" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             General
+          </TabsTrigger>
+          <TabsTrigger value="team" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Team
           </TabsTrigger>
           <TabsTrigger value="activity" className="flex items-center gap-2">
             <Activity className="h-4 w-4" />
@@ -197,6 +202,10 @@ export default function SettingsOrganization() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="team" className="space-y-6">
+          <SettingsTeams />
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-6">

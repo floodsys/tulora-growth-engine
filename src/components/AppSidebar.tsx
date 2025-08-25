@@ -42,9 +42,8 @@ const items = [
   { title: "Agents", url: "agents", icon: Bot },
   { title: "Knowledge Base", url: "knowledge", icon: BookOpen },
   { title: "Scheduling", url: "scheduling", icon: Calendar },
-  { title: "Team", url: "team", icon: Users },
-  { title: "Teams", url: "teams", icon: Users2 },
-  { title: "Organization Settings", url: "organization", icon: Building2 },
+  { title: "Team", url: "teams", icon: Users2 },
+  { title: "Organization", url: "organization", icon: Building2 },
   { title: "Usage & Billing", url: "billing", icon: CreditCard },
 ]
 
