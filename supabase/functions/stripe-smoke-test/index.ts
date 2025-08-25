@@ -28,14 +28,6 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    // Initialize Supabase client for authentication check
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
-
-    // Authenticate user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "forbidden" }), {
@@ -44,35 +36,36 @@ serve(async (req) => {
       });
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) {
-      logStep("Authentication failed", { error: userError.message });
-      return new Response(JSON.stringify({ error: "forbidden" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
-      });
-    }
+    // Use ANON client with user's auth header
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { 
+        auth: { persistSession: false },
+        global: { headers: { Authorization: authHeader } }
+      }
+    );
 
-    const user = userData.user;
-    if (!user?.email) {
-      return new Response(JSON.stringify({ error: "forbidden" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
-      });
-    }
-
-    // Check if user is superadmin
-    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin', { user_id: user.id });
+    // Check if user is superadmin - this will use the user's auth context
+    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin');
     if (superadminError || !isSuperadmin) {
-      logStep("Superadmin check failed", { error: superadminError?.message, isSuperadmin });
+      logStep("Superadmin check failed", { error: superadminError, isSuperadmin });
       return new Response(JSON.stringify({ error: "forbidden" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 403,
       });
     }
 
-    logStep("User authenticated and authorized", { userId: user.id, email: user.email });
+    // Get user info for logging
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: "forbidden" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+      });
+    }
+
+    logStep("Superadmin access verified", { userId: user.id, email: user.email });
 
     const results: StripeTestResult[] = [];
     const timestamp = new Date().toISOString();
