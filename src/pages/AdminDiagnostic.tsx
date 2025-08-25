@@ -57,6 +57,25 @@ interface SecretsCheckResult {
   blocking_for_admin_apis: SecretCheck[];
 }
 
+interface StripeTestResult {
+  test_name: string;
+  status: 'pass' | 'fail' | 'warning';
+  message: string;
+  details?: any;
+}
+
+interface StripeSmokeTestResult {
+  success: boolean;
+  timestamp: string;
+  results: StripeTestResult[];
+  summary: {
+    total_tests: number;
+    passed: number;
+    failed: number;
+    warnings: number;
+  };
+}
+
 export default function AdminDiagnostic() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -69,9 +88,11 @@ export default function AdminDiagnostic() {
   });
   const [apiProbeResults, setApiProbeResults] = useState<ApiProbeResult[]>([]);
   const [secretsResults, setSecretsResults] = useState<SecretsCheckResult | null>(null);
+  const [stripeResults, setStripeResults] = useState<StripeSmokeTestResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isProbing, setIsProbing] = useState(false);
   const [isCheckingSecrets, setIsCheckingSecrets] = useState(false);
+  const [isCheckingStripe, setIsCheckingStripe] = useState(false);
   const [isCacheClearing, setIsCacheClearing] = useState(false);
   const [cacheResult, setCacheResult] = useState<CacheClearResult | null>(null);
   const [showAuthDetails, setShowAuthDetails] = useState(false);
@@ -107,6 +128,39 @@ export default function AdminDiagnostic() {
       });
     } finally {
       setIsCheckingSecrets(false);
+    }
+  };
+
+  const checkStripeConnectivity = async () => {
+    try {
+      setIsCheckingStripe(true);
+      const { data, error } = await supabase.functions.invoke('stripe-smoke-test');
+      
+      if (error) {
+        console.error('Stripe smoke test error:', error);
+        toast({
+          title: "Error checking Stripe connectivity",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setStripeResults(data);
+      toast({
+        title: "Stripe smoke test completed",
+        description: `Ran ${data.summary.total_tests} tests: ${data.summary.passed} passed, ${data.summary.failed} failed, ${data.summary.warnings} warnings`,
+        variant: data.summary.failed > 0 ? "destructive" : "default",
+      });
+    } catch (error) {
+      console.error('Stripe smoke test failed:', error);
+      toast({
+        title: "Stripe smoke test failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCheckingStripe(false);
     }
   };
 
@@ -400,6 +454,7 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
     const initializeChecks = async () => {
       await runDiagnostics();
       await checkSecrets();
+      await checkStripeConnectivity();
       // Only run API probes in development mode for security
       if (import.meta.env.DEV) {
         await runApiProbes(probeWithoutAuth);
@@ -614,6 +669,106 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
                   * Required secrets. Missing required secrets may cause functionality to fail.
                   <br />
                   Last checked: {new Date(secretsResults.timestamp).toLocaleString()}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Stripe Connectivity Tests Section */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Stripe Connectivity Tests
+              </CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  onClick={checkStripeConnectivity}
+                  disabled={isCheckingStripe}
+                  variant="outline"
+                  size="sm"
+                >
+                  {isCheckingStripe ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Testing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Run Tests
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {!stripeResults ? (
+              <div className="text-center py-8">
+                <CreditCard className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
+                <p>Click "Run Tests" to check Stripe connectivity and configuration</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Summary */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-3 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{stripeResults.summary.total_tests}</div>
+                    <div className="text-sm text-muted-foreground">Total Tests</div>
+                  </div>
+                  <div className="text-center p-3 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{stripeResults.summary.passed}</div>
+                    <div className="text-sm text-muted-foreground">Passed</div>
+                  </div>
+                  <div className="text-center p-3 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-red-600">{stripeResults.summary.failed}</div>
+                    <div className="text-sm text-muted-foreground">Failed</div>
+                  </div>
+                  <div className="text-center p-3 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-yellow-600">{stripeResults.summary.warnings}</div>
+                    <div className="text-sm text-muted-foreground">Warnings</div>
+                  </div>
+                </div>
+
+                {/* Test Results */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold">Test Results</h3>
+                  {stripeResults.results.map((test, index) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <div className="flex items-center gap-3 mb-2">
+                        {test.status === 'pass' ? (
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                        ) : test.status === 'fail' ? (
+                          <XCircle className="h-5 w-5 text-red-600" />
+                        ) : (
+                          <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                        )}
+                        <span className="font-medium">{test.test_name}</span>
+                        <Badge 
+                          variant={test.status === 'pass' ? "default" : test.status === 'fail' ? "destructive" : "secondary"}
+                          className={test.status === 'pass' ? "bg-green-500" : test.status === 'warning' ? "bg-yellow-500" : ""}
+                        >
+                          {test.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-2">{test.message}</p>
+                      {test.details && (
+                        <details className="text-xs">
+                          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">View details</summary>
+                          <pre className="mt-2 bg-muted p-2 rounded overflow-x-auto">
+                            {JSON.stringify(test.details, null, 2)}
+                          </pre>
+                        </details>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="text-xs text-muted-foreground">
+                  Last tested: {new Date(stripeResults.timestamp).toLocaleString()}
                 </div>
               </div>
             )}
