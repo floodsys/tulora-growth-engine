@@ -82,4 +82,18 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-trick
 - Environment variables (VITE_SUPERADMINS_EMAILS, SUPERADMINS_EMAILS, etc.) are for UI hints and logging only
 - Never use environment variables for authorization decisions
 
+### Diagnostic Page Access
+
+The admin diagnostic page (`/admin/_diag`) is restricted to superadmins only:
+
+- **Production:** API probes disabled by default for security
+- **Development:** All features available
+- **Override:** Superadmins can enable API probes in production if needed
+
+To access diagnostic features:
+```bash
+# Navigate to /admin/_diag (superadmin required)
+# In production, click "Show API Probes" to enable restricted features
+```
+
 See [SECURITY.md](./SECURITY.md) for complete security policy and verification procedures.

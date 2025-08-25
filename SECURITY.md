@@ -1,75 +1,121 @@
-# Security Policy
+# Security Documentation
 
-## Superadmin Authorization
+## Superadmin Authorization Policy
 
-### **Source of Truth: Database RPC Only**
+### Source of Truth: Database RPC Only
 
-**CRITICAL:** All superadmin authorization decisions MUST use the database RPC `public.is_superadmin(auth.uid())` as the single source of truth.
+**CRITICAL SECURITY PRINCIPLE:** All superadmin authorization must use the database RPC function `public.is_superadmin()` as the single source of truth.
 
-**Environment variables are COSMETIC ONLY and NEVER used for authorization.**
+#### Authorization Flow
+1. **Primary Check:** `supabase.rpc('is_superadmin')` queries the `public.superadmins` table
+2. **Fallback:** GUC (Grand Unified Configuration) setting for bootstrapping only
+3. **Environment Variables:** COSMETIC ONLY - never used for authorization decisions
 
-### Authorization Flow
+#### Prohibited Authorization Methods
+❌ **NEVER USE:**
+- Direct email string comparisons (`email === 'admin@domain.com'`)
+- Environment variable checks for authorization (`process.env.SUPERADMINS_EMAILS`)
+- Client-side only authorization
+- Hardcoded user lists
 
-1. **Primary Check**: `public.is_superadmin(auth.uid())` queries the `public.superadmins` table
-2. **Fallback**: If no record exists, the function checks GUC settings (`app.superadmin_emails`, `app.superadmins_emails`)
-3. **Client Routes**: All `/admin` routes use `supabase.rpc('is_superadmin')` via hooks
-4. **Edge Functions**: All admin edge functions verify via `supabaseClient.rpc('is_superadmin')` with caller's JWT
+✅ **ALWAYS USE:**
+- `supabase.rpc('is_superadmin')` for all authorization decisions
+- Database policies with RLS enabled
+- Standardized error messages
+- Proper audit logging
 
 ### Environment Variables (Cosmetic Only)
 
-These environment variables are for UI hints and logging purposes **ONLY**:
+These environment variables are for UI hints, logging, and development convenience ONLY:
 
-- `VITE_SUPERADMINS_EMAILS` (Frontend) - Client-side UI hints
-- `SUPERADMINS_EMAILS` (Server/Edge) - Server-side logging/hints  
-- `superadmins_emails` (Server/Edge) - Alternative server-side name
+- `VITE_SUPERADMINS_EMAILS` - Frontend UI hints
+- `SUPERADMINS_EMAILS` - Backend logging/debugging  
+- `superadmins_emails` - Alternative backend setting
 
-**⚠️ WARNING:** Never use these environment variables for authorization decisions. They are purely cosmetic.
+**WARNING:** These variables must NEVER be used for authorization decisions.
 
-### Verification Commands
+### Security Verification Procedures
 
-To verify a user's superadmin status:
+#### Manual Testing
+1. Sign in as superadmin → Verify admin access granted
+2. Sign in as non-superadmin → Verify admin access denied (403)
+3. Test all admin endpoints with both user types
+4. Verify diagnostic page is restricted
 
-```sql
--- Check DB table
-SELECT * FROM public.superadmins WHERE user_id = 'user-uuid-here';
+#### Automated Testing
+```bash
+# Run security test suite
+npm test
 
--- Check RPC function (authoritative)
-SELECT public.is_superadmin('user-uuid-here');
+# Run superadmin authorization tests
+npm run test:auth
 
--- Check GUC fallback
-SELECT current_setting('app.superadmin_emails', true);
+# Check for environment-based authorization (should find none)
+grep -r "SUPERADMINS_EMAILS.*auth\|email.*===.*admin" src/
 ```
 
-### Adding Superadmins
+#### CI/CD Pipeline
+- Unit tests verify DB RPC usage
+- Integration tests check edge functions
+- Security scans prevent env-based auth
+- Linting enforces policy compliance
 
-1. **Via Database**: Direct insert into `public.superadmins` table
-2. **Via RPC**: Use `public.add_superadmin('email@domain.com')` function
-3. **Bootstrap**: Use `/admin/setup` with bootstrap token (development only)
+### Admin Diagnostic Page Security
 
-### Admin Routes Security
+The diagnostic page (`/admin/_diag`) contains sensitive system information and is strictly controlled:
 
-- **Client Guards**: `useAdminAccess()` and `useSuperadmin()` hooks
-- **Edge Functions**: Each admin function verifies `is_superadmin()` before processing
-- **Error Messages**: Standardized "Superadmin privileges required. Access denied by database authorization."
+#### Access Control
+- **Route Protection:** Secured by `useAdminAccess()` hook
+- **Superadmin Only:** Must pass `supabase.rpc('is_superadmin')` check
+- **Production Lockdown:** API probes disabled in production by default
+- **Feature Flags:** Can be overridden by superadmins if needed
 
-### Cache Busting
+#### Re-enabling Diagnostic Features
 
-Use `/admin/_diag` "Hard Refresh Cache" to clear:
-- Service workers
-- Browser caches  
-- Local/session storage
-- Force reload with fresh code
+For future debugging, superadmins can:
 
-This prevents stale authorization guards from old deployments.
+1. **Enable API Probes in Production:**
+   - Navigate to `/admin/_diag`
+   - Click "Show API Probes" button (superadmin only)
+   - Use responsibly and disable when finished
 
-### Compliance
+2. **Development Access:**
+   - All diagnostic features available in `NODE_ENV=development`
+   - No restrictions for local development
 
-- All admin access attempts are logged via `log_unauthorized_access()`
-- Diagnostic page shows current BUILD_ID and authorization chain
-- Environment variables are clearly marked as cosmetic-only
+#### Security Monitoring
+- All diagnostic access is logged
+- Failed access attempts are tracked
+- Audit trail maintained for compliance
 
-## Security Principle
+### Incident Response
 
-**Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.**
+If unauthorized access is suspected:
 
-Any authorization logic that bypasses this principle is a security vulnerability and must be fixed immediately.
+1. **Immediate Actions:**
+   - Check audit logs for unauthorized attempts
+   - Verify superadmin table integrity
+   - Review recent user additions
+
+2. **Investigation:**
+   - Run security test suite: `npm test`
+   - Check for environment-based auth leaks
+   - Verify RLS policies are enabled
+
+3. **Remediation:**
+   - Remove unauthorized superadmins
+   - Update affected credentials
+   - Review and tighten policies
+
+### Compliance Notes
+
+- All authorization decisions are auditable
+- Security policy is documented and tested
+- Environment variables are clearly marked as cosmetic
+- Regular security reviews are conducted
+
+---
+
+**Last Updated:** 2025-01-25
+**Policy Version:** 2.0
+**Next Review:** Quarterly

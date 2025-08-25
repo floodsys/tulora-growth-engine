@@ -186,7 +186,10 @@ export default function AdminDiagnostic() {
 
   useEffect(() => {
     runDiagnostics();
-    runApiProbes();
+    // Only run API probes in development mode for security
+    if (import.meta.env.DEV) {
+      runApiProbes();
+    }
   }, []);
 
   const StatusIcon = ({ status }: { status: boolean | null }) => {
