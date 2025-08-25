@@ -1,25 +1,35 @@
-name: Check Deprecated Routes
+name: Lint Deprecated Routes
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, master ]
 
 jobs:
   check-deprecated-routes:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
-    
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
+        cache: 'npm'
         
     - name: Install dependencies
-      run: npm install -g glob
+      run: npm ci
       
-    - name: Check for deprecated invite routes
+    - name: Check for deprecated routes and components
       run: node scripts/check-deprecated-routes.js
+      
+    - name: Report results
+      if: failure()
+      run: |
+        echo "❌ Deprecated routes check failed!"
+        echo "Please remove any TeamsSettings.tsx files and top-level /settings/teams routes."
+        echo "Use only SettingsTeams.tsx under SettingsLayout for team management."
+        exit 1
