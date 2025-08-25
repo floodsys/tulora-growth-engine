@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AdminSecurityWrapper } from "@/components/AdminSecurityWrapper";
 import Index from "@/pages/Index";
 import Dashboard from "@/pages/Dashboard";
 import Auth from "@/pages/Auth";
@@ -27,8 +28,9 @@ function App() {
   return (
     <AuthProvider>
       <TooltipProvider>
-        <Router>
-          <Routes>
+        <AdminSecurityWrapper>
+          <Router>
+            <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/auth" element={<Auth />} />
@@ -50,9 +52,10 @@ function App() {
             <Route path="/admin/logs/org/:orgId" element={<AdminOrgLogs />} />
             <Route path="/admin/tests/invites" element={<AdminInviteTests />} />
             <Route path="*" element={<NotFound />} />
-          </Routes>
-          <Toaster />
-        </Router>
+            </Routes>
+            <Toaster />
+          </Router>
+        </AdminSecurityWrapper>
       </TooltipProvider>
     </AuthProvider>
   );
