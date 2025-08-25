@@ -268,15 +268,26 @@ function AdminDiagnostic() {
     const probes: ApiProbeResult[] = [];
     const timestamp = new Date().toISOString();
 
-    // Define all admin APIs used by the admin UI
+    // Get a real organization ID for testing
+    let testOrgId = '00000000-0000-0000-0000-000000000000'; // Default fallback
+    try {
+      const { data: orgs } = await supabase.from('organizations').select('id').limit(1);
+      if (orgs && orgs.length > 0) {
+        testOrgId = orgs[0].id;
+      }
+    } catch (error) {
+      console.warn('Could not fetch test org ID, using fallback:', error);
+    }
+
+    // Define all admin APIs used by the admin UI with real data
     const adminApis = [
       { name: 'Admin Billing Overview - Subscriptions', method: 'POST', function: 'admin-billing-overview', body: { action: 'list_subscriptions' } },
       { name: 'Admin Billing Overview - Invoices', method: 'POST', function: 'admin-billing-overview', body: { action: 'list_invoices' } },
       { name: 'Admin Billing Overview - Webhooks', method: 'POST', function: 'admin-billing-overview', body: { action: 'list_webhook_events' } },
-      { name: 'Admin Billing Actions - Portal', method: 'POST', function: 'admin-billing-actions', body: { action: 'create_portal_session', customer_id: 'test' } },
-      { name: 'Admin Billing Actions - Sync Subscription', method: 'POST', function: 'admin-billing-actions', body: { action: 'change_plan', subscription_id: 'test', new_plan: 'basic' } },
-      { name: 'Admin Billing Actions - Cancel Subscription', method: 'POST', function: 'admin-billing-actions', body: { action: 'suspend_service', org_id: 'test-org-id' } },
-      { name: 'Org Suspension - Suspend', method: 'POST', function: 'org-suspension', body: { action: 'suspend', org_id: 'test-org-id', reason: 'Test probe', confirmation_phrase: 'SUSPEND ORG test-org-id' } },
+      { name: 'Admin Billing Actions - Portal', method: 'POST', function: 'admin-billing-actions', body: { action: 'create_portal_session', org_id: testOrgId } },
+      { name: 'Admin Billing Actions - Sync Subscription', method: 'POST', function: 'admin-billing-actions', body: { action: 'change_plan', org_id: testOrgId, new_plan: 'basic' } },
+      { name: 'Admin Billing Actions - Cancel Subscription', method: 'POST', function: 'admin-billing-actions', body: { action: 'suspend_service', org_id: testOrgId } },
+      { name: 'Org Suspension - Suspend (Dry Run)', method: 'POST', function: 'org-suspension', body: { action: 'suspend', org_id: testOrgId, reason: 'Test probe', confirmation_phrase: `SUSPEND ORG ${testOrgId}`, dry_run: true } },
       { name: 'Email Integration Test', method: 'POST', function: 'email-integration-test', body: {} },
       { name: 'Check Secrets', method: 'POST', function: 'check-secrets', body: {} },
       { name: 'Stripe Smoke Test', method: 'POST', function: 'stripe-smoke-test', body: {} },
