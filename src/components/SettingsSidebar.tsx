@@ -49,11 +49,6 @@ export function SettingsSidebar({ onBack }: SettingsSidebarProps) {
                 Settings
               </h3>
 
-              {/* Personal Settings - Everyone can access */}
-              <NavLink to="/settings/personal" className={getNavClasses('/settings/personal')}>
-                <User className="h-4 w-4" />
-                Personal Settings
-              </NavLink>
 
               {/* Teams - Admins and Owners */}
               {(isAdmin || isOwner) && (
