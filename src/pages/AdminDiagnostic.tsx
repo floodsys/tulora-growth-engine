@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface DiagnosticData {
   authUid: string | null;
@@ -13,6 +14,15 @@ interface DiagnosticData {
   dbSuperadminCheck: boolean | null;
   frontendEnv: string | null;
   finalGuardDecision: boolean | null;
+  error?: string;
+}
+
+interface ApiProbeResult {
+  name: string;
+  method: string;
+  url: string;
+  status: number | null;
+  responseSnippet: string;
   error?: string;
 }
 
@@ -25,7 +35,9 @@ export default function AdminDiagnostic() {
     frontendEnv: null,
     finalGuardDecision: null,
   });
+  const [apiProbeResults, setApiProbeResults] = useState<ApiProbeResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isProbing, setIsProbing] = useState(false);
 
   const runDiagnostics = async () => {
     setIsLoading(true);
@@ -73,8 +85,72 @@ export default function AdminDiagnostic() {
     }
   };
 
+  const runApiProbes = async () => {
+    setIsProbing(true);
+    const probes: ApiProbeResult[] = [];
+
+    // Define all admin APIs used by the admin UI
+    const adminApis = [
+      { name: 'Admin Billing Overview - Subscriptions', method: 'POST', function: 'admin-billing-overview', body: { action: 'list_subscriptions' } },
+      { name: 'Admin Billing Overview - Invoices', method: 'POST', function: 'admin-billing-overview', body: { action: 'list_invoices' } },
+      { name: 'Admin Billing Overview - Webhooks', method: 'POST', function: 'admin-billing-overview', body: { action: 'list_webhook_events' } },
+      { name: 'Admin Billing Actions - Portal', method: 'POST', function: 'admin-billing-actions', body: { action: 'create_portal_session', customer_id: 'test' } },
+      { name: 'Admin Billing Actions - Sync Subscription', method: 'POST', function: 'admin-billing-actions', body: { action: 'sync_subscription', subscription_id: 'test' } },
+      { name: 'Admin Billing Actions - Cancel Subscription', method: 'POST', function: 'admin-billing-actions', body: { action: 'cancel_subscription', subscription_id: 'test' } },
+      { name: 'Org Suspension - Suspend', method: 'POST', function: 'org-suspension', body: { action: 'suspend', org_id: 'test-org-id', reason: 'Test probe', confirmation_phrase: 'SUSPEND ORG test-org-id' } },
+      { name: 'Data Fixes', method: 'POST', function: 'admin-data-fixes', body: { action: 'test_probe' } },
+      { name: 'Email Integration Test', method: 'POST', function: 'send-test-email', body: { to: 'test@example.com', subject: 'Probe Test' } },
+    ];
+
+    for (const api of adminApis) {
+      try {
+        const { data, error } = await supabase.functions.invoke(api.function, {
+          body: api.body
+        });
+
+        let responseSnippet = '';
+        let status = null;
+
+        if (error) {
+          status = error.status || 500;
+          responseSnippet = error.message || 'Unknown error';
+        } else {
+          status = 200;
+          responseSnippet = typeof data === 'string' ? data.substring(0, 200) : JSON.stringify(data).substring(0, 200);
+        }
+
+        probes.push({
+          name: api.name,
+          method: api.method,
+          url: `${api.function} edge function`,
+          status,
+          responseSnippet,
+          error: error?.message
+        });
+      } catch (err) {
+        probes.push({
+          name: api.name,
+          method: api.method,
+          url: `${api.function} edge function`,
+          status: null,
+          responseSnippet: `Exception: ${err instanceof Error ? err.message : String(err)}`,
+          error: err instanceof Error ? err.message : String(err)
+        });
+      }
+    }
+
+    setApiProbeResults(probes);
+    setIsProbing(false);
+  };
+
+  const handleRecheck = async () => {
+    await runDiagnostics();
+    await runApiProbes();
+  };
+
   useEffect(() => {
     runDiagnostics();
+    runApiProbes();
   }, []);
 
   const StatusIcon = ({ status }: { status: boolean | null }) => {
@@ -95,9 +171,9 @@ export default function AdminDiagnostic() {
             <h1 className="text-3xl font-bold">Admin Diagnostic</h1>
             <p className="text-muted-foreground">Diagnosing superadmin authorization flow</p>
           </div>
-          <Button onClick={runDiagnostics} disabled={isLoading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Re-check
+          <Button onClick={handleRecheck} disabled={isLoading || isProbing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${(isLoading || isProbing) ? 'animate-spin' : ''}`} />
+            Re-check All
           </Button>
         </div>
 
@@ -231,6 +307,84 @@ export default function AdminDiagnostic() {
                 </AlertDescription>
               </Alert>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              Admin API Probe
+              {isProbing && <RefreshCw className="h-4 w-4 animate-spin" />}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Testing all admin APIs with current session JWT. All should return 200 for superadmins, 403 for non-superadmins.
+            </p>
+            
+            {apiProbeResults.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>API Endpoint</TableHead>
+                      <TableHead>Method</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Response Snippet</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {apiProbeResults.map((result, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium text-sm">
+                          {result.name}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{result.method}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={
+                              result.status === 200 ? "default" : 
+                              result.status === 403 ? "destructive" : 
+                              "secondary"
+                            }
+                            className={
+                              result.status === 200 ? "bg-green-500" :
+                              result.status === 403 ? "" :
+                              "bg-yellow-500"
+                            }
+                          >
+                            {result.status || 'Error'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-xs">
+                          <code className="text-xs bg-muted px-2 py-1 rounded text-wrap">
+                            {result.responseSnippet}
+                          </code>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-4 text-muted-foreground">
+                {isProbing ? 'Probing admin APIs...' : 'No probe results yet'}
+              </div>
+            )}
+
+            <div className="mt-4">
+              <Button 
+                onClick={runApiProbes} 
+                disabled={isProbing}
+                variant="outline"
+                size="sm"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isProbing ? 'animate-spin' : ''}`} />
+                Re-probe APIs
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
