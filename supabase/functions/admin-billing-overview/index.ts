@@ -100,90 +100,196 @@ serve(async (req) => {
       case 'list_subscriptions': {
         logStep("Listing subscriptions");
         
-        // Get all subscriptions from Supabase
-        const { data: subscriptions, error: subsError } = await supabaseClient
-          .from('org_stripe_subscriptions')
-          .select(`
-            *,
-            organizations!inner(
-              id,
-              name,
-              owner_user_id,
-              profiles!inner(email)
-            )
-          `)
-          .order('created_at', { ascending: false });
+        try {
+          // First, test Stripe connectivity with a simple call
+          const account = await stripe.accounts.retrieve();
+          logStep("Stripe account verified", { 
+            id: account.id, 
+            livemode: account.livemode, 
+            type: account.type 
+          });
+          
+          // Get all subscriptions from Supabase
+          const { data: subscriptions, error: subsError } = await supabaseClient
+            .from('org_stripe_subscriptions')
+            .select(`
+              *,
+              organizations!inner(
+                id,
+                name,
+                owner_user_id,
+                profiles!inner(email)
+              )
+            `)
+            .order('created_at', { ascending: false });
 
-        if (subsError) throw subsError;
-
-        // Enhance with Stripe data
-        const enrichedSubscriptions = await Promise.all(
-          subscriptions.map(async (sub) => {
-            try {
-              // Get Stripe subscription details
-              const stripeSub = await stripe.subscriptions.retrieve(sub.stripe_subscription_id);
-              
-              // Get customer payment methods
-              const paymentMethods = await stripe.paymentMethods.list({
-                customer: sub.stripe_customer_id,
-                type: 'card',
-              });
-
-              // Calculate MRR based on plan
-              let mrr = 0;
-              if (sub.status === 'active' && stripeSub.items.data[0]) {
-                const price = stripeSub.items.data[0].price;
-                if (price.recurring?.interval === 'month') {
-                  mrr = (price.unit_amount || 0) / 100;
-                } else if (price.recurring?.interval === 'year') {
-                  mrr = ((price.unit_amount || 0) / 100) / 12;
-                }
+          if (subsError) {
+            logStep("Database error retrieving subscriptions", { error: subsError });
+            return new Response(JSON.stringify({
+              ok: false,
+              error: "Database query failed",
+              hint: "Check org_stripe_subscriptions table structure",
+              cause: "database_error",
+              meta: {
+                stripe_account: account.id,
+                stripe_mode: account.livemode ? 'live' : 'test'
               }
+            }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            });
+          }
 
-              return {
-                id: sub.id,
-                organization_id: sub.organization_id,
-                organization_name: sub.organizations.name,
-                owner_email: sub.organizations.profiles.email,
-                plan_key: sub.plan_key,
-                status: sub.status,
-                current_period_start: stripeSub.current_period_start ? 
-                  new Date(stripeSub.current_period_start * 1000).toISOString() : null,
-                current_period_end: stripeSub.current_period_end ? 
-                  new Date(stripeSub.current_period_end * 1000).toISOString() : null,
-                quantity: sub.quantity,
-                payment_method_exists: paymentMethods.data.length > 0,
-                past_due: stripeSub.status === 'past_due',
-                stripe_customer_id: sub.stripe_customer_id,
-                stripe_subscription_id: sub.stripe_subscription_id,
-                mrr
-              };
-            } catch (error) {
-              logStep("Error enriching subscription", { subId: sub.id, error: error.message });
-              return {
-                id: sub.id,
-                organization_id: sub.organization_id,
-                organization_name: sub.organizations.name,
-                owner_email: sub.organizations.profiles.email,
-                plan_key: sub.plan_key,
-                status: sub.status,
-                current_period_start: null,
-                current_period_end: null,
-                quantity: sub.quantity,
-                payment_method_exists: false,
-                past_due: false,
-                stripe_customer_id: sub.stripe_customer_id,
-                stripe_subscription_id: sub.stripe_subscription_id,
-                mrr: 0
-              };
+          if (!subscriptions || subscriptions.length === 0) {
+            logStep("No subscriptions found in database");
+            return new Response(JSON.stringify({
+              ok: true,
+              data: [],
+              meta: {
+                stripe_account: account.id,
+                stripe_mode: account.livemode ? 'live' : 'test',
+                total_subscriptions: 0
+              }
+            }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            });
+          }
+
+          // Test Stripe subscriptions access with first record
+          const testSub = subscriptions[0];
+          let stripeTestResult = null;
+          try {
+            const testStripeSub = await stripe.subscriptions.retrieve(testSub.stripe_subscription_id);
+            stripeTestResult = {
+              subscription_id: testStripeSub.id,
+              status: testStripeSub.status,
+              customer_id: testStripeSub.customer
+            };
+            logStep("Stripe subscription test successful", stripeTestResult);
+          } catch (stripeError) {
+            logStep("Stripe subscription test failed", { error: stripeError.message });
+            return new Response(JSON.stringify({
+              ok: false,
+              error: "Stripe subscription access failed",
+              hint: "Check if subscription IDs in database match Stripe records",
+              cause: "stripe_subscription_error",
+              meta: {
+                stripe_account: account.id,
+                stripe_mode: account.livemode ? 'live' : 'test',
+                test_subscription_id: testSub.stripe_subscription_id,
+                stripe_error: stripeError.message
+              }
+            }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            });
+          }
+
+          // Enhance with Stripe data
+          const enrichedSubscriptions = await Promise.all(
+            subscriptions.map(async (sub) => {
+              try {
+                // Get Stripe subscription details
+                const stripeSub = await stripe.subscriptions.retrieve(sub.stripe_subscription_id);
+                
+                // Get customer payment methods
+                const paymentMethods = await stripe.paymentMethods.list({
+                  customer: sub.stripe_customer_id,
+                  type: 'card',
+                });
+
+                // Calculate MRR based on plan
+                let mrr = 0;
+                let priceInfo = null;
+                if (sub.status === 'active' && stripeSub.items.data[0]) {
+                  const price = stripeSub.items.data[0].price;
+                  priceInfo = {
+                    price_id: price.id,
+                    unit_amount: price.unit_amount,
+                    currency: price.currency,
+                    interval: price.recurring?.interval
+                  };
+                  if (price.recurring?.interval === 'month') {
+                    mrr = (price.unit_amount || 0) / 100;
+                  } else if (price.recurring?.interval === 'year') {
+                    mrr = ((price.unit_amount || 0) / 100) / 12;
+                  }
+                }
+
+                return {
+                  id: sub.id,
+                  organization_id: sub.organization_id,
+                  organization_name: sub.organizations.name,
+                  owner_email: sub.organizations.profiles.email,
+                  plan_key: sub.plan_key,
+                  status: sub.status,
+                  current_period_start: stripeSub.current_period_start ? 
+                    new Date(stripeSub.current_period_start * 1000).toISOString() : null,
+                  current_period_end: stripeSub.current_period_end ? 
+                    new Date(stripeSub.current_period_end * 1000).toISOString() : null,
+                  quantity: sub.quantity,
+                  payment_method_exists: paymentMethods.data.length > 0,
+                  past_due: stripeSub.status === 'past_due',
+                  stripe_customer_id: sub.stripe_customer_id,
+                  stripe_subscription_id: sub.stripe_subscription_id,
+                  mrr,
+                  price_info: priceInfo
+                };
+              } catch (error) {
+                logStep("Error enriching subscription", { subId: sub.id, error: error.message });
+                return {
+                  id: sub.id,
+                  organization_id: sub.organization_id,
+                  organization_name: sub.organizations.name,
+                  owner_email: sub.organizations.profiles.email,
+                  plan_key: sub.plan_key,
+                  status: sub.status,
+                  current_period_start: null,
+                  current_period_end: null,
+                  quantity: sub.quantity,
+                  payment_method_exists: false,
+                  past_due: false,
+                  stripe_customer_id: sub.stripe_customer_id,
+                  stripe_subscription_id: sub.stripe_subscription_id,
+                  mrr: 0,
+                  price_info: null,
+                  enrichment_error: error.message
+                };
+              }
+            })
+          );
+
+          return new Response(JSON.stringify({
+            ok: true,
+            data: enrichedSubscriptions,
+            meta: {
+              stripe_account: account.id,
+              stripe_mode: account.livemode ? 'live' : 'test',
+              total_subscriptions: enrichedSubscriptions.length,
+              stripe_test_result: stripeTestResult
             }
-          })
-        );
-
-        return new Response(JSON.stringify(enrichedSubscriptions), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+          
+        } catch (stripeError) {
+          logStep("Stripe connectivity failed", { error: stripeError.message });
+          return new Response(JSON.stringify({
+            ok: false,
+            error: "Stripe API connectivity failed",
+            hint: "Check STRIPE_SECRET_KEY configuration and network connectivity",
+            cause: "stripe_connectivity_error",
+            meta: {
+              stripe_error: stripeError.message,
+              timestamp: new Date().toISOString()
+            }
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        }
       }
 
       case 'list_invoices': {

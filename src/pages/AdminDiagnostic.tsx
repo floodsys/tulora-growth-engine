@@ -342,6 +342,26 @@ function AdminDiagnostic() {
 
         // Create user-friendly error message for display
         let displayError = response.ok ? undefined : `HTTP ${response.status}`;
+        
+        // Handle structured responses (always 200 but with ok:false for errors)
+        if (response.ok && parsedResponse) {
+          if (parsedResponse.ok === false) {
+            // Structured error in 200 response
+            displayError = `${parsedResponse.error}`;
+            if (parsedResponse.hint) {
+              displayError += ` (${parsedResponse.hint})`;
+            }
+          } else if (parsedResponse.ok === true && parsedResponse.data !== undefined) {
+            // Structured success response
+            displayError = undefined;
+            responseSnippet = `Success: ${Array.isArray(parsedResponse.data) ? parsedResponse.data.length : 'N/A'} records`;
+            if (parsedResponse.meta) {
+              responseSnippet += ` | Stripe: ${parsedResponse.meta.stripe_mode || 'unknown'} mode`;
+            }
+          }
+        }
+        
+        // Handle legacy error responses
         if (!response.ok && parsedResponse) {
           if (parsedResponse.ok === false) {
             // New structured error format
