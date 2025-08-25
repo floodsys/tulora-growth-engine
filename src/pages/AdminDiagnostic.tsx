@@ -100,8 +100,17 @@ export default function AdminDiagnostic() {
   const [showAuthDetails, setShowAuthDetails] = useState(false);
   const [probeWithoutAuth, setProbeWithoutAuth] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
-
-  const checkSecrets = async () => {
+  const [dualRoleResults, setDualRoleResults] = useState<{
+    superadmin: ApiProbeResult[];
+    nonSuperadmin: ApiProbeResult[];
+    summary: {
+      superadminPass: number;
+      nonSuperadminCorrect403: number;
+      total: number;
+      unexpected: ApiProbeResult[];
+    };
+  } | null>(null);
+  const [isDualRoleProbing, setIsDualRoleProbing] = useState(false);
     try {
       setIsCheckingSecrets(true);
       const { data, error } = await supabase.functions.invoke('check-secrets');
@@ -1297,12 +1306,31 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
             <div className="mt-4 flex gap-2">
               <Button 
                 onClick={() => runApiProbes(probeWithoutAuth)} 
-                disabled={isProbing}
+                disabled={isProbing || isDualRoleProbing}
                 variant="outline"
                 size="sm"
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isProbing ? 'animate-spin' : ''}`} />
                 Re-probe APIs
+              </Button>
+              
+              <Button 
+                onClick={runDualRoleProbe}
+                disabled={isProbing || isDualRoleProbing}
+                variant="default"
+                size="sm"
+              >
+                {isDualRoleProbing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Running Dual-Role Probe...
+                  </>
+                ) : (
+                  <>
+                    <Shield className="mr-2 h-4 w-4" />
+                    Dual-Role Probe
+                  </>
+                )}
               </Button>
               
               {apiProbeResults.length > 0 && (
@@ -1314,7 +1342,123 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
                   <Copy className="h-4 w-4 mr-2" />
                   Copy Results
                 </Button>
-              )}
+            )}
+
+            {/* Dual-Role Probe Results */}
+            {dualRoleResults && (
+              <div className="space-y-6">
+                <h3 className="text-lg font-semibold">Dual-Role Probe Results</h3>
+                
+                {/* Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="text-center p-3 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{dualRoleResults.summary.superadminPass}</div>
+                    <div className="text-sm text-muted-foreground">Superadmin 200s</div>
+                  </div>
+                  <div className="text-center p-3 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{dualRoleResults.summary.nonSuperadminCorrect403}</div>
+                    <div className="text-sm text-muted-foreground">Non-admin 403s</div>
+                  </div>
+                  <div className="text-center p-3 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold">{dualRoleResults.summary.total}</div>
+                    <div className="text-sm text-muted-foreground">Total Endpoints</div>
+                  </div>
+                  <div className="text-center p-3 bg-muted rounded-lg">
+                    <div className={`text-2xl font-bold ${dualRoleResults.summary.unexpected.length === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {dualRoleResults.summary.unexpected.length === 0 ? 'PASS' : 'FAIL'}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Overall Status</div>
+                  </div>
+                </div>
+
+                {/* Unexpected Results */}
+                {dualRoleResults.summary.unexpected.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-sm text-red-600">Unexpected Results</h4>
+                    {dualRoleResults.summary.unexpected.map((result, index) => (
+                      <div key={index} className="border border-red-200 rounded-lg p-3 bg-red-50">
+                        <div className="flex items-center gap-3 mb-2">
+                          <XCircle className="h-5 w-5 text-red-600" />
+                          <span className="font-medium">{result.name}</span>
+                          <Badge variant="destructive">
+                            {result.context === 'superadmin' ? 'Superadmin' : 'Non-admin'}: {result.status || 'ERROR'}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-red-700">
+                          Expected: {result.context === 'superadmin' ? '200' : '403'}, Got: {result.status || 'null'}
+                        </p>
+                        {result.responseSnippet && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Response: {result.responseSnippet}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Detailed Results Tables */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Superadmin Results */}
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-sm">Superadmin Results</h4>
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Endpoint</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dualRoleResults.superadmin.map((result, index) => (
+                            <TableRow key={index}>
+                              <TableCell className="font-mono text-xs">{result.name}</TableCell>
+                              <TableCell>
+                                <Badge variant={result.status === 200 ? "default" : "destructive"}>
+                                  {result.status || 'ERROR'}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
+                  {/* Non-Superadmin Results */}
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-sm">Non-Superadmin Results</h4>
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Endpoint</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dualRoleResults.nonSuperadmin.map((result, index) => (
+                            <TableRow key={index}>
+                              <TableCell className="font-mono text-xs">{result.name}</TableCell>
+                              <TableCell>
+                                <Badge variant={result.status === 403 ? "default" : "destructive"}>
+                                  {result.status || 'ERROR'}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-xs text-muted-foreground">
+                  Test completed at: {new Date().toLocaleString()}
+                </div>
+              </div>
+            )}
             </div>
           </CardContent>
         </Card>
@@ -1352,3 +1496,5 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
     </div>
   );
 }
+
+export default AdminDiagnostic;
