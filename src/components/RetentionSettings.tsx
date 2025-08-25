@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertTriangle, Download, Save, Clock } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { AlertTriangle, Download, Save, Clock, Shield, Upload } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +16,19 @@ interface RetentionConfig {
   test_invites_days: number;
 }
 
+interface ExportConfig {
+  audit: boolean;
+  internal: boolean;
+  test_invites: boolean;
+}
+
+// Hard caps
+const RETENTION_CAPS = {
+  audit_days: 365,
+  internal_days: 90,
+  test_invites_days: 30,
+} as const;
+
 interface RetentionSettingsProps {
   organizationId: string;
   isOwner: boolean;
@@ -25,6 +39,12 @@ export function RetentionSettings({ organizationId, isOwner }: RetentionSettings
     audit_days: 365,
     internal_days: 90,
     test_invites_days: 30
+  });
+  const [legalHoldEnabled, setLegalHoldEnabled] = useState(false);
+  const [exportConfig, setExportConfig] = useState<ExportConfig>({
+    audit: false,
+    internal: false,
+    test_invites: false
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,17 +59,33 @@ export function RetentionSettings({ organizationId, isOwner }: RetentionSettings
     try {
       const { data, error } = await supabase
         .from('organizations')
-        .select('retention_config')
+        .select('retention_config, legal_hold_enabled, export_before_purge')
         .eq('id', organizationId)
         .single();
 
       if (error) throw error;
 
+      // Load retention config
       if (data?.retention_config && typeof data.retention_config === 'object') {
         const retentionConfig = data.retention_config as any;
         if (retentionConfig.audit_days && retentionConfig.internal_days && retentionConfig.test_invites_days) {
           setConfig(retentionConfig as RetentionConfig);
         }
+      }
+
+      // Load legal hold setting
+      if (typeof data?.legal_hold_enabled === 'boolean') {
+        setLegalHoldEnabled(data.legal_hold_enabled);
+      }
+
+      // Load export config
+      if (data?.export_before_purge && typeof data.export_before_purge === 'object' && !Array.isArray(data.export_before_purge)) {
+        const exportData = data.export_before_purge as any;
+        setExportConfig({
+          audit: Boolean(exportData.audit),
+          internal: Boolean(exportData.internal),
+          test_invites: Boolean(exportData.test_invites)
+        });
       }
     } catch (error) {
       console.error('Error loading retention config:', error);
@@ -68,17 +104,48 @@ export function RetentionSettings({ organizationId, isOwner }: RetentionSettings
 
     setSaving(true);
     try {
+      // Apply hard caps and check for warnings
+      const clampedConfig = {
+        audit_days: Math.min(config.audit_days, RETENTION_CAPS.audit_days),
+        internal_days: Math.min(config.internal_days, RETENTION_CAPS.internal_days),
+        test_invites_days: Math.min(config.test_invites_days, RETENTION_CAPS.test_invites_days),
+      };
+
+      // Check if any values were clamped
+      const wasClamped = 
+        clampedConfig.audit_days !== config.audit_days ||
+        clampedConfig.internal_days !== config.internal_days ||
+        clampedConfig.test_invites_days !== config.test_invites_days;
+
       const { error } = await supabase
         .from('organizations')
-        .update({ retention_config: config as any })
+        .update({ 
+          retention_config: clampedConfig as any,
+          legal_hold_enabled: legalHoldEnabled,
+          export_before_purge: exportConfig as any
+        })
         .eq('id', organizationId);
 
       if (error) throw error;
 
+      // Update local state with clamped values
+      setConfig(clampedConfig);
+
       toast({
         title: "Success",
-        description: "Retention settings updated successfully"
+        description: wasClamped 
+          ? "Retention settings updated. Some values were adjusted to comply with limits."
+          : "Retention settings updated successfully",
+        variant: wasClamped ? "default" : "default"
       });
+
+      if (wasClamped) {
+        toast({
+          title: "Values Adjusted",
+          description: `Some retention periods exceeded limits and were clamped to: Public ≤ ${RETENTION_CAPS.audit_days}, Internal ≤ ${RETENTION_CAPS.internal_days}, Test ≤ ${RETENTION_CAPS.test_invites_days} days.`,
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('Error saving retention config:', error);
       toast({
@@ -172,12 +239,19 @@ export function RetentionSettings({ organizationId, isOwner }: RetentionSettings
                 id="audit_days"
                 type="number"
                 min="1"
-                max="3650"
+                max={RETENTION_CAPS.audit_days}
                 value={config.audit_days}
-                onChange={(e) => setConfig(prev => ({ ...prev, audit_days: parseInt(e.target.value) || 365 }))}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 1;
+                  setConfig(prev => ({ ...prev, audit_days: Math.min(value, RETENTION_CAPS.audit_days) }));
+                }}
                 disabled={!isOwner}
+                className={config.audit_days > RETENTION_CAPS.audit_days ? "border-destructive" : ""}
               />
-              <p className="text-xs text-muted-foreground">Days to retain user-facing audit events</p>
+              <p className="text-xs text-muted-foreground">
+                Days to retain user-facing audit events (max {RETENTION_CAPS.audit_days})
+                {legalHoldEnabled && <span className="text-amber-600 block">• Legal hold active - no deletions</span>}
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -188,12 +262,16 @@ export function RetentionSettings({ organizationId, isOwner }: RetentionSettings
                 id="internal_days"
                 type="number"
                 min="1"
-                max="365"
+                max={RETENTION_CAPS.internal_days}
                 value={config.internal_days}
-                onChange={(e) => setConfig(prev => ({ ...prev, internal_days: parseInt(e.target.value) || 90 }))}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 1;
+                  setConfig(prev => ({ ...prev, internal_days: Math.min(value, RETENTION_CAPS.internal_days) }));
+                }}
                 disabled={!isOwner}
+                className={config.internal_days > RETENTION_CAPS.internal_days ? "border-destructive" : ""}
               />
-              <p className="text-xs text-muted-foreground">Days to retain internal system events</p>
+              <p className="text-xs text-muted-foreground">Days to retain internal system events (max {RETENTION_CAPS.internal_days})</p>
             </div>
 
             <div className="space-y-2">
@@ -204,12 +282,86 @@ export function RetentionSettings({ organizationId, isOwner }: RetentionSettings
                 id="test_invites_days"
                 type="number"
                 min="1"
-                max="90"
+                max={RETENTION_CAPS.test_invites_days}
                 value={config.test_invites_days}
-                onChange={(e) => setConfig(prev => ({ ...prev, test_invites_days: parseInt(e.target.value) || 30 }))}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 1;
+                  setConfig(prev => ({ ...prev, test_invites_days: Math.min(value, RETENTION_CAPS.test_invites_days) }));
+                }}
                 disabled={!isOwner}
+                className={config.test_invites_days > RETENTION_CAPS.test_invites_days ? "border-destructive" : ""}
               />
-              <p className="text-xs text-muted-foreground">Days to retain test and invite logs</p>
+              <p className="text-xs text-muted-foreground">Days to retain test and invite logs (max {RETENTION_CAPS.test_invites_days})</p>
+            </div>
+          </div>
+
+          {/* Legal Hold Section */}
+          <div className="border-t pt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="legal_hold" className="flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    Legal Hold
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Prevents deletion of public audit logs. Internal and test logs are still purged.
+                  </p>
+                </div>
+                <Switch
+                  id="legal_hold"
+                  checked={legalHoldEnabled}
+                  onCheckedChange={setLegalHoldEnabled}
+                  disabled={!isOwner}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Export Before Purge Section */}
+          <div className="border-t pt-6">
+            <div className="space-y-4">
+              <div>
+                <Label className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  Export Before Purge
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Automatically export logs to storage before deletion during nightly cleanup.
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="export_audit" className="text-sm">Export Audit Logs</Label>
+                  <Switch
+                    id="export_audit"
+                    checked={exportConfig.audit}
+                    onCheckedChange={(checked) => setExportConfig(prev => ({ ...prev, audit: checked }))}
+                    disabled={!isOwner}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="export_internal" className="text-sm">Export Internal Logs</Label>
+                  <Switch
+                    id="export_internal"
+                    checked={exportConfig.internal}
+                    onCheckedChange={(checked) => setExportConfig(prev => ({ ...prev, internal: checked }))}
+                    disabled={!isOwner}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="export_test" className="text-sm">Export Test Logs</Label>
+                  <Switch
+                    id="export_test"
+                    checked={exportConfig.test_invites}
+                    onCheckedChange={(checked) => setExportConfig(prev => ({ ...prev, test_invites: checked }))}
+                    disabled={!isOwner}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 

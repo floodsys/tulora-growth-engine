@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     console.log('Starting retention cleanup job');
 
     // Call the cleanup function
-    const { error } = await supabase.rpc('cleanup_expired_logs');
+    const { data, error } = await supabase.rpc('cleanup_expired_logs');
 
     if (error) {
       console.error('Retention cleanup failed:', error);
@@ -39,10 +39,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('Retention cleanup completed successfully');
+    console.log('Retention cleanup completed successfully:', data);
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Retention cleanup completed' }),
+      JSON.stringify({ 
+        success: true, 
+        message: 'Retention cleanup completed',
+        result: data
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }

@@ -949,7 +949,9 @@ export type Database = {
           canceled_at: string | null
           created_at: string | null
           entitlements: Json | null
+          export_before_purge: Json | null
           id: string
+          legal_hold_enabled: boolean | null
           name: string
           owner_user_id: string | null
           plan_key: string | null
@@ -969,7 +971,9 @@ export type Database = {
           canceled_at?: string | null
           created_at?: string | null
           entitlements?: Json | null
+          export_before_purge?: Json | null
           id?: string
+          legal_hold_enabled?: boolean | null
           name: string
           owner_user_id?: string | null
           plan_key?: string | null
@@ -989,7 +993,9 @@ export type Database = {
           canceled_at?: string | null
           created_at?: string | null
           entitlements?: Json | null
+          export_before_purge?: Json | null
           id?: string
+          legal_hold_enabled?: boolean | null
           name?: string
           owner_user_id?: string | null
           plan_key?: string | null
@@ -1447,7 +1453,7 @@ export type Database = {
       }
       cleanup_expired_logs: {
         Args: Record<PropertyKey, never>
-        Returns: undefined
+        Returns: Json
       }
       cleanup_rate_limits: {
         Args: Record<PropertyKey, never>
@@ -1490,6 +1496,10 @@ export type Database = {
           target_id: string
           target_type: string
         }[]
+      }
+      get_effective_retention_config: {
+        Args: { org_id: string }
+        Returns: Json
       }
       get_user_org_role: {
         Args: { p_org_id: string; p_user_id: string }
