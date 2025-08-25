@@ -39,13 +39,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('Retention cleanup completed successfully:', data);
+    console.log('Retention cleanup completed successfully', data);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: 'Retention cleanup completed',
-        result: data
+        details: data
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
