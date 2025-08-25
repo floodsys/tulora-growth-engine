@@ -10,7 +10,6 @@ import Auth from "@/pages/Auth";
 import TalkToUs from "@/pages/TalkToUs";
 import NotFound from "@/pages/NotFound";
 import AgentSettings from "@/pages/AgentSettings";
-import TeamsSettings from "@/pages/TeamsSettings";
 import InviteAccept from "@/pages/InviteAccept";
 import Demo from "@/pages/Demo";
 import SettingsLayout from "@/pages/SettingsLayout";
@@ -36,7 +35,6 @@ function App() {
             <Route path="/auth" element={<Auth />} />
             <Route path="/talk-to-us" element={<TalkToUs />} />
             <Route path="/agent-settings" element={<AgentSettings />} />
-            <Route path="/settings/teams" element={<TeamsSettings />} />
             <Route path="/settings" element={<SettingsLayout />}>
               
               <Route path="teams" element={<SettingsTeams />} />
