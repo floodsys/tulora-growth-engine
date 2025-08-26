@@ -88,6 +88,8 @@ interface OrgAccessProbeResult {
   orgId: string;
   membership: boolean | null;
   adminAccess: boolean | null;
+  isSuperadmin: boolean | null;
+  bypassPathUsed: boolean | null;
   updateSuccess: boolean | null;
   updateError: string | null;
   timestamp: string;
@@ -316,6 +318,13 @@ function AdminDiagnostic() {
       // Test RLS functions
       const { data: membershipResult, error: membershipError } = await supabase.rpc('check_org_membership', { p_org_id: testOrgId });
       const { data: adminResult, error: adminError } = await supabase.rpc('check_admin_access', { p_org_id: testOrgId });
+      const { data: superadminResult, error: superadminError } = await supabase.rpc('is_superadmin');
+
+      // Determine if bypass path is used: superadmin=true but membership=false
+      const isSuperadmin = superadminError ? null : Boolean(superadminResult);
+      const membership = membershipError ? null : Boolean(membershipResult);
+      const adminAccess = adminError ? null : Boolean(adminResult);
+      const bypassPathUsed = isSuperadmin === true && membership === false && adminAccess === true;
 
       // Test actual update via app client (dry run)
       let updateSuccess: boolean | null = null;
@@ -345,8 +354,10 @@ function AdminDiagnostic() {
 
       const result: OrgAccessProbeResult = {
         orgId: testOrgId,
-        membership: membershipError ? null : Boolean(membershipResult),
-        adminAccess: adminError ? null : Boolean(adminResult),
+        membership,
+        adminAccess,
+        isSuperadmin,
+        bypassPathUsed,
         updateSuccess,
         updateError,
         timestamp
@@ -356,7 +367,7 @@ function AdminDiagnostic() {
 
       toast({
         title: "Org Access Probe Completed",
-        description: `Membership: ${result.membership}, Admin: ${result.adminAccess}, Update: ${result.updateSuccess ? 'Success' : 'Failed'}`,
+        description: `Membership: ${result.membership}, Admin: ${result.adminAccess}, Superadmin: ${result.isSuperadmin}${result.bypassPathUsed ? ' (BYPASS USED)' : ''}`,
         variant: result.updateSuccess === false ? "destructive" : "default",
       });
     } catch (error) {
@@ -2234,6 +2245,9 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
             <CardTitle className="flex items-center gap-2">
               <Database className="h-4 w-4" />
               Org Access Probe
+              <Badge variant="outline" className="text-xs">
+                🎯 STEP 6: Superadmin Bypass Proof
+              </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -2267,7 +2281,7 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
 
             {orgAccessResults && (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-muted/50 p-4 rounded-lg">
                     <div className="text-sm font-medium mb-2">Membership Check</div>
                     <div className="flex items-center gap-2">
@@ -2296,6 +2310,28 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
                       )}
                       <Badge variant={orgAccessResults.adminAccess === true ? "default" : orgAccessResults.adminAccess === false ? "destructive" : "secondary"}>
                         {orgAccessResults.adminAccess === null ? 'Error' : orgAccessResults.adminAccess ? 'Admin' : 'Not Admin'}
+                      </Badge>
+                    </div>
+                    {orgAccessResults.bypassPathUsed && (
+                      <div className="mt-2 text-xs font-bold text-orange-600 dark:text-orange-400">
+                        🔥 BYPASS PATH USED
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="text-sm font-medium mb-2">Superadmin Status</div>
+                    <div className="flex items-center gap-2">
+                      {orgAccessResults.isSuperadmin === true ? (
+                        <CheckCircle className="h-4 w-4 text-purple-500" />
+                      ) : orgAccessResults.isSuperadmin === false ? (
+                        <XCircle className="h-4 w-4 text-gray-500" />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                      )}
+                      <Badge variant={orgAccessResults.isSuperadmin === true ? "secondary" : orgAccessResults.isSuperadmin === false ? "outline" : "secondary"} 
+                             className={orgAccessResults.isSuperadmin === true ? "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200" : ""}>
+                        {orgAccessResults.isSuperadmin === null ? 'Error' : orgAccessResults.isSuperadmin ? 'Superadmin' : 'Regular User'}
                       </Badge>
                     </div>
                   </div>
@@ -2335,6 +2371,34 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
                     </div>
                   </div>
                 </div>
+
+                {orgAccessResults.bypassPathUsed && (
+                  <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 p-4 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Shield className="h-4 w-4 text-orange-600" />
+                      <div className="text-sm font-bold text-orange-800 dark:text-orange-200">
+                        🔥 SUPERADMIN BYPASS ACTIVE
+                      </div>
+                    </div>
+                    <div className="text-xs text-orange-700 dark:text-orange-300 space-y-1">
+                      <div>✅ <code>check_admin_access({orgAccessResults.orgId.slice(0,8)}...)</code> = <strong>true</strong></div>
+                      <div>❌ <code>check_org_membership({orgAccessResults.orgId.slice(0,8)}...)</code> = <strong>false</strong></div>
+                      <div>👑 <code>is_superadmin()</code> = <strong>true</strong></div>
+                      <div className="mt-2 font-medium">
+                        💡 Bypass path used: Superadmin can access any org without membership via <code>check_admin_access</code> function
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {orgAccessResults.isSuperadmin === true && !orgAccessResults.bypassPathUsed && (
+                  <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 p-4 rounded-lg">
+                    <div className="text-xs text-blue-700 dark:text-blue-300">
+                      <div className="font-medium mb-1">Superadmin Status: Confirmed ✅</div>
+                      <div>You are a superadmin but are also a regular member of this organization, so the bypass path isn't triggered.</div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
