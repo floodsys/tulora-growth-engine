@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { BUILD_ID, clearAllCaches, forceReload, getBuildInfo, getCosmenticEnvVars, type CacheClearResult } from '@/lib/build-info';
+import { SeatStatusCard } from "@/components/admin/SeatStatusCard";
 
 interface DiagnosticData {
   authUid: string | null;
@@ -1702,7 +1703,11 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
                 )}
 
                 {/* Detailed Results Tables */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Seat Status Card */}
+        <SeatStatusCard />
+
+        {/* Build Info Card */}
                   {/* Superadmin Results */}
                   <div className="space-y-3">
                     <h4 className="font-medium text-sm">Superadmin Results</h4>
