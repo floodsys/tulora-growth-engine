@@ -134,6 +134,16 @@ export default function SettingsOrganization() {
     }
 
     setLoading(true);
+    
+    // Log org_id for debugging RLS
+    console.log('🔍 DEBUG: Attempting to save organization:', {
+      org_id: organization.id,
+      user_id: (await supabase.auth.getUser()).data.user?.id,
+      hasAccess: hasAccess,
+      isOwner: isOwner,
+      isAdmin: isAdmin
+    });
+    
     try {
       const updateData = {
         name: formData.name.trim(),
