@@ -805,72 +805,6 @@ export type Database = {
           },
         ]
       }
-      org_subscriptions: {
-        Row: {
-          cancel_at_period_end: boolean | null
-          created_at: string | null
-          current_period_end: string | null
-          current_period_start: string | null
-          id: string
-          org_id: string
-          price_id: string | null
-          product_id: string | null
-          quantity: number | null
-          status: string
-          stripe_subscription_id: string | null
-          subscription_item_id: string | null
-          trial_end: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          cancel_at_period_end?: boolean | null
-          created_at?: string | null
-          current_period_end?: string | null
-          current_period_start?: string | null
-          id?: string
-          org_id: string
-          price_id?: string | null
-          product_id?: string | null
-          quantity?: number | null
-          status: string
-          stripe_subscription_id?: string | null
-          subscription_item_id?: string | null
-          trial_end?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          cancel_at_period_end?: boolean | null
-          created_at?: string | null
-          current_period_end?: string | null
-          current_period_start?: string | null
-          id?: string
-          org_id?: string
-          price_id?: string | null
-          product_id?: string | null
-          quantity?: number | null
-          status?: string
-          stripe_subscription_id?: string | null
-          subscription_item_id?: string | null
-          trial_end?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_org_subscriptions_org_id"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "org_subscriptions_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       organization_invitations: {
         Row: {
           created_at: string
@@ -1350,7 +1284,65 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      org_subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean | null
+          created_at: string | null
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string | null
+          org_id: string | null
+          price_id: string | null
+          product_id: string | null
+          quantity: number | null
+          status: string | null
+          stripe_subscription_id: string | null
+          subscription_item_id: string | null
+          trial_end: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string | null
+          org_id?: string | null
+          price_id?: never
+          product_id?: never
+          quantity?: number | null
+          status?: string | null
+          stripe_subscription_id?: string | null
+          subscription_item_id?: never
+          trial_end?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string | null
+          org_id?: string | null
+          price_id?: never
+          product_id?: never
+          quantity?: number | null
+          status?: string | null
+          stripe_subscription_id?: string | null
+          subscription_item_id?: never
+          trial_end?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_org_stripe_subscriptions_organization_id"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       accept_invite: {
