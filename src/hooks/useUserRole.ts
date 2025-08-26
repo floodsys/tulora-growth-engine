@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
+/**
+ * @deprecated Use useCanonicalUserRole instead for canonical ownership/membership checks
+ * This hook has been updated to use organization_members but consider migrating to useCanonicalUserRole
+ */
 export type UserRole = 'admin' | 'editor' | 'viewer' | 'user';
 
 export function useUserRole(organizationId?: string) {
