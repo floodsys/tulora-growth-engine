@@ -1357,6 +1357,10 @@ export type Database = {
         Args: { p_token: string }
         Returns: Json
       }
+      activate_seat_and_get_status: {
+        Args: { p_org_id: string }
+        Returns: Json
+      }
       add_superadmin: {
         Args: { p_user_email: string }
         Returns: Json
@@ -1523,6 +1527,10 @@ export type Database = {
       }
       get_effective_retention_config: {
         Args: { org_id: string }
+        Returns: Json
+      }
+      get_security_snapshot: {
+        Args: Record<PropertyKey, never>
         Returns: Json
       }
       get_user_org_role: {

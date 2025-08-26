@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, CheckCircle, XCircle, AlertTriangle, Copy, Eye, EyeOff, Shield, Database, CreditCard, Mail, ExternalLink, Settings, Lock, Loader2 } from 'lucide-react';
+import { RefreshCw, CheckCircle, XCircle, AlertTriangle, Copy, Eye, EyeOff, Shield, Database, CreditCard, Mail, ExternalLink, Settings, Lock, Loader2, UserCheck } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
@@ -93,6 +93,55 @@ interface OrgAccessProbeResult {
   timestamp: string;
 }
 
+interface SecuritySnapshot {
+  timestamp: string;
+  tables: Array<{
+    table_name: string;
+    owner: string;
+    has_rls: boolean;
+    force_rls: boolean;
+  }>;
+  policies: Array<{
+    policy_name: string;
+    table_name: string;
+    command: string;
+    using_expression?: string;
+    check_expression?: string;
+    references_admin_access: boolean;
+    references_org_membership: boolean;
+  }>;
+  functions: Array<{
+    function_name: string;
+    owner: string;
+    security_definer: boolean;
+    volatility: string;
+    search_path: boolean;
+  }>;
+  grants: Array<{
+    object_name: string;
+    object_type: string;
+    grantee: string;
+    privilege_type: string;
+    is_grantable: string;
+  }>;
+  build_info: {
+    supabase_url: string;
+    project_id: string;
+    anon_key_fingerprint: string;
+  };
+}
+
+interface SeatStatusInfo {
+  user_id: string;
+  organization_id: string;
+  role: string;
+  seat_active: boolean;
+  is_owner: boolean;
+  membership_exists: boolean;
+  updated_at: string;
+  error?: string;
+}
+
 interface RLSAcceptanceTestResult {
   success: boolean;
   timestamp: string;
@@ -132,6 +181,10 @@ function AdminDiagnostic() {
   const [isRunningRlsTests, setIsRunningRlsTests] = useState(false);
   const [testOrgId, setTestOrgId] = useState('');
   const [isCacheClearing, setIsCacheClearing] = useState(false);
+  const [securitySnapshot, setSecuritySnapshot] = useState<SecuritySnapshot | null>(null);
+  const [isLoadingSnapshot, setIsLoadingSnapshot] = useState(false);
+  const [seatStatus, setSeatStatus] = useState<SeatStatusInfo | null>(null);
+  const [isLoadingSeat, setIsLoadingSeat] = useState(false);
   const [cacheResult, setCacheResult] = useState<CacheClearResult | null>(null);
   const [showAuthDetails, setShowAuthDetails] = useState(false);
   const [probeWithoutAuth, setProbeWithoutAuth] = useState(false);
@@ -315,6 +368,115 @@ function AdminDiagnostic() {
       });
     } finally {
       setIsTestingOrgAccess(false);
+    }
+  };
+
+  const fetchSecuritySnapshot = async () => {
+    setIsLoadingSnapshot(true);
+    
+    try {
+      const { data, error } = await supabase.rpc('get_security_snapshot');
+      
+      if (error) {
+        console.error('Security snapshot error:', error);
+        toast({
+          title: "Security Snapshot Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setSecuritySnapshot(data as unknown as SecuritySnapshot);
+      toast({
+        title: "Security Snapshot Loaded",
+        description: "Current security configuration captured",
+      });
+    } catch (error: any) {
+      console.error('Security snapshot failed:', error);
+      toast({
+        title: "Security Snapshot Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingSnapshot(false);
+    }
+  };
+
+  const activateSeatAndGetStatus = async (orgId?: string) => {
+    setIsLoadingSeat(true);
+    
+    try {
+      // Get user's current organization if orgId not provided
+      let targetOrgId = orgId;
+      if (!targetOrgId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+        
+        // Get user's first organization
+        const { data: orgs } = await supabase
+          .from('organizations')
+          .select('id')
+          .eq('owner_user_id', user.id)
+          .limit(1);
+          
+        if (!orgs || orgs.length === 0) {
+          // Try to find organization membership
+          const { data: memberships } = await supabase
+            .from('organization_members')
+            .select('organization_id')
+            .eq('user_id', user.id)
+            .limit(1);
+            
+          if (memberships && memberships.length > 0) {
+            targetOrgId = memberships[0].organization_id;
+          } else {
+            throw new Error('No organization found');
+          }
+        } else {
+          targetOrgId = orgs[0].id;
+        }
+      }
+      
+      const { data, error } = await supabase.rpc('activate_seat_and_get_status', { 
+        p_org_id: targetOrgId 
+      });
+      
+      if (error) {
+        console.error('Seat activation error:', error);
+        toast({
+          title: "Seat Activation Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const seatData = data as unknown as SeatStatusInfo;
+      if (seatData.error) {
+        toast({
+          title: "Seat Status Error",
+          description: seatData.error,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setSeatStatus(seatData);
+      toast({
+        title: "Seat Status Updated",
+        description: `Role: ${seatData.role}, Active: ${seatData.seat_active}`,
+      });
+    } catch (error: any) {
+      console.error('Seat status failed:', error);
+      toast({
+        title: "Seat Status Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingSeat(false);
     }
   };
 
@@ -843,6 +1005,7 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
       await runDiagnostics();
       await checkSecrets();
       await checkStripeConnectivity();
+      await activateSeatAndGetStatus(); // Check seat status on load
       // Only run API probes in development mode for security
       if (import.meta.env.DEV) {
         await runApiProbes(probeWithoutAuth);
@@ -954,6 +1117,158 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Security Snapshot */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5" />
+                Security Snapshot
+                <Badge variant="outline" className="text-xs">
+                  🎯 STEP 0: Config State
+                </Badge>
+              </CardTitle>
+              <Button
+                onClick={fetchSecuritySnapshot}
+                disabled={isLoadingSnapshot}
+                variant="outline"
+                size="sm"
+              >
+                {isLoadingSnapshot ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <Database className="mr-2 h-4 w-4" />
+                    Capture State
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {securitySnapshot ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="text-sm font-medium mb-2">Tables & RLS</div>
+                    <div className="text-xs space-y-1">
+                      {securitySnapshot.tables.slice(0, 3).map((table, i) => (
+                        <div key={i} className="flex justify-between">
+                          <span className="font-mono truncate">{table.table_name.split('.')[1]}</span>
+                          <span className={table.has_rls ? 'text-green-600' : 'text-red-600'}>
+                            {table.has_rls ? '🛡️' : '❌'}
+                          </span>
+                        </div>
+                      ))}
+                      {securitySnapshot.tables.length > 3 && (
+                        <div className="text-muted-foreground">+{securitySnapshot.tables.length - 3} more</div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="text-sm font-medium mb-2">Security Functions</div>
+                    <div className="text-xs space-y-1">
+                      {securitySnapshot.functions.map((func, i) => (
+                        <div key={i} className="flex justify-between">
+                          <span className="font-mono truncate">{func.function_name}</span>
+                          <span className={func.security_definer ? 'text-green-600' : 'text-orange-600'}>
+                            {func.security_definer ? '🔒' : '⚠️'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="text-sm font-medium mb-2">Build Info</div>
+                    <div className="text-xs space-y-1">
+                      <div><strong>Build ID:</strong> {BUILD_ID}</div>
+                      <div><strong>Project:</strong> {securitySnapshot.build_info.project_id}</div>
+                      <div><strong>Key Hash:</strong> {securitySnapshot.build_info.anon_key_fingerprint}</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-xs text-muted-foreground">
+                  Snapshot taken: {new Date(securitySnapshot.timestamp).toLocaleString()}
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                Click "Capture State" to generate a security configuration snapshot
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Compact Seat Status */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <UserCheck className="h-5 w-5" />
+                Current Org Seat Status
+                <Badge variant="outline" className="text-xs">
+                  🎯 STEP 1: Seat Active
+                </Badge>
+              </CardTitle>
+              <Button
+                onClick={() => activateSeatAndGetStatus()}
+                disabled={isLoadingSeat}
+                variant="outline"
+                size="sm"
+              >
+                {isLoadingSeat ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  'Activate & Check'
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {seatStatus ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <div className="font-medium">Role</div>
+                  <div className={`font-mono ${seatStatus.role === 'admin' ? 'text-green-600' : 'text-orange-600'}`}>
+                    {seatStatus.role}
+                  </div>
+                </div>
+                <div>
+                  <div className="font-medium">Seat Active</div>
+                  <div className={`font-mono ${seatStatus.seat_active ? 'text-green-600' : 'text-red-600'}`}>
+                    {seatStatus.seat_active ? '✅ true' : '❌ false'}
+                  </div>
+                </div>
+                <div>
+                  <div className="font-medium">Is Owner</div>
+                  <div className={`font-mono ${seatStatus.is_owner ? 'text-green-600' : 'text-gray-600'}`}>
+                    {seatStatus.is_owner ? '👑 yes' : '👤 no'}
+                  </div>
+                </div>
+                <div>
+                  <div className="font-medium">Member Exists</div>
+                  <div className={`font-mono ${seatStatus.membership_exists ? 'text-green-600' : 'text-red-600'}`}>
+                    {seatStatus.membership_exists ? '✅ yes' : '❌ no'}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                Click "Activate & Check" to check and activate your organization seat
+              </div>
+            )}
           </CardContent>
         </Card>
 
