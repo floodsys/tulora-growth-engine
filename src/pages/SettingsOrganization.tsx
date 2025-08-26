@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useUserOrganization } from "@/hooks/useUserOrganization";
 import { useOrganizationRole } from "@/hooks/useOrganizationRole";
+import { supabase } from "@/integrations/supabase/client";
 import { Building2, Shield, Activity, Users, FileText } from "lucide-react";
 import { OrganizationActivityViewer } from "@/components/OrganizationActivityViewer";
 import { RetentionSettings } from "@/components/RetentionSettings";
@@ -25,11 +26,47 @@ export default function SettingsOrganization() {
   const [activeTab, setActiveTab] = useState("general");
   
   const [formData, setFormData] = useState({
-    name: organization?.name || '',
-    industry: 'Technology',
-    size: '1-10',
+    name: '',
+    industry: '',
+    size_band: '',
     website: '',
   });
+  const [originalData, setOriginalData] = useState(formData);
+
+  // Load organization data when component mounts
+  useEffect(() => {
+    async function loadOrganizationData() {
+      if (!organization) return;
+
+      try {
+        const { data: orgData } = await supabase
+          .from('organizations')
+          .select('name, website, industry, size_band')
+          .eq('id', organization.id)
+          .single();
+
+        if (orgData) {
+          const data = {
+            name: orgData.name || '',
+            website: orgData.website || '',
+            industry: orgData.industry || '',
+            size_band: orgData.size_band || '',
+          };
+          setFormData(data);
+          setOriginalData(data);
+        }
+      } catch (error) {
+        console.error('Error loading organization data:', error);
+        toast({
+          title: "Error loading data",
+          description: "Failed to load organization settings.",
+          variant: "destructive"
+        });
+      }
+    }
+
+    loadOrganizationData();
+  }, [organization, toast]);
 
   // Set active tab based on URL
   useEffect(() => {
@@ -64,20 +101,75 @@ export default function SettingsOrganization() {
     );
   }
 
+  // Check if there are changes
+  const hasChanges = JSON.stringify(formData) !== JSON.stringify(originalData);
+
+  const normalizeWebsite = (url: string): string => {
+    if (!url.trim()) return "";
+    let normalized = url.trim().toLowerCase();
+    if (normalized && !normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+      normalized = 'https://' + normalized;
+    }
+    return normalized;
+  };
+
   const handleSave = async () => {
-    setLoading(true);
-    try {
-      // In a real app, you would update the organization here
-      toast({
-        title: "Settings saved",
-        description: "Organization settings have been updated.",
-      });
-    } catch (error) {
+    if (!organization) {
       toast({
         title: "Error",
-        description: "Failed to update organization settings. Please try again.",
-        variant: "destructive",
+        description: "Organization not found.",
+        variant: "destructive"
       });
+      return;
+    }
+
+    if (!hasAccess) {
+      toast({
+        title: "Access denied",
+        description: "Only owners and admins can update organization settings.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const updateData = {
+        name: formData.name.trim(),
+        website: normalizeWebsite(formData.website),
+        industry: formData.industry,
+        size_band: formData.size_band || null
+      };
+
+      const { error } = await supabase
+        .from('organizations')
+        .update(updateData)
+        .eq('id', organization.id);
+
+      if (error) throw error;
+
+      setOriginalData(formData);
+      toast({
+        title: "Organization updated",
+        description: "Organization settings have been updated successfully.",
+      });
+    } catch (error: any) {
+      console.error('Error updating organization:', error);
+      
+      // Check if this is a permissions error
+      if (error.code === 'PGRST301' || error.message?.includes('access denied')) {
+        toast({
+          title: "Access denied",
+          description: "Only owners and admins can update organization profile.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Update failed",
+          description: error.message || "Failed to update organization settings.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -137,30 +229,32 @@ export default function SettingsOrganization() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="orgName">Organization Name</Label>
-                  <Input
-                    id="orgName"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Enter organization name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="website">Website</Label>
-                  <Input
-                    id="website"
-                    type="url"
-                    value={formData.website}
-                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                    placeholder="https://example.com"
+                    <Input
+                      id="orgName"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Enter organization name"
+                      disabled={!hasAccess}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="website">Website</Label>
+                    <Input
+                      id="website"
+                      type="url"
+                      value={formData.website}
+                      onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                      placeholder="https://example.com"
+                      disabled={!hasAccess}
                   />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="industry">Industry</Label>
-                  <Select value={formData.industry} onValueChange={(value) => setFormData({ ...formData, industry: value })}>
+                  <Select value={formData.industry} onValueChange={(value) => setFormData({ ...formData, industry: value })} disabled={!hasAccess}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select industry" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Technology">Technology</SelectItem>
@@ -169,15 +263,18 @@ export default function SettingsOrganization() {
                       <SelectItem value="Education">Education</SelectItem>
                       <SelectItem value="Retail">Retail</SelectItem>
                       <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+                      <SelectItem value="Real Estate">Real Estate</SelectItem>
+                      <SelectItem value="Consulting">Consulting</SelectItem>
+                      <SelectItem value="Marketing">Marketing</SelectItem>
                       <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="size">Organization Size</Label>
-                  <Select value={formData.size} onValueChange={(value) => setFormData({ ...formData, size: value })}>
+                  <Select value={formData.size_band} onValueChange={(value) => setFormData({ ...formData, size_band: value })} disabled={!hasAccess}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select organization size" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="1-10">1-10 employees</SelectItem>
@@ -189,7 +286,16 @@ export default function SettingsOrganization() {
                   </Select>
                 </div>
               </div>
-              <Button onClick={handleSave} disabled={loading}>
+
+              {!hasAccess && (
+                <div className="p-3 bg-muted/50 rounded-md">
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Admins only.</strong> You have read-only access to organization settings.
+                  </p>
+                </div>
+              )}
+
+              <Button onClick={handleSave} disabled={!hasChanges || !hasAccess || loading}>
                 {loading ? "Saving..." : "Save Changes"}
               </Button>
             </CardContent>
