@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { useMFAVerification } from '@/hooks/useMFAVerification';
 import { useMFAAttemptThrottling } from '@/hooks/useMFAAttemptThrottling';
-import { MFAObservability } from '@/lib/mfa-observability';
+import { mfaObservability } from '@/lib/mfa-observability';
 
 // Mock Supabase
 vi.mock('@/integrations/supabase/client', () => ({
@@ -28,7 +30,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 // Mock observability
 vi.mock('@/lib/mfa-observability', () => ({
-  MFAObservability: {
+  mfaObservability: {
     logMFAEvent: vi.fn(),
     addBreadcrumb: vi.fn(),
     captureException: vi.fn(),
