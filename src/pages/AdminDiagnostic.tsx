@@ -945,6 +945,9 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
           </CardContent>
         </Card>
 
+        {/* Organization Seat Status */}
+        <SeatStatusCard />
+
         {/* Secrets Checklist Section */}
         <Card>
           <CardHeader>
