@@ -869,8 +869,16 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
           <div>
             <h1 className="text-3xl font-bold">Admin Diagnostic</h1>
             <p className="text-muted-foreground">
-              Diagnosing superadmin authorization flow • Build ID: <code className="bg-muted px-1 rounded text-sm">{BUILD_ID}</code>
+              Diagnosing superadmin authorization flow
             </p>
+            <div className="mt-2 flex items-center gap-3">
+              <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-blue-100 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded">
+                Build ID: {BUILD_ID}
+              </span>
+              <Badge variant="outline" className="text-xs">
+                🎯 STEP 5: Tester Build Check
+              </Badge>
+            </div>
           </div>
           <div className="flex gap-2">
             <Button onClick={handleRecheck} disabled={isLoading || isProbing}>
@@ -882,8 +890,12 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
               disabled={isCacheClearing}
               variant="outline"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isCacheClearing ? 'animate-spin' : ''}`} />
-              Hard Refresh Cache
+              {isCacheClearing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Kill Stale Build
             </Button>
             <Button 
               onClick={copyDiagnostics} 

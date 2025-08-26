@@ -1,7 +1,7 @@
 // Build information and cache management utilities
 
 // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.
-export const BUILD_ID = import.meta.env.VITE_BUILD_ID || `cache-bust-${Date.now()}`;
+export const BUILD_ID = import.meta.env.VITE_BUILD_ID || `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 export const BUILD_TIMESTAMP = new Date().toISOString();
 
 // COSMETIC ONLY - These environment variables are NEVER used for authorization

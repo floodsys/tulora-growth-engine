@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useUserOrganization } from "@/hooks/useUserOrganization";
@@ -280,9 +281,12 @@ export default function SettingsOrganization() {
             Manage your organization information and preferences
           </p>
           <div className="mt-3 flex items-center gap-3">
-            <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-green-100 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded">
-              Build: {buildInfo.buildId}
+            <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-blue-100 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded">
+              Build ID: {buildInfo.buildId}
             </span>
+            <Badge variant="outline" className="text-xs">
+              🎯 STEP 5: Settings Build Check
+            </Badge>
             <Button
               variant="outline"
               size="sm"
@@ -295,7 +299,7 @@ export default function SettingsOrganization() {
               ) : (
                 <Zap className="h-3 w-3 mr-1" />
               )}
-              Hard Refresh Cache
+              Kill Stale Build
             </Button>
           </div>
         </div>
