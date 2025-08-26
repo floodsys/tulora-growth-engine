@@ -18,31 +18,59 @@ export function useOrganizationRole(organizationId?: string) {
       }
 
       try {
-        // Check if user is organization owner first
-        const { data: orgData } = await supabase
-          .from('organizations')
-          .select('owner_user_id')
-          .eq('id', organizationId)
-          .single();
+        // Use canonical helper functions instead of direct table queries
+        
+        // First check if user is organization owner via canonical helper
+        const { data: isOwner, error: ownerError } = await supabase.rpc('check_org_ownership', {
+          p_org_id: organizationId,
+          p_user_id: user.id
+        });
 
-        if (orgData?.owner_user_id === user.id) {
+        if (ownerError) {
+          console.error('Error checking ownership:', ownerError);
+          setRole(null);
+          setLoading(false);
+          return;
+        }
+
+        if (isOwner) {
           setRole('admin');
           setLoading(false);
           return;
         }
 
-        // Check organization_members table
-        const { data: memberData } = await supabase
+        // Check organization membership via canonical helper
+        const { data: isMember, error: memberError } = await supabase.rpc('check_org_membership', {
+          p_org_id: organizationId,
+          p_user_id: user.id
+        });
+
+        if (memberError) {
+          console.error('Error checking membership:', memberError);
+          setRole(null);
+          setLoading(false);
+          return;
+        }
+
+        if (!isMember) {
+          setRole(null);
+          setLoading(false);
+          return;
+        }
+
+        // Get specific role from organization_members if they are a member
+        const { data: memberData, error: roleError } = await supabase
           .from('organization_members')
           .select('role')
           .eq('user_id', user.id)
           .eq('organization_id', organizationId)
+          .eq('seat_active', true)
           .single();
 
-        if (memberData) {
-          setRole(memberData.role as OrganizationRole);
-        } else {
+        if (roleError || !memberData) {
           setRole(null);
+        } else {
+          setRole(memberData.role as OrganizationRole);
         }
       } catch (error) {
         console.error('Error fetching user role:', error);

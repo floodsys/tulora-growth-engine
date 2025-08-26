@@ -95,49 +95,36 @@ export async function startCheckout(orgId: string, interval: 'month' | 'year', s
 /**
  * Accept an organization invitation and sync seats
  */
-export async function acceptInvitation(membershipId: string, orgId: string) {
+export async function acceptInvitation(invitationToken: string) {
   try {
-    // Update membership status to active
-    const { error: updateError } = await supabase
-      .from('memberships')
-      .update({ status: 'active' })
-      .eq('id', membershipId)
+    // Use the canonical accept_invite function instead of direct table access
+    const { data, error } = await supabase.rpc('accept_invite', { 
+      p_token: invitationToken 
+    });
 
-    if (updateError) throw updateError
+    if (error) throw error;
 
-    // Add to organization_members if not exists
-    const { data: userData } = await supabase.auth.getUser()
-    if (userData.user) {
-      const { error: memberError } = await supabase
-        .from('organization_members')
-        .upsert({
-          organization_id: orgId,
-          user_id: userData.user.id,
-          seat_active: true,
-          role: 'user' // Changed from 'member' to valid enum value
-        }, {
-          onConflict: 'organization_id,user_id'
-        })
-
-      if (memberError) throw memberError
+    const result = data as any;
+    if (!result?.success) {
+      throw new Error(result?.error || 'Failed to accept invitation');
     }
 
-    // Auto-sync seats
-    await triggerSeatSync(orgId)
+    // Auto-sync seats with the organization from the response
+    await triggerSeatSync(result.organization_id);
 
     toast({
       title: "Invitation accepted",
       description: "You've been added to the organization",
-    })
+    });
 
-    return { success: true }
+    return { success: true, organizationId: result.organization_id };
   } catch (error: any) {
     toast({
       title: "Error accepting invitation",
       description: error.message,
       variant: "destructive",
-    })
-    return { success: false, error }
+    });
+    return { success: false, error };
   }
 }
 
@@ -146,40 +133,35 @@ export async function acceptInvitation(membershipId: string, orgId: string) {
  */
 export async function removeMember(userId: string, orgId: string) {
   try {
-    // Remove from organization_members
-    const { error: removeError } = await supabase
-      .from('organization_members')
-      .delete()
-      .eq('organization_id', orgId)
-      .eq('user_id', userId)
+    // Use canonical admin_remove_member function instead of direct table access
+    const { data, error } = await supabase.rpc('admin_remove_member', {
+      p_organization_id: orgId,
+      p_user_id: userId
+    });
 
-    if (removeError) throw removeError
+    if (error) throw error;
 
-    // Update membership status to removed
-    const { error: statusError } = await supabase
-      .from('memberships')
-      .update({ status: 'removed' })
-      .eq('organization_id', orgId)
-      .eq('user_id', userId)
-
-    if (statusError) throw statusError
+    const result = data as any;
+    if (!result?.success) {
+      throw new Error(result?.error || 'Failed to remove member');
+    }
 
     // Auto-sync seats
-    await triggerSeatSync(orgId)
+    await triggerSeatSync(orgId);
 
     toast({
       title: "Member removed",
       description: "Member has been removed from the organization",
-    })
+    });
 
-    return { success: true }
+    return { success: true };
   } catch (error: any) {
     toast({
       title: "Error removing member",
       description: error.message,
       variant: "destructive",
-    })
-    return { success: false, error }
+    });
+    return { success: false, error };
   }
 }
 
@@ -188,29 +170,35 @@ export async function removeMember(userId: string, orgId: string) {
  */
 export async function toggleSeatActive(userId: string, orgId: string, seatActive: boolean) {
   try {
-    const { error } = await supabase
-      .from('organization_members')
-      .update({ seat_active: seatActive })
-      .eq('organization_id', orgId)
-      .eq('user_id', userId)
+    // Use canonical admin_toggle_member_seat function
+    const { data, error } = await supabase.rpc('admin_toggle_member_seat', {
+      p_organization_id: orgId,
+      p_user_id: userId,
+      p_seat_active: seatActive
+    });
 
-    if (error) throw error
+    if (error) throw error;
+
+    const result = data as any;
+    if (!result?.success) {
+      throw new Error(result?.error || 'Failed to toggle seat status');
+    }
 
     // Auto-sync seats
-    await triggerSeatSync(orgId)
+    await triggerSeatSync(orgId);
 
     toast({
       title: seatActive ? "Seat activated" : "Seat deactivated",
       description: `Member's seat has been ${seatActive ? 'activated' : 'deactivated'}`,
-    })
+    });
 
-    return { success: true }
+    return { success: true };
   } catch (error: any) {
     toast({
       title: "Error updating seat",
       description: error.message,
       variant: "destructive",
-    })
-    return { success: false, error }
+    });
+    return { success: false, error };
   }
 }

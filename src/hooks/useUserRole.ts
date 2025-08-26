@@ -18,12 +18,13 @@ export function useUserRole(organizationId?: string) {
       }
 
       try {
+        // Use canonical organization_members table instead of legacy memberships
         const { data, error } = await supabase
-          .from('memberships')
+          .from('organization_members')
           .select('role')
           .eq('user_id', user.id)
           .eq('organization_id', organizationId)
-          .eq('status', 'active')
+          .eq('seat_active', true) // Only active seats
           .single();
 
         if (error) {
