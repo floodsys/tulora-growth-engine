@@ -1736,6 +1736,16 @@ export type Database = {
         Args: { p_action: string; p_resource: string }
         Returns: undefined
       }
+      log_org_update_attempt: {
+        Args: {
+          p_action: string
+          p_additional_metadata?: Json
+          p_function_path?: string
+          p_org_id: string
+          p_user_id?: string
+        }
+        Returns: string
+      }
       log_rate_limit_violation: {
         Args: {
           p_backoff_level: number
@@ -1825,6 +1835,10 @@ export type Database = {
       }
       test_rls_functions: {
         Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      test_rls_regression_tripwire: {
+        Args: { p_random_org_id?: string; p_random_user_id?: string }
         Returns: Json
       }
       track_blocked_operation: {
