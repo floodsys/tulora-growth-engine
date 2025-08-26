@@ -16,6 +16,7 @@ import { RetentionSettings } from "@/components/RetentionSettings";
 import SettingsTeams from "@/pages/SettingsTeams";
 import { AdminLogsViewer } from "@/components/admin/AdminLogsViewer";
 import { TeamAccessGuard } from "@/components/guards/TeamAccessGuard";
+import { getBuildInfo } from "@/lib/build-info";
 
 export default function SettingsOrganization() {
   const { toast } = useToast();
@@ -310,7 +311,7 @@ export default function SettingsOrganization() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Organization ID</Label>
                   <div className="bg-muted p-2 rounded text-sm font-mono">
@@ -323,6 +324,18 @@ export default function SettingsOrganization() {
                     {organization?.created_at ? new Date(organization.created_at).toLocaleDateString() : 'Unknown'}
                   </div>
                 </div>
+                <div className="space-y-2">
+                  <Label>Build ID</Label>
+                  <div className="bg-muted p-2 rounded text-sm font-mono">
+                    {getBuildInfo().buildId}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  <strong>Debug Mode:</strong> Network requests to /rest/v1/organizations should appear in DevTools when saving.
+                  If they don't appear, this page might be using cached code.
+                </p>
               </div>
             </CardContent>
           </Card>
