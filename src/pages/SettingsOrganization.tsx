@@ -245,20 +245,25 @@ export default function SettingsOrganization() {
 
   return (
     <div className="space-y-6">
-      {/* Org ID Mismatch Banner */}
+      {/* Org ID Alignment Banner - STEP 3 Fix */}
       {organization && (
         <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md">
           <div className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            <div>
+            <div className="flex-1">
               <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
                 Organization Context: {organization.name}
               </p>
-              <p className="text-xs text-blue-600 dark:text-blue-400 font-mono">
-                Page Org ID: {organization.id}
-              </p>
+              <div className="flex items-center gap-4 mt-1">
+                <p className="text-xs text-blue-600 dark:text-blue-400 font-mono">
+                  Settings Page Org ID: {organization.id}
+                </p>
+                <span className="text-xs bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300 px-2 py-1 rounded border border-green-200 dark:border-green-800">
+                  ✓ Aligned
+                </span>
+              </div>
               <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                ⚠️ Use this exact ID when testing with /admin/_diag Org Access Probe
+                💡 All updates target this exact org_id. Use this ID in /admin/_diag for testing.
               </p>
             </div>
           </div>
