@@ -1,0 +1,155 @@
+name: RLS Regression Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  rls-tautology-check:
+    name: Check for RLS Tautologies
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        npm ci
+        npm install -g glob
+      
+    - name: Run RLS tautology detection
+      run: node scripts/check-rls-tautologies.js
+      
+    - name: Upload tautology check results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: rls-tautology-results
+        path: test-results/rls-tautology-check.json
+
+  rls-smoke-tests:
+    name: RLS Function Smoke Tests
+    runs-on: ubuntu-latest
+    environment: testing
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run RLS smoke tests
+      env:
+        VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      run: node scripts/rls-smoke-tests.js
+      
+    - name: Upload smoke test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: rls-smoke-test-results
+        path: test-results/rls-smoke-tests.json
+
+  report-results:
+    name: Report Test Results
+    runs-on: ubuntu-latest
+    needs: [rls-tautology-check, rls-smoke-tests]
+    if: always()
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      
+    - name: Create combined report
+      run: |
+        echo "# RLS Regression Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f "rls-tautology-results/rls-tautology-check.json" ]; then
+          echo "## 🔍 Tautology Check Results" >> $GITHUB_STEP_SUMMARY
+          TAUTOLOGY_FINDINGS=$(jq -r '.summary.total_findings' rls-tautology-results/rls-tautology-check.json)
+          CRITICAL_FINDINGS=$(jq -r '.summary.critical' rls-tautology-results/rls-tautology-check.json)
+          
+          if [ "$CRITICAL_FINDINGS" -gt 0 ]; then
+            echo "❌ **CRITICAL**: $CRITICAL_FINDINGS dangerous patterns found!" >> $GITHUB_STEP_SUMMARY
+            echo "Total findings: $TAUTOLOGY_FINDINGS" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No dangerous RLS patterns detected" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        
+        if [ -f "rls-smoke-test-results/rls-smoke-tests.json" ]; then
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🧪 RLS Function Tests" >> $GITHUB_STEP_SUMMARY
+          TOTAL_TESTS=$(jq -r '.summary.total_tests' rls-smoke-test-results/rls-smoke-tests.json)
+          PASSED_TESTS=$(jq -r '.summary.passed' rls-smoke-test-results/rls-smoke-tests.json)
+          FAILED_TESTS=$(jq -r '.summary.failed' rls-smoke-test-results/rls-smoke-tests.json)
+          
+          if [ "$FAILED_TESTS" -gt 0 ]; then
+            echo "❌ **FAILED**: $FAILED_TESTS/$TOTAL_TESTS RLS functions failed!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ All $TOTAL_TESTS RLS functions working correctly" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          let comment = '## 🛡️ RLS Regression Test Results\n\n';
+          
+          try {
+            const tautologyResults = JSON.parse(fs.readFileSync('rls-tautology-results/rls-tautology-check.json', 'utf8'));
+            const smokeResults = JSON.parse(fs.readFileSync('rls-smoke-test-results/rls-smoke-tests.json', 'utf8'));
+            
+            comment += '### Tautology Check\n';
+            if (tautologyResults.summary.critical > 0) {
+              comment += `❌ **CRITICAL**: ${tautologyResults.summary.critical} dangerous patterns found!\n`;
+              comment += `- These patterns can completely bypass RLS security\n`;
+              comment += `- Build should fail until resolved\n\n`;
+            } else {
+              comment += `✅ No dangerous RLS patterns detected\n\n`;
+            }
+            
+            comment += '### Function Validation\n';
+            if (smokeResults.summary.failed > 0) {
+              comment += `❌ **FAILED**: ${smokeResults.summary.failed}/${smokeResults.summary.total_tests} RLS functions failed\n`;
+              comment += `- Functions not returning false for random UUIDs\n`;
+              comment += `- Indicates potential tautology bugs\n\n`;
+            } else {
+              comment += `✅ All ${smokeResults.summary.total_tests} RLS functions working correctly\n\n`;
+            }
+            
+            comment += '**Purpose**: Prevent RLS bypasses from `user_id = user_id` tautologies and parameter shadowing.';
+            
+          } catch (error) {
+            comment += 'Could not parse test results. Check the workflow logs for details.';
+          }
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
