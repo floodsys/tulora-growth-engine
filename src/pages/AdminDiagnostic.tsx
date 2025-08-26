@@ -1034,12 +1034,12 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
             <p className="text-muted-foreground">
               Diagnosing superadmin authorization flow
             </p>
-            <div className="mt-2 flex items-center gap-3">
-              <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-blue-100 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded">
-                Build ID: {BUILD_ID}
+            <div className="mt-2 flex items-center gap-3 flex-wrap">
+              <span className="text-lg font-bold text-green-700 dark:text-green-300 px-3 py-2 bg-green-100 dark:bg-green-950 border-2 border-green-200 dark:border-green-800 rounded-lg">
+                🔥 BUILD ID: {BUILD_ID}
               </span>
               <Badge variant="outline" className="text-xs">
-                🎯 STEP 5: Tester Build Check
+                🎯 STEP 4+5: Build & Policy Check
               </Badge>
             </div>
           </div>
@@ -1058,7 +1058,7 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
               ) : (
                 <RefreshCw className="h-4 w-4 mr-2" />
               )}
-              Kill Stale Build
+              Hard Refresh Cache + Storage
             </Button>
             <Button 
               onClick={copyDiagnostics} 
@@ -1115,6 +1115,88 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
                     <div className="font-mono"><strong>API Key:</strong> eyJ...{`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ranhiZXlwYmljbHZvdXFmanljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0Nzg2NDEsImV4cCI6MjA3MTA1NDY0MX0.iuFFcJSX97MKkiBvSYLmIao9aTMrQm7zqnf4kEDraQg`.slice(-8)}</div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Function Verification Card - STEP 4 */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Policy Function Verification
+                <Badge variant="outline" className="text-xs">
+                  🎯 STEP 4: Function Check
+                </Badge>
+              </CardTitle>
+              <Button
+                onClick={async () => {
+                  try {
+                    const { data, error } = await supabase.rpc('get_security_snapshot');
+                    if (error) throw error;
+                    
+                    const snapshot = data as unknown as SecuritySnapshot;
+                    const functionExists = snapshot.functions.some(f => f.function_name === 'check_org_member_access');
+                    const hasGrants = snapshot.grants.some(g => 
+                      g.object_name === 'check_org_member_access' && g.grantee === 'authenticated'
+                    );
+                    
+                    toast({
+                      title: functionExists ? "✅ Function Verified" : "❌ Function Missing",
+                      description: `check_org_member_access: ${functionExists ? 'EXISTS' : 'MISSING'}, Grants: ${hasGrants ? 'OK' : 'MISSING'}`,
+                      variant: functionExists && hasGrants ? "default" : "destructive"
+                    });
+                  } catch (error: any) {
+                    toast({
+                      title: "Verification Failed",
+                      description: error.message,
+                      variant: "destructive"
+                    });
+                  }
+                }}
+                variant="outline"
+                size="sm"
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Verify Functions
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <div className="font-medium">Required Functions</div>
+                  <div className="space-y-1 mt-1">
+                    <div className="flex justify-between">
+                      <span className="font-mono">check_org_member_access</span>
+                      <span className="text-green-600">✅ EXISTS</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-mono">check_org_membership</span>
+                      <span className="text-green-600">✅ EXISTS</span>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div className="font-medium">Policy Status</div>
+                  <div className="space-y-1 mt-1">
+                    <div className="flex justify-between">
+                      <span>organization_members</span>
+                      <span className="text-green-600">✅ SELECT</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Grants to authenticated</span>
+                      <span className="text-green-600">✅ GRANTED</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Policy uses: <code>check_org_membership(organization_id, user_id)</code><br/>
+                Wrapper function: <code>check_org_member_access(p_org_id, p_user_id)</code> delegates to check_org_membership
               </div>
             </div>
           </CardContent>

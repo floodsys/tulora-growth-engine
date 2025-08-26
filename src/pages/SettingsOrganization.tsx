@@ -281,8 +281,8 @@ export default function SettingsOrganization() {
             Manage your organization information and preferences
           </p>
           <div className="mt-3 flex items-center gap-3 flex-wrap">
-            <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-blue-100 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded">
-              Build ID: {buildInfo.buildId}
+            <span className="text-lg font-bold text-green-700 dark:text-green-300 px-3 py-2 bg-green-100 dark:bg-green-950 border-2 border-green-200 dark:border-green-800 rounded-lg">
+              🔥 BUILD ID: {buildInfo.buildId}
             </span>
             <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-green-100 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded">
               Page Org ID: {organization?.id || 'Loading...'}
@@ -295,14 +295,14 @@ export default function SettingsOrganization() {
               size="sm"
               onClick={handleHardRefresh}
               disabled={cacheClearing}
-              className="h-7 px-3 text-xs"
+              className="h-8 px-3 text-xs"
             >
               {cacheClearing ? (
                 <Loader2 className="h-3 w-3 animate-spin mr-1" />
               ) : (
                 <Zap className="h-3 w-3 mr-1" />
               )}
-              Kill Stale Build
+              Hard Refresh Cache
             </Button>
           </div>
         </div>
