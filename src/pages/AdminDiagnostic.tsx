@@ -189,6 +189,18 @@ interface RLSAcceptanceTestResult {
   error?: string;
 }
 
+interface SchemaHealthResult {
+  status: 'healthy' | 'issues_detected';
+  core_tables_count: number;
+  rls_functions_count: number;
+  rls_policies_count: number;
+  table_statistics: Record<string, number>;
+  missing_constraints: string[];
+  schema_version: string;
+  canonical_subscription_table: string;
+  last_checked: string;
+}
+
 function AdminDiagnostic() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -237,6 +249,8 @@ function AdminDiagnostic() {
     };
   } | null>(null);
   const [isDualRoleProbing, setIsDualRoleProbing] = useState(false);
+  const [schemaHealth, setSchemaHealth] = useState<SchemaHealthResult | null>(null);
+  const [isLoadingSchemaHealth, setIsLoadingSchemaHealth] = useState(false);
 
   const checkSecrets = async () => {
     try {
@@ -837,6 +851,42 @@ function AdminDiagnostic() {
     }
   };
 
+  const checkSchemaHealth = async () => {
+    setIsLoadingSchemaHealth(true);
+    
+    try {
+      const { data, error } = await supabase.rpc('get_schema_health');
+      
+      if (error) {
+        console.error('Schema health check error:', error);
+        toast({
+          title: "Schema Health Check Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSchemaHealth(data as unknown as SchemaHealthResult);
+      
+      const healthData = data as unknown as SchemaHealthResult;
+      toast({
+        title: "Schema Health Check Completed",
+        description: `Status: ${healthData.status} (${healthData.core_tables_count} tables, ${healthData.rls_functions_count} functions)`,
+        variant: healthData.status === 'healthy' ? "default" : "destructive",
+      });
+    } catch (error) {
+      console.error('Schema health check failed:', error);
+      toast({
+        title: "Schema Health Check Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingSchemaHealth(false);
+    }
+  };
+
   const runDiagnostics = async () => {
     setIsLoading(true);
     try {
@@ -1323,6 +1373,7 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
       await runDiagnostics();
       await checkSecrets();
       await checkStripeConnectivity();
+      await checkSchemaHealth(); // Check database health on load
       await activateSeatAndGetStatus(); // Check seat status on load
       // Only run API probes in development mode for security
       if (import.meta.env.DEV) {
@@ -1719,6 +1770,111 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
 
         {/* Organization Seat Status */}
         <SeatStatusCard />
+
+        {/* Database Health Section */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Database Health
+                <Badge variant="outline" className="text-xs">
+                  Schema v2.0
+                </Badge>
+              </CardTitle>
+              <Button
+                onClick={checkSchemaHealth}
+                disabled={isLoadingSchemaHealth}
+                variant="outline"
+                size="sm"
+              >
+                {isLoadingSchemaHealth ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Check Health
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {schemaHealth ? (
+              <div className="space-y-4">
+                {/* Health Status */}
+                <div className="flex items-center gap-2">
+                  <Badge variant={schemaHealth.status === 'healthy' ? 'default' : 'destructive'}>
+                    {schemaHealth.status === 'healthy' ? '✅ Healthy' : '⚠️ Issues Detected'}
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    Schema version: {schemaHealth.schema_version}
+                  </span>
+                </div>
+
+                {/* Core Statistics */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="bg-muted/50 p-3 rounded-lg">
+                    <div className="text-sm font-medium">Core Tables</div>
+                    <div className="text-2xl font-bold text-blue-600">{schemaHealth.core_tables_count}/4</div>
+                    <div className="text-xs text-muted-foreground">Expected: 4</div>
+                  </div>
+                  <div className="bg-muted/50 p-3 rounded-lg">
+                    <div className="text-sm font-medium">RLS Functions</div>
+                    <div className="text-2xl font-bold text-green-600">{schemaHealth.rls_functions_count}/5</div>
+                    <div className="text-xs text-muted-foreground">Expected: 5</div>
+                  </div>
+                  <div className="bg-muted/50 p-3 rounded-lg">
+                    <div className="text-sm font-medium">RLS Policies</div>
+                    <div className="text-2xl font-bold text-purple-600">{schemaHealth.rls_policies_count}</div>
+                    <div className="text-xs text-muted-foreground">Active policies</div>
+                  </div>
+                </div>
+
+                {/* Table Row Counts */}
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <div className="text-sm font-medium mb-3">Table Statistics</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                    {Object.entries(schemaHealth.table_statistics).map(([table, count]) => (
+                      <div key={table} className="flex justify-between">
+                        <span className="font-mono truncate">{table.replace('_', ' ')}</span>
+                        <span className="font-bold">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Missing Constraints Warning */}
+                {schemaHealth.missing_constraints.length > 0 && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Missing Constraints</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-disc list-inside space-y-1">
+                        {schemaHealth.missing_constraints.map((constraint, i) => (
+                          <li key={i} className="font-mono text-sm">{constraint}</li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Canonical Tables Info */}
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div><strong>Canonical subscription table:</strong> {schemaHealth.canonical_subscription_table}</div>
+                  <div><strong>Last checked:</strong> {new Date(schemaHealth.last_checked).toLocaleString()}</div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground text-center py-4">
+                Click "Check Health" to analyze database schema and constraints
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Secrets Checklist Section */}
         <Card>

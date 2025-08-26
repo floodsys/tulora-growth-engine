@@ -1529,6 +1529,10 @@ export type Database = {
         Args: { org_id: string }
         Returns: Json
       }
+      get_schema_health: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       get_security_snapshot: {
         Args: Record<PropertyKey, never>
         Returns: Json
