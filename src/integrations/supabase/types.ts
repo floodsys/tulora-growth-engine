@@ -1783,6 +1783,10 @@ export type Database = {
         Args: { p_action: string }
         Returns: Json
       }
+      run_rls_acceptance_tests: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       seed_default_alert_rules: {
         Args: { p_org_id: string }
         Returns: undefined

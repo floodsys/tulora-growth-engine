@@ -92,6 +92,20 @@ interface OrgAccessProbeResult {
   timestamp: string;
 }
 
+interface RLSAcceptanceTestResult {
+  success: boolean;
+  timestamp: string;
+  test_org_id?: string;
+  summary?: {
+    total_tests: number;
+    passed: number;
+    failed: number;
+  };
+  tests?: any[];
+  all_tests_passed?: boolean;
+  error?: string;
+}
+
 function AdminDiagnostic() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -107,12 +121,14 @@ function AdminDiagnostic() {
   const [stripeResults, setStripeResults] = useState<StripeSmokeTestResult | null>(null);
   const [emailResults, setEmailResults] = useState<any>(null);
   const [orgAccessResults, setOrgAccessResults] = useState<OrgAccessProbeResult | null>(null);
+  const [rlsTestResults, setRlsTestResults] = useState<RLSAcceptanceTestResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isProbing, setIsProbing] = useState(false);
   const [isCheckingSecrets, setIsCheckingSecrets] = useState(false);
   const [isCheckingStripe, setIsCheckingStripe] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [isTestingOrgAccess, setIsTestingOrgAccess] = useState(false);
+  const [isRunningRlsTests, setIsRunningRlsTests] = useState(false);
   const [testOrgId, setTestOrgId] = useState('');
   const [isCacheClearing, setIsCacheClearing] = useState(false);
   const [cacheResult, setCacheResult] = useState<CacheClearResult | null>(null);
@@ -298,6 +314,45 @@ function AdminDiagnostic() {
       });
     } finally {
       setIsTestingOrgAccess(false);
+    }
+  };
+
+  const runRlsAcceptanceTests = async () => {
+    setIsRunningRlsTests(true);
+    
+    try {
+      const { data, error } = await supabase.rpc('run_rls_acceptance_tests');
+      
+      if (error) {
+        console.error('RLS acceptance tests error:', error);
+        toast({
+          title: "RLS Acceptance Tests Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setRlsTestResults(data as unknown as RLSAcceptanceTestResult);
+      
+      const testData = data as unknown as RLSAcceptanceTestResult;
+      const summary = testData.summary;
+      if (summary) {
+        toast({
+          title: "RLS Acceptance Tests Completed",
+          description: `${summary.passed}/${summary.total_tests} tests passed`,
+          variant: summary.failed > 0 ? "destructive" : "default",
+        });
+      }
+    } catch (error) {
+      console.error('RLS acceptance tests failed:', error);
+      toast({
+        title: "RLS Acceptance Tests Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRunningRlsTests(false);
     }
   };
 
@@ -1818,6 +1873,127 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
                     </div>
                   </div>
                 </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              RLS Acceptance Tests
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-muted-foreground">
+                Comprehensive tests for all user role scenarios and RLS function behavior
+              </div>
+              <Button 
+                onClick={runRlsAcceptanceTests}
+                disabled={isRunningRlsTests}
+                className="flex items-center gap-2"
+              >
+                {isRunningRlsTests ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="h-4 w-4" />
+                )}
+                {isRunningRlsTests ? 'Running Tests...' : 'Run Acceptance Tests'}
+              </Button>
+            </div>
+
+            {rlsTestResults && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="text-sm font-medium mb-2">Test Summary</div>
+                    <div className="flex items-center gap-2">
+                      {rlsTestResults.all_tests_passed ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-500" />
+                      )}
+                      <Badge variant={rlsTestResults.all_tests_passed ? "default" : "destructive"}>
+                        {rlsTestResults.summary?.passed}/{rlsTestResults.summary?.total_tests} Passed
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="text-sm font-medium mb-2">Test Org ID</div>
+                    <div className="font-mono text-xs text-muted-foreground break-all">
+                      {rlsTestResults.test_org_id || 'N/A'}
+                    </div>
+                  </div>
+
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="text-sm font-medium mb-2">Test Time</div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(rlsTestResults.timestamp).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
+                {rlsTestResults.tests && (
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">Individual Test Results</div>
+                    <div className="bg-muted/30 p-4 rounded-lg">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Test</TableHead>
+                            <TableHead>User Type</TableHead>
+                            <TableHead>Admin Access</TableHead>
+                            <TableHead>Membership</TableHead>
+                            <TableHead>Ownership</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {rlsTestResults.tests.map((test: any, index: number) => (
+                            <TableRow key={index}>
+                              <TableCell className="font-mono text-xs">{test.test}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{test.user_type}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={test.check_admin_access === test.expected_admin ? "default" : "destructive"}>
+                                  {test.check_admin_access ? 'Y' : 'N'} ({test.expected_admin ? 'Y' : 'N'})
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={test.check_org_membership === test.expected_member ? "default" : "destructive"}>
+                                  {test.check_org_membership ? 'Y' : 'N'} ({test.expected_member ? 'Y' : 'N'})
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={test.check_org_ownership === test.expected_owner ? "default" : "destructive"}>
+                                  {test.check_org_ownership ? 'Y' : 'N'} ({test.expected_owner ? 'Y' : 'N'})
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={test.status === 'PASS' ? "default" : "destructive"}>
+                                  {test.status}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
+
+                {rlsTestResults.error && (
+                  <div className="bg-destructive/10 border border-destructive/20 p-4 rounded-lg">
+                    <div className="text-sm font-medium text-destructive mb-2">Test Error</div>
+                    <div className="text-xs font-mono text-destructive/80">
+                      {rlsTestResults.error}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
