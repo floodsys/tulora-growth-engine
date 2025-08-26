@@ -136,20 +136,18 @@ export default function SettingsOrganization() {
 
     setLoading(true);
     
-    // Log detailed debugging info for RLS troubleshooting
+    // STEP 3: Log exact org_id alignment for debugging
     const currentUser = (await supabase.auth.getUser()).data.user;
-    console.log('🔍 STEP 4: Organization Save Debug:', {
-      org_id: organization.id,
+    const pageOrgId = organization.id;
+    
+    console.log('🎯 STEP 3: Org ID Alignment Check:', {
+      page_org_id: pageOrgId,
       user_id: currentUser?.id,
       hasAccess: hasAccess,
       isOwner: isOwner,
       isAdmin: isAdmin,
-      updateData: {
-        name: formData.name.trim(),
-        website: normalizeWebsite(formData.website),
-        industry: formData.industry,
-        size_band: formData.size_band || null
-      }
+      targeting_org_id: pageOrgId,
+      save_query: `UPDATE organizations SET ... WHERE id = '${pageOrgId}'`
     });
     
     try {
@@ -160,15 +158,21 @@ export default function SettingsOrganization() {
         size_band: formData.size_band || null
       };
       
-      console.log('🚀 Making UPDATE request to /rest/v1/organizations...');
+      console.log('🚀 Making UPDATE request to /rest/v1/organizations with org_id:', pageOrgId);
 
       const { data: result, error } = await supabase
         .from('organizations')
         .update(updateData)
-        .eq('id', organization.id)
+        .eq('id', pageOrgId) // Use the explicitly logged org_id
         .select(); // Add select to see what was actually updated
 
-      console.log('📋 UPDATE Result:', { result, error, status: error ? 'FAILED' : 'SUCCESS' });
+      console.log('📋 UPDATE Result:', { 
+        result, 
+        error, 
+        status: error ? 'FAILED' : 'SUCCESS',
+        targeted_org_id: pageOrgId,
+        updated_rows: result?.length || 0
+      });
 
       if (error) throw error;
 
@@ -201,6 +205,26 @@ export default function SettingsOrganization() {
 
   return (
     <div className="space-y-6">
+      {/* Org ID Mismatch Banner */}
+      {organization && (
+        <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <div>
+              <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                Organization Context: {organization.name}
+              </p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 font-mono">
+                Page Org ID: {organization.id}
+              </p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                ⚠️ Use this exact ID when testing with /admin/_diag Org Access Probe
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div>
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <Building2 className="h-8 w-8" />
@@ -342,11 +366,13 @@ export default function SettingsOrganization() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Created</Label>
-                  <div className="bg-muted p-2 rounded text-sm">
-                    {organization?.created_at ? new Date(organization.created_at).toLocaleDateString() : 'Unknown'}
+                  <Label>Page Org ID</Label>
+                  <div className="bg-blue-100 dark:bg-blue-950 p-2 rounded text-sm font-mono border border-blue-200 dark:border-blue-800">
+                    {organization?.id}
                   </div>
                 </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Build ID</Label>
                   <div className="bg-muted p-2 rounded text-sm font-mono">
