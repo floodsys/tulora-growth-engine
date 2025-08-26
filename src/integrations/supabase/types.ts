@@ -1439,7 +1439,7 @@ export type Database = {
         Returns: Json
       }
       check_admin_access: {
-        Args: { org_id: string; user_id?: string }
+        Args: { p_org_id: string; p_user_id?: string }
         Returns: boolean
       }
       check_alert_rules: {
@@ -1451,11 +1451,11 @@ export type Database = {
         Returns: boolean
       }
       check_org_membership: {
-        Args: { org_id: string; user_id?: string }
+        Args: { p_org_id: string; p_user_id?: string }
         Returns: boolean
       }
       check_org_ownership: {
-        Args: { org_id: string; user_id?: string }
+        Args: { p_org_id: string; p_user_id?: string }
         Returns: boolean
       }
       check_rate_limit: {
@@ -1805,6 +1805,10 @@ export type Database = {
       }
       suspend_organization: {
         Args: { p_org_id: string; p_reason: string; p_suspended_by?: string }
+        Returns: Json
+      }
+      test_rls_functions: {
+        Args: Record<PropertyKey, never>
         Returns: Json
       }
       track_blocked_operation: {
