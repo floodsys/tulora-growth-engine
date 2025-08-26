@@ -30,13 +30,14 @@ export function SeatStatusCard() {
       }
 
       // Get user's seat status across all organizations
+      // Use explicit foreign key relationship to avoid ambiguity
       const { data: memberships, error } = await supabase
         .from('organization_members')
         .select(`
           role,
           seat_active,
           organization_id,
-          organizations!inner(name)
+          organizations!organization_members_organization_id_fkey(name)
         `)
         .eq('user_id', user.id);
 
