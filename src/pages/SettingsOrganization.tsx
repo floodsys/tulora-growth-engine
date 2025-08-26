@@ -17,6 +17,7 @@ import SettingsTeams from "@/pages/SettingsTeams";
 import { AdminLogsViewer } from "@/components/admin/AdminLogsViewer";
 import { TeamAccessGuard } from "@/components/guards/TeamAccessGuard";
 import { getBuildInfo } from "@/lib/build-info";
+import { OrgConstraintTester } from "@/components/debug/OrgConstraintTester";
 
 export default function SettingsOrganization() {
   const { toast } = useToast();
@@ -135,13 +136,20 @@ export default function SettingsOrganization() {
 
     setLoading(true);
     
-    // Log org_id for debugging RLS
-    console.log('🔍 DEBUG: Attempting to save organization:', {
+    // Log detailed debugging info for RLS troubleshooting
+    const currentUser = (await supabase.auth.getUser()).data.user;
+    console.log('🔍 STEP 4: Organization Save Debug:', {
       org_id: organization.id,
-      user_id: (await supabase.auth.getUser()).data.user?.id,
+      user_id: currentUser?.id,
       hasAccess: hasAccess,
       isOwner: isOwner,
-      isAdmin: isAdmin
+      isAdmin: isAdmin,
+      updateData: {
+        name: formData.name.trim(),
+        website: normalizeWebsite(formData.website),
+        industry: formData.industry,
+        size_band: formData.size_band || null
+      }
     });
     
     try {
@@ -151,11 +159,16 @@ export default function SettingsOrganization() {
         industry: formData.industry,
         size_band: formData.size_band || null
       };
+      
+      console.log('🚀 Making UPDATE request to /rest/v1/organizations...');
 
-      const { error } = await supabase
+      const { data: result, error } = await supabase
         .from('organizations')
         .update(updateData)
-        .eq('id', organization.id);
+        .eq('id', organization.id)
+        .select(); // Add select to see what was actually updated
+
+      console.log('📋 UPDATE Result:', { result, error, status: error ? 'FAILED' : 'SUCCESS' });
 
       if (error) throw error;
 
@@ -349,6 +362,9 @@ export default function SettingsOrganization() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Debug: Constraint Tester */}
+          <OrgConstraintTester />
         </TabsContent>
 
         <TabsContent value="team" className="space-y-6">
