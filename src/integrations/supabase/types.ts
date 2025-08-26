@@ -1447,7 +1447,7 @@ export type Database = {
         Returns: Json
       }
       check_org_member_access: {
-        Args: { target_org_id: string; target_user_id: string }
+        Args: { target_org_id: string; target_user_id?: string }
         Returns: boolean
       }
       check_org_membership: {
