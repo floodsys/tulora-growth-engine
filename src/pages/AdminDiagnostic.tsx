@@ -83,6 +83,15 @@ interface StripeSmokeTestResult {
   };
 }
 
+interface OrgAccessProbeResult {
+  orgId: string;
+  membership: boolean | null;
+  adminAccess: boolean | null;
+  updateSuccess: boolean | null;
+  updateError: string | null;
+  timestamp: string;
+}
+
 function AdminDiagnostic() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -97,11 +106,14 @@ function AdminDiagnostic() {
   const [secretsResults, setSecretsResults] = useState<SecretsCheckResult | null>(null);
   const [stripeResults, setStripeResults] = useState<StripeSmokeTestResult | null>(null);
   const [emailResults, setEmailResults] = useState<any>(null);
+  const [orgAccessResults, setOrgAccessResults] = useState<OrgAccessProbeResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isProbing, setIsProbing] = useState(false);
   const [isCheckingSecrets, setIsCheckingSecrets] = useState(false);
   const [isCheckingStripe, setIsCheckingStripe] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [isTestingOrgAccess, setIsTestingOrgAccess] = useState(false);
+  const [testOrgId, setTestOrgId] = useState('');
   const [isCacheClearing, setIsCacheClearing] = useState(false);
   const [cacheResult, setCacheResult] = useState<CacheClearResult | null>(null);
   const [showAuthDetails, setShowAuthDetails] = useState(false);
@@ -214,6 +226,78 @@ function AdminDiagnostic() {
       });
     } finally {
       setIsCheckingEmail(false);
+    }
+  };
+
+  const runOrgAccessProbe = async () => {
+    if (!testOrgId || !testOrgId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      toast({
+        title: "Invalid Organization ID",
+        description: "Please enter a valid UUID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsTestingOrgAccess(true);
+    const timestamp = new Date().toISOString();
+
+    try {
+      // Test RLS functions
+      const { data: membershipResult, error: membershipError } = await supabase.rpc('check_org_membership', { p_org_id: testOrgId });
+      const { data: adminResult, error: adminError } = await supabase.rpc('check_admin_access', { p_org_id: testOrgId });
+
+      // Test actual update via app client (dry run)
+      let updateSuccess: boolean | null = null;
+      let updateError: string | null = null;
+
+      try {
+        const { error: updateErr } = await supabase
+          .from('organizations')
+          .update({ name: 'TEST_PROBE_UPDATE' }) // This will be rolled back
+          .eq('id', testOrgId);
+
+        if (updateErr) {
+          updateSuccess = false;
+          updateError = updateErr.message;
+        } else {
+          updateSuccess = true;
+          // Roll back the change immediately
+          await supabase
+            .from('organizations')
+            .update({ name: 'TEST_PROBE_UPDATE_ROLLBACK' })
+            .eq('id', testOrgId);
+        }
+      } catch (err) {
+        updateSuccess = false;
+        updateError = err instanceof Error ? err.message : String(err);
+      }
+
+      const result: OrgAccessProbeResult = {
+        orgId: testOrgId,
+        membership: membershipError ? null : Boolean(membershipResult),
+        adminAccess: adminError ? null : Boolean(adminResult),
+        updateSuccess,
+        updateError,
+        timestamp
+      };
+
+      setOrgAccessResults(result);
+
+      toast({
+        title: "Org Access Probe Completed",
+        description: `Membership: ${result.membership}, Admin: ${result.adminAccess}, Update: ${result.updateSuccess ? 'Success' : 'Failed'}`,
+        variant: result.updateSuccess === false ? "destructive" : "default",
+      });
+    } catch (error) {
+      console.error('Org access probe failed:', error);
+      toast({
+        title: "Org Access Probe Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingOrgAccess(false);
     }
   };
 
@@ -1625,6 +1709,117 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
               </div>
             )}
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              Org Access Probe
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <label htmlFor="orgId" className="text-sm font-medium mb-2 block">
+                  Organization ID (UUID)
+                </label>
+                <input
+                  id="orgId"
+                  type="text"
+                  value={testOrgId}
+                  onChange={(e) => setTestOrgId(e.target.value)}
+                  placeholder="00000000-0000-0000-0000-000000000000"
+                  className="w-full px-3 py-2 border border-input rounded-md text-sm font-mono"
+                />
+              </div>
+              <Button 
+                onClick={runOrgAccessProbe}
+                disabled={isTestingOrgAccess || !testOrgId}
+                className="flex items-center gap-2"
+              >
+                {isTestingOrgAccess ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Shield className="h-4 w-4" />
+                )}
+                {isTestingOrgAccess ? 'Testing...' : 'Test Access'}
+              </Button>
+            </div>
+
+            {orgAccessResults && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="text-sm font-medium mb-2">Membership Check</div>
+                    <div className="flex items-center gap-2">
+                      {orgAccessResults.membership === true ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : orgAccessResults.membership === false ? (
+                        <XCircle className="h-4 w-4 text-red-500" />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                      )}
+                      <Badge variant={orgAccessResults.membership === true ? "default" : orgAccessResults.membership === false ? "destructive" : "secondary"}>
+                        {orgAccessResults.membership === null ? 'Error' : orgAccessResults.membership ? 'Member' : 'Not Member'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="text-sm font-medium mb-2">Admin Access Check</div>
+                    <div className="flex items-center gap-2">
+                      {orgAccessResults.adminAccess === true ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : orgAccessResults.adminAccess === false ? (
+                        <XCircle className="h-4 w-4 text-red-500" />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                      )}
+                      <Badge variant={orgAccessResults.adminAccess === true ? "default" : orgAccessResults.adminAccess === false ? "destructive" : "secondary"}>
+                        {orgAccessResults.adminAccess === null ? 'Error' : orgAccessResults.adminAccess ? 'Admin' : 'Not Admin'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="text-sm font-medium mb-2">Update Test (Dry Run)</div>
+                    <div className="flex items-center gap-2">
+                      {orgAccessResults.updateSuccess === true ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : orgAccessResults.updateSuccess === false ? (
+                        <XCircle className="h-4 w-4 text-red-500" />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                      )}
+                      <Badge variant={orgAccessResults.updateSuccess === true ? "default" : orgAccessResults.updateSuccess === false ? "destructive" : "secondary"}>
+                        {orgAccessResults.updateSuccess === null ? 'Error' : orgAccessResults.updateSuccess ? 'Allowed' : 'Blocked'}
+                      </Badge>
+                    </div>
+                    {orgAccessResults.updateError && (
+                      <div className="mt-2 text-xs text-muted-foreground font-mono bg-background p-2 rounded border">
+                        {orgAccessResults.updateError}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-muted/30 p-3 rounded-lg">
+                  <div className="text-sm font-medium mb-2">Test Summary</div>
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <span className="font-medium">Organization ID:</span>
+                      <div className="font-mono text-muted-foreground break-all">{orgAccessResults.orgId}</div>
+                    </div>
+                    <div>
+                      <span className="font-medium">Test Time:</span>
+                      <div className="text-muted-foreground">{new Date(orgAccessResults.timestamp).toLocaleString()}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

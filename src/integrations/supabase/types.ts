@@ -1616,7 +1616,7 @@ export type Database = {
         Returns: boolean
       }
       is_organization_owner: {
-        Args: { org_id: string; user_id?: string }
+        Args: { p_org_id: string; p_user_id?: string }
         Returns: boolean
       }
       is_superadmin: {
@@ -1860,7 +1860,7 @@ export type Database = {
         Returns: Json
       }
       would_leave_org_without_admins: {
-        Args: { org_id: string; user_id_to_remove: string }
+        Args: { p_org_id: string; p_user_id_to_remove: string }
         Returns: boolean
       }
     }

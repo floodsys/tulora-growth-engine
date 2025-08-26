@@ -163,8 +163,8 @@ export async function testAdminAccessControl(orgId: string): Promise<AdminTestRe
     }
     
     const { data: hasAccess } = await supabase.rpc('check_admin_access', {
-      org_id: orgId,
-      user_id: adminUserId
+      p_org_id: orgId,
+      p_user_id: adminUserId
     });
     
     results.push({
@@ -178,8 +178,8 @@ export async function testAdminAccessControl(orgId: string): Promise<AdminTestRe
     const testUserId = await createTestUser();
     if (testUserId) {
       const { data: nonAdminAccess } = await supabase.rpc('check_admin_access', {
-        org_id: orgId,
-        user_id: testUserId
+        p_org_id: orgId,
+        p_user_id: testUserId
       });
       
       results.push({
