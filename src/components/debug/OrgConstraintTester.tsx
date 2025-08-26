@@ -21,6 +21,54 @@ export function OrgConstraintTester() {
     
     console.log('🔬 STEP 5: Testing Organization Column Constraints');
     
+    // Quick Gotcha Checks First
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('🚨 GOTCHA CHECKS:');
+      
+      // Check user membership details
+      const { data: membership } = await supabase
+        .from('organization_members')
+        .select('role, seat_active')
+        .eq('organization_id', organization.id)
+        .eq('user_id', user?.id)
+        .single();
+      
+      console.log('- User membership:', {
+        found: !!membership,
+        role: membership?.role,
+        seat_active: membership?.seat_active,
+        role_type: typeof membership?.role
+      });
+      
+      // Check organization ownership
+      const { data: orgOwner } = await supabase
+        .from('organizations')
+        .select('owner_user_id')
+        .eq('id', organization.id)
+        .single();
+      
+      console.log('- Organization ownership:', {
+        current_user_id: user?.id,
+        owner_user_id: orgOwner?.owner_user_id,
+        is_owner: user?.id === orgOwner?.owner_user_id
+      });
+      
+      // Check if check_org_member_access function exists
+      try {
+        const { data: memberAccessTest } = await supabase.rpc('check_org_member_access', {
+          target_org_id: organization.id,
+          target_user_id: user?.id
+        });
+        console.log('- check_org_member_access function: EXISTS, returns:', memberAccessTest);
+      } catch (funcError: any) {
+        console.log('- check_org_member_access function: MISSING or ERROR:', funcError.message);
+      }
+      
+    } catch (err) {
+      console.log('🚨 Gotcha check failed:', err);
+    }
+    
     // Test 1: Name only (basic test)
     try {
       console.log('Testing: name only...');

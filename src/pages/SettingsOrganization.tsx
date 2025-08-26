@@ -353,6 +353,31 @@ export default function SettingsOrganization() {
                     {getBuildInfo().buildId}
                   </div>
                 </div>
+                <div className="space-y-2">
+                  <Label>Current User Role</Label>
+                  <div className="bg-muted p-2 rounded text-sm">
+                    {isOwner ? 'Owner' : isAdmin ? 'Admin' : 'Member/None'}
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Access Status</Label>
+                  <div className={`p-2 rounded text-sm ${hasAccess ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {hasAccess ? '✅ Has Access' : '❌ No Access'}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Debug Actions</Label>
+                  <div className="text-sm">
+                    <button 
+                      onClick={() => console.log('🔍 ORG CONTEXT:', { organization, isOwner, isAdmin, hasAccess })}
+                      className="text-blue-600 hover:underline"
+                    >
+                      Log Org Context
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md">
                 <p className="text-sm text-amber-800 dark:text-amber-200">
