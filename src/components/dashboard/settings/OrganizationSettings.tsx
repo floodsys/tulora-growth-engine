@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { useOrganizationRole } from "@/hooks/useOrganizationRole"
 import { supabase } from "@/integrations/supabase/client"
+import { SaveFailureDiagnostics } from "@/components/ui/SaveFailureDiagnostics"
 import CallHandlingSettings from "./CallHandlingSettings"
 
 const INDUSTRY_OPTIONS = [
@@ -44,6 +45,7 @@ export function OrganizationSettings() {
   })
   const [originalData, setOriginalData] = useState(formData)
   const [saving, setSaving] = useState(false)
+  const [showDiagnostics, setShowDiagnostics] = useState(false)
   
   // Compute combined permissions: Owner OR Admin role can edit organization profile
   const isOwnerOrAdmin = isOwner || isRoleAdmin
@@ -136,26 +138,36 @@ export function OrganizationSettings() {
     } catch (error: any) {
       console.error('Error updating organization:', error)
       
-      // Check if this is a permissions error
-      if (error.code === 'PGRST301' || error.message?.includes('access denied')) {
-        // Log the denied access attempt
+      // Check if this is a permissions error (403, RLS denial, etc.)
+      if (error.code === 'PGRST301' || 
+          error.code === '42501' || 
+          error.message?.includes('access denied') ||
+          error.message?.includes('permission denied') ||
+          error.message?.includes('new row violates row-level security')) {
+        
+        // Log the denied access attempt with diagnostics
         try {
-          await supabase.rpc('log_event', {
+          await supabase.rpc('log_org_update_attempt', {
             p_org_id: organization.id,
-            p_action: 'admin.access_denied',
-            p_target_type: 'organization_profile',
-            p_actor_user_id: (await supabase.auth.getUser()).data.user?.id,
-            p_status: 'error',
-            p_error_code: 'ORG_PROFILE_FORBIDDEN',
-            p_metadata: { path: '/settings/organization/profile', role: role }
+            p_action: 'org.settings_update_denied',
+            p_function_path: 'organization_settings_ui',
+            p_additional_metadata: { 
+              path: '/settings/organization/profile', 
+              role: role,
+              error_code: error.code,
+              error_message: error.message
+            }
           })
         } catch (logError) {
           console.error('Failed to log access denied:', logError)
         }
         
+        // Show diagnostics for 403 errors
+        setShowDiagnostics(true)
+        
         toast({
-          title: "Access denied",
-          description: "Only owners and admins can update organization profile.",
+          title: "Save blocked - Access denied",
+          description: "Your organization settings couldn't be saved. Check the diagnostics below for details and fixes.",
           variant: "destructive"
         })
       } else {
@@ -277,6 +289,15 @@ export function OrganizationSettings() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Save Failure Diagnostics */}
+      {organization && (
+        <SaveFailureDiagnostics 
+          organizationId={organization.id}
+          show={showDiagnostics}
+          onClose={() => setShowDiagnostics(false)}
+        />
+      )}
 
       <CallHandlingSettings />
     </div>
