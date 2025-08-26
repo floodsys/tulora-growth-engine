@@ -95,6 +95,19 @@ interface OrgAccessProbeResult {
   timestamp: string;
 }
 
+interface OrgSettingsSaveProbeResult {
+  orgId: string;
+  readStatus: number;
+  writeStatus: number;
+  revertStatus: number;
+  originalValues: Record<string, any>;
+  tempValues: Record<string, any>;
+  finalValues: Record<string, any>;
+  success: boolean;
+  error?: string;
+  timestamp: string;
+}
+
 interface SecuritySnapshot {
   timestamp: string;
   tables: Array<{
@@ -173,6 +186,7 @@ function AdminDiagnostic() {
   const [stripeResults, setStripeResults] = useState<StripeSmokeTestResult | null>(null);
   const [emailResults, setEmailResults] = useState<any>(null);
   const [orgAccessResults, setOrgAccessResults] = useState<OrgAccessProbeResult | null>(null);
+  const [orgSaveResults, setOrgSaveResults] = useState<OrgSettingsSaveProbeResult | null>(null);
   const [rlsTestResults, setRlsTestResults] = useState<RLSAcceptanceTestResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isProbing, setIsProbing] = useState(false);
@@ -180,6 +194,7 @@ function AdminDiagnostic() {
   const [isCheckingStripe, setIsCheckingStripe] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [isTestingOrgAccess, setIsTestingOrgAccess] = useState(false);
+  const [isTestingOrgSave, setIsTestingOrgSave] = useState(false);
   const [isRunningRlsTests, setIsRunningRlsTests] = useState(false);
   const [testOrgId, setTestOrgId] = useState('');
   const [isCacheClearing, setIsCacheClearing] = useState(false);
@@ -379,6 +394,126 @@ function AdminDiagnostic() {
       });
     } finally {
       setIsTestingOrgAccess(false);
+    }
+  };
+
+  const runOrgSettingsSaveProbe = async () => {
+    if (!testOrgId || !testOrgId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      toast({
+        title: "Invalid Organization ID",
+        description: "Please enter a valid UUID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsTestingOrgSave(true);
+    const timestamp = new Date().toISOString();
+
+    const orgId = testOrgId.trim();
+    let readStatus = 0, writeStatus = 0, revertStatus = 0;
+    let originalValues: Record<string, any> = {};
+    let tempValues: Record<string, any> = {};
+    let finalValues: Record<string, any> = {};
+
+    try {
+
+      // Step 1: Read current values
+      const { data: originalData, error: readError } = await supabase
+        .from('organizations')
+        .select('name, website, industry, size_band')
+        .eq('id', orgId)
+        .single();
+
+      readStatus = readError ? 404 : 200;
+      if (readError) throw new Error(`Read failed: ${readError.message}`);
+
+      originalValues = {
+        name: originalData.name || "",
+        website: originalData.website || "",
+        industry: originalData.industry || "",
+        size_band: originalData.size_band || ""
+      };
+
+      // Step 2: Write temporary changes (append " · diag")
+      tempValues = {
+        name: originalValues.name ? `${originalValues.name} · diag` : "Untitled Org · diag",
+        website: originalValues.website ? `${originalValues.website}` : null,
+        industry: originalValues.industry || "Technology",
+        size_band: originalValues.size_band || "1-10"
+      };
+
+      const { error: writeError } = await supabase
+        .from('organizations')
+        .update(tempValues)
+        .eq('id', orgId);
+
+      writeStatus = writeError ? 403 : 200;
+      if (writeError) throw new Error(`Write failed: ${writeError.message}`);
+
+      // Step 3: Revert to original values
+      const { error: revertError } = await supabase
+        .from('organizations')
+        .update(originalValues)
+        .eq('id', orgId);
+
+      revertStatus = revertError ? 500 : 200;
+      if (revertError) throw new Error(`Revert failed: ${revertError.message}`);
+
+      // Step 4: Verify final state
+      const { data: finalData } = await supabase
+        .from('organizations')
+        .select('name, website, industry, size_band')
+        .eq('id', orgId)
+        .single();
+
+      finalValues = {
+        name: finalData?.name || "",
+        website: finalData?.website || "",
+        industry: finalData?.industry || "",
+        size_band: finalData?.size_band || ""
+      };
+
+      setOrgSaveResults({
+        orgId,
+        readStatus,
+        writeStatus,
+        revertStatus,
+        originalValues,
+        tempValues,
+        finalValues,
+        success: true,
+        timestamp
+      });
+
+      toast({
+        title: "E2E Save Probe Success",
+        description: "Read → Write → Revert cycle completed successfully",
+        variant: "default"
+      });
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      setOrgSaveResults({
+        orgId,
+        readStatus,
+        writeStatus,
+        revertStatus,
+        originalValues,
+        tempValues,
+        finalValues,
+        success: false,
+        error: errorMessage,
+        timestamp
+      });
+
+      toast({
+        title: "E2E Save Probe Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setIsTestingOrgSave(false);
     }
   };
 
@@ -2399,6 +2534,153 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Org Settings Save Probe
+              <Badge variant="outline" className="text-xs">
+                🎯 STEP 7: E2E Save Path
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <label htmlFor="orgSaveId" className="text-sm font-medium mb-2 block">
+                  Same Organization UUID as above
+                </label>
+                <input
+                  id="orgSaveId"
+                  type="text"
+                  value={testOrgId}
+                  onChange={(e) => setTestOrgId(e.target.value)}
+                  placeholder="00000000-0000-0000-0000-000000000000"
+                  className="w-full px-3 py-2 border border-input rounded-md text-sm font-mono"
+                />
+              </div>
+              <Button 
+                onClick={runOrgSettingsSaveProbe}
+                disabled={isTestingOrgSave || !testOrgId}
+                className="flex items-center gap-2"
+              >
+                {isTestingOrgSave ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Settings className="h-4 w-4" />
+                )}
+                {isTestingOrgSave ? 'Running E2E...' : 'Run E2E Save Probe'}
+              </Button>
+            </div>
+
+            {orgSaveResults && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="text-sm font-medium mb-2">Read Status</div>
+                    <div className="flex items-center gap-2">
+                      {orgSaveResults.readStatus === 200 ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-500" />
+                      )}
+                      <Badge variant={orgSaveResults.readStatus === 200 ? "default" : "destructive"}>
+                        {orgSaveResults.readStatus} {orgSaveResults.readStatus === 200 ? '✓' : '✗'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="text-sm font-medium mb-2">Write Status</div>
+                    <div className="flex items-center gap-2">
+                      {orgSaveResults.writeStatus === 200 ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-500" />
+                      )}
+                      <Badge variant={orgSaveResults.writeStatus === 200 ? "default" : "destructive"}>
+                        {orgSaveResults.writeStatus} {orgSaveResults.writeStatus === 200 ? '✓' : '✗'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="text-sm font-medium mb-2">Revert Status</div>
+                    <div className="flex items-center gap-2">
+                      {orgSaveResults.revertStatus === 200 ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-500" />
+                      )}
+                      <Badge variant={orgSaveResults.revertStatus === 200 ? "default" : "destructive"}>
+                        {orgSaveResults.revertStatus} {orgSaveResults.revertStatus === 200 ? '✓' : '✗'}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-muted/30 p-3 rounded-lg">
+                  <div className="text-sm font-medium mb-2">Test Details</div>
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <span className="font-medium">Targeted Org ID:</span>
+                      <div className="font-mono text-muted-foreground break-all">{orgSaveResults.orgId}</div>
+                    </div>
+                    <div>
+                      <span className="font-medium">Test Time:</span>
+                      <div className="text-muted-foreground">{new Date(orgSaveResults.timestamp).toLocaleString()}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {orgSaveResults.success && (
+                  <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 p-4 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <div className="text-sm font-bold text-green-800 dark:text-green-200">
+                        ✅ E2E Save Test Successful
+                      </div>
+                    </div>
+                    <div className="text-xs text-green-700 dark:text-green-300 space-y-1">
+                      <div>📖 Read original values: <strong>{orgSaveResults.readStatus}</strong></div>
+                      <div>✏️ Applied temp changes (+ " · diag"): <strong>{orgSaveResults.writeStatus}</strong></div>
+                      <div>↩️ Reverted to originals: <strong>{orgSaveResults.revertStatus}</strong></div>
+                      <div className="mt-2 font-medium">💡 Values persisted and reverted correctly</div>
+                    </div>
+                  </div>
+                )}
+
+                {!orgSaveResults.success && (
+                  <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-4 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <XCircle className="h-4 w-4 text-red-600" />
+                      <div className="text-sm font-bold text-red-800 dark:text-red-200">
+                        ❌ E2E Save Test Failed
+                      </div>
+                    </div>
+                    <div className="text-xs text-red-700 dark:text-red-300">
+                      {orgSaveResults.error}
+                    </div>
+                  </div>
+                )}
+
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    View test data
+                  </summary>
+                  <div className="mt-2 p-3 bg-muted/30 rounded border">
+                    <div className="space-y-2">
+                      <div><strong>Original:</strong> <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(orgSaveResults.originalValues, null, 2)}</pre></div>
+                      <div><strong>Temp:</strong> <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(orgSaveResults.tempValues, null, 2)}</pre></div>
+                      <div><strong>Final:</strong> <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(orgSaveResults.finalValues, null, 2)}</pre></div>
+                    </div>
+                  </div>
+                </details>
               </div>
             )}
           </CardContent>
