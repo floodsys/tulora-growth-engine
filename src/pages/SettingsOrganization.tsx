@@ -10,13 +10,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useUserOrganization } from "@/hooks/useUserOrganization";
 import { useOrganizationRole } from "@/hooks/useOrganizationRole";
 import { supabase } from "@/integrations/supabase/client";
-import { Building2, Shield, Activity, Users, FileText } from "lucide-react";
+import { Building2, Shield, Activity, Users, FileText, RefreshCw, Zap, Loader2 } from "lucide-react";
 import { OrganizationActivityViewer } from "@/components/OrganizationActivityViewer";
 import { RetentionSettings } from "@/components/RetentionSettings";
 import SettingsTeams from "@/pages/SettingsTeams";
 import { AdminLogsViewer } from "@/components/admin/AdminLogsViewer";
 import { TeamAccessGuard } from "@/components/guards/TeamAccessGuard";
-import { getBuildInfo } from "@/lib/build-info";
+import { getBuildInfo, clearAllCaches, forceReload } from "@/lib/build-info";
 import { OrgConstraintTester } from "@/components/debug/OrgConstraintTester";
 
 export default function SettingsOrganization() {
@@ -26,6 +26,8 @@ export default function SettingsOrganization() {
   const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
+  const [cacheClearing, setCacheClearing] = useState(false);
+  const [buildInfo] = useState(() => getBuildInfo());
   
   const [formData, setFormData] = useState({
     name: '',
@@ -203,6 +205,44 @@ export default function SettingsOrganization() {
     }
   };
 
+  const handleHardRefresh = async () => {
+    setCacheClearing(true);
+    toast({
+      title: "Clearing Caches",
+      description: "Clearing service workers and browser caches...",
+    });
+
+    try {
+      const result = await clearAllCaches();
+      
+      if (result.success) {
+        toast({
+          title: "Cache Cleared Successfully",
+          description: `Cleared ${result.serviceWorkersCleared} service workers and ${result.cachesCleared.length} caches. Reloading...`,
+        });
+        
+        // Wait a moment then force reload
+        setTimeout(() => {
+          forceReload();
+        }, 1000);
+      } else {
+        throw new Error(result.error || 'Failed to clear caches');
+      }
+    } catch (error) {
+      console.error('Cache clearing error:', error);
+      toast({
+        title: "Cache Clear Failed",
+        description: "Some caches may not have been cleared. Reloading anyway...",
+        variant: "destructive",
+      });
+      
+      // Still try to reload
+      setTimeout(() => {
+        forceReload();
+      }, 1000);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Org ID Mismatch Banner */}
@@ -225,14 +265,35 @@ export default function SettingsOrganization() {
         </div>
       )}
 
-      <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Building2 className="h-8 w-8" />
-          Organization
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Manage your organization information and preferences
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Building2 className="h-8 w-8" />
+            Organization Settings
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Manage your organization information and preferences
+          </p>
+          <div className="mt-3 flex items-center gap-3">
+            <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-green-100 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded">
+              Build: {buildInfo.buildId}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleHardRefresh}
+              disabled={cacheClearing}
+              className="h-7 px-3 text-xs"
+            >
+              {cacheClearing ? (
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              ) : (
+                <Zap className="h-3 w-3 mr-1" />
+              )}
+              Hard Refresh Cache
+            </Button>
+          </div>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -374,9 +435,24 @@ export default function SettingsOrganization() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Build ID</Label>
-                  <div className="bg-muted p-2 rounded text-sm font-mono">
-                    {getBuildInfo().buildId}
+                  <Label className="flex items-center gap-2">
+                    Build ID 
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleHardRefresh}
+                      disabled={cacheClearing}
+                      className="h-5 px-2 text-xs"
+                    >
+                      {cacheClearing ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </Label>
+                  <div className="bg-green-100 dark:bg-green-950 p-2 rounded text-sm font-mono border border-green-200 dark:border-green-800">
+                    {buildInfo.buildId}
                   </div>
                 </div>
                 <div className="space-y-2">
