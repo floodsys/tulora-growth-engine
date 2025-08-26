@@ -667,7 +667,7 @@ export type Database = {
           },
         ]
       }
-      memberships: {
+      memberships_deprecated_legacy: {
         Row: {
           created_at: string | null
           id: string
