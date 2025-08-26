@@ -1471,6 +1471,10 @@ export type Database = {
         Args: { user_id?: string }
         Returns: boolean
       }
+      check_table_rls_status: {
+        Args: { table_names: string[] }
+        Returns: Json
+      }
       cleanup_expired_logs: {
         Args: Record<PropertyKey, never>
         Returns: Json
@@ -1516,6 +1520,14 @@ export type Database = {
           target_id: string
           target_type: string
         }[]
+      }
+      find_potentially_unused_tables: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      get_duplicate_org_members: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       get_effective_retention_config: {
         Args: { org_id: string }

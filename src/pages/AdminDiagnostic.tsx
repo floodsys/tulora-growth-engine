@@ -201,6 +201,39 @@ interface SchemaHealthResult {
   last_checked: string;
 }
 
+interface DbHealthResult {
+  duplicateInvitationUniques: number;
+  duplicateOrgMemberUniques: number;
+  legacyMembershipsReferences: {
+    functions: string[];
+    policies: string[];
+    views: string[];
+    total: number;
+  };
+  canonicalSubscriptionsTable: {
+    exists: boolean;
+    name: string;
+    isCorrect: boolean;
+  };
+  orgSubscriptionsView: {
+    exists: boolean;
+    isView: boolean;
+  };
+  rlsEnabled: {
+    organizations: boolean;
+    organization_members: boolean;
+  };
+  potentiallyUnusedTables: {
+    count: number;
+    tables: Array<{
+      name: string;
+      row_count: number;
+      last_accessed?: string;
+    }>;
+  };
+  timestamp: string;
+}
+
 function AdminDiagnostic() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -251,6 +284,8 @@ function AdminDiagnostic() {
   const [isDualRoleProbing, setIsDualRoleProbing] = useState(false);
   const [schemaHealth, setSchemaHealth] = useState<SchemaHealthResult | null>(null);
   const [isLoadingSchemaHealth, setIsLoadingSchemaHealth] = useState(false);
+  const [dbHealth, setDbHealth] = useState<DbHealthResult | null>(null);
+  const [isLoadingDbHealth, setIsLoadingDbHealth] = useState(false);
 
   const checkSecrets = async () => {
     try {
@@ -887,6 +922,51 @@ function AdminDiagnostic() {
     }
   };
 
+  const checkDbHealth = async () => {
+    setIsLoadingDbHealth(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('db-health-check');
+      
+      if (error) {
+        console.error('DB health check error:', error);
+        toast({
+          title: "DB Health Check Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setDbHealth(data);
+      
+      const issues = [
+        data.duplicateInvitationUniques > 0 ? 'Duplicate invitations' : null,
+        data.duplicateOrgMemberUniques > 0 ? 'Duplicate members' : null,
+        data.legacyMembershipsReferences.total > 0 ? 'Legacy references' : null,
+        !data.canonicalSubscriptionsTable.isCorrect ? 'Subscription table issues' : null,
+        !data.rlsEnabled.organizations || !data.rlsEnabled.organization_members ? 'RLS issues' : null
+      ].filter(Boolean);
+
+      toast({
+        title: "DB Health Check Completed",
+        description: issues.length === 0 ? 
+          "Database health is good" : 
+          `Issues found: ${issues.join(', ')}`,
+        variant: issues.length === 0 ? "default" : "destructive",
+      });
+    } catch (error) {
+      console.error('DB health check failed:', error);
+      toast({
+        title: "DB Health Check Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingDbHealth(false);
+    }
+  };
+
   const runDiagnostics = async () => {
     setIsLoading(true);
     try {
@@ -1373,7 +1453,8 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
       await runDiagnostics();
       await checkSecrets();
       await checkStripeConnectivity();
-      await checkSchemaHealth(); // Check database health on load
+      await checkDbHealth(); // Check database health on load
+      await checkSchemaHealth(); // Check schema health on load
       await activateSeatAndGetStatus(); // Check seat status on load
       // Only run API probes in development mode for security
       if (import.meta.env.DEV) {
@@ -1777,102 +1858,217 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Database className="h-5 w-5" />
-                Database Health
+                DB Health
                 <Badge variant="outline" className="text-xs">
-                  Schema v2.0
+                  Canonical Tables
                 </Badge>
               </CardTitle>
-              <Button
-                onClick={checkSchemaHealth}
-                disabled={isLoadingSchemaHealth}
-                variant="outline"
-                size="sm"
-              >
-                {isLoadingSchemaHealth ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Checking...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Check Health
-                  </>
-                )}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={checkDbHealth}
+                  disabled={isLoadingDbHealth}
+                  variant="outline"
+                  size="sm"
+                >
+                  {isLoadingDbHealth ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Checking...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Check Health
+                    </>
+                  )}
+                </Button>
+                <Button
+                  onClick={checkSchemaHealth}
+                  disabled={isLoadingSchemaHealth}
+                  variant="outline"
+                  size="sm"
+                >
+                  {isLoadingSchemaHealth ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Schema...
+                    </>
+                  ) : (
+                    'Schema Health'
+                  )}
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            {schemaHealth ? (
-              <div className="space-y-4">
-                {/* Health Status */}
-                <div className="flex items-center gap-2">
-                  <Badge variant={schemaHealth.status === 'healthy' ? 'default' : 'destructive'}>
-                    {schemaHealth.status === 'healthy' ? '✅ Healthy' : '⚠️ Issues Detected'}
-                  </Badge>
-                  <span className="text-sm text-muted-foreground">
-                    Schema version: {schemaHealth.schema_version}
-                  </span>
-                </div>
-
-                {/* Core Statistics */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div className="bg-muted/50 p-3 rounded-lg">
-                    <div className="text-sm font-medium">Core Tables</div>
-                    <div className="text-2xl font-bold text-blue-600">{schemaHealth.core_tables_count}/4</div>
-                    <div className="text-xs text-muted-foreground">Expected: 4</div>
-                  </div>
-                  <div className="bg-muted/50 p-3 rounded-lg">
-                    <div className="text-sm font-medium">RLS Functions</div>
-                    <div className="text-2xl font-bold text-green-600">{schemaHealth.rls_functions_count}/5</div>
-                    <div className="text-xs text-muted-foreground">Expected: 5</div>
-                  </div>
-                  <div className="bg-muted/50 p-3 rounded-lg">
-                    <div className="text-sm font-medium">RLS Policies</div>
-                    <div className="text-2xl font-bold text-purple-600">{schemaHealth.rls_policies_count}</div>
-                    <div className="text-xs text-muted-foreground">Active policies</div>
-                  </div>
-                </div>
-
-                {/* Table Row Counts */}
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <div className="text-sm font-medium mb-3">Table Statistics</div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                    {Object.entries(schemaHealth.table_statistics).map(([table, count]) => (
-                      <div key={table} className="flex justify-between">
-                        <span className="font-mono truncate">{table.replace('_', ' ')}</span>
-                        <span className="font-bold">{count}</span>
+            <div className="space-y-6">
+              {/* DB Health Checks */}
+              {dbHealth && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-semibold">DB Health Checks</h4>
+                  
+                  {/* Health Status Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Duplicate Uniques */}
+                    <div className="bg-muted/50 p-3 rounded-lg">
+                      <div className="text-sm font-medium mb-2">Duplicate Uniques</div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs">Invitations</span>
+                          <span className={`text-sm font-bold ${dbHealth.duplicateInvitationUniques === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {dbHealth.duplicateInvitationUniques === 0 ? '✅' : '❌'} {dbHealth.duplicateInvitationUniques}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs">Org Members</span>
+                          <span className={`text-sm font-bold ${dbHealth.duplicateOrgMemberUniques === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {dbHealth.duplicateOrgMemberUniques === 0 ? '✅' : '❌'} {dbHealth.duplicateOrgMemberUniques}
+                          </span>
+                        </div>
                       </div>
-                    ))}
+                    </div>
+
+                    {/* Legacy References */}
+                    <div className="bg-muted/50 p-3 rounded-lg">
+                      <div className="text-sm font-medium mb-2">Legacy References</div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs">Functions</span>
+                          <span className={`text-sm font-bold ${dbHealth.legacyMembershipsReferences.functions.length === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {dbHealth.legacyMembershipsReferences.functions.length === 0 ? '✅' : '❌'} {dbHealth.legacyMembershipsReferences.functions.length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs">Policies</span>
+                          <span className={`text-sm font-bold ${dbHealth.legacyMembershipsReferences.policies.length === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {dbHealth.legacyMembershipsReferences.policies.length === 0 ? '✅' : '❌'} {dbHealth.legacyMembershipsReferences.policies.length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs">Views</span>
+                          <span className={`text-sm font-bold ${dbHealth.legacyMembershipsReferences.views.length === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {dbHealth.legacyMembershipsReferences.views.length === 0 ? '✅' : '❌'} {dbHealth.legacyMembershipsReferences.views.length}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Canonical Tables */}
+                    <div className="bg-muted/50 p-3 rounded-lg">
+                      <div className="text-sm font-medium mb-2">Canonical Tables</div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs">Subscriptions Table</span>
+                          <span className={`text-sm font-bold ${dbHealth.canonicalSubscriptionsTable.isCorrect ? 'text-green-600' : 'text-red-600'}`}>
+                            {dbHealth.canonicalSubscriptionsTable.isCorrect ? '✅' : '❌'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs">Legacy View</span>
+                          <span className={`text-sm font-bold ${dbHealth.orgSubscriptionsView.isView ? 'text-green-600' : 'text-yellow-600'}`}>
+                            {dbHealth.orgSubscriptionsView.isView ? '✅' : '⚠️'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* RLS Status */}
+                    <div className="bg-muted/50 p-3 rounded-lg">
+                      <div className="text-sm font-medium mb-2">RLS Enabled</div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs">Organizations</span>
+                          <span className={`text-sm font-bold ${dbHealth.rlsEnabled.organizations ? 'text-green-600' : 'text-red-600'}`}>
+                            {dbHealth.rlsEnabled.organizations ? '✅' : '❌'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs">Org Members</span>
+                          <span className={`text-sm font-bold ${dbHealth.rlsEnabled.organization_members ? 'text-green-600' : 'text-red-600'}`}>
+                            {dbHealth.rlsEnabled.organization_members ? '✅' : '❌'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Unused Tables */}
+                    <div className="bg-muted/50 p-3 rounded-lg md:col-span-2">
+                      <div className="text-sm font-medium mb-2">Potentially Unused Tables</div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs">Count</span>
+                        <span className="text-sm font-bold">{dbHealth.potentiallyUnusedTables.count}</span>
+                      </div>
+                      {dbHealth.potentiallyUnusedTables.tables.length > 0 && (
+                        <div className="text-xs space-y-1 max-h-20 overflow-y-auto">
+                          {dbHealth.potentiallyUnusedTables.tables.map((table, i) => (
+                            <div key={i} className="flex justify-between">
+                              <span className="font-mono">{table.name}</span>
+                              <span className="text-muted-foreground">{table.row_count} rows</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground">
+                    Last checked: {new Date(dbHealth.timestamp).toLocaleString()}
                   </div>
                 </div>
+              )}
 
-                {/* Missing Constraints Warning */}
-                {schemaHealth.missing_constraints.length > 0 && (
-                  <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Missing Constraints</AlertTitle>
-                    <AlertDescription>
-                      <ul className="list-disc list-inside space-y-1">
-                        {schemaHealth.missing_constraints.map((constraint, i) => (
-                          <li key={i} className="font-mono text-sm">{constraint}</li>
-                        ))}
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                )}
+              {/* Schema Health (Secondary) */}
+              {schemaHealth && (
+                <div className="space-y-4 border-t pt-4">
+                  <h4 className="text-sm font-semibold">Schema Health</h4>
+                  
+                  <div className="flex items-center gap-2">
+                    <Badge variant={schemaHealth.status === 'healthy' ? 'default' : 'destructive'}>
+                      {schemaHealth.status === 'healthy' ? '✅ Healthy' : '⚠️ Issues Detected'}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">
+                      Schema version: {schemaHealth.schema_version}
+                    </span>
+                  </div>
 
-                {/* Canonical Tables Info */}
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <div><strong>Canonical subscription table:</strong> {schemaHealth.canonical_subscription_table}</div>
-                  <div><strong>Last checked:</strong> {new Date(schemaHealth.last_checked).toLocaleString()}</div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-muted/30 p-2 rounded text-center">
+                      <div className="text-xs text-muted-foreground">Core Tables</div>
+                      <div className="text-lg font-bold text-blue-600">{schemaHealth.core_tables_count}</div>
+                    </div>
+                    <div className="bg-muted/30 p-2 rounded text-center">
+                      <div className="text-xs text-muted-foreground">RLS Functions</div>
+                      <div className="text-lg font-bold text-green-600">{schemaHealth.rls_functions_count}</div>
+                    </div>
+                    <div className="bg-muted/30 p-2 rounded text-center">
+                      <div className="text-xs text-muted-foreground">RLS Policies</div>
+                      <div className="text-lg font-bold text-purple-600">{schemaHealth.rls_policies_count}</div>
+                    </div>
+                  </div>
+
+                  {schemaHealth.missing_constraints.length > 0 && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Missing Constraints</AlertTitle>
+                      <AlertDescription>
+                        <div className="text-xs space-y-1">
+                          {schemaHealth.missing_constraints.map((constraint, i) => (
+                            <div key={i} className="font-mono">{constraint}</div>
+                          ))}
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground text-center py-4">
-                Click "Check Health" to analyze database schema and constraints
-              </div>
-            )}
+              )}
+
+              {/* Default State */}
+              {!dbHealth && !schemaHealth && (
+                <div className="text-sm text-muted-foreground text-center py-4">
+                  Click "Check Health" to analyze database integrity and canonical tables
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
