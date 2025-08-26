@@ -280,12 +280,15 @@ export default function SettingsOrganization() {
           <p className="text-muted-foreground mt-2">
             Manage your organization information and preferences
           </p>
-          <div className="mt-3 flex items-center gap-3">
+          <div className="mt-3 flex items-center gap-3 flex-wrap">
             <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-blue-100 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded">
               Build ID: {buildInfo.buildId}
             </span>
+            <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-green-100 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded">
+              Page Org ID: {organization?.id || 'Loading...'}
+            </span>
             <Badge variant="outline" className="text-xs">
-              🎯 STEP 5: Settings Build Check
+              🎯 STEP 3: Settings Org Check
             </Badge>
             <Button
               variant="outline"

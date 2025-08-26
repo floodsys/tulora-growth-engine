@@ -1775,6 +1775,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      make_user_org_admin: {
+        Args: { p_org_id: string; p_user_id?: string }
+        Returns: Json
+      }
       normalize_role_value: {
         Args: { input_role: string }
         Returns: string

@@ -1216,7 +1216,7 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
                 <UserCheck className="h-5 w-5" />
                 Current Org Seat Status
                 <Badge variant="outline" className="text-xs">
-                  🎯 STEP 1: Seat Active
+                  🎯 STEP 1+2: Seat & Role Fix
                 </Badge>
               </CardTitle>
               <Button
@@ -1234,6 +1234,51 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
                   'Activate & Check'
                 )}
               </Button>
+              {seatStatus && seatStatus.role !== 'admin' && (
+                <Button
+                  onClick={async () => {
+                    try {
+                      setIsLoadingSeat(true);
+                      const { data, error } = await supabase.rpc('make_user_org_admin', { 
+                        p_org_id: seatStatus.organization_id 
+                      });
+                      
+                      if (error) throw error;
+                      
+                      const adminData = data as unknown as { error?: string; success?: boolean };
+                      if (adminData.error) {
+                        toast({
+                          title: "Role Fix Failed",
+                          description: adminData.error,
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      
+                      toast({
+                        title: "Role Updated",
+                        description: "You are now an admin of this organization",
+                      });
+                      
+                      // Refresh seat status
+                      await activateSeatAndGetStatus();
+                    } catch (error: any) {
+                      toast({
+                        title: "Role Fix Failed",
+                        description: error.message,
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setIsLoadingSeat(false);
+                    }
+                  }}
+                  disabled={isLoadingSeat}
+                  variant="secondary"
+                  size="sm"
+                >
+                  Fix Role → Admin
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
