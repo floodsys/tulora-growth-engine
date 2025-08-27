@@ -270,30 +270,54 @@ export function BillingAdmin() {
         body: { action: 'list_subscriptions' }
       });
 
-      if (subsError) throw subsError;
-      setSubscriptions(subsData || []);
+      if (subsError) {
+        console.error('Subscriptions error:', subsError);
+        throw subsError;
+      }
+      
+      // Ensure subsData is an array, even if the API returns an error object
+      const subscriptionsArray = Array.isArray(subsData) ? subsData : [];
+      setSubscriptions(subscriptionsArray);
 
       // Load recent invoices
       const { data: invoicesData, error: invoicesError } = await supabase.functions.invoke('admin-billing-overview', {
         body: { action: 'list_invoices', limit: 50 }
       });
 
-      if (invoicesError) throw invoicesError;
-      setInvoices(invoicesData || []);
+      if (invoicesError) {
+        console.error('Invoices error:', invoicesError);
+        throw invoicesError;
+      }
+      
+      // Ensure invoicesData is an array
+      const invoicesArray = Array.isArray(invoicesData) ? invoicesData : [];
+      setInvoices(invoicesArray);
 
       // Load recent webhook events
       const { data: webhooksData, error: webhooksError } = await supabase.functions.invoke('admin-billing-overview', {
         body: { action: 'list_webhook_events', limit: 20 }
       });
 
-      if (webhooksError) throw webhooksError;
-      setWebhookEvents(webhooksData || []);
+      if (webhooksError) {
+        console.error('Webhooks error:', webhooksError);
+        throw webhooksError;
+      }
+      
+      // Ensure webhooksData is an array
+      const webhooksArray = Array.isArray(webhooksData) ? webhooksData : [];
+      setWebhookEvents(webhooksArray);
 
     } catch (error: any) {
       console.error('Error loading billing data:', error);
+      
+      // Set empty arrays to prevent filter errors
+      setSubscriptions([]);
+      setInvoices([]);
+      setWebhookEvents([]);
+      
       toast({
         title: "Error loading billing data",
-        description: error.message || "Failed to load billing information",
+        description: error.message || "Failed to load billing information. Please check the console for more details.",
         variant: "destructive",
       });
     } finally {
