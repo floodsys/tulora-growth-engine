@@ -54,12 +54,18 @@ serve(async (req) => {
       // Set domain for proper scope (works for www and apex)
       const domain = isLocalhost ? undefined : `.${host.replace(/^www\./, '')}`;
       
+      // Clear any old cookies with different paths/domains first
+      const clearOldCookies = [
+        `sa_issued=; Max-Age=0; Path=/admin; ${domain ? `Domain=${domain}; ` : ''}HttpOnly`,
+        `sa_issued=; Max-Age=0; Path=/; HttpOnly`
+      ];
+      
       const cookieOptions = [
         `Max-Age=${maxAge}`,
         'HttpOnly',
         isLocalhost ? undefined : 'Secure',
         'SameSite=Lax',
-        'Path=/', // Changed from /admin to / for broader scope
+        'Path=/', // Broad scope for all admin routes
         domain ? `Domain=${domain}` : undefined
       ].filter(Boolean).join('; ');
 
@@ -67,12 +73,24 @@ serve(async (req) => {
         success: true,
         issued_at: issuedAt,
         expires_at: new Date(Date.now() + maxAge * 1000).toISOString(),
-        max_age_seconds: maxAge
+        max_age_seconds: maxAge,
+        cookie_attributes: {
+          domain: domain || 'localhost',
+          path: '/',
+          sameSite: 'Lax',
+          secure: !isLocalhost,
+          httpOnly: true
+        }
       }), {
         headers: {
           ...corsHeaders,
           "Content-Type": "application/json",
-          "Set-Cookie": `sa_issued=${cookieValue}; ${cookieOptions}`
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+          "Pragma": "no-cache",
+          "Set-Cookie": [
+            ...clearOldCookies,
+            `sa_issued=${cookieValue}; ${cookieOptions}`
+          ].join(', ')
         },
         status: 200,
       });

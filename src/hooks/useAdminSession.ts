@@ -23,17 +23,25 @@ export function useAdminSession() {
   const checkSession = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.functions.invoke('admin-step-up-auth', {
-        body: { action: 'check_session' }
+      
+      // Use same-origin API route to ensure cookies are sent
+      const response = await fetch('/api/admin/validate', {
+        method: 'POST',
+        credentials: 'include', // Include cookies
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`
+        },
+        body: JSON.stringify({ action: 'check_session' })
       });
 
-      if (error) throw error;
+      const data = await response.json();
       
       // Add validation metadata
       const sessionWithMeta = {
         ...data,
         last_validate_time: new Date().toISOString(),
-        validate_endpoint: '/functions/v1/admin-step-up-auth',
+        validate_endpoint: '/api/admin/validate',
         cookie_present: data.valid // If session is valid, cookie was present
       };
       
@@ -44,7 +52,7 @@ export function useAdminSession() {
         valid: false, 
         reason: 'Check failed',
         last_validate_time: new Date().toISOString(),
-        validate_endpoint: '/functions/v1/admin-step-up-auth',
+        validate_endpoint: '/api/admin/validate',
         cookie_present: false
       });
     } finally {
@@ -66,14 +74,17 @@ export function useAdminSession() {
         description: "Step-up authentication successful",
       });
 
-      // Refresh session status and force component re-render
-      await checkSession();
-      
       // Force refresh any cached state by clearing relevant localStorage
       const keysToRemove = Object.keys(localStorage).filter(key => 
         key.includes('admin') || key.includes('step_up') || key.includes('issued_at')
       );
       keysToRemove.forEach(key => localStorage.removeItem(key));
+      
+      // Small delay to ensure cookie is set before checking
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Refresh session status after successful step-up
+      await checkSession();
       
       return true;
     } catch (error) {

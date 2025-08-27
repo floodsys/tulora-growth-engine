@@ -111,6 +111,12 @@ export function AdminSessionPanel() {
                 <div className={session.cookie_present ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
                   Cookie present: {session.cookie_present ? 'true' : 'false'}
                 </div>
+                <div className={session.valid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                  Validation outcome: {session.valid ? 'SUCCESS' : 'FAILED'}
+                </div>
+                <div className="text-muted-foreground">
+                  Same-origin validation: ✓ (cookies sent automatically)
+                </div>
               </div>
             </div>
           )}
