@@ -87,18 +87,18 @@ export default async function handler(req: any, res: any) {
 
     const issuedAt = new Date(issuedAtStr);
     const now = new Date();
-    const ageMinutes = Math.floor((now.getTime() - issuedAt.getTime()) / (1000 * 60));
-    const maxAgeMinutes = 720; // 12 hours
+    const ageSeconds = Math.floor((now.getTime() - issuedAt.getTime()) / 1000);
+    const maxAgeSeconds = 43200; // 12 hours in seconds
     
-    const valid = ageMinutes <= maxAgeMinutes;
+    const valid = ageSeconds <= maxAgeSeconds;
 
     res.statusCode = 200;
     return res.end(JSON.stringify({
       valid,
       issued_at: issuedAtStr,
-      age_minutes: ageMinutes,
-      max_age_minutes: maxAgeMinutes,
-      ttl_minutes: Math.max(0, maxAgeMinutes - ageMinutes),
+      age_sec: ageSeconds,
+      max_age_sec: maxAgeSeconds,
+      ttl_sec: Math.max(0, maxAgeSeconds - ageSeconds),
       reason: valid ? 'Valid session' : 'Session expired',
       cookie_present: true
     }));

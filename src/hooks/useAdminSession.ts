@@ -41,9 +41,11 @@ export function useAdminSession() {
       const data = await response.json();
 
       
-      // Add validation metadata
+      // Add validation metadata (handle both age_minutes and age_sec for backward compatibility)
       const sessionWithMeta = {
         ...data,
+        age_minutes: data.age_sec ? Math.floor(data.age_sec / 60) : data.age_minutes,
+        ttl_minutes: data.ttl_sec ? Math.floor(data.ttl_sec / 60) : data.ttl_minutes,
         last_validate_time: new Date().toISOString(),
         validate_endpoint: '/api/admin/validate',
         cookie_present: data.cookie_present || data.valid // Use explicit flag or infer from validity

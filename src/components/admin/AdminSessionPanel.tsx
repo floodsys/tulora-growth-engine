@@ -97,56 +97,70 @@ export function AdminSessionPanel() {
           </div>
         )}
 
-        <div className="border-t pt-4 space-y-3">
-          <div className="text-xs text-muted-foreground space-y-1">
-            <div><strong>Current Host:</strong> {window.location.host}</div>
-            <div><strong>Environment:</strong> {
-              window.location.host.includes('localhost') ? 'Localhost (dev)' :
-              window.location.host.includes('lovable.app') ? 'Preview (.lovable.app)' :
-              window.location.host.includes('tulora.io') ? 'Production (.tulora.io)' : 'Unknown'
-            }</div>
+        <div className="border-t pt-4 space-y-4">
+          {/* Environment & Host */}
+          <div className="space-y-2">
+            <h4 className="text-sm font-semibold text-foreground">Environment & Host</h4>
+            <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+              <div>Host: <span className="text-muted-foreground">{window.location.host}</span></div>
+              <div>Environment: <span className="text-muted-foreground">{
+                window.location.host.includes('localhost') ? 'Localhost' :
+                window.location.host.includes('lovable.app') ? 'Preview' :
+                window.location.host.includes('tulora.io') ? 'Production' : 'Unknown'
+              }</span></div>
+            </div>
           </div>
-          
-          <div className="text-xs">
-            <strong>Cookie Configuration:</strong>
-            <div className="font-mono text-xs mt-1 space-y-1 ml-2">
-              <div>• Name: sa_issued</div>
-              <div>• Domain: {
+
+          {/* Cookie Configuration */}
+          <div className="space-y-2">
+            <h4 className="text-sm font-semibold text-foreground">Cookie Configuration</h4>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>Name: <span className="font-mono text-muted-foreground">sa_issued</span></div>
+              <div>Domain: <span className="font-mono text-muted-foreground">{
                 window.location.host.includes('localhost') ? 'host-only' :
                 window.location.host.includes('lovable.app') ? '.lovable.app' :
                 window.location.host.includes('tulora.io') ? '.tulora.io' : 'host-only'
-              }</div>
-              <div>• Path: /</div>
-              <div>• HttpOnly: ✓</div>
-              <div>• Secure: {window.location.protocol === 'https:' ? '✓' : '✗'}</div>
-              <div>• SameSite: Lax</div>
+              }</span></div>
+              <div>Path: <span className="font-mono text-muted-foreground">/</span></div>
+              <div>HttpOnly: <span className="font-mono text-green-600">✓</span></div>
+              <div>Secure: <span className="font-mono">{window.location.protocol === 'https:' ? 
+                <span className="text-green-600">✓</span> : <span className="text-red-600">✗</span>
+              }</span></div>
+              <div>SameSite: <span className="font-mono text-muted-foreground">Lax</span></div>
             </div>
           </div>
           
+          {/* Last Validation Result */}
           {session?.last_validate_time && (
-            <div className="text-xs">
-              <strong>Last Validate Result:</strong>
-              <div className="font-mono text-xs mt-1 space-y-1 ml-2">
-                <div>• Time: {new Date(session.last_validate_time).toLocaleString()}</div>
-                <div>• URL: {session.validate_endpoint}</div>
-                <div className={session.cookie_present ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                  • Cookie present: {session.cookie_present ? 'true' : 'false'}
-                </div>
-                <div className={session.valid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                  • Outcome: {session.valid ? 'OK' : 'FAILED'}
-                </div>
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-foreground">Last Validate Result</h4>
+              <div className="space-y-1 text-xs">
+                <div>Time: <span className="font-mono text-muted-foreground">{new Date(session.last_validate_time).toLocaleString()}</span></div>
+                <div>URL: <span className="font-mono text-muted-foreground">{session.validate_endpoint}</span></div>
+                <div>Cookie present: <span className={`font-mono ${session.cookie_present ? 'text-green-600' : 'text-red-600'}`}>
+                  {session.cookie_present ? 'true' : 'false'}
+                </span></div>
+                <div>Outcome: <span className={`font-mono ${session.valid ? 'text-green-600' : 'text-red-600'}`}>
+                  {session.valid ? 'OK' : 'FAILED'}
+                </span></div>
               </div>
             </div>
           )}
           
+          {/* Duplicate Cookie Warning */}
           {(() => {
             const duplicateCount = document.cookie.split(';').filter(c => c.trim().startsWith('sa_issued=')).length;
             if (duplicateCount > 1) {
               return (
-                <div className="text-xs text-yellow-600 dark:text-yellow-400">
-                  <strong>⚠ Duplicate Cookies Detected:</strong>
-                  <div className="font-mono text-xs mt-1 ml-2">
-                    Found {duplicateCount} sa_issued cookies - this may cause validation issues
+                <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <div className="text-yellow-600 dark:text-yellow-400 text-sm">
+                      ⚠️ <strong>Duplicate Cookies Detected</strong>
+                    </div>
+                  </div>
+                  <div className="text-xs text-yellow-700 dark:text-yellow-300 mt-1 font-mono">
+                    Found {duplicateCount} sa_issued cookies. This may cause validation issues.
+                    Use "Hard Refresh Cache" to clear old cookies.
                   </div>
                 </div>
               );
