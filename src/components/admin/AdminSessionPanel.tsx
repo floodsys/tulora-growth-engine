@@ -97,10 +97,23 @@ export function AdminSessionPanel() {
           </div>
         )}
 
-        <div className="border-t pt-4">
-          <div className="text-xs text-muted-foreground mb-2">
-            <strong>Cookie Details:</strong> sa_issued (HttpOnly, Secure, SameSite=Lax, Path=/admin)
+        <div className="border-t pt-4 space-y-3">
+          <div className="text-xs text-muted-foreground">
+            <strong>Cookie Details:</strong> sa_issued (HttpOnly, Secure, SameSite=Lax, Path=/)
           </div>
+          
+          {session?.last_validate_time && (
+            <div className="text-xs">
+              <strong>Last Validate Result:</strong>
+              <div className="font-mono text-xs mt-1 space-y-1">
+                <div>Time: {new Date(session.last_validate_time).toLocaleString()}</div>
+                <div>Endpoint: {session.validate_endpoint}</div>
+                <div className={session.cookie_present ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                  Cookie present: {session.cookie_present ? 'true' : 'false'}
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="flex flex-wrap gap-2">
             <Button

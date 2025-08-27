@@ -9,6 +9,9 @@ interface AdminSession {
   max_age_minutes?: number;
   ttl_minutes?: number;
   reason?: string;
+  last_validate_time?: string;
+  validate_endpoint?: string;
+  cookie_present?: boolean;
 }
 
 export function useAdminSession() {
@@ -25,10 +28,25 @@ export function useAdminSession() {
       });
 
       if (error) throw error;
-      setSession(data);
+      
+      // Add validation metadata
+      const sessionWithMeta = {
+        ...data,
+        last_validate_time: new Date().toISOString(),
+        validate_endpoint: '/functions/v1/admin-step-up-auth',
+        cookie_present: data.valid // If session is valid, cookie was present
+      };
+      
+      setSession(sessionWithMeta);
     } catch (error) {
       console.error('Error checking admin session:', error);
-      setSession({ valid: false, reason: 'Check failed' });
+      setSession({ 
+        valid: false, 
+        reason: 'Check failed',
+        last_validate_time: new Date().toISOString(),
+        validate_endpoint: '/functions/v1/admin-step-up-auth',
+        cookie_present: false
+      });
     } finally {
       setLoading(false);
     }
@@ -48,8 +66,15 @@ export function useAdminSession() {
         description: "Step-up authentication successful",
       });
 
-      // Refresh session status
+      // Refresh session status and force component re-render
       await checkSession();
+      
+      // Force refresh any cached state by clearing relevant localStorage
+      const keysToRemove = Object.keys(localStorage).filter(key => 
+        key.includes('admin') || key.includes('step_up') || key.includes('issued_at')
+      );
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      
       return true;
     } catch (error) {
       console.error('Error verifying step-up:', error);

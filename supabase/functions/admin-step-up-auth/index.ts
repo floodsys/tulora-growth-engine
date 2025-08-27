@@ -46,13 +46,22 @@ serve(async (req) => {
       const maxAge = 43200; // 12 hours in seconds
       
       const cookieValue = `${issuedAt}:${user.id}`;
+      
+      // Determine if we're on localhost (allow insecure for dev)
+      const host = req.headers.get('host') || '';
+      const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1');
+      
+      // Set domain for proper scope (works for www and apex)
+      const domain = isLocalhost ? undefined : `.${host.replace(/^www\./, '')}`;
+      
       const cookieOptions = [
         `Max-Age=${maxAge}`,
         'HttpOnly',
-        'Secure',
+        isLocalhost ? undefined : 'Secure',
         'SameSite=Lax',
-        'Path=/admin'
-      ].join('; ');
+        'Path=/', // Changed from /admin to / for broader scope
+        domain ? `Domain=${domain}` : undefined
+      ].filter(Boolean).join('; ');
 
       const response = new Response(JSON.stringify({
         success: true,
@@ -134,7 +143,7 @@ serve(async (req) => {
         headers: {
           ...corsHeaders,
           "Content-Type": "application/json",
-          "Set-Cookie": `sa_issued=; Max-Age=0; HttpOnly; Secure; SameSite=Lax; Path=/admin`
+          "Set-Cookie": `sa_issued=; Max-Age=0; HttpOnly; ${isLocalhost ? '' : 'Secure; '}SameSite=Lax; Path=/`
         },
         status: 200,
       });
