@@ -68,18 +68,15 @@ export default async function handler(req: any, res: any) {
     }
     
     // Clear any old cookies with wrong domain/path before setting new one
-    const clearCookies = [];
-    if (domain) {
-      // Clear potential old cookies from other domains
-      clearCookies.push(`sa_issued=; Max-Age=0; Path=/; HttpOnly`); // Host-only
-      clearCookies.push(`sa_issued=; Max-Age=0; Path=/admin; HttpOnly`); // Wrong path
-      if (domain !== '.lovable.app') {
-        clearCookies.push(`sa_issued=; Max-Age=0; Path=/; Domain=.lovable.app; HttpOnly`);
-      }
-      if (domain !== '.tulora.io') {
-        clearCookies.push(`sa_issued=; Max-Age=0; Path=/; Domain=.tulora.io; HttpOnly`);
-      }
-    }
+    const clearCookies = [
+      // Clear host-only cookies that might shadow domain cookies
+      `sa_issued=; Max-Age=0; Path=/; HttpOnly`,
+      // Clear wrong path cookies
+      `sa_issued=; Max-Age=0; Path=/admin; HttpOnly`,
+      // Clear other environment domains  
+      `sa_issued=; Max-Age=0; Path=/; Domain=.lovable.app; HttpOnly`,
+      `sa_issued=; Max-Age=0; Path=/; Domain=.tulora.io; HttpOnly`
+    ];
     
     const cookieOptions = [
       `Max-Age=${maxAge}`,
@@ -90,11 +87,11 @@ export default async function handler(req: any, res: any) {
       domain ? `Domain=${domain}` : undefined
     ].filter(Boolean).join('; ');
 
-    // Just set the main cookie for now (simplify to debug)
-    const mainCookie = `sa_issued=${cookieValue}; ${cookieOptions}`;
-    console.log('Setting cookie:', mainCookie);
+    // Set clearing cookies first, then the main cookie
+    const allCookies = [...clearCookies, `sa_issued=${cookieValue}; ${cookieOptions}`];
+    console.log('Setting cookies:', allCookies);
     
-    res.setHeader('Set-Cookie', mainCookie);
+    res.setHeader('Set-Cookie', allCookies);
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
@@ -118,8 +115,8 @@ export default async function handler(req: any, res: any) {
         httpOnly: true,
         environment: isProd ? 'production' : (isPreview ? 'preview' : 'localhost'),
         host: host,
-        cleared_old_cookies: 0, // Simplified for now
-        cookie_set: mainCookie
+        cleared_old_cookies: clearCookies.length,
+        cookie_set: `sa_issued=${cookieValue}; ${cookieOptions}`
       }
     }));
 
