@@ -21,17 +21,22 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === 'development' &&
     componentTagger(),
-    // API middleware plugin
+    // API middleware plugin - MUST be first to prevent SPA fallback
     {
       name: 'api-middleware',
       configureServer(server: ViteDevServer) {
-        // Insert API middleware BEFORE other middlewares to ensure precedence
-        server.middlewares.use('/api', (req, res, next) => {
-          const url = req.url || '';
+        // Insert API middleware at the very beginning to ensure precedence over SPA fallback
+        server.middlewares.use((req, res, next) => {
+          // Only handle /api/** routes
+          if (!req.url?.startsWith('/api/')) {
+            return next();
+          }
+          const url = req.url.substring(4) || ''; // Remove '/api' prefix
           
-          // Set no-cache headers for all API routes
-          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+          // Set strict no-cache headers for all API routes
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
           res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
           res.setHeader('Vary', 'Cookie, Authorization');
           res.setHeader('X-Server-Runtime', 'vite-middleware');
           
@@ -85,10 +90,10 @@ export default defineConfig(({ mode }) => ({
             return;
           }
 
-          // API route not found - return 404 JSON instead of letting SPA handle it
+          // API route not found - return 404 JSON, preventing SPA fallback
           res.setHeader('Content-Type', 'application/json');
           res.statusCode = 404;
-          res.end(JSON.stringify({ error: 'API endpoint not found', path: url }));
+          res.end(JSON.stringify({ error: 'API endpoint not found', path: req.url }));
         });
       }
     }
