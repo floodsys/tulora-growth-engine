@@ -18,19 +18,19 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
   },
   plugins: [
-    react(),
-    mode === 'development' &&
-    componentTagger(),
     // API middleware plugin - MUST be first to prevent SPA fallback
     {
       name: 'api-middleware',
       configureServer(server: ViteDevServer) {
-        // Insert API middleware at the very beginning to ensure precedence over SPA fallback
+        // Add middleware at the very beginning, before any other middleware
         server.middlewares.use((req, res, next) => {
           // Only handle /api/** routes
           if (!req.url?.startsWith('/api/')) {
             return next();
           }
+
+          console.log(`[API Middleware] Intercepted: ${req.method} ${req.url}`);
+          
           const url = req.url.substring(4) || ''; // Remove '/api' prefix
           
           // Set strict no-cache headers for all API routes
@@ -53,6 +53,7 @@ export default defineConfig(({ mode }) => ({
 
           // Handle ping endpoint
           if (url === '/_ping' && req.method === 'GET') {
+            console.log('[API Middleware] Handling ping endpoint');
             import('./src/api/_ping.js').then(({ default: handler }) => {
               handler(req, res);
             }).catch(error => {
@@ -66,6 +67,7 @@ export default defineConfig(({ mode }) => ({
 
           // Handle validate endpoint
           if (url === '/admin/validate' && req.method === 'GET') {
+            console.log('[API Middleware] Handling validate endpoint');
             import('./src/api/admin/validate.js').then(({ default: handler }) => {
               handler(req, res);
             }).catch(error => {
@@ -79,6 +81,7 @@ export default defineConfig(({ mode }) => ({
           
           // Handle test endpoint
           if (url === '/admin/step-up/test' && req.method === 'POST') {
+            console.log('[API Middleware] Handling step-up test endpoint');
             import('./src/api/admin/step-up/test.js').then(({ default: handler }) => {
               handler(req, res);
             }).catch(error => {
@@ -91,13 +94,27 @@ export default defineConfig(({ mode }) => ({
           }
 
           // API route not found - return 404 JSON, preventing SPA fallback
+          console.log(`[API Middleware] Unknown API route: ${req.url}`);
           res.setHeader('Content-Type', 'application/json');
           res.statusCode = 404;
           res.end(JSON.stringify({ error: 'API endpoint not found', path: req.url }));
         });
       }
-    }
+    },
+    react(),
+    mode === 'development' &&
+    componentTagger()
   ].filter(Boolean),
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom']
+        }
+      }
+    }
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
