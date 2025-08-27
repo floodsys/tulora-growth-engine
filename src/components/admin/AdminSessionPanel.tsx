@@ -121,8 +121,13 @@ export function AdminSessionPanel() {
                   Validation outcome: {session.valid ? 'SUCCESS' : 'FAILED'}
                 </div>
                 <div className="text-muted-foreground">
-                  Same-origin validation: ✓ (cookies sent automatically)
+                  Cookie forwarding: ✓ (document.cookie sent to edge function)
                 </div>
+                {document.cookie.split(';').filter(c => c.trim().startsWith('sa_issued=')).length > 1 && (
+                  <div className="text-yellow-600 dark:text-yellow-400">
+                    ⚠ Multiple sa_issued cookies detected - may cause conflicts
+                  </div>
+                )}
               </div>
             </div>
           )}

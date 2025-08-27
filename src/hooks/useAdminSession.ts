@@ -24,24 +24,33 @@ export function useAdminSession() {
     try {
       setLoading(true);
       
-      // Use same-origin API route to ensure cookies are sent
-      const response = await fetch('/api/admin/validate', {
-        method: 'POST',
-        credentials: 'include', // Include cookies
+      // Call edge function directly with proper cookie forwarding
+      const { data, error } = await supabase.functions.invoke('admin-step-up-auth', {
+        body: { action: 'check_session' },
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`
-        },
-        body: JSON.stringify({ action: 'check_session' })
+          'Cookie': document.cookie // Forward all cookies including elevated session
+        }
       });
 
-      const data = await response.json();
+      if (error) {
+        console.error('Admin session check error:', error);
+        const data = { 
+          valid: false, 
+          reason: 'Validation service error',
+          last_validate_time: new Date().toISOString(),
+          validate_endpoint: 'edge-function://admin-step-up-auth',
+          cookie_present: false
+        };
+        setSession(data);
+        setLoading(false);
+        return;
+      }
       
       // Add validation metadata
       const sessionWithMeta = {
         ...data,
         last_validate_time: new Date().toISOString(),
-        validate_endpoint: '/api/admin/validate',
+        validate_endpoint: 'edge-function://admin-step-up-auth',
         cookie_present: data.valid // If session is valid, cookie was present
       };
       
@@ -52,7 +61,7 @@ export function useAdminSession() {
         valid: false, 
         reason: 'Check failed',
         last_validate_time: new Date().toISOString(),
-        validate_endpoint: '/api/admin/validate',
+        validate_endpoint: 'edge-function://admin-step-up-auth',
         cookie_present: false
       });
     } finally {
@@ -64,7 +73,10 @@ export function useAdminSession() {
     try {
       setVerifying(true);
       const { data, error } = await supabase.functions.invoke('admin-step-up-auth', {
-        body: { action: 'verify_step_up' }
+        body: { action: 'verify_step_up' },
+        headers: {
+          'Cookie': document.cookie // Forward existing cookies for clearing old ones
+        }
       });
 
       if (error) throw error;
@@ -81,7 +93,7 @@ export function useAdminSession() {
       keysToRemove.forEach(key => localStorage.removeItem(key));
       
       // Small delay to ensure cookie is set before checking
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       // Refresh session status after successful step-up
       await checkSession();
@@ -103,7 +115,10 @@ export function useAdminSession() {
   const clearSession = async () => {
     try {
       const { error } = await supabase.functions.invoke('admin-step-up-auth', {
-        body: { action: 'clear_session' }
+        body: { action: 'clear_session' },
+        headers: {
+          'Cookie': document.cookie // Forward cookies for clearing
+        }
       });
 
       if (error) throw error;
