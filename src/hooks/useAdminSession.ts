@@ -24,10 +24,10 @@ export function useAdminSession() {
     try {
       setLoading(true);
       
-      // Call the validate API endpoint
+      // Call the validate API endpoint with credentials
       const response = await fetch('/api/admin/validate', {
         method: 'GET',
-        credentials: 'include', // Include cookies
+        credentials: 'include', // Critical: include cookies
         headers: {
           'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
           'Content-Type': 'application/json'
@@ -35,7 +35,7 @@ export function useAdminSession() {
       });
 
       if (!response.ok) {
-        throw new Error(`Validation failed: ${response.status}`);
+        throw new Error(`Validation failed: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -184,7 +184,7 @@ export function useAdminSession() {
     try {
       const response = await fetch('/api/admin/step-up/test', {
         method: 'POST',
-        credentials: 'include',
+        credentials: 'include', // Critical: include cookies for domain detection
         headers: {
           'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
           'Content-Type': 'application/json'
@@ -192,7 +192,7 @@ export function useAdminSession() {
       });
 
       if (!response.ok) {
-        throw new Error(`Test failed: ${response.status}`);
+        throw new Error(`Test failed: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
