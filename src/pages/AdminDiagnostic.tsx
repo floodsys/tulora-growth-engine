@@ -11,6 +11,8 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { BUILD_ID, clearAllCaches, forceReload, getBuildInfo, getCosmenticEnvVars, type CacheClearResult } from '@/lib/build-info';
 import { SeatStatusCard } from "@/components/admin/SeatStatusCard";
+import { AdminSessionPanel } from "@/components/admin/AdminSessionPanel";
+import { AdminGuard } from '@/components/admin/AdminGuard';
 
 interface DiagnosticData {
   authUid: string | null;
@@ -1849,6 +1851,9 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
           </CardContent>
         </Card>
 
+        {/* Admin Session Status */}
+        <AdminSessionPanel />
+
         {/* Organization Seat Status */}
         <SeatStatusCard />
 
@@ -3532,4 +3537,10 @@ ${Object.entries(secretsResults.categorized).map(([category, secrets]) =>
   );
 }
 
-export default AdminDiagnostic;
+export default function SecureDiagnosticPage() {
+  return (
+    <AdminGuard>
+      <AdminDiagnostic />
+    </AdminGuard>
+  );
+}
