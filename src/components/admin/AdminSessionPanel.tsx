@@ -5,7 +5,7 @@ import { Shield, ShieldCheck, ShieldX, RefreshCw, Trash2, HardDrive } from 'luci
 import { useAdminSession } from '@/hooks/useAdminSession';
 
 export function AdminSessionPanel() {
-  const { session, loading, verifying, verifyStepUp, clearSession, hardRefreshCache } = useAdminSession();
+  const { session, loading, verifying, verifyStepUp, clearSession, hardRefreshCache, testStepUp } = useAdminSession();
 
   if (loading) {
     return (
@@ -151,6 +151,18 @@ export function AdminSessionPanel() {
                 </>
               )}
             </Button>
+
+            {window.location.host.includes('lovable.app') && (
+              <Button
+                onClick={testStepUp}
+                size="sm"
+                variant="outline"
+                className="bg-orange-50 border-orange-200 text-orange-800 hover:bg-orange-100 dark:bg-orange-950 dark:border-orange-800 dark:text-orange-200"
+              >
+                <Shield className="h-4 w-4 mr-2" />
+                Headless Test
+              </Button>
+            )}
 
             {isValid && (
               <Button
