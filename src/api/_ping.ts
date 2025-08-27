@@ -3,8 +3,8 @@
 export default async function handler(req: any, res: any) {
   // Set no-cache headers
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Vary', 'Cookie');
   res.setHeader('X-Server-Runtime', 'api-handler');
   
   // CORS headers

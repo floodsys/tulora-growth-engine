@@ -93,8 +93,8 @@ export default async function handler(req: any, res: any) {
     
     res.setHeader('Set-Cookie', allCookies);
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Vary', 'Cookie');
     
     // Set CORS headers
     Object.entries(corsHeaders).forEach(([key, value]) => {

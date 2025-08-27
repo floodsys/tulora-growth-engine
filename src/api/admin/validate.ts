@@ -26,9 +26,8 @@ export default async function handler(req: any, res: any) {
   try {
     // Set response headers
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Vary', 'Cookie, Authorization');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Vary', 'Cookie');
     
     // Set CORS headers
     Object.entries(corsHeaders).forEach(([key, value]) => {
@@ -94,13 +93,15 @@ export default async function handler(req: any, res: any) {
 
     res.statusCode = 200;
     return res.end(JSON.stringify({
+      cookie_present: true,
+      session_age_sec: ageSeconds,
+      ttl_sec: Math.max(0, maxAgeSeconds - ageSeconds),
+      outcome: valid ? 'valid' : 'expired',
       valid,
       issued_at: issuedAtStr,
       age_sec: ageSeconds,
       max_age_sec: maxAgeSeconds,
-      ttl_sec: Math.max(0, maxAgeSeconds - ageSeconds),
-      reason: valid ? 'Valid session' : 'Session expired',
-      cookie_present: true
+      reason: valid ? 'Valid session' : 'Session expired'
     }));
 
   } catch (error) {

@@ -25,14 +25,15 @@ export function useAdminSession() {
       setLoading(true);
       
       // Call the validate API endpoint with credentials
-      const response = await fetch('/api/admin/validate', {
-        method: 'GET',
-        credentials: 'include', // Critical: include cookies
-        headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+        const session = await supabase.auth.getSession();
+        const response = await fetch('/api/admin/validate', {
+          method: 'GET',
+          credentials: 'include', // Critical: include cookies
+          headers: {
+            'Authorization': `Bearer ${session.data.session?.access_token}`,
+            'Content-Type': 'application/json'
+          }
+        });
 
       if (!response.ok) {
         throw new Error(`Validation failed: ${response.status} ${response.statusText}`);
