@@ -49,14 +49,21 @@ export default async function handler(req: any, res: any) {
     const cookieHeader = req.headers.cookie;
     const cookies = new Map();
     
+    // Debug: log the received cookie header
+    console.log('Received cookie header:', cookieHeader);
+    
     if (cookieHeader) {
       cookieHeader.split(';').forEach((cookie: string) => {
         const [name, value] = cookie.trim().split('=');
-        if (name && value) cookies.set(name, value);
+        if (name && value) {
+          cookies.set(name, value);
+          console.log('Parsed cookie:', name, '=', value);
+        }
       });
     }
 
     const saIssued = cookies.get('sa_issued');
+    console.log('Looking for sa_issued cookie, found:', saIssued);
     
     if (!saIssued) {
       res.statusCode = 200;

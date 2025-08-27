@@ -34,8 +34,12 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
+    console.log('Test endpoint called, host:', host, 'method:', req.method);
+    
     // Verify authentication (basic check)
     const authHeader = req.headers.authorization;
+    console.log('Auth header present:', !!authHeader);
+    
     if (!authHeader) {
       res.setHeader('Content-Type', 'application/json');
       res.statusCode = 401;
@@ -86,13 +90,11 @@ export default async function handler(req: any, res: any) {
       domain ? `Domain=${domain}` : undefined
     ].filter(Boolean).join('; ');
 
-    // Set clear cookies first, then the new cookie
-    const allCookies = [
-      ...clearCookies,
-      `sa_issued=${cookieValue}; ${cookieOptions}`
-    ];
+    // Just set the main cookie for now (simplify to debug)
+    const mainCookie = `sa_issued=${cookieValue}; ${cookieOptions}`;
+    console.log('Setting cookie:', mainCookie);
     
-    res.setHeader('Set-Cookie', allCookies);
+    res.setHeader('Set-Cookie', mainCookie);
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
@@ -116,7 +118,8 @@ export default async function handler(req: any, res: any) {
         httpOnly: true,
         environment: isProd ? 'production' : (isPreview ? 'preview' : 'localhost'),
         host: host,
-        cleared_old_cookies: clearCookies.length
+        cleared_old_cookies: 0, // Simplified for now
+        cookie_set: mainCookie
       }
     }));
 
