@@ -47,17 +47,29 @@ serve(async (req) => {
       
       const cookieValue = `${issuedAt}:${user.id}`;
       
-      // Determine if we're on localhost (allow insecure for dev)
+      // Environment-aware domain and security settings
       const host = req.headers.get('host') || '';
       const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1');
       
-      // Set domain for proper scope (works for www and apex)
-      const domain = isLocalhost ? undefined : `.${host.replace(/^www\./, '')}`;
+      // Set domain based on environment
+      let domain;
+      if (isLocalhost) {
+        domain = undefined; // No domain for localhost
+      } else if (host.includes('lovable.app')) {
+        domain = '.lovable.app'; // Preview environment
+      } else if (host.includes('tulora.io')) {
+        domain = '.tulora.io'; // Production environment
+      } else {
+        domain = `.${host.replace(/^www\./, '')}`; // Fallback
+      }
       
       // Clear any old cookies with different paths/domains first
       const clearOldCookies = [
         `sa_issued=; Max-Age=0; Path=/admin; ${domain ? `Domain=${domain}; ` : ''}HttpOnly`,
-        `sa_issued=; Max-Age=0; Path=/; HttpOnly`
+        `sa_issued=; Max-Age=0; Path=/; ${domain ? `Domain=${domain}; ` : ''}HttpOnly`,
+        // Clear any legacy cookies without domain
+        `sa_issued=; Max-Age=0; Path=/; HttpOnly`,
+        `sa_issued=; Max-Age=0; Path=/admin; HttpOnly`
       ];
       
       const cookieOptions = [
@@ -75,11 +87,12 @@ serve(async (req) => {
         expires_at: new Date(Date.now() + maxAge * 1000).toISOString(),
         max_age_seconds: maxAge,
         cookie_attributes: {
-          domain: domain || 'localhost',
+          domain: domain || 'host-only',
           path: '/',
           sameSite: 'Lax',
           secure: !isLocalhost,
-          httpOnly: true
+          httpOnly: true,
+          environment: isLocalhost ? 'localhost' : (host.includes('lovable.app') ? 'preview' : 'production')
         }
       }), {
         headers: {
@@ -161,7 +174,10 @@ serve(async (req) => {
         headers: {
           ...corsHeaders,
           "Content-Type": "application/json",
-          "Set-Cookie": `sa_issued=; Max-Age=0; HttpOnly; ${isLocalhost ? '' : 'Secure; '}SameSite=Lax; Path=/`
+          "Set-Cookie": [
+            `sa_issued=; Max-Age=0; Path=/; ${domain ? `Domain=${domain}; ` : ''}HttpOnly; ${isLocalhost ? '' : 'Secure; '}SameSite=Lax`,
+            `sa_issued=; Max-Age=0; Path=/; HttpOnly; ${isLocalhost ? '' : 'Secure; '}SameSite=Lax`
+          ].join(', ')
         },
         status: 200,
       });

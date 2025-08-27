@@ -16,7 +16,8 @@ export async function validateAdminSession(request: Request): Promise<Response> 
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-store, no-cache, must-revalidate',
-          'Pragma': 'no-cache'
+          'Pragma': 'no-cache',
+          'Vary': 'Cookie, Authorization'
         }
       });
     }
@@ -40,7 +41,8 @@ export async function validateAdminSession(request: Request): Promise<Response> 
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-store, no-cache, must-revalidate',
-          'Pragma': 'no-cache'
+          'Pragma': 'no-cache',
+          'Vary': 'Cookie, Authorization'
         }
       });
     }
@@ -50,7 +52,8 @@ export async function validateAdminSession(request: Request): Promise<Response> 
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-store, no-cache, must-revalidate',
-        'Pragma': 'no-cache'
+        'Pragma': 'no-cache',
+        'Vary': 'Cookie, Authorization'
       }
     });
 
@@ -64,7 +67,8 @@ export async function validateAdminSession(request: Request): Promise<Response> 
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-store, no-cache, must-revalidate',
-        'Pragma': 'no-cache'
+        'Pragma': 'no-cache',
+        'Vary': 'Cookie, Authorization'
       }
     });
   }

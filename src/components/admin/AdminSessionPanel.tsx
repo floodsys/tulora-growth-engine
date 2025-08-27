@@ -98,8 +98,14 @@ export function AdminSessionPanel() {
         )}
 
         <div className="border-t pt-4 space-y-3">
-          <div className="text-xs text-muted-foreground">
-            <strong>Cookie Details:</strong> sa_issued (HttpOnly, Secure, SameSite=Lax, Path=/)
+          <div className="text-xs text-muted-foreground space-y-1">
+            <div><strong>Current Host:</strong> {window.location.host}</div>
+            <div><strong>Environment:</strong> {
+              window.location.host.includes('localhost') ? 'localhost (dev)' :
+              window.location.host.includes('lovable.app') ? 'preview (.lovable.app)' :
+              window.location.host.includes('tulora.io') ? 'production (.tulora.io)' : 'unknown'
+            }</div>
+            <div><strong>Cookie:</strong> sa_issued (HttpOnly, Path=/, SameSite=Lax{window.location.protocol === 'https:' ? ', Secure' : ''})</div>
           </div>
           
           {session?.last_validate_time && (
