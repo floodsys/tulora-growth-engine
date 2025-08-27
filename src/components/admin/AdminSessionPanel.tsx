@@ -101,36 +101,58 @@ export function AdminSessionPanel() {
           <div className="text-xs text-muted-foreground space-y-1">
             <div><strong>Current Host:</strong> {window.location.host}</div>
             <div><strong>Environment:</strong> {
-              window.location.host.includes('localhost') ? 'localhost (dev)' :
-              window.location.host.includes('lovable.app') ? 'preview (.lovable.app)' :
-              window.location.host.includes('tulora.io') ? 'production (.tulora.io)' : 'unknown'
+              window.location.host.includes('localhost') ? 'Localhost (dev)' :
+              window.location.host.includes('lovable.app') ? 'Preview (.lovable.app)' :
+              window.location.host.includes('tulora.io') ? 'Production (.tulora.io)' : 'Unknown'
             }</div>
-            <div><strong>Cookie:</strong> sa_issued (HttpOnly, Path=/, SameSite=Lax{window.location.protocol === 'https:' ? ', Secure' : ''})</div>
+          </div>
+          
+          <div className="text-xs">
+            <strong>Cookie Configuration:</strong>
+            <div className="font-mono text-xs mt-1 space-y-1 ml-2">
+              <div>• Name: sa_issued</div>
+              <div>• Domain: {
+                window.location.host.includes('localhost') ? 'host-only' :
+                window.location.host.includes('lovable.app') ? '.lovable.app' :
+                window.location.host.includes('tulora.io') ? '.tulora.io' : 'host-only'
+              }</div>
+              <div>• Path: /</div>
+              <div>• HttpOnly: ✓</div>
+              <div>• Secure: {window.location.protocol === 'https:' ? '✓' : '✗'}</div>
+              <div>• SameSite: Lax</div>
+            </div>
           </div>
           
           {session?.last_validate_time && (
             <div className="text-xs">
               <strong>Last Validate Result:</strong>
-              <div className="font-mono text-xs mt-1 space-y-1">
-                <div>Time: {new Date(session.last_validate_time).toLocaleString()}</div>
-                <div>Endpoint: {session.validate_endpoint}</div>
+              <div className="font-mono text-xs mt-1 space-y-1 ml-2">
+                <div>• Time: {new Date(session.last_validate_time).toLocaleString()}</div>
+                <div>• URL: {session.validate_endpoint}</div>
                 <div className={session.cookie_present ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                  Cookie present: {session.cookie_present ? 'true' : 'false'}
+                  • Cookie present: {session.cookie_present ? 'true' : 'false'}
                 </div>
                 <div className={session.valid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                  Validation outcome: {session.valid ? 'SUCCESS' : 'FAILED'}
+                  • Outcome: {session.valid ? 'OK' : 'FAILED'}
                 </div>
-                <div className="text-muted-foreground">
-                  Cookie forwarding: ✓ (document.cookie sent to edge function)
-                </div>
-                {document.cookie.split(';').filter(c => c.trim().startsWith('sa_issued=')).length > 1 && (
-                  <div className="text-yellow-600 dark:text-yellow-400">
-                    ⚠ Multiple sa_issued cookies detected - may cause conflicts
-                  </div>
-                )}
               </div>
             </div>
           )}
+          
+          {(() => {
+            const duplicateCount = document.cookie.split(';').filter(c => c.trim().startsWith('sa_issued=')).length;
+            if (duplicateCount > 1) {
+              return (
+                <div className="text-xs text-yellow-600 dark:text-yellow-400">
+                  <strong>⚠ Duplicate Cookies Detected:</strong>
+                  <div className="font-mono text-xs mt-1 ml-2">
+                    Found {duplicateCount} sa_issued cookies - this may cause validation issues
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
           
           <div className="flex flex-wrap gap-2">
             <Button
