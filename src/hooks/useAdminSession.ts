@@ -24,32 +24,28 @@ export function useAdminSession() {
     try {
       setLoading(true);
       
-      // Call the validate edge function
-      const { data, error } = await supabase.functions.invoke('admin-validate', {
+      // Call the validate API endpoint
+      const response = await fetch('/api/admin/validate', {
+        method: 'GET',
+        credentials: 'include', // Include cookies
         headers: {
-          'Cookie': document.cookie // Forward all cookies including elevated session
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          'Content-Type': 'application/json'
         }
       });
 
-      if (error) {
-        console.error('Admin session check error:', error);
-        const sessionData = { 
-          valid: false, 
-          reason: 'Validation service error',
-          last_validate_time: new Date().toISOString(),
-          validate_endpoint: 'edge-function://admin-validate',
-          cookie_present: false
-        };
-        setSession(sessionData);
-        setLoading(false);
-        return;
+      if (!response.ok) {
+        throw new Error(`Validation failed: ${response.status}`);
       }
+
+      const data = await response.json();
+
       
       // Add validation metadata
       const sessionWithMeta = {
         ...data,
         last_validate_time: new Date().toISOString(),
-        validate_endpoint: 'edge-function://admin-validate',
+        validate_endpoint: '/api/admin/validate',
         cookie_present: data.cookie_present || data.valid // Use explicit flag or infer from validity
       };
       
@@ -60,7 +56,7 @@ export function useAdminSession() {
         valid: false, 
         reason: 'Check failed',
         last_validate_time: new Date().toISOString(),
-        validate_endpoint: 'edge-function://admin-validate',
+        validate_endpoint: '/api/admin/validate',
         cookie_present: false
       });
     } finally {
@@ -186,8 +182,20 @@ export function useAdminSession() {
 
   const testStepUp = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('admin-step-up-test');
-      if (error) throw error;
+      const response = await fetch('/api/admin/step-up/test', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Test failed: ${response.status}`);
+      }
+
+      const data = await response.json();
       
       toast({
         title: "Test step-up successful", 
