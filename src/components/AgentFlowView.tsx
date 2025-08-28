@@ -421,39 +421,41 @@ export function AgentFlowView({ agent, onBack }: AgentFlowViewProps) {
         {/* Right Content Area */}
         <div className="lg:col-span-3">
           {viewMode === "flow" ? (
-            <div className="space-y-4">
-              {agentFlow.steps.map((step, index) => (
-                <Card key={step.id} className="border border-border/50">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-medium">{index + 1}</span>
+            <div className="max-h-[500px] overflow-y-auto pr-2">
+              <div className="space-y-4">
+                {agentFlow.steps.map((step, index) => (
+                  <Card key={step.id} className="border border-border/50">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                          <span className="text-sm font-medium">{index + 1}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-primary rounded-full"></span>
+                            {step.title}
+                          </h4>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            {step.description}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
-                          <span className="w-2 h-2 bg-primary rounded-full"></span>
-                          {step.title}
-                        </h4>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          {step.description}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              
-              <div className="mt-6 text-right">
-                <Button variant="outline" className="text-sm">
-                  Explore the agent's knowledge base →
-                </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+                
+                <div className="mt-6 text-right">
+                  <Button variant="outline" className="text-sm">
+                    Explore the agent's knowledge base →
+                  </Button>
+                </div>
               </div>
             </div>
           ) : (
             <Card className="border border-border/50">
               <CardContent className="p-6">
                 <h3 className="font-medium mb-4">Agent Prompt</h3>
-                <div className="bg-muted/30 rounded-lg p-4 max-h-[600px] overflow-y-auto">
+                <div className="bg-muted/30 rounded-lg p-4 max-h-[400px] overflow-y-auto">
                   <pre className="text-sm text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
                     {agentFlow.prompt}
                   </pre>
