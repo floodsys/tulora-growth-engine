@@ -13,6 +13,7 @@ interface AgentFlowViewProps {
     tags: string[];
   };
   onBack: () => void;
+  onViewKnowledgeBase?: () => void;
 }
 
 const agentFlows = {
@@ -331,7 +332,7 @@ If conversation becomes repetitive or looped:
   }
 };
 
-export function AgentFlowView({ agent, onBack }: AgentFlowViewProps) {
+export function AgentFlowView({ agent, onBack, onViewKnowledgeBase }: AgentFlowViewProps) {
   const [viewMode, setViewMode] = useState<"flow" | "prompt">("flow");
   const agentFlow = agentFlows[agent.slug as keyof typeof agentFlows];
 
@@ -445,7 +446,11 @@ export function AgentFlowView({ agent, onBack }: AgentFlowViewProps) {
                 ))}
                 
                 <div className="mt-6 text-right">
-                  <Button variant="outline" className="text-sm">
+                  <Button 
+                    variant="outline" 
+                    className="text-sm"
+                    onClick={onViewKnowledgeBase}
+                  >
                     Explore the agent's knowledge base →
                   </Button>
                 </div>
