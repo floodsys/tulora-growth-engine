@@ -18,10 +18,19 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
   const [phoneNumber, setPhoneNumber] = useState("+1");
   const [isCallLoading, setIsCallLoading] = useState(false);
   const [isBrowserLoading, setIsBrowserLoading] = useState(false);
-  const [browserStatus, setBrowserStatus] = useState<"idle" | "connected">("idle");
+  const [browserSessionData, setBrowserSessionData] = useState<any>(null);
   const [lastTraceId, setLastTraceId] = useState<string>("");
   const [statusMessage, setStatusMessage] = useState<string>("");
+  const [errorMessage, setErrorMessage] = useState<string>("");
   const { toast } = useToast();
+
+  const getErrorMessage = (error: any): string => {
+    if (error?.message?.includes('400')) return "Check the fields (E.164 phone, agent).";
+    if (error?.message?.includes('401')) return "Auth missing — set VITE_SUPABASE_ANON_KEY.";
+    if (error?.message?.includes('405')) return "Use POST only.";
+    if (error?.message?.includes('502')) return "Upstream error — try again.";
+    return error instanceof Error ? error.message : 'Unknown error';
+  };
 
   const validatePhoneNumber = (phone: string): boolean => {
     // Basic E.164 validation
@@ -50,6 +59,7 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
 
     setIsCallLoading(true);
     setStatusMessage("");
+    setErrorMessage("");
     setLastTraceId("");
     try {
       const response = await callEF<{ traceId?: string }>('retell-outbound', {
@@ -70,10 +80,11 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
       });
     } catch (error) {
       console.error('Error initiating call:', error);
-      setStatusMessage(`Call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMsg = getErrorMessage(error);
+      setErrorMessage(`Call failed: ${errorMsg}`);
       toast({
         title: "Call failed",
-        description: "Unable to initiate the call. Please try again.",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -84,7 +95,9 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
   const handleTryInBrowser = async () => {
     setIsBrowserLoading(true);
     setStatusMessage("");
+    setErrorMessage("");
     setLastTraceId("");
+    setBrowserSessionData(null);
     try {
       const response = await callEF<{ traceId?: string }>('retell-webcall-create', {
         agentSlug: slug,
@@ -95,24 +108,22 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
         setLastTraceId(response.traceId);
       }
 
-      setBrowserStatus("connected");
-      setStatusMessage(`Web call ready${response?.traceId ? ` (${response.traceId})` : ''}`);
+      // Store session data for display
+      setBrowserSessionData(response);
+      setStatusMessage(`Web call session created${response?.traceId ? ` (${response.traceId})` : ''}`);
       
       toast({
-        title: "Web call ready!",
-        description: `Connected to ${name}. Start speaking!`,
+        title: "Web call session ready!",
+        description: `Session created for ${name}. Browser audio coming soon.`,
       });
 
-      // Auto-reset after 30 seconds for demo purposes
-      setTimeout(() => {
-        setBrowserStatus("idle");
-      }, 30000);
     } catch (error) {
       console.error('Error creating web call:', error);
-      setStatusMessage(`Web call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMsg = getErrorMessage(error);
+      setErrorMessage(`Web call failed: ${errorMsg}`);
       toast({
         title: "Web call failed",
-        description: "Unable to create web call. Please try again.",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -140,14 +151,33 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {browserStatus === "connected" ? (
-          <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-            <div className="flex items-center justify-center space-x-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-green-700 dark:text-green-300 font-medium">
-                Connected — speak now
-              </span>
+        {browserSessionData ? (
+          <div className="space-y-4">
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Session Details</h4>
+              <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                {browserSessionData.call_id && (
+                  <div><span className="font-medium">Call ID:</span> {browserSessionData.call_id}</div>
+                )}
+                {browserSessionData.client_secret && (
+                  <div><span className="font-medium">Client Secret:</span> {browserSessionData.client_secret.slice(0, 20)}...</div>
+                )}
+                {browserSessionData.access_token && (
+                  <div><span className="font-medium">Access Token:</span> {browserSessionData.access_token.slice(0, 20)}...</div>
+                )}
+              </div>
+              <p className="text-xs text-blue-600 dark:text-blue-300 mt-2 italic">
+                Browser audio coming soon.
+              </p>
             </div>
+            
+            <Button
+              onClick={() => setBrowserSessionData(null)}
+              variant="outline"
+              className="w-full"
+            >
+              Reset Session
+            </Button>
           </div>
         ) : (
           <>
@@ -200,10 +230,15 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
           </>
         )}
         
-        {/* Status Message */}
-        {statusMessage && (
+        {/* Status/Error Messages */}
+        {(statusMessage || errorMessage) && (
           <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-            <p className="text-sm text-muted-foreground">{statusMessage}</p>
+            {statusMessage && (
+              <p className="text-sm text-muted-foreground">{statusMessage}</p>
+            )}
+            {errorMessage && (
+              <p className="text-sm text-destructive">{errorMessage}</p>
+            )}
             {lastTraceId && (
               <p className="text-xs text-muted-foreground mt-1">Trace ID: {lastTraceId}</p>
             )}
