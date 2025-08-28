@@ -237,7 +237,12 @@ serve(async (req) => {
       const errorText = await calResponse.text();
       console.error(`[${traceId}] Cal.com API error: ${calResponse.status} - ${errorText.substring(0, 200)}`);
       return new Response(
-        JSON.stringify({ error: 'Upstream service error', traceId }),
+        JSON.stringify({ 
+          error: 'UPSTREAM_CAL_ERROR',
+          status: calResponse.status,
+          hint: 'Check API key / payload / IDs / phone number.',
+          traceId 
+        }),
         { 
           status: 502, 
           headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
