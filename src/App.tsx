@@ -14,6 +14,7 @@ import NotFound from "@/pages/NotFound";
 import AgentSettings from "@/pages/AgentSettings";
 import InviteAccept from "@/pages/InviteAccept";
 import Demo from "@/pages/Demo";
+import VoiceDemo from "@/pages/demos/voice";
 import SettingsLayout from "@/pages/SettingsLayout";
 import { TeamAccessGuard } from "@/components/guards/TeamAccessGuard";
 
@@ -51,6 +52,7 @@ function App() {
             <Route path="/invite/accept" element={<InviteAccept />} />
             <Route path="/invite/accept-new" element={<InviteAcceptRedirect />} />
             <Route path="/demo" element={<Demo />} />
+            <Route path="/demos/voice" element={<VoiceDemo />} />
             <Route path="/activity-logs" element={<ActivityLogs />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/_diag" element={<AdminDiagnostic />} />
