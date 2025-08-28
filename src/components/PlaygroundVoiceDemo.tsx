@@ -60,6 +60,10 @@ export function PlaygroundVoiceDemo() {
     setActiveTab("use-case");
   };
 
+  const handleViewKnowledgeBase = () => {
+    setActiveTab("knowledge-base");
+  };
+
   return (
     <section id="voice-demo">
       <div className="playground-wrapper is-test">
@@ -122,7 +126,7 @@ export function PlaygroundVoiceDemo() {
                 (() => {
                   const agent = voiceAgents.find(a => a.slug === selectedAgent);
                   return agent ? (
-                    <AgentFlowView agent={agent} onBack={handleBackToUseCases} />
+                    <AgentFlowView agent={agent} onBack={handleBackToUseCases} onViewKnowledgeBase={handleViewKnowledgeBase} />
                   ) : (
                     <p className="text-muted-foreground text-center py-12">Agent not found</p>
                   );
