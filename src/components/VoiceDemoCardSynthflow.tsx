@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Phone, Monitor, Loader2 } from "lucide-react";
+import { Phone, Monitor, Loader2, AudioWaveform } from "lucide-react";
 import { callEF } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -133,15 +133,28 @@ export function VoiceDemoCardSynthflow({
     }
   };
 
+  // Get icon color based on agent slug
+  const getIconColor = (slug: string) => {
+    switch (slug) {
+      case 'paul': return 'text-red-500';
+      case 'laura': return 'text-green-500';
+      case 'jessica': return 'text-blue-500';
+      default: return 'text-primary';
+    }
+  };
+
   // If no actions, return compact card
   if (!showActions) {
     return (
       <Card className="playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300 h-full">
         <div className="p-4">
           <div className="space-y-3">
-            {category && (
-              <h3 className="text-base font-semibold leading-tight">{category}</h3>
-            )}
+            <div className="flex items-center justify-between">
+              {category && (
+                <h3 className="text-base font-semibold leading-tight">{category}</h3>
+              )}
+              <AudioWaveform className={`w-5 h-5 ${getIconColor(slug)} animate-pulse`} />
+            </div>
             {subtitle && (
               <p className="text-xs font-medium text-muted-foreground">{subtitle}</p>
             )}
