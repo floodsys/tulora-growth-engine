@@ -453,7 +453,7 @@ export function AgentFlowView({ agent, onBack }: AgentFlowViewProps) {
             <Card className="border border-border/50">
               <CardContent className="p-6">
                 <h3 className="font-medium mb-4">Agent Prompt</h3>
-                <div className="bg-muted/30 rounded-lg p-4">
+                <div className="bg-muted/30 rounded-lg p-4 max-h-[600px] overflow-y-auto">
                   <pre className="text-sm text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
                     {agentFlow.prompt}
                   </pre>
