@@ -17,8 +17,6 @@ interface VoiceAgent {
   retell_agent_id: string;
   from_number: string;
   use_case_tags: string[];
-  booking_provider: string;
-  booking_config: any;
   prompt: string;
   created_at: string;
 }
@@ -125,7 +123,6 @@ export default function AdminAgents() {
                         <TableHead>Retell Agent ID</TableHead>
                         <TableHead>From Number</TableHead>
                         <TableHead>Use Case Tags</TableHead>
-                        <TableHead>Booking Config</TableHead>
                         <TableHead>Prompt</TableHead>
                         <TableHead>Created</TableHead>
                       </TableRow>
@@ -133,13 +130,13 @@ export default function AdminAgents() {
                     <TableBody>
                       {loading ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8">
+                          <TableCell colSpan={7} className="text-center py-8">
                             Loading agents...
                           </TableCell>
                         </TableRow>
                       ) : filteredAgents.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                             No agents found
                           </TableCell>
                         </TableRow>
@@ -168,15 +165,10 @@ export default function AdminAgents() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              {agent.booking_config ? (
-                                <div className="text-sm text-muted-foreground">
-                                  {agent.booking_provider}: {agent.booking_config.eventTypeId}
+                              <div className="max-w-xs">
+                                <div className="text-sm" title={agent.prompt}>
+                                  {truncateText(agent.prompt, 40)}
                                 </div>
-                              ) : "—"}
-                            </TableCell>
-                            <TableCell className="max-w-xs">
-                              <div className="text-sm" title={agent.prompt}>
-                                {truncateText(agent.prompt, 40)}
                               </div>
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">

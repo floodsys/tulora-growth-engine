@@ -49,15 +49,6 @@ export function TestDashboard() {
               </Button>
             </Link>
             
-            <Link to="/admin/bookings">
-              <Button variant="outline" className="w-full justify-start h-auto p-4">
-                <Calendar className="h-5 w-5 mr-3" />
-                <div className="text-left">
-                  <div className="font-medium">Bookings</div>
-                  <div className="text-sm text-muted-foreground">Monitor appointments</div>
-                </div>
-              </Button>
-            </Link>
           </div>
         </CardContent>
       </Card>
