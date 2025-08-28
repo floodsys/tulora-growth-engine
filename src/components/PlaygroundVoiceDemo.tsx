@@ -5,6 +5,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AlertCircle } from "lucide-react";
 import { checkDevEnv } from "@/lib/api";
 import { VoiceDemoCardSynthflow } from "./VoiceDemoCardSynthflow";
+import { TestCallsTab } from "./TestCallsTab";
 import { cn } from "@/lib/utils";
 
 const voiceAgents = [
@@ -83,9 +84,9 @@ export function PlaygroundVoiceDemo() {
             </TabsList>
 
             <TabsContent value="use-case" className="mt-8">
-              {/* Cards stack vertically */}
+              {/* 3 cards grid - smaller and side by side */}
               <div 
-                className="space-y-6 max-w-6xl mx-auto"
+                className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-5xl mx-auto"
               >
                 {voiceAgents.map((agent) => (
                   <VoiceDemoCardSynthflow
@@ -96,6 +97,7 @@ export function PlaygroundVoiceDemo() {
                     tags={agent.tags}
                     category={agent.category}
                     subtitle={agent.subtitle}
+                    showActions={false}
                   />
                 ))}
               </div>
@@ -113,8 +115,8 @@ export function PlaygroundVoiceDemo() {
               <p className="text-muted-foreground">Actions coming soon...</p>
             </TabsContent>
 
-            <TabsContent value="test-calls" className="mt-8 text-center py-12">
-              <p className="text-muted-foreground">Test Calls coming soon...</p>
+            <TabsContent value="test-calls" className="mt-8">
+              <TestCallsTab />
             </TabsContent>
           </Tabs>
         </div>

@@ -15,6 +15,7 @@ interface VoiceDemoCardSynthflowProps {
   tags: string[];
   category?: string;
   subtitle?: string;
+  showActions?: boolean;
 }
 
 export function VoiceDemoCardSynthflow({ 
@@ -23,7 +24,8 @@ export function VoiceDemoCardSynthflow({
   description, 
   tags,
   category,
-  subtitle
+  subtitle,
+  showActions = true
 }: VoiceDemoCardSynthflowProps) {
   const [phoneNumber, setPhoneNumber] = useState("+1");
   const [isCallingPhone, setIsCallingPhone] = useState(false);
@@ -130,6 +132,35 @@ export function VoiceDemoCardSynthflow({
       setIsTryingBrowser(false);
     }
   };
+
+  // If no actions, return compact card
+  if (!showActions) {
+    return (
+      <Card className="playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300 h-full">
+        <div className="p-4">
+          <div className="space-y-3">
+            {category && (
+              <h3 className="text-base font-semibold leading-tight">{category}</h3>
+            )}
+            {subtitle && (
+              <p className="text-xs font-medium text-muted-foreground">{subtitle}</p>
+            )}
+            
+            {/* Tags */}
+            <div className="flex flex-wrap gap-1">
+              {tags.map((tag) => (
+                <span key={tag} className="tag-chip text-xs">
+                  {tag}
+                </span>
+              ))}
+            </div>
+            
+            <p className="text-xs text-muted-foreground leading-relaxed break-words">{description}</p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300">
