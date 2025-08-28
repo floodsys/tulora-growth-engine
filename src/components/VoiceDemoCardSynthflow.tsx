@@ -35,7 +35,7 @@ export function VoiceDemoCardSynthflow({
   const { toast } = useToast();
 
   const validatePhoneNumber = (phone: string) => {
-    // Basic E.164 validation: starts with +, followed by digits, 7-15 digits total
+    // E.164 validation: starts with +, followed by digits, 7-15 digits total
     const e164Regex = /^\+[1-9]\d{6,14}$/;
     return e164Regex.test(phone);
   };
@@ -73,14 +73,14 @@ export function VoiceDemoCardSynthflow({
         toNumber: phoneNumber,
       }) as any;
       
-      setStatusMessage("Call initiated successfully!");
+      setStatusMessage("Call queued—your phone should ring shortly.");
       if (response?.traceId) {
         setTraceId(response.traceId);
       }
       
       toast({
-        title: "Call initiated",
-        description: `Calling ${phoneNumber} with ${name}`,
+        title: "Call queued",
+        description: `Your phone should ring shortly for ${name}`,
       });
     } catch (error: any) {
       const errorMsg = getErrorMessage(error);
@@ -101,19 +101,19 @@ export function VoiceDemoCardSynthflow({
     setSessionData(null);
 
     try {
-      const response = await callEF("retell-webcall-create", {
+      const payload = await callEF("retell-webcall-create", {
         agentSlug: slug,
       }) as any;
       
       setStatusMessage("Web call session created!");
       setSessionData({
-        call_id: response?.call_id,
-        client_secret: response?.client_secret,
-        access_token: response?.access_token,
+        call_id: payload?.call_id,
+        client_secret: payload?.client_secret,
+        access_token: payload?.access_token,
       });
       
-      if (response?.traceId) {
-        setTraceId(response.traceId);
+      if (payload?.traceId) {
+        setTraceId(payload.traceId);
       }
     } catch (error: any) {
       const errorMsg = getErrorMessage(error);
@@ -224,10 +224,10 @@ export function VoiceDemoCardSynthflow({
             <Separator />
             <div className="space-y-2">
               <h4 className="text-sm font-medium">Session Details</h4>
-              <div className="text-xs space-y-1 bg-muted/50 p-3 rounded">
-                <div><strong>Call ID:</strong> {sessionData.call_id}</div>
-                <div><strong>Client Secret:</strong> {sessionData.client_secret?.substring(0, 20)}...</div>
-                <div><strong>Access Token:</strong> {sessionData.access_token?.substring(0, 20)}...</div>
+              <div className="text-xs space-y-1 bg-muted/50 p-3 rounded font-mono">
+                <div><strong>call_id:</strong> {sessionData.call_id}</div>
+                <div><strong>client_secret:</strong> {sessionData.client_secret}</div>
+                <div><strong>access_token:</strong> {sessionData.access_token}</div>
               </div>
               <p className="text-xs text-muted-foreground italic">
                 Browser audio coming soon.
