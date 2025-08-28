@@ -35,8 +35,6 @@ const Index = () => {
         {/* 3. Outcome-First Features */}
         <FeatureCards />
         
-        {/* 4. Live Demo / Interactive */}
-        <LiveDemo />
         
         {/* 5. Integrations */}
         <IntegrationsGrid />
