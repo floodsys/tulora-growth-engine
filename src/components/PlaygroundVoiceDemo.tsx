@@ -6,6 +6,7 @@ import { AlertCircle } from "lucide-react";
 import { checkDevEnv } from "@/lib/api";
 import { VoiceDemoCardSynthflow } from "./VoiceDemoCardSynthflow";
 import { TestCallsTab } from "./TestCallsTab";
+import { AgentFlowView } from "./AgentFlowView";
 import { cn } from "@/lib/utils";
 
 const voiceAgents = [
@@ -46,6 +47,31 @@ const tabs = [
 export function PlaygroundVoiceDemo() {
   const envCheck = checkDevEnv();
   const [activeTab, setActiveTab] = useState("use-case");
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+
+  const handleAgentSelect = (slug: string) => {
+    setSelectedAgent(slug);
+  };
+
+  const handleBackToUseCases = () => {
+    setSelectedAgent(null);
+  };
+
+  // If an agent is selected, show the detailed flow view
+  if (selectedAgent) {
+    const agent = voiceAgents.find(a => a.slug === selectedAgent);
+    if (agent) {
+      return (
+        <section id="voice-demo">
+          <div className="playground-wrapper is-test">
+            <div className="container mx-auto px-4 py-8">
+              <AgentFlowView agent={agent} onBack={handleBackToUseCases} />
+            </div>
+          </div>
+        </section>
+      );
+    }
+  }
 
   return (
     <section id="voice-demo">
@@ -98,6 +124,7 @@ export function PlaygroundVoiceDemo() {
                     category={agent.category}
                     subtitle={agent.subtitle}
                     showActions={false}
+                    onCardClick={handleAgentSelect}
                   />
                 ))}
               </div>

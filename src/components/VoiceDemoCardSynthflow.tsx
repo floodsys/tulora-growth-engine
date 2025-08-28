@@ -16,6 +16,7 @@ interface VoiceDemoCardSynthflowProps {
   category?: string;
   subtitle?: string;
   showActions?: boolean;
+  onCardClick?: (slug: string) => void;
 }
 
 export function VoiceDemoCardSynthflow({ 
@@ -25,7 +26,8 @@ export function VoiceDemoCardSynthflow({
   tags,
   category,
   subtitle,
-  showActions = true
+  showActions = true,
+  onCardClick
 }: VoiceDemoCardSynthflowProps) {
   const [phoneNumber, setPhoneNumber] = useState("+1");
   const [isCallingPhone, setIsCallingPhone] = useState(false);
@@ -146,7 +148,10 @@ export function VoiceDemoCardSynthflow({
   // If no actions, return compact card
   if (!showActions) {
     return (
-      <Card className="playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300">
+      <Card 
+        className="playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300 cursor-pointer"
+        onClick={() => onCardClick?.(slug)}
+      >
         <div className="p-4 min-h-[140px] flex flex-col justify-between">
           <div className="space-y-2">
             <div className="flex items-start justify-between">
