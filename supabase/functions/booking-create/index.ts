@@ -36,21 +36,9 @@ interface BookingRequest {
   };
   start: string; // ISO8601
   end: string; // ISO8601
-  eventTypeId?: number;
   notes?: string;
 }
 
-interface CalBookingRequest {
-  eventTypeId: number;
-  start: string;
-  end: string;
-  responses: {
-    name: string;
-    email?: string;
-    phone?: string;
-    notes?: string;
-  };
-}
 
 serve(async (req) => {
   const traceId = generateTraceId();
@@ -154,34 +142,9 @@ serve(async (req) => {
       );
     }
 
-    // Demo stub - no actual Cal.com integration
+    // Demo stub - no actual booking integration needed
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Determine eventTypeId based on priority
-    let eventTypeId = body.eventTypeId;
-    let agentId: string | null = null;
-
-    if (!eventTypeId) {
-      // Try to get from voice_agents table
-      const { data: agent, error: agentError } = await supabase
-        .from('voice_agents')
-        .select('id, booking_config')
-        .eq('slug', body.agentSlug)
-        .maybeSingle();
-
-      if (agentError) {
-        console.error(`[${traceId}] Error fetching agent: ${agentError.message}`);
-      } else if (agent?.booking_config?.eventTypeId) {
-        eventTypeId = agent.booking_config.eventTypeId;
-        agentId = agent.id;
-      }
-    }
-
-    // Demo stub - always return success without Cal.com integration
+    // Demo stub - always return success without booking integration
     return new Response(
       JSON.stringify({ 
         ok: true, 

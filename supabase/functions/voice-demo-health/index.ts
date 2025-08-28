@@ -58,7 +58,7 @@ serve(async (req) => {
     },
     booking: {
       enabled: false,
-      note: "Cal.com integration disabled for demo"
+      note: "Booking integration disabled for demo"
     }
   };
 
