@@ -7,7 +7,6 @@ import { Separator } from "@/components/ui/separator";
 import { Phone, Monitor, Loader2 } from "lucide-react";
 import { callEF } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { ErrorDisplay } from "@/components/ui/ErrorDisplay";
 
 const voiceAgents = [
   {
@@ -37,8 +36,6 @@ export function TestCallsTab() {
   const [isTryingBrowser, setIsTryingBrowser] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [traceId, setTraceId] = useState("");
-  const [callError, setCallError] = useState<any>(null);
-  const [browserError, setBrowserError] = useState<any>(null);
   const [sessionData, setSessionData] = useState<{
     call_id?: string;
     client_secret?: string;
@@ -82,7 +79,6 @@ export function TestCallsTab() {
 
     setIsCallingPhone(true);
     setStatusMessage("");
-    setCallError(null);
     setTraceId("");
     setSessionData(null);
 
@@ -103,19 +99,12 @@ export function TestCallsTab() {
         description: `Your phone should ring shortly for ${agentName}`,
       });
     } catch (error: any) {
-      console.error('Error initiating call:', error);
-      setCallError(error);
+      const errorMsg = getErrorMessage(error);
+      setStatusMessage(`Error: ${errorMsg}`);
       
       if (error?.traceId) {
         setTraceId(error.traceId);
       }
-      
-      const errorMsg = getErrorMessage(error);
-      toast({
-        title: "Call failed", 
-        description: errorMsg,
-        variant: "destructive",
-      });
     } finally {
       setIsCallingPhone(false);
     }
@@ -129,7 +118,6 @@ export function TestCallsTab() {
     
     setIsTryingBrowser(true);
     setStatusMessage("");
-    setBrowserError(null);
     setTraceId("");
     setSessionData(null);
 
@@ -148,25 +136,13 @@ export function TestCallsTab() {
       if (payload?.traceId) {
         setTraceId(payload.traceId);
       }
-      
-      toast({
-        title: "Web call session ready!",
-        description: "Session created successfully. Browser audio coming soon.",
-      });
     } catch (error: any) {
-      console.error('Error creating web call:', error);
-      setBrowserError(error);
+      const errorMsg = getErrorMessage(error);
+      setStatusMessage(`Error: ${errorMsg}`);
       
       if (error?.traceId) {
         setTraceId(error.traceId);
       }
-      
-      const errorMsg = getErrorMessage(error);
-      toast({
-        title: "Web call failed",
-        description: errorMsg,
-        variant: "destructive",
-      });
     } finally {
       setIsTryingBrowser(false);
     }
@@ -264,7 +240,11 @@ export function TestCallsTab() {
           {/* Status Messages */}
           {statusMessage && (
             <div 
-              className="text-sm p-3 rounded bg-green-50 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+              className={`text-sm p-3 rounded ${
+                statusMessage.includes("Error") 
+                  ? "bg-destructive/10 text-destructive border border-destructive/20" 
+                  : "bg-green-50 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+              }`}
               role="status"
               aria-live="polite"
             >
@@ -272,17 +252,8 @@ export function TestCallsTab() {
             </div>
           )}
 
-          {/* Error Messages */}
-          {callError && (
-            <ErrorDisplay error={callError} traceId={traceId} />
-          )}
-          
-          {browserError && (
-            <ErrorDisplay error={browserError} traceId={traceId} />
-          )}
-
           {/* Trace ID */}
-          {traceId && !callError && !browserError && (
+          {traceId && (
             <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded font-mono">
               <strong>Trace ID:</strong> {traceId}
             </div>

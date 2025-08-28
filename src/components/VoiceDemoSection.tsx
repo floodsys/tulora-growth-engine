@@ -1,33 +1,26 @@
 import { VoiceDemoCard } from "@/components/VoiceDemoCard";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { DiagnosticsBar } from "@/components/ui/DiagnosticsBar";
 import { AlertCircle } from "lucide-react";
 import { checkDevEnv } from "@/lib/api";
-
-const filterBookingTags = (tags: string[]) => {
-  const isDemoBookingEnabled = import.meta.env.VITE_DEMO_BOOKING_ENABLED === "true";
-  if (isDemoBookingEnabled) return tags;
-  return tags.filter(tag => !tag.toLowerCase().includes('booking'));
-};
 
 const voiceAgents = [
   {
     slug: "paul",
     name: "Paul",
     description: "Real Estate Lead Qualification",
-    tags: filterBookingTags(["#Real-Time Booking", "#Lead Qualification"]),
+    tags: ["#Real-Time Booking", "#Lead Qualification"],
   },
   {
     slug: "laura",
     name: "Laura", 
     description: "Restaurant Receptionist",
-    tags: filterBookingTags(["#Real-Time Booking", "#Receptionist"]),
+    tags: ["#Real-Time Booking", "#Receptionist"],
   },
   {
     slug: "jessica",
     name: "Jessica",
     description: "Healthcare Receptionist", 
-    tags: filterBookingTags(["#Receptionist", "#Real-Time Booking"]),
+    tags: ["#Receptionist", "#Real-Time Booking"],
   },
 ];
 
@@ -48,9 +41,6 @@ export function VoiceDemoSection() {
           <p className="text-sm text-muted-foreground mb-8">
             Use a real mobile number in E.164. Calls may be recorded for testing.
           </p>
-          
-          {/* Dev Diagnostics Bar */}
-          <DiagnosticsBar />
           
           {/* Dev warning banner */}
           {!envCheck.hasAnonKey && envCheck.warning && (

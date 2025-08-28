@@ -59,6 +59,3 @@ verify_jwt = false
 
 [functions.voice-demo-health]
 verify_jwt = false
-
-[functions.booking-create-stub]
-verify_jwt = false
