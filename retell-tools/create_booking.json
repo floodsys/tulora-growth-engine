@@ -1,0 +1,65 @@
+{
+  "type": "function",
+  "function": {
+    "name": "create_booking",
+    "description": "Create a calendar booking for the customer with the appropriate healthcare agent. Use this when a customer wants to schedule an appointment, consultation, or meeting. Always confirm the date, time, and contact details before creating the booking.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "attendee_name": {
+          "type": "string",
+          "description": "Full name of the person booking the appointment"
+        },
+        "attendee_phone": {
+          "type": "string",
+          "description": "Phone number of the attendee in E.164 format (e.g., +1234567890)"
+        },
+        "attendee_email": {
+          "type": "string",
+          "description": "Email address of the attendee"
+        },
+        "start": {
+          "type": "string",
+          "description": "Start time of the appointment in ISO 8601 format (e.g., 2025-01-15T15:00:00Z)"
+        },
+        "end": {
+          "type": "string", 
+          "description": "End time of the appointment in ISO 8601 format (e.g., 2025-01-15T16:00:00Z)"
+        },
+        "eventTypeId": {
+          "type": "integer",
+          "description": "The Cal.com event type ID for this booking. Use 3182186 for Jessica (healthcare), 3182183 for Laura (restaurant), or 3182184 for Paul (real estate)"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes or special requests for the appointment"
+        }
+      },
+      "required": ["attendee_name", "start", "end"]
+    }
+  },
+  "server": {
+    "url": "https://nkjxbeypbiclvouqfjyc.supabase.co/functions/v1/booking-create",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ranhiZXlwYmljbHZvdXFmanljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0Nzg2NDEsImV4cCI6MjA3MTA1NDY0MX0.iuFFcJSX97MKkiBvSYLmIao9aTMrQm7zqnf4kEDraQg"
+    },
+    "body": {
+      "agentSlug": "{{AGENT_SLUG}}", 
+      "attendee": {
+        "name": "{{attendee_name}}",
+        "phone": "{{attendee_phone}}",
+        "email": "{{attendee_email}}"
+      },
+      "start": "{{start}}",
+      "end": "{{end}}",
+      "eventTypeId": "{{eventTypeId}}",
+      "notes": "{{notes}}"
+    }
+  },
+  "response": {
+    "success_message": "Great! I've successfully created your booking. You should receive a confirmation email shortly with all the details. Is there anything else I can help you with?",
+    "error_message": "I apologize, but I wasn't able to create that booking. This could be due to a scheduling conflict or an issue with the provided information. Would you like to try a different time slot?"
+  }
+}
