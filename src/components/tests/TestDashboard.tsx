@@ -24,7 +24,7 @@ export function TestDashboard() {
         <CardHeader>
           <CardTitle>Voice System Management</CardTitle>
           <CardDescription>
-            Monitor and manage voice agents, calls, and bookings
+            Monitor and manage voice agents and calls
           </CardDescription>
         </CardHeader>
         <CardContent>

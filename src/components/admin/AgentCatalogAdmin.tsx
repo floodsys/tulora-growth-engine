@@ -53,7 +53,7 @@ const AGENT_TYPES = {
     defaults: {
       greetingStyle: 'professional_warm',
       qualificationRubric: 'budget_authority_need_timeline',
-      bookingHandoff: 'calendar_integration',
+      handoffMethod: 'calendar_integration',
       operatingHours: '9am-5pm_business_days',
       complianceDisclaimer: 'This call may be recorded for quality purposes.'
     },
@@ -62,7 +62,7 @@ const AGENT_TYPES = {
       'crm_webhook_url',
       'calendar_settings',
       'qualification_criteria',
-      'booking_flow_url'
+      'scheduling_flow_url'
     ]
   },
   ai_phone_support: {
