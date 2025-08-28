@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
 import { checkDevEnv } from "@/lib/api";
 import { VoiceDemoCardSynthflow } from "./VoiceDemoCardSynthflow";
+import { cn } from "@/lib/utils";
 
 const voiceAgents = [
   {
@@ -24,8 +27,21 @@ const voiceAgents = [
   },
 ];
 
+const filterChips = [
+  { label: "All", value: "all" },
+  { label: "#Real-Time Booking", value: "#Real-Time Booking" },
+  { label: "#Receptionist", value: "#Receptionist" },
+  { label: "#Lead Qualification", value: "#Lead Qualification" },
+];
+
 export function PlaygroundVoiceDemo() {
   const envCheck = checkDevEnv();
+  const [selectedFilter, setSelectedFilter] = useState("all");
+
+  // Filter agents based on selected chip
+  const filteredAgents = selectedFilter === "all" 
+    ? voiceAgents 
+    : voiceAgents.filter(agent => agent.tags.includes(selectedFilter));
 
   return (
     <section id="voice-demo">
@@ -49,25 +65,29 @@ export function PlaygroundVoiceDemo() {
             )}
           </div>
 
-          {/* Use-case chips */}
+          {/* Use-case filter chips */}
           <div className="flex flex-wrap justify-center gap-2 mb-8">
-            <span className="px-3 py-1 bg-primary/10 text-primary text-xs rounded-full">
-              Real Estate
-            </span>
-            <span className="px-3 py-1 bg-primary/10 text-primary text-xs rounded-full">
-              Restaurant
-            </span>
-            <span className="px-3 py-1 bg-primary/10 text-primary text-xs rounded-full">
-              Healthcare
-            </span>
-            <span className="px-3 py-1 bg-primary/10 text-primary text-xs rounded-full">
-              Live Demo
-            </span>
+            {filterChips.map((chip) => (
+              <Button
+                key={chip.value}
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedFilter(chip.value)}
+                className={cn(
+                  "px-4 py-2 text-sm border border-border/50 hover:border-primary/50 transition-all duration-200",
+                  selectedFilter === chip.value 
+                    ? "bg-primary text-primary-foreground border-primary" 
+                    : "bg-background/50 hover:bg-primary/10"
+                )}
+              >
+                {chip.label}
+              </Button>
+            ))}
           </div>
 
           {/* 3 cards grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {voiceAgents.map((agent) => (
+            {filteredAgents.map((agent) => (
               <VoiceDemoCardSynthflow
                 key={agent.slug}
                 slug={agent.slug}
