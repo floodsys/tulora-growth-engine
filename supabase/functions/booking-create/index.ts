@@ -57,18 +57,7 @@ serve(async (req) => {
   const origin = req.headers.get('origin');
   const responseCorsHeaders = getCorsHeaders(origin);
 
-  // Environment variable guards - check required secrets
-  const calApiKey = Deno.env.get('CAL_API_KEY');
-  
-  if (!calApiKey) {
-    return new Response(
-      JSON.stringify({ error: 'MISCONFIG: missing CAL_API_KEY', traceId }),
-      { 
-        status: 500, 
-        headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
-  }
+  // This function is now a stub for demo purposes
 
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -165,8 +154,7 @@ serve(async (req) => {
       );
     }
 
-    // Environment variables already validated at function start
-    const defaultEventTypeId = Deno.env.get('CAL_DEFAULT_EVENT_TYPE_ID');
+    // Demo stub - no actual Cal.com integration
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -193,105 +181,25 @@ serve(async (req) => {
       }
     }
 
-    if (!eventTypeId && defaultEventTypeId) {
-      eventTypeId = parseInt(defaultEventTypeId);
-    }
-
-    if (!eventTypeId) {
-      console.log(`[${traceId}] No eventTypeId available for agent: ${body.agentSlug}`);
-      return new Response(
-        JSON.stringify({ error: 'MISCONFIG: missing eventTypeId in request, agent config, or CAL_DEFAULT_EVENT_TYPE_ID', traceId }),
-        { 
-          status: 500, 
-          headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    // Prepare Cal.com API request
-    const calPayload: CalBookingRequest = {
-      eventTypeId: eventTypeId,
-      start: body.start,
-      end: body.end,
-      responses: {
-        name: body.attendee.name,
-        ...(body.attendee.email && { email: body.attendee.email }),
-        ...(body.attendee.phone && { phone: body.attendee.phone }),
-        ...(body.notes && { notes: body.notes }),
-      },
-    };
-
-    console.log(`[${traceId}] Creating Cal.com booking for agent ${body.agentSlug}, eventTypeId: ${eventTypeId}`);
-
-    // Create booking via Cal.com API
-    const calResponse = await fetch('https://api.cal.com/v1/bookings', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${calApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(calPayload),
-    });
-
-    if (!calResponse.ok) {
-      const errorText = await calResponse.text();
-      console.error(`[${traceId}] Cal.com API error: ${calResponse.status} - ${errorText.substring(0, 200)}`);
-      return new Response(
-        JSON.stringify({ 
-          error: 'UPSTREAM_CAL_ERROR',
-          status: calResponse.status,
-          hint: 'Check API key / payload / IDs / phone number.',
-          traceId 
-        }),
-        { 
-          status: 502, 
-          headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    const calBookingData = await calResponse.json();
-    
-    // Insert booking record into database
-    const { data: bookingRecord, error: insertError } = await supabase
-      .from('bookings')
-      .insert({
-        agent_id: agentId,
-        cal_booking_id: calBookingData.id?.toString() || calBookingData.uid,
-        attendee_name: body.attendee.name,
-        attendee_phone: body.attendee.phone || null,
-        attendee_email: body.attendee.email || null,
-        time_start: body.start,
-        time_end: body.end,
-        payload: calBookingData,
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error(`[${traceId}] Error inserting booking record: ${insertError.message}`);
-      // Log the error but don't fail the request since Cal.com booking was successful
-    }
-
-    console.log(`[${traceId}] Booking created successfully for agent: ${body.agentSlug}`);
-
+    // Demo stub - always return success without Cal.com integration
     return new Response(
-      JSON.stringify({
-        ok: true,
-        booking: {
-          id: calBookingData.id || calBookingData.uid,
-          status: calBookingData.status,
-          eventTypeId: eventTypeId,
-          attendee: body.attendee.name,
+      JSON.stringify({ 
+        ok: true, 
+        booking: { 
+          id: "demo-" + traceId,
+          uid: "demo-" + traceId,
+          attendee: body.attendee,
           start: body.start,
-          end: body.end,
+          end: body.end
         },
-        traceId
+        traceId 
       }),
-      {
-        headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' },
+      { 
+        status: 200, 
+        headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
       }
     );
+
 
   } catch (error) {
     console.error(`[${traceId}] Error in booking-create function: ${error.message}`);

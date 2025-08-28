@@ -56,9 +56,9 @@ serve(async (req) => {
       webUrl: Boolean(Deno.env.get('RETELL_WEB_CREATE_URL')),
       fromNumber: Boolean(Deno.env.get('RETELL_FROM_NUMBER'))
     },
-    cal: {
-      apiKey: Boolean(Deno.env.get('CAL_API_KEY')),
-      defaultEventTypeId: Boolean(Deno.env.get('CAL_DEFAULT_EVENT_TYPE_ID'))
+    booking: {
+      enabled: false,
+      note: "Cal.com integration disabled for demo"
     }
   };
 
