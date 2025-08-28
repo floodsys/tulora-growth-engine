@@ -1,16 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
 
 // Helper for calling Edge Functions with proper auth
-export async function callEF<T>(fnName: string, body?: any): Promise<T> {
-  const { data, error } = await supabase.functions.invoke(fnName, {
-    body,
+export async function callEF<T>(fnName: string, body?: Record<string, unknown>): Promise<T> {
+  const res = await fetch(`/functions/v1/${fnName}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''}`,
+    },
+    body: body ? JSON.stringify(body) : undefined,
   });
-  
-  if (error) {
-    throw new Error(`Edge Function ${fnName} error: ${error.message}`);
-  }
-  
-  return data as T;
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
 }
 
 // Development helper to check for missing env vars

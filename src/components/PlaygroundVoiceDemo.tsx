@@ -10,19 +10,19 @@ const voiceAgents = [
   {
     slug: "paul",
     name: "Paul",
-    description: "Real Estate Lead Qualification",
+    description: "Qualifies buyer intent and books appointments.",
     tags: ["#Real-Time Booking", "#Lead Qualification"],
   },
   {
     slug: "laura",
     name: "Laura", 
-    description: "Restaurant Receptionist",
+    description: "Answers common questions and books tables.",
     tags: ["#Real-Time Booking", "#Receptionist"],
   },
   {
     slug: "jessica",
     name: "Jessica",
-    description: "Healthcare Receptionist", 
+    description: "Captures patient info and schedules visits.", 
     tags: ["#Receptionist", "#Real-Time Booking"],
   },
 ];
