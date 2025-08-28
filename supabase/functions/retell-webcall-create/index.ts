@@ -1,10 +1,30 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+// Get allowed origins from environment
+const allowedOrigins = [
+  Deno.env.get('VITE_APP_URL'),
+  Deno.env.get('PROJECT_URL'),
+  'https://nkjxbeypbiclvouqfjyc.supabase.co', // Project URL
+].filter(Boolean);
+
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': '*', // Will be overridden per request
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+function generateTraceId(): string {
+  return `trace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const isAllowedOrigin = origin && allowedOrigins.includes(origin);
+  return {
+    ...corsHeaders,
+    'Access-Control-Allow-Origin': isAllowedOrigin ? origin : 'null',
+  };
+}
 
 interface WebCallRequest {
   agentSlug: string;
@@ -15,18 +35,35 @@ interface RetellWebCallRequest {
 }
 
 serve(async (req) => {
+  const traceId = generateTraceId();
+  const origin = req.headers.get('origin');
+  const responseCorsHeaders = getCorsHeaders(origin);
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: responseCorsHeaders });
   }
 
-  // Method guard
+  // Method guard - enforce POST only
   if (req.method !== 'POST') {
+    console.log(`[${traceId}] Method not allowed: ${req.method}`);
     return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
+      JSON.stringify({ error: 'Method not allowed', traceId }),
       { 
         status: 405, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+
+  // CORS origin validation
+  if (origin && !allowedOrigins.includes(origin)) {
+    console.log(`[${traceId}] Origin not allowed: ${origin}`);
+    return new Response(
+      JSON.stringify({ error: 'Origin not allowed', traceId }),
+      { 
+        status: 403, 
+        headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
       }
     );
   }
@@ -35,11 +72,12 @@ serve(async (req) => {
     // Validate content type
     const contentType = req.headers.get('content-type');
     if (!contentType?.includes('application/json')) {
+      console.log(`[${traceId}] Invalid content type: ${contentType}`);
       return new Response(
-        JSON.stringify({ error: 'Content-Type must be application/json' }),
+        JSON.stringify({ error: 'Content-Type must be application/json', traceId }),
         { 
           status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
         }
       );
     }
@@ -48,11 +86,12 @@ serve(async (req) => {
     const body: WebCallRequest = await req.json();
     
     if (!body.agentSlug) {
+      console.log(`[${traceId}] Missing required field: agentSlug`);
       return new Response(
-        JSON.stringify({ error: 'Missing required field: agentSlug' }),
+        JSON.stringify({ error: 'Missing required field: agentSlug', traceId }),
         { 
           status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
         }
       );
     }
@@ -60,11 +99,12 @@ serve(async (req) => {
     // Validate agent slug
     const validSlugs = ['paul', 'laura', 'jessica'];
     if (!validSlugs.includes(body.agentSlug.toLowerCase())) {
+      console.log(`[${traceId}] Invalid agentSlug: ${body.agentSlug}`);
       return new Response(
-        JSON.stringify({ error: 'Invalid agentSlug. Must be one of: paul, laura, jessica' }),
+        JSON.stringify({ error: 'Invalid agentSlug. Must be one of: paul, laura, jessica', traceId }),
         { 
           status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
         }
       );
     }
@@ -74,23 +114,23 @@ serve(async (req) => {
     const retellWebCreateUrl = Deno.env.get('RETELL_WEB_CREATE_URL');
     
     if (!retellApiKey) {
-      console.error('RETELL_API_KEY not configured');
+      console.error(`[${traceId}] RETELL_API_KEY not configured`);
       return new Response(
-        JSON.stringify({ error: 'Service configuration error' }),
+        JSON.stringify({ error: 'Service configuration error', traceId }),
         { 
           status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
         }
       );
     }
 
     if (!retellWebCreateUrl) {
-      console.error('RETELL_WEB_CREATE_URL not configured');
+      console.error(`[${traceId}] RETELL_WEB_CREATE_URL not configured`);
       return new Response(
-        JSON.stringify({ error: 'Service configuration error' }),
+        JSON.stringify({ error: 'Service configuration error', traceId }),
         { 
           status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
         }
       );
     }
@@ -107,7 +147,7 @@ serve(async (req) => {
       retellPayload.agent_id = agentId;
     }
 
-    console.log(`Creating web call for agent ${body.agentSlug}`);
+    console.log(`[${traceId}] Creating web call for agent ${body.agentSlug}`);
 
     // Call Retell API
     const retellResponse = await fetch(retellWebCreateUrl, {
@@ -121,35 +161,35 @@ serve(async (req) => {
 
     if (!retellResponse.ok) {
       const errorText = await retellResponse.text();
-      console.error('Retell API error:', retellResponse.status, errorText);
+      console.error(`[${traceId}] Retell API error: ${retellResponse.status} - ${errorText.substring(0, 200)}`);
       return new Response(
-        JSON.stringify({ error: 'Failed to create web call' }),
+        JSON.stringify({ error: 'Upstream service error', traceId }),
         { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          status: 502, 
+          headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
         }
       );
     }
 
     const retellData = await retellResponse.json();
     
-    console.log('Web call created successfully for agent:', body.agentSlug);
+    console.log(`[${traceId}] Web call created successfully for agent: ${body.agentSlug}`);
 
     // Return the exact data from Retell for client initialization
     return new Response(
-      JSON.stringify(retellData),
+      JSON.stringify({ ...retellData, traceId }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' },
       }
     );
 
   } catch (error) {
-    console.error('Error in retell-webcall-create function:', error.message);
+    console.error(`[${traceId}] Error in retell-webcall-create function: ${error.message}`);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error', traceId }),
       {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' },
       }
     );
   }
