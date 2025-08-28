@@ -133,32 +133,32 @@ export function VoiceDemoCardSynthflow({
 
   return (
     <Card className="playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300">
-      <div className="flex">
+      <div className="flex flex-col lg:flex-row">
         {/* Left side - Content */}
         <div className="flex-1 p-6">
-          <div className="mb-4">
+          <div className="space-y-3">
             {category && (
-              <h3 className="text-lg font-semibold mb-1">{category}</h3>
+              <h3 className="text-lg font-semibold leading-tight">{category}</h3>
             )}
             {subtitle && (
-              <p className="text-sm font-medium text-muted-foreground mb-3">{subtitle}</p>
+              <p className="text-sm font-medium text-muted-foreground">{subtitle}</p>
             )}
             
             {/* Tags */}
-            <div className="flex flex-wrap gap-1 mb-3">
+            <div className="flex flex-wrap gap-1">
               {tags.map((tag) => (
-                <span key={tag} className="tag-chip">
+                <span key={tag} className="tag-chip text-xs">
                   {tag}
                 </span>
               ))}
             </div>
             
-            <p className="text-sm text-muted-foreground">{description}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed break-words">{description}</p>
           </div>
         </div>
 
         {/* Right side - Actions */}
-        <div className="w-80 p-6 border-l border-border/20">
+        <div className="w-full lg:w-80 p-6 border-t lg:border-t-0 lg:border-l border-border/20">
           <div className="space-y-4">
             {/* Phone Input */}
             <div className="space-y-2">

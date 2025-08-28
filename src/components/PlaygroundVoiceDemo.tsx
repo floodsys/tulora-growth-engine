@@ -83,9 +83,9 @@ export function PlaygroundVoiceDemo() {
             </TabsList>
 
             <TabsContent value="use-case" className="mt-8">
-              {/* 3 cards grid */}
+              {/* Cards stack vertically */}
               <div 
-                className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto"
+                className="space-y-6 max-w-6xl mx-auto"
               >
                 {voiceAgents.map((agent) => (
                   <VoiceDemoCardSynthflow
