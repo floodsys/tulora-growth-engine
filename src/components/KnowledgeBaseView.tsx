@@ -93,17 +93,17 @@ export function KnowledgeBaseView({ agent }: KnowledgeBaseViewProps) {
             <div>
               <h4 className="text-sm font-medium text-muted-foreground mb-3">UPLOAD FILES</h4>
               <div className="space-y-2">
-                <div className="flex items-center gap-2 p-2 rounded-md border border-dashed border-border">
-                  <FileText className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Attached PDF</span>
+                <div className="flex items-center gap-2 p-2 rounded-md border border-primary/20 bg-primary/5">
+                  <FileText className="w-4 h-4 text-primary" />
+                  <span className="text-sm text-primary">Attached PDF</span>
                 </div>
                 <div className="flex items-center gap-2 p-2 rounded-md text-muted-foreground">
                   <Globe className="w-4 h-4" />
                   <span className="text-sm">Web Content Import</span>
                 </div>
-                <div className="flex items-center gap-2 p-2 rounded-md border border-primary/20 bg-primary/5">
-                  <Database className="w-4 h-4 text-primary" />
-                  <span className="text-sm text-primary">Integrated Help Center</span>
+                <div className="flex items-center gap-2 p-2 rounded-md text-muted-foreground">
+                  <Database className="w-4 h-4" />
+                  <span className="text-sm">Integrated Help Center</span>
                 </div>
               </div>
             </div>
