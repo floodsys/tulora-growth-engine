@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.smoke-tests]  
 verify_jwt = false
+
+[functions.retell-webhook]
+verify_jwt = false
