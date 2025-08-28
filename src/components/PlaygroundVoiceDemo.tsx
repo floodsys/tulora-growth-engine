@@ -66,7 +66,7 @@ export function PlaygroundVoiceDemo() {
           </div>
 
           {/* Use-case filter chips */}
-          <div className="flex flex-wrap justify-center gap-2 mb-8">
+          <div className="flex flex-wrap justify-center gap-2 mb-8" role="tablist" aria-label="Filter voice agents by category">
             {filterChips.map((chip) => (
               <Button
                 key={chip.value}
@@ -74,11 +74,14 @@ export function PlaygroundVoiceDemo() {
                 size="sm"
                 onClick={() => setSelectedFilter(chip.value)}
                 className={cn(
-                  "px-4 py-2 text-sm border border-border/50 hover:border-primary/50 transition-all duration-200",
+                  "px-4 py-2 text-sm border border-border/50 hover:border-primary/50 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                   selectedFilter === chip.value 
                     ? "bg-primary text-primary-foreground border-primary" 
                     : "bg-background/50 hover:bg-primary/10"
                 )}
+                role="tab"
+                aria-selected={selectedFilter === chip.value}
+                aria-controls="agent-cards-grid"
               >
                 {chip.label}
               </Button>
@@ -86,7 +89,12 @@ export function PlaygroundVoiceDemo() {
           </div>
 
           {/* 3 cards grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          <div 
+            id="agent-cards-grid"
+            className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto"
+            role="tabpanel"
+            aria-label={`Voice agents filtered by ${selectedFilter === "all" ? "all categories" : selectedFilter}`}
+          >
             {filteredAgents.map((agent) => (
               <VoiceDemoCardSynthflow
                 key={agent.slug}

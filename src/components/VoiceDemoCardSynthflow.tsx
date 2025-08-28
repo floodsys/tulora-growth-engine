@@ -132,7 +132,11 @@ export function VoiceDemoCardSynthflow({
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">{name}</h3>
-          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+          <div 
+            className="w-3 h-3 bg-green-500 rounded-full" 
+            aria-label="Agent online status"
+            role="img"
+          ></div>
         </div>
         <p className="text-sm text-muted-foreground">{description}</p>
         
@@ -149,32 +153,41 @@ export function VoiceDemoCardSynthflow({
       <CardContent className="space-y-4">
         {/* Phone Input */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Phone Number</label>
+          <label htmlFor={`phone-${slug}`} className="text-sm font-medium">
+            Phone Number
+          </label>
           <Input
+            id={`phone-${slug}`}
             type="tel"
             value={phoneNumber}
             onChange={(e) => setPhoneNumber(e.target.value)}
             placeholder="+1234567890"
             className="font-mono text-sm"
+            aria-describedby={`phone-help-${slug}`}
+            disabled={isCallingPhone || isTryingBrowser}
           />
+          <p id={`phone-help-${slug}`} className="text-xs text-muted-foreground sr-only">
+            Enter phone number in E.164 format, starting with + and country code
+          </p>
         </div>
 
         {/* Action Buttons */}
         <div className="space-y-2">
           <Button
             onClick={handleCallMe}
-            disabled={isCallingPhone || !phoneNumber || phoneNumber === "+1"}
-            className="w-full"
+            disabled={isCallingPhone || isTryingBrowser || !phoneNumber || phoneNumber === "+1"}
+            className="w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             variant="default"
+            aria-label={`Call ${name} on your phone`}
           >
             {isCallingPhone ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
                 Calling...
               </>
             ) : (
               <>
-                <Phone className="w-4 h-4 mr-2" />
+                <Phone className="w-4 h-4 mr-2" aria-hidden="true" />
                 Call Me
               </>
             )}
@@ -182,18 +195,19 @@ export function VoiceDemoCardSynthflow({
           
           <Button
             onClick={handleTryInBrowser}
-            disabled={isTryingBrowser}
-            className="w-full"
+            disabled={isTryingBrowser || isCallingPhone}
+            className="w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             variant="outline"
+            aria-label={`Start ${name} in browser`}
           >
             {isTryingBrowser ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
                 Creating...
               </>
             ) : (
               <>
-                <Monitor className="w-4 h-4 mr-2" />
+                <Monitor className="w-4 h-4 mr-2" aria-hidden="true" />
                 Try in Browser
               </>
             )}
@@ -202,18 +216,23 @@ export function VoiceDemoCardSynthflow({
 
         {/* Status Messages */}
         {statusMessage && (
-          <div className={`text-xs p-2 rounded ${
-            statusMessage.includes("Error") 
-              ? "bg-destructive/10 text-destructive border border-destructive/20" 
-              : "bg-green-50 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
-          }`}>
+          <div 
+            className={`text-xs p-2 rounded ${
+              statusMessage.includes("Error") 
+                ? "bg-destructive/10 text-destructive border border-destructive/20" 
+                : "bg-green-50 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+            }`}
+            role="status"
+            aria-live="polite"
+          >
             {statusMessage}
           </div>
         )}
 
         {/* Trace ID */}
         {traceId && (
-          <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded font-mono">
+          <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded font-mono" role="status">
+            <span className="sr-only">Trace ID: </span>
             Trace: {traceId}
           </div>
         )}
@@ -224,7 +243,11 @@ export function VoiceDemoCardSynthflow({
             <Separator />
             <div className="space-y-2">
               <h4 className="text-sm font-medium">Session Details</h4>
-              <div className="text-xs space-y-1 bg-muted/50 p-3 rounded font-mono">
+              <div 
+                className="text-xs space-y-1 bg-muted/50 p-3 rounded font-mono"
+                role="region"
+                aria-label="Web call session information"
+              >
                 <div><strong>call_id:</strong> {sessionData.call_id}</div>
                 <div><strong>client_secret:</strong> {sessionData.client_secret}</div>
                 <div><strong>access_token:</strong> {sessionData.access_token}</div>
