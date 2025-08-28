@@ -3,24 +3,30 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { checkDevEnv } from "@/lib/api";
 
+const filterBookingTags = (tags: string[]) => {
+  const isDemoBookingEnabled = import.meta.env.VITE_DEMO_BOOKING_ENABLED === "true";
+  if (isDemoBookingEnabled) return tags;
+  return tags.filter(tag => !tag.toLowerCase().includes('booking'));
+};
+
 const voiceAgents = [
   {
     slug: "paul",
     name: "Paul",
     description: "Real Estate Lead Qualification",
-    tags: ["#Real-Time Booking", "#Lead Qualification"],
+    tags: filterBookingTags(["#Real-Time Booking", "#Lead Qualification"]),
   },
   {
     slug: "laura",
     name: "Laura", 
     description: "Restaurant Receptionist",
-    tags: ["#Real-Time Booking", "#Receptionist"],
+    tags: filterBookingTags(["#Real-Time Booking", "#Receptionist"]),
   },
   {
     slug: "jessica",
     name: "Jessica",
     description: "Healthcare Receptionist", 
-    tags: ["#Receptionist", "#Real-Time Booking"],
+    tags: filterBookingTags(["#Receptionist", "#Real-Time Booking"]),
   },
 ];
 

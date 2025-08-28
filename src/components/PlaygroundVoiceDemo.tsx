@@ -11,6 +11,12 @@ import { KnowledgeBaseView } from "./KnowledgeBaseView";
 import { ActionsView } from "./ActionsView";
 import { cn } from "@/lib/utils";
 
+const filterBookingTags = (tags: string[]) => {
+  const isDemoBookingEnabled = import.meta.env.VITE_DEMO_BOOKING_ENABLED === "true";
+  if (isDemoBookingEnabled) return tags;
+  return tags.filter(tag => !tag.toLowerCase().includes('booking'));
+};
+
 const voiceAgents = [
   {
     slug: "paul",
@@ -18,7 +24,7 @@ const voiceAgents = [
     category: "Real Estate",
     subtitle: "Lead Qualification · Buyer",
     description: "Meet Paul, an AI assistant designed for real estate lead qualification. Paul's primary objective is to identify the preference...",
-    tags: ["#Real-Time Booking", "#Lead Qualification"],
+    tags: filterBookingTags(["#Real-Time Booking", "#Lead Qualification"]),
   },
   {
     slug: "laura",
@@ -26,7 +32,7 @@ const voiceAgents = [
     category: "Hospitality",
     subtitle: "Customer Service · Restaurant",
     description: "Meet Laura, an AI assistant for Gourmet Table, a fine dining restaurant. Her primary role is to assist callers in scheduling...",
-    tags: ["#Real-Time Booking", "#Front-of-house"],
+    tags: filterBookingTags(["#Real-Time Booking", "#Front-of-house"]),
   },
   {
     slug: "jessica",
@@ -34,7 +40,7 @@ const voiceAgents = [
     category: "Healthcare",
     subtitle: "Healthcare Receptionist",
     description: "Meet Jessica, an AI assistant for your Healthcare company, dedicated to streamlining appointment scheduling and improving...", 
-    tags: ["#Receptionist", "#Real-Time Booking"],
+    tags: filterBookingTags(["#Receptionist", "#Real-Time Booking"]),
   },
 ];
 

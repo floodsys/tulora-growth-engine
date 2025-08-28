@@ -15,7 +15,9 @@ interface ActionsViewProps {
 }
 
 export const ActionsView = ({ agent }: ActionsViewProps) => {
-  const actions = [
+  const isDemoBookingEnabled = import.meta.env.VITE_DEMO_BOOKING_ENABLED === "true";
+  
+  const allActions = [
     {
       id: "real-time-booking",
       name: "Real-Time Booking",
@@ -44,6 +46,11 @@ export const ActionsView = ({ agent }: ActionsViewProps) => {
       iconColor: "text-purple-600"
     }
   ];
+
+  // Filter out booking action if demo booking is disabled
+  const actions = isDemoBookingEnabled 
+    ? allActions 
+    : allActions.filter(action => action.id !== "real-time-booking");
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
