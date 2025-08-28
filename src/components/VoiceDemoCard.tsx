@@ -15,10 +15,12 @@ interface VoiceDemoCardProps {
 }
 
 export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardProps) {
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("+1");
   const [isCallLoading, setIsCallLoading] = useState(false);
   const [isBrowserLoading, setIsBrowserLoading] = useState(false);
   const [browserStatus, setBrowserStatus] = useState<"idle" | "connected">("idle");
+  const [lastTraceId, setLastTraceId] = useState<string>("");
+  const [statusMessage, setStatusMessage] = useState<string>("");
   const { toast } = useToast();
 
   const validatePhoneNumber = (phone: string): boolean => {
@@ -47,18 +49,28 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
     }
 
     setIsCallLoading(true);
+    setStatusMessage("");
+    setLastTraceId("");
     try {
-      await callEF('retell-outbound', {
+      const response = await callEF<{ traceId?: string }>('retell-outbound', {
         agentSlug: slug,
         toNumber: phoneNumber,
       });
 
+      // Extract traceId if available
+      if (response?.traceId) {
+        setLastTraceId(response.traceId);
+      }
+      
+      setStatusMessage(`Call initiated successfully${response?.traceId ? ` (${response.traceId})` : ''}`);
+      
       toast({
         title: "Call initiated!",
         description: `${name} will call you at ${phoneNumber} shortly.`,
       });
     } catch (error) {
       console.error('Error initiating call:', error);
+      setStatusMessage(`Call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       toast({
         title: "Call failed",
         description: "Unable to initiate the call. Please try again.",
@@ -71,12 +83,21 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
 
   const handleTryInBrowser = async () => {
     setIsBrowserLoading(true);
+    setStatusMessage("");
+    setLastTraceId("");
     try {
-      await callEF('retell-webcall-create', {
+      const response = await callEF<{ traceId?: string }>('retell-webcall-create', {
         agentSlug: slug,
       });
 
+      // Extract traceId if available  
+      if (response?.traceId) {
+        setLastTraceId(response.traceId);
+      }
+
       setBrowserStatus("connected");
+      setStatusMessage(`Web call ready${response?.traceId ? ` (${response.traceId})` : ''}`);
+      
       toast({
         title: "Web call ready!",
         description: `Connected to ${name}. Start speaking!`,
@@ -88,6 +109,7 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
       }, 30000);
     } catch (error) {
       console.error('Error creating web call:', error);
+      setStatusMessage(`Web call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       toast({
         title: "Web call failed",
         description: "Unable to create web call. Please try again.",
@@ -99,7 +121,7 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
   };
 
   return (
-    <Card className="h-full">
+    <Card className="h-full rounded-2xl shadow-lg shadow-primary/10">
       <CardHeader>
         <div className="flex items-start justify-between">
           <div>
@@ -176,6 +198,16 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
               </Button>
             </div>
           </>
+        )}
+        
+        {/* Status Message */}
+        {statusMessage && (
+          <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+            <p className="text-sm text-muted-foreground">{statusMessage}</p>
+            {lastTraceId && (
+              <p className="text-xs text-muted-foreground mt-1">Trace ID: {lastTraceId}</p>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>
