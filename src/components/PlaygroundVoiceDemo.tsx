@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { DiagnosticsBar } from "@/components/ui/DiagnosticsBar";
 import { AlertCircle } from "lucide-react";
 import { checkDevEnv } from "@/lib/api";
 import { VoiceDemoCardSynthflow } from "./VoiceDemoCardSynthflow";
@@ -91,6 +92,9 @@ export function PlaygroundVoiceDemo() {
             <p className="text-lg text-muted-foreground mb-6">
               Choose a call type to see how Tulora AI agents handle real conversations.
             </p>
+            
+            {/* Dev Diagnostics Bar */}
+            <DiagnosticsBar />
             
             {/* Dev warning banner */}
             {!envCheck.hasAnonKey && envCheck.warning && (

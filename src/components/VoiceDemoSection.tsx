@@ -1,5 +1,6 @@
 import { VoiceDemoCard } from "@/components/VoiceDemoCard";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { DiagnosticsBar } from "@/components/ui/DiagnosticsBar";
 import { AlertCircle } from "lucide-react";
 import { checkDevEnv } from "@/lib/api";
 
@@ -47,6 +48,9 @@ export function VoiceDemoSection() {
           <p className="text-sm text-muted-foreground mb-8">
             Use a real mobile number in E.164. Calls may be recorded for testing.
           </p>
+          
+          {/* Dev Diagnostics Bar */}
+          <DiagnosticsBar />
           
           {/* Dev warning banner */}
           {!envCheck.hasAnonKey && envCheck.warning && (
