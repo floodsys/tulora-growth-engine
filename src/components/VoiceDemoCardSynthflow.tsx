@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Phone, Monitor, Loader2, AudioWaveform } from "lucide-react";
 import { callEF } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { ErrorDisplay } from "@/components/ui/ErrorDisplay";
 
 interface VoiceDemoCardSynthflowProps {
   slug: string;
@@ -34,6 +35,8 @@ export function VoiceDemoCardSynthflow({
   const [isTryingBrowser, setIsTryingBrowser] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [traceId, setTraceId] = useState("");
+  const [callError, setCallError] = useState<any>(null);
+  const [browserError, setBrowserError] = useState<any>(null);
   const [sessionData, setSessionData] = useState<{
     call_id?: string;
     client_secret?: string;
@@ -72,6 +75,7 @@ export function VoiceDemoCardSynthflow({
 
     setIsCallingPhone(true);
     setStatusMessage("");
+    setCallError(null);
     setTraceId("");
     setSessionData(null);
 
@@ -91,12 +95,19 @@ export function VoiceDemoCardSynthflow({
         description: `Your phone should ring shortly for ${name}`,
       });
     } catch (error: any) {
-      const errorMsg = getErrorMessage(error);
-      setStatusMessage(`Error: ${errorMsg}`);
+      console.error('Error initiating call:', error);
+      setCallError(error);
       
       if (error?.traceId) {
         setTraceId(error.traceId);
       }
+      
+      const errorMsg = getErrorMessage(error);
+      toast({
+        title: "Call failed",
+        description: errorMsg,
+        variant: "destructive",
+      });
     } finally {
       setIsCallingPhone(false);
     }
@@ -105,6 +116,7 @@ export function VoiceDemoCardSynthflow({
   const handleTryInBrowser = async () => {
     setIsTryingBrowser(true);
     setStatusMessage("");
+    setBrowserError(null);
     setTraceId("");
     setSessionData(null);
 
@@ -123,13 +135,25 @@ export function VoiceDemoCardSynthflow({
       if (payload?.traceId) {
         setTraceId(payload.traceId);
       }
+      
+      toast({
+        title: "Web call session ready!",
+        description: "Session created successfully. Browser audio coming soon.",
+      });
     } catch (error: any) {
-      const errorMsg = getErrorMessage(error);
-      setStatusMessage(`Error: ${errorMsg}`);
+      console.error('Error creating web call:', error);
+      setBrowserError(error);
       
       if (error?.traceId) {
         setTraceId(error.traceId);
       }
+      
+      const errorMsg = getErrorMessage(error);
+      toast({
+        title: "Web call failed",
+        description: errorMsg,
+        variant: "destructive",
+      });
     } finally {
       setIsTryingBrowser(false);
     }
@@ -277,11 +301,7 @@ export function VoiceDemoCardSynthflow({
             {/* Status Messages */}
             {statusMessage && (
               <div 
-                className={`text-xs p-2 rounded ${
-                  statusMessage.includes("Error") 
-                    ? "bg-destructive/10 text-destructive border border-destructive/20" 
-                    : "bg-green-50 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
-                }`}
+                className="text-xs p-2 rounded bg-green-50 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
                 role="status"
                 aria-live="polite"
               >
@@ -289,8 +309,17 @@ export function VoiceDemoCardSynthflow({
               </div>
             )}
 
+            {/* Error Messages */}
+            {callError && (
+              <ErrorDisplay error={callError} traceId={traceId} />
+            )}
+            
+            {browserError && (
+              <ErrorDisplay error={browserError} traceId={traceId} />
+            )}
+
             {/* Trace ID */}
-            {traceId && (
+            {traceId && !callError && !browserError && (
               <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded font-mono" role="status">
                 <span className="sr-only">Trace ID: </span>
                 Trace: {traceId}

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { callEF } from "@/lib/api";
+import { ErrorDisplay } from "@/components/ui/ErrorDisplay";
 
 interface VoiceDemoCardProps {
   slug: string;
@@ -21,7 +22,8 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
   const [browserSessionData, setBrowserSessionData] = useState<any>(null);
   const [lastTraceId, setLastTraceId] = useState<string>("");
   const [statusMessage, setStatusMessage] = useState<string>("");
-  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [callError, setCallError] = useState<any>(null);
+  const [browserError, setBrowserError] = useState<any>(null);
   const { toast } = useToast();
 
   const getErrorMessage = (error: any): string => {
@@ -59,7 +61,7 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
 
     setIsCallLoading(true);
     setStatusMessage("");
-    setErrorMessage("");
+    setCallError(null);
     setLastTraceId("");
     try {
       const response = await callEF<{ traceId?: string }>('retell-outbound', {
@@ -80,8 +82,14 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
       });
     } catch (error) {
       console.error('Error initiating call:', error);
+      setCallError(error);
+      
+      // Extract traceId from error if available
+      if (error && typeof error === 'object' && 'traceId' in error) {
+        setLastTraceId(error.traceId as string);
+      }
+      
       const errorMsg = getErrorMessage(error);
-      setErrorMessage(`Call failed: ${errorMsg}`);
       toast({
         title: "Call failed",
         description: errorMsg,
@@ -95,7 +103,7 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
   const handleTryInBrowser = async () => {
     setIsBrowserLoading(true);
     setStatusMessage("");
-    setErrorMessage("");
+    setBrowserError(null);
     setLastTraceId("");
     setBrowserSessionData(null);
     try {
@@ -119,8 +127,14 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
 
     } catch (error) {
       console.error('Error creating web call:', error);
+      setBrowserError(error);
+      
+      // Extract traceId from error if available
+      if (error && typeof error === 'object' && 'traceId' in error) {
+        setLastTraceId(error.traceId as string);
+      }
+      
       const errorMsg = getErrorMessage(error);
-      setErrorMessage(`Web call failed: ${errorMsg}`);
       toast({
         title: "Web call failed",
         description: errorMsg,
@@ -230,19 +244,23 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
           </>
         )}
         
-        {/* Status/Error Messages */}
-        {(statusMessage || errorMessage) && (
+        {/* Status Messages */}
+        {statusMessage && (
           <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-            {statusMessage && (
-              <p className="text-sm text-muted-foreground">{statusMessage}</p>
-            )}
-            {errorMessage && (
-              <p className="text-sm text-destructive">{errorMessage}</p>
-            )}
+            <p className="text-sm text-muted-foreground">{statusMessage}</p>
             {lastTraceId && (
               <p className="text-xs text-muted-foreground mt-1">Trace ID: {lastTraceId}</p>
             )}
           </div>
+        )}
+        
+        {/* Error Messages */}
+        {callError && (
+          <ErrorDisplay error={callError} traceId={lastTraceId} />
+        )}
+        
+        {browserError && (
+          <ErrorDisplay error={browserError} traceId={lastTraceId} />
         )}
       </CardContent>
     </Card>
