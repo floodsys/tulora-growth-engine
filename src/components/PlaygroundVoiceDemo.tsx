@@ -87,10 +87,12 @@ export function PlaygroundVoiceDemo() {
             </p>
             
             {/* Dev warning banner */}
-            {!envCheck.hasAnonKey && envCheck.warning && (
-              <Alert className="max-w-2xl mx-auto mb-8">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{envCheck.warning}</AlertDescription>
+            {!envCheck.isComplete && envCheck.warning && (
+              <Alert className="max-w-2xl mx-auto mb-8 border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
+                <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                  <strong>Dev Environment Issue:</strong> {envCheck.warning}
+                </AlertDescription>
               </Alert>
             )}
           </div>
