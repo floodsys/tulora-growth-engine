@@ -57,6 +57,19 @@ serve(async (req) => {
   const origin = req.headers.get('origin');
   const responseCorsHeaders = getCorsHeaders(origin);
 
+  // Environment variable guards - check required secrets
+  const calApiKey = Deno.env.get('CAL_API_KEY');
+  
+  if (!calApiKey) {
+    return new Response(
+      JSON.stringify({ error: 'MISCONFIG: missing CAL_API_KEY', traceId }),
+      { 
+        status: 500, 
+        headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: responseCorsHeaders });
@@ -152,20 +165,8 @@ serve(async (req) => {
       );
     }
 
-    // Get environment variables
-    const calApiKey = Deno.env.get('CAL_API_KEY');
+    // Environment variables already validated at function start
     const defaultEventTypeId = Deno.env.get('CAL_DEFAULT_EVENT_TYPE_ID');
-    
-    if (!calApiKey) {
-      console.error(`[${traceId}] CAL_API_KEY not configured`);
-      return new Response(
-        JSON.stringify({ error: 'Service configuration error', traceId }),
-        { 
-          status: 500, 
-          headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -199,9 +200,9 @@ serve(async (req) => {
     if (!eventTypeId) {
       console.log(`[${traceId}] No eventTypeId available for agent: ${body.agentSlug}`);
       return new Response(
-        JSON.stringify({ error: 'No eventTypeId available. Provide in request or configure default', traceId }),
+        JSON.stringify({ error: 'MISCONFIG: missing eventTypeId in request, agent config, or CAL_DEFAULT_EVENT_TYPE_ID', traceId }),
         { 
-          status: 400, 
+          status: 500, 
           headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
         }
       );

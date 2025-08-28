@@ -39,6 +39,30 @@ serve(async (req) => {
   const origin = req.headers.get('origin');
   const responseCorsHeaders = getCorsHeaders(origin);
 
+  // Environment variable guards - check required secrets
+  const retellApiKey = Deno.env.get('RETELL_API_KEY');
+  const retellWebCreateUrl = Deno.env.get('RETELL_WEB_CREATE_URL');
+  
+  if (!retellApiKey) {
+    return new Response(
+      JSON.stringify({ error: 'MISCONFIG: missing RETELL_API_KEY', traceId }),
+      { 
+        status: 500, 
+        headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+
+  if (!retellWebCreateUrl) {
+    return new Response(
+      JSON.stringify({ error: 'MISCONFIG: missing RETELL_WEB_CREATE_URL', traceId }),
+      { 
+        status: 500, 
+        headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: responseCorsHeaders });
@@ -109,31 +133,7 @@ serve(async (req) => {
       );
     }
 
-    // Get environment variables
-    const retellApiKey = Deno.env.get('RETELL_API_KEY');
-    const retellWebCreateUrl = Deno.env.get('RETELL_WEB_CREATE_URL');
-    
-    if (!retellApiKey) {
-      console.error(`[${traceId}] RETELL_API_KEY not configured`);
-      return new Response(
-        JSON.stringify({ error: 'Service configuration error', traceId }),
-        { 
-          status: 500, 
-          headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    if (!retellWebCreateUrl) {
-      console.error(`[${traceId}] RETELL_WEB_CREATE_URL not configured`);
-      return new Response(
-        JSON.stringify({ error: 'Service configuration error', traceId }),
-        { 
-          status: 500, 
-          headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
+    // Environment variables already validated at function start
 
     // Determine agent_id based on agent slug
     const agentSlugUpper = body.agentSlug.toUpperCase();

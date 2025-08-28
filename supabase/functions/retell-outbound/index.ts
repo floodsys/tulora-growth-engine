@@ -42,6 +42,30 @@ serve(async (req) => {
   const origin = req.headers.get('origin');
   const responseCorsHeaders = getCorsHeaders(origin);
 
+  // Environment variable guards - check required secrets
+  const retellApiKey = Deno.env.get('RETELL_API_KEY');
+  const retellPhoneCreateUrl = Deno.env.get('RETELL_PHONE_CREATE_URL');
+  
+  if (!retellApiKey) {
+    return new Response(
+      JSON.stringify({ error: 'MISCONFIG: missing RETELL_API_KEY', traceId }),
+      { 
+        status: 500, 
+        headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+
+  if (!retellPhoneCreateUrl) {
+    return new Response(
+      JSON.stringify({ error: 'MISCONFIG: missing RETELL_PHONE_CREATE_URL', traceId }),
+      { 
+        status: 500, 
+        headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: responseCorsHeaders });
@@ -124,31 +148,7 @@ serve(async (req) => {
       );
     }
 
-    // Get environment variables
-    const retellApiKey = Deno.env.get('RETELL_API_KEY');
-    const retellPhoneCreateUrl = Deno.env.get('RETELL_PHONE_CREATE_URL');
-    
-    if (!retellApiKey) {
-      console.error(`[${traceId}] RETELL_API_KEY not configured`);
-      return new Response(
-        JSON.stringify({ error: 'Service configuration error', traceId }),
-        { 
-          status: 500, 
-          headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    if (!retellPhoneCreateUrl) {
-      console.error(`[${traceId}] RETELL_PHONE_CREATE_URL not configured`);
-      return new Response(
-        JSON.stringify({ error: 'Service configuration error', traceId }),
-        { 
-          status: 500, 
-          headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
+    // Environment variables already validated at function start
 
     // Determine from_number based on agent slug
     const agentSlugUpper = body.agentSlug.toUpperCase();
@@ -161,7 +161,7 @@ serve(async (req) => {
     if (!fromNumber) {
       console.error(`[${traceId}] No from_number available for agent: ${body.agentSlug}`);
       return new Response(
-        JSON.stringify({ error: 'No phone number configured for this agent', traceId }),
+        JSON.stringify({ error: 'MISCONFIG: missing RETELL_FROM_NUMBER or AGENT_${agentSlug}_FROM', traceId }),
         { 
           status: 500, 
           headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
