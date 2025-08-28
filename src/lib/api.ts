@@ -2,15 +2,42 @@ import { supabase } from "@/integrations/supabase/client";
 
 // Helper for calling Edge Functions with proper auth
 export async function callEF<T>(fnName: string, body?: Record<string, unknown>): Promise<T> {
-  const res = await fetch(`/functions/v1/${fnName}`, {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !anonKey) {
+    throw new Error('Missing Supabase configuration');
+  }
+  
+  const res = await fetch(`${supabaseUrl}/functions/v1/${fnName}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''}`,
+      'Authorization': `Bearer ${anonKey}`,
+      'Accept': 'application/json',
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error(await res.text());
+  
+  if (!res.ok) {
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const errorData = await res.json();
+      throw new Error(JSON.stringify(errorData));
+    } else {
+      const errorText = await res.text();
+      const preview = errorText.slice(0, 200);
+      throw new Error(`Edge function returned non-JSON response (${res.status}): ${preview}${errorText.length > 200 ? '...' : ''}`);
+    }
+  }
+  
+  const contentType = res.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    const responseText = await res.text();
+    const preview = responseText.slice(0, 200);
+    throw new Error(`Expected JSON response but got: ${preview}${responseText.length > 200 ? '...' : ''}`);
+  }
+  
   return res.json();
 }
 
