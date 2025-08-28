@@ -51,27 +51,13 @@ export function PlaygroundVoiceDemo() {
 
   const handleAgentSelect = (slug: string) => {
     setSelectedAgent(slug);
+    setActiveTab("flow-designer");
   };
 
   const handleBackToUseCases = () => {
     setSelectedAgent(null);
+    setActiveTab("use-case");
   };
-
-  // If an agent is selected, show the detailed flow view
-  if (selectedAgent) {
-    const agent = voiceAgents.find(a => a.slug === selectedAgent);
-    if (agent) {
-      return (
-        <section id="voice-demo">
-          <div className="playground-wrapper is-test">
-            <div className="container mx-auto px-4 py-8">
-              <AgentFlowView agent={agent} onBack={handleBackToUseCases} />
-            </div>
-          </div>
-        </section>
-      );
-    }
-  }
 
   return (
     <section id="voice-demo">
@@ -130,8 +116,19 @@ export function PlaygroundVoiceDemo() {
               </div>
             </TabsContent>
 
-            <TabsContent value="flow-designer" className="mt-8 text-center py-12">
-              <p className="text-muted-foreground">Flow Designer coming soon...</p>
+            <TabsContent value="flow-designer" className="mt-8">
+              {selectedAgent ? (
+                (() => {
+                  const agent = voiceAgents.find(a => a.slug === selectedAgent);
+                  return agent ? (
+                    <AgentFlowView agent={agent} onBack={handleBackToUseCases} />
+                  ) : (
+                    <p className="text-muted-foreground text-center py-12">Agent not found</p>
+                  );
+                })()
+              ) : (
+                <p className="text-muted-foreground text-center py-12">Select a use case to view its flow designer</p>
+              )}
             </TabsContent>
 
             <TabsContent value="knowledge-base" className="mt-8 text-center py-12">
