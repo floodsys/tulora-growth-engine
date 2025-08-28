@@ -34,7 +34,7 @@ export function DemoSandbox() {
   const demoAnalytics = {
     total_calls: 156,
     qualified_leads: 47,
-    meetings_booked: 23,
+    meetings_scheduled: 23,
     revenue_pipeline: 145000
   }
 
@@ -45,7 +45,7 @@ export function DemoSandbox() {
       agent: "Sarah",
       status: "Qualified",
       duration: "4:32",
-      outcome: "Meeting booked for Thursday 2PM",
+      outcome: "Meeting scheduled for Thursday 2PM",
       time: "12 minutes ago"
     },
     {
@@ -129,11 +129,11 @@ export function DemoSandbox() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
-                Meetings Booked
+                Meetings Scheduled
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{demoAnalytics.meetings_booked}</div>
+              <div className="text-2xl font-bold">{demoAnalytics.meetings_scheduled}</div>
               <Badge variant="secondary" className="mt-1">Demo Data</Badge>
             </CardContent>
           </Card>
@@ -261,7 +261,7 @@ export function DemoSandbox() {
                       <span className="font-medium">47 (30%)</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span>Meetings Booked</span>
+                      <span>Meetings Scheduled</span>
                       <span className="font-medium">23 (49%)</span>
                     </div>
                   </div>

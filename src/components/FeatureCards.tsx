@@ -2,7 +2,7 @@ const FeatureCards = () => {
   const agents = [{
     title: "Voice AI Leads Agent",
     emoji: "🤖",
-    descriptions: ["Instant answer/callback: Sub-60s from forms, ads, and missed calls", "Auto-booking: Puts meetings on the right calendar", "Follow-ups handled: Re-calls & reminders until outcome", "CRM-clean: Notes, recordings, and statuses logged automatically"],
+    descriptions: ["Instant answer/callback: Sub-60s from forms, ads, and missed calls", "Auto-scheduling: Puts meetings on the right calendar", "Follow-ups handled: Re-calls & reminders until outcome", "CRM-clean: Notes, recordings, and statuses logged automatically"],
     features: [{
       icon: "📞",
       title: "No missed calls",
@@ -10,7 +10,7 @@ const FeatureCards = () => {
     }, {
       icon: "🔁",
       title: "Every callback covered",
-      subtitle: "Sequenced until booked/closed"
+      subtitle: "Sequenced until scheduled/closed"
     }, {
       icon: "⚡",
       title: "Speed-to-lead",

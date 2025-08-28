@@ -50,7 +50,6 @@ interface ProvisioningFormData {
   crmWebhookUrl?: string
   calendarSettings?: string
   qualificationCriteria?: string
-  bookingFlowUrl?: string
   knowledgeSources?: string
   ticketingIntegration?: string
   voicemailPolicy?: string
@@ -67,7 +66,7 @@ const AGENT_TYPES = {
     accentColor: 'border-blue-200 dark:border-blue-800',
     benefits: [
       'Qualify leads 24/7 using BANT methodology',
-      'Book qualified meetings automatically',
+      'Schedule qualified meetings automatically',
       'Integrate with your CRM and calendar',
       'Track conversion rates and lead quality'
     ],
@@ -75,8 +74,7 @@ const AGENT_TYPES = {
       phoneNumberMapping: { label: 'Phone Number Mapping', required: true, placeholder: '+1-555-SALES-01' },
       crmWebhookUrl: { label: 'CRM Webhook URL', required: false, placeholder: 'https://your-crm.com/webhook' },
       calendarSettings: { label: 'Calendar Integration', required: true, placeholder: 'Calendly/HubSpot calendar link' },
-      qualificationCriteria: { label: 'Qualification Criteria', required: false, placeholder: 'Budget > $1000, Authority confirmed...' },
-      bookingFlowUrl: { label: 'Booking Flow URL', required: false, placeholder: 'https://your-booking-page.com' }
+      qualificationCriteria: { label: 'Qualification Criteria', required: false, placeholder: 'Budget > $1000, Authority confirmed...' }
     }
   },
   ai_phone_support: {
@@ -106,7 +104,7 @@ const mockTemplates: AgentTemplate[] = [
     id: '1',
     type: 'ai_lead_gen',
     name: 'Sales Lead Qualifier',
-    description: 'Qualifies leads through BANT methodology and books qualified meetings with your sales team.',
+    description: 'Qualifies leads through BANT methodology and schedules qualified meetings with your sales team.',
     isActive: true,
     defaultPrompt: 'You are a professional sales assistant specializing in lead qualification. Use the BANT methodology (Budget, Authority, Need, Timeline) to qualify prospects. Be friendly, professional, and focus on understanding their business needs.',
     defaultVoice: 'alloy',

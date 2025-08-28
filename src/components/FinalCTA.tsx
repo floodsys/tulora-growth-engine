@@ -9,7 +9,7 @@ const FinalCTA = () => {
         <div className="text-center max-w-4xl mx-auto">
           {/* Headline */}
           <h2 className="text-3xl lg:text-5xl font-bold text-brand-foreground mb-6 leading-tight">
-            Ready to book 3× more meetings?
+            Ready to schedule 3× more meetings?
           </h2>
           
           {/* Subheadline */}
@@ -22,7 +22,7 @@ const FinalCTA = () => {
               <ArrowRight className="h-5 w-5 ml-2" />
             </Button>
             <Button variant="outline" size="lg" className="bg-white border-brand-foreground/30 text-black hover:bg-gray-50 px-8 py-4 text-lg font-semibold backdrop-blur-sm" onClick={() => window.location.href = '/talk-to-us'}>
-              Book Demo
+              Schedule Demo
             </Button>
           </div>
 

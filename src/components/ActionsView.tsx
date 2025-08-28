@@ -17,8 +17,8 @@ interface ActionsViewProps {
 export const ActionsView = ({ agent }: ActionsViewProps) => {
   const actions = [
     {
-      id: "real-time-booking",
-      name: "Real-Time Booking",
+      id: "real-time-scheduling",
+      name: "Real-Time Scheduling",
       description: "Seamlessly schedule appointments and meetings directly during the call",
       icon: Calendar,
       enabled: true,
