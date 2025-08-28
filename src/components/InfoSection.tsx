@@ -1,21 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { useEffect, useRef } from 'react';
-import Typed from 'typed.js';
 import featuresImage from '@/assets/features.svg?url';
 import { Layers, Target, Star, Settings, TrendingUp, Lightbulb } from 'lucide-react';
+import TypewriterHero from "./TypewriterHero";
 const InfoSection = () => {
-  const el = useRef(null);
-  useEffect(() => {
-    const typed = new Typed(el.current, {
-      strings: ["Build. 🚀", "Automate. 🤖", "Scale. 📈"],
-      typeSpeed: 20,
-      backSpeed: 20,
-      loop: true
-    });
-    return () => {
-      typed.destroy();
-    };
-  }, []);
   const features = [{
     title: "All-in-one multi-agent platform",
     description: "A flexible, multi-agent platform built for any use case, across any industry.",
@@ -51,7 +38,7 @@ const InfoSection = () => {
         {/* Typewriter Header */}
         <div className="text-center mb-8">
           <h2 className="text-3xl lg:text-5xl font-bold text-foreground mb-4">
-            <span ref={el} className="text-4xl"></span>
+            <TypewriterHero />
           </h2>
         </div>
 
