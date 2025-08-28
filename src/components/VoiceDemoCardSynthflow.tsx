@@ -13,13 +13,17 @@ interface VoiceDemoCardSynthflowProps {
   name: string;
   description: string;
   tags: string[];
+  category?: string;
+  subtitle?: string;
 }
 
 export function VoiceDemoCardSynthflow({ 
   slug, 
   name, 
   description, 
-  tags 
+  tags,
+  category,
+  subtitle
 }: VoiceDemoCardSynthflowProps) {
   const [phoneNumber, setPhoneNumber] = useState("+1");
   const [isCallingPhone, setIsCallingPhone] = useState(false);
@@ -130,24 +134,23 @@ export function VoiceDemoCardSynthflow({
   return (
     <Card className="playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300">
       <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">{name}</h3>
-          <div 
-            className="w-3 h-3 bg-green-500 rounded-full" 
-            aria-label="Agent online status"
-            role="img"
-          ></div>
-        </div>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        {category && (
+          <h3 className="text-lg font-semibold mb-1">{category}</h3>
+        )}
+        {subtitle && (
+          <p className="text-sm font-medium text-muted-foreground mb-3">{subtitle}</p>
+        )}
         
         {/* Tags */}
-        <div className="flex flex-wrap gap-1 mt-2">
+        <div className="flex flex-wrap gap-1 mb-3">
           {tags.map((tag) => (
             <span key={tag} className="tag-chip">
               {tag}
             </span>
           ))}
         </div>
+        
+        <p className="text-sm text-muted-foreground">{description}</p>
       </CardHeader>
       
       <CardContent className="space-y-4">

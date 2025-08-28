@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AlertCircle } from "lucide-react";
 import { checkDevEnv } from "@/lib/api";
 import { VoiceDemoCardSynthflow } from "./VoiceDemoCardSynthflow";
@@ -10,38 +11,40 @@ const voiceAgents = [
   {
     slug: "paul",
     name: "Paul",
-    description: "Qualifies buyer intent and books appointments.",
+    category: "Real Estate",
+    subtitle: "Lead Qualification · Buyer",
+    description: "Meet Paul, an AI assistant designed for real estate lead qualification. Paul's primary objective is to identify the preference...",
     tags: ["#Real-Time Booking", "#Lead Qualification"],
   },
   {
     slug: "laura",
     name: "Laura", 
-    description: "Answers common questions and books tables.",
-    tags: ["#Real-Time Booking", "#Receptionist"],
+    category: "Hospitality",
+    subtitle: "Customer Service · Restaurant",
+    description: "Meet Laura, an AI assistant for Gourmet Table, a fine dining restaurant. Her primary role is to assist callers in scheduling...",
+    tags: ["#Real-Time Booking", "#Front-of-house"],
   },
   {
     slug: "jessica",
     name: "Jessica",
-    description: "Captures patient info and schedules visits.", 
+    category: "Healthcare",
+    subtitle: "Healthcare Receptionist",
+    description: "Meet Jessica, an AI assistant for your Healthcare company, dedicated to streamlining appointment scheduling and improving...", 
     tags: ["#Receptionist", "#Real-Time Booking"],
   },
 ];
 
-const filterChips = [
-  { label: "All", value: "all" },
-  { label: "#Real-Time Booking", value: "#Real-Time Booking" },
-  { label: "#Receptionist", value: "#Receptionist" },
-  { label: "#Lead Qualification", value: "#Lead Qualification" },
+const tabs = [
+  { label: "Use Case", value: "use-case" },
+  { label: "Flow Designer", value: "flow-designer" },
+  { label: "Knowledge Base", value: "knowledge-base" },
+  { label: "Actions", value: "actions" },
+  { label: "Test Calls", value: "test-calls" },
 ];
 
 export function PlaygroundVoiceDemo() {
   const envCheck = checkDevEnv();
-  const [selectedFilter, setSelectedFilter] = useState("all");
-
-  // Filter agents based on selected chip
-  const filteredAgents = selectedFilter === "all" 
-    ? voiceAgents 
-    : voiceAgents.filter(agent => agent.tags.includes(selectedFilter));
+  const [activeTab, setActiveTab] = useState("use-case");
 
   return (
     <section id="voice-demo">
@@ -50,10 +53,10 @@ export function PlaygroundVoiceDemo() {
           {/* Heading */}
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold mb-4">
-              Try our Voice Agents (Live Demo)
+              Hear AI Voice Agents in Action
             </h2>
-            <p className="text-sm text-muted-foreground mb-6">
-              Use a real mobile number in E.164. Calls may be recorded for testing.
+            <p className="text-lg text-muted-foreground mb-6">
+              Choose a call type to see how Tulora AI agents handle real conversations.
             </p>
             
             {/* Dev warning banner */}
@@ -65,46 +68,55 @@ export function PlaygroundVoiceDemo() {
             )}
           </div>
 
-          {/* Use-case filter chips */}
-          <div className="flex flex-wrap justify-center gap-2 mb-8" role="tablist" aria-label="Filter voice agents by category">
-            {filterChips.map((chip) => (
-              <Button
-                key={chip.value}
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedFilter(chip.value)}
-                className={cn(
-                  "px-4 py-2 text-sm border border-border/50 hover:border-primary/50 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                  selectedFilter === chip.value 
-                    ? "bg-primary text-primary-foreground border-primary" 
-                    : "bg-background/50 hover:bg-primary/10"
-                )}
-                role="tab"
-                aria-selected={selectedFilter === chip.value}
-                aria-controls="agent-cards-grid"
-              >
-                {chip.label}
-              </Button>
-            ))}
-          </div>
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-4xl mx-auto mb-8">
+            <TabsList className="grid w-full grid-cols-5">
+              {tabs.map((tab) => (
+                <TabsTrigger 
+                  key={tab.value} 
+                  value={tab.value}
+                  className="text-sm"
+                >
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-          {/* 3 cards grid */}
-          <div 
-            id="agent-cards-grid"
-            className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto"
-            role="tabpanel"
-            aria-label={`Voice agents filtered by ${selectedFilter === "all" ? "all categories" : selectedFilter}`}
-          >
-            {filteredAgents.map((agent) => (
-              <VoiceDemoCardSynthflow
-                key={agent.slug}
-                slug={agent.slug}
-                name={agent.name}
-                description={agent.description}
-                tags={agent.tags}
-              />
-            ))}
-          </div>
+            <TabsContent value="use-case" className="mt-8">
+              {/* 3 cards grid */}
+              <div 
+                className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto"
+              >
+                {voiceAgents.map((agent) => (
+                  <VoiceDemoCardSynthflow
+                    key={agent.slug}
+                    slug={agent.slug}
+                    name={agent.name}
+                    description={agent.description}
+                    tags={agent.tags}
+                    category={agent.category}
+                    subtitle={agent.subtitle}
+                  />
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="flow-designer" className="mt-8 text-center py-12">
+              <p className="text-muted-foreground">Flow Designer coming soon...</p>
+            </TabsContent>
+
+            <TabsContent value="knowledge-base" className="mt-8 text-center py-12">
+              <p className="text-muted-foreground">Knowledge Base coming soon...</p>
+            </TabsContent>
+
+            <TabsContent value="actions" className="mt-8 text-center py-12">
+              <p className="text-muted-foreground">Actions coming soon...</p>
+            </TabsContent>
+
+            <TabsContent value="test-calls" className="mt-8 text-center py-12">
+              <p className="text-muted-foreground">Test Calls coming soon...</p>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </section>
