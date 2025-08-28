@@ -146,18 +146,20 @@ export function VoiceDemoCardSynthflow({
   // If no actions, return compact card
   if (!showActions) {
     return (
-      <Card className="playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300 h-full">
-        <div className="p-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              {category && (
-                <h3 className="text-base font-semibold leading-tight">{category}</h3>
-              )}
-              <AudioWaveform className={`w-5 h-5 ${getIconColor(slug)} animate-pulse`} />
+      <Card className="playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300">
+        <div className="p-4 min-h-[140px] flex flex-col justify-between">
+          <div className="space-y-2">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 pr-2">
+                {category && (
+                  <h3 className="text-base font-semibold leading-tight">{category}</h3>
+                )}
+                {subtitle && (
+                  <p className="text-xs font-medium text-muted-foreground mt-1">{subtitle}</p>
+                )}
+              </div>
+              <AudioWaveform className={`w-5 h-5 ${getIconColor(slug)} animate-pulse flex-shrink-0`} />
             </div>
-            {subtitle && (
-              <p className="text-xs font-medium text-muted-foreground">{subtitle}</p>
-            )}
             
             {/* Tags */}
             <div className="flex flex-wrap gap-1">
@@ -167,9 +169,9 @@ export function VoiceDemoCardSynthflow({
                 </span>
               ))}
             </div>
-            
-            <p className="text-xs text-muted-foreground leading-relaxed break-words">{description}</p>
           </div>
+          
+          <p className="text-xs text-muted-foreground leading-relaxed break-words mt-2">{description}</p>
         </div>
       </Card>
     );
