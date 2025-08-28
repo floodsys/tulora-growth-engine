@@ -4,6 +4,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Playground wrapper styles */
+.playground-wrapper {
+  background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--muted)/0.3) 100%);
+  position: relative;
+}
+
+.playground-wrapper.is-test {
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  margin: 2rem auto;
+  max-width: 1200px;
+}
+
+.playground-card {
+  background: hsl(var(--card)/0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid hsl(var(--border)/0.5);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.playground-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px hsl(var(--primary)/0.1);
+}
+
 /* Tulora Design System - Modern AI SaaS Landing Page */
 
 @layer base {

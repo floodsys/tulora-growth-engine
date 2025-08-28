@@ -1,11 +1,11 @@
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
+import { PlaygroundVoiceDemo } from "@/components/PlaygroundVoiceDemo";
 import InfoSection from "@/components/InfoSection";
 import AIWorkforceHero from "@/components/AIWorkforceHero";
 import FeatureCards from "@/components/FeatureCards";
 import LiveDemo from "@/components/LiveDemo";
 import IntegrationsGrid from "@/components/IntegrationsGrid";
-import { VoiceDemoSection } from "@/components/VoiceDemoSection";
 
 import Security from "@/components/Security";
 import FAQ from "@/components/FAQ";
@@ -23,8 +23,8 @@ const Index = () => {
         {/* 1. Hero Section */}
         <Hero />
         
-        {/* 2. Voice Demo */}
-        <VoiceDemoSection />
+        {/* 2. Playground Voice Demo */}
+        <PlaygroundVoiceDemo />
         
         {/* 3. AI Workforce Hero */}
         <AIWorkforceHero />
