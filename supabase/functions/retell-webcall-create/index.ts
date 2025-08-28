@@ -139,13 +139,26 @@ serve(async (req) => {
     const agentSlugUpper = body.agentSlug.toUpperCase();
     const agentId = Deno.env.get(`AGENT_${agentSlugUpper}_ID`);
 
-    // Prepare Retell API call payload
-    const retellPayload: RetellWebCallRequest = {};
-
-    // Only include agent_id if it's configured
-    if (agentId) {
-      retellPayload.agent_id = agentId;
+    // agent_id is now required
+    if (!agentId) {
+      console.log(`[${traceId}] Unknown agentSlug or AGENT_*_ID not set: ${body.agentSlug}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Unknown agentSlug or AGENT_*_ID not set', 
+          slug: body.agentSlug,
+          traceId 
+        }),
+        { 
+          status: 400, 
+          headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
+
+    // Prepare Retell API call payload
+    const retellPayload: RetellWebCallRequest = {
+      agent_id: agentId,
+    };
 
     console.log(`[${traceId}] Creating web call for agent ${body.agentSlug}`);
 

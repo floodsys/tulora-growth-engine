@@ -150,13 +150,26 @@ serve(async (req) => {
 
     // Environment variables already validated at function start
 
-    // Determine from_number based on agent slug
+    // Determine agent configuration based on agent slug
     const agentSlugUpper = body.agentSlug.toUpperCase();
-    const agentFromNumber = Deno.env.get(`AGENT_${agentSlugUpper}_FROM`);
-    const defaultFromNumber = Deno.env.get('RETELL_FROM_NUMBER');
-    const fallbackFromNumber = Deno.env.get('RETELL_FROM_NUMBER_DEFAULT');
+    const agentId = Deno.env.get(`AGENT_${agentSlugUpper}_ID`);
+    const fromNumber = Deno.env.get(`AGENT_${agentSlugUpper}_FROM`) ?? Deno.env.get('RETELL_FROM_NUMBER');
     
-    const fromNumber = agentFromNumber || defaultFromNumber || fallbackFromNumber;
+    // agent_id is now required
+    if (!agentId) {
+      console.log(`[${traceId}] Unknown agentSlug or AGENT_*_ID not set: ${body.agentSlug}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Unknown agentSlug or AGENT_*_ID not set', 
+          slug: body.agentSlug,
+          traceId 
+        }),
+        { 
+          status: 400, 
+          headers: { ...responseCorsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
     
     if (!fromNumber) {
       console.error(`[${traceId}] No from_number available for agent: ${body.agentSlug}`);
@@ -169,19 +182,12 @@ serve(async (req) => {
       );
     }
 
-    // Determine agent_id based on agent slug (optional)
-    const agentId = Deno.env.get(`AGENT_${agentSlugUpper}_ID`);
-
     // Prepare Retell API call payload
     const retellPayload: RetellCallRequest = {
       from_number: fromNumber,
       to_number: body.toNumber,
+      agent_id: agentId,
     };
-
-    // Only include agent_id if it's configured
-    if (agentId) {
-      retellPayload.agent_id = agentId;
-    }
 
     console.log(`[${traceId}] Creating outbound call for agent ${body.agentSlug} to ${body.toNumber.substring(0, 6)}***`);
 
