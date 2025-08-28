@@ -62,6 +62,14 @@ export function PlaygroundVoiceDemo() {
 
   const handleViewKnowledgeBase = () => {
     setActiveTab("knowledge-base");
+    // Scroll to the voice-demo section
+    document.getElementById("voice-demo")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    // Scroll to the voice-demo section
+    document.getElementById("voice-demo")?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
@@ -87,7 +95,7 @@ export function PlaygroundVoiceDemo() {
           </div>
 
           {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-4xl mx-auto mb-8">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full max-w-4xl mx-auto mb-8">
             <TabsList className="grid w-full grid-cols-5">
               {tabs.map((tab) => (
                 <TabsTrigger 
