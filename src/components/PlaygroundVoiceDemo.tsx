@@ -8,6 +8,7 @@ import { VoiceDemoCardSynthflow } from "./VoiceDemoCardSynthflow";
 import { TestCallsTab } from "./TestCallsTab";
 import { AgentFlowView } from "./AgentFlowView";
 import { KnowledgeBaseView } from "./KnowledgeBaseView";
+import { ActionsView } from "./ActionsView";
 import { cn } from "@/lib/utils";
 
 const voiceAgents = [
@@ -159,8 +160,19 @@ export function PlaygroundVoiceDemo() {
               )}
             </TabsContent>
 
-            <TabsContent value="actions" className="mt-8 text-center py-12">
-              <p className="text-muted-foreground">Actions coming soon...</p>
+            <TabsContent value="actions" className="mt-8">
+              {selectedAgent ? (
+                (() => {
+                  const agent = voiceAgents.find(a => a.slug === selectedAgent);
+                  return agent ? (
+                    <ActionsView agent={agent} />
+                  ) : (
+                    <p className="text-muted-foreground text-center py-12">Agent not found</p>
+                  );
+                })()
+              ) : (
+                <p className="text-muted-foreground text-center py-12">Select a use case to view its actions</p>
+              )}
             </TabsContent>
 
             <TabsContent value="test-calls" className="mt-8">
