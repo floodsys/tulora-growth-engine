@@ -5,6 +5,7 @@ import AIWorkforceHero from "@/components/AIWorkforceHero";
 import FeatureCards from "@/components/FeatureCards";
 import LiveDemo from "@/components/LiveDemo";
 import IntegrationsGrid from "@/components/IntegrationsGrid";
+import { VoiceDemoSection } from "@/components/VoiceDemoSection";
 
 import Security from "@/components/Security";
 import FAQ from "@/components/FAQ";
@@ -34,7 +35,10 @@ const Index = () => {
         {/* 4. Live Demo / Interactive */}
         <LiveDemo />
         
-        {/* 5. Integrations */}
+        {/* 5. Voice Demo */}
+        <VoiceDemoSection />
+        
+        {/* 6. Integrations */}
         <IntegrationsGrid />
         
         {/* 6. Security */}

@@ -1,0 +1,80 @@
+import { VoiceDemoCard } from "@/components/VoiceDemoCard";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import { checkDevEnv } from "@/lib/api";
+
+const voiceAgents = [
+  {
+    slug: "paul",
+    name: "Paul",
+    description: "Real estate buyer lead qualification and booking. Paul helps qualify potential buyers and schedules property viewings.",
+    tags: ["#Real-Time Booking", "#Lead Qualification"],
+  },
+  {
+    slug: "laura",
+    name: "Laura",
+    description: "Healthcare appointment scheduling assistant. Laura helps patients book appointments and provides pre-visit information.",
+    tags: ["#Healthcare", "#Appointment Booking"],
+  },
+  {
+    slug: "jessica",
+    name: "Jessica",
+    description: "Sales lead qualification and demo scheduling. Jessica qualifies prospects and books product demonstrations.",
+    tags: ["#Sales", "#Demo Booking"],
+  },
+];
+
+export function VoiceDemoSection() {
+  const envCheck = checkDevEnv();
+
+  return (
+    <section className="py-24 bg-gradient-to-br from-background to-secondary/20">
+      <div className="container mx-auto px-4">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-bold mb-4">
+            Try Our AI Voice Agents
+          </h2>
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
+            Experience the power of conversational AI. Choose an agent below to either receive a phone call 
+            or try our browser-based demo.
+          </p>
+          
+          {/* Dev warning banner */}
+          {!envCheck.hasAnonKey && envCheck.warning && (
+            <Alert className="max-w-2xl mx-auto mb-8">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{envCheck.warning}</AlertDescription>
+            </Alert>
+          )}
+          
+          <div className="bg-muted/50 rounded-lg p-4 max-w-2xl mx-auto">
+            <p className="text-sm text-muted-foreground">
+              <strong>Instructions:</strong> Enter your phone number in E.164 format (e.g., +1234567890) 
+              and click "Call Me" to receive a phone call, or click "Try in Browser" for an immediate web-based demo.
+            </p>
+          </div>
+        </div>
+
+        {/* Agent Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          {voiceAgents.map((agent) => (
+            <VoiceDemoCard
+              key={agent.slug}
+              slug={agent.slug}
+              name={agent.name}
+              description={agent.description}
+              tags={agent.tags}
+            />
+          ))}
+        </div>
+
+        <div className="text-center mt-12">
+          <p className="text-sm text-muted-foreground">
+            These AI agents are powered by advanced conversational AI technology and can handle 
+            complex interactions in real-time.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}

@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { callEF } from "@/lib/api";
 
 interface VoiceDemoCardProps {
   slug: string;
@@ -48,14 +48,10 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
 
     setIsCallLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('retell-outbound', {
-        body: {
-          agentSlug: slug,
-          toNumber: phoneNumber,
-        },
+      await callEF('retell-outbound', {
+        agentSlug: slug,
+        toNumber: phoneNumber,
       });
-
-      if (error) throw error;
 
       toast({
         title: "Call initiated!",
@@ -76,13 +72,9 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
   const handleTryInBrowser = async () => {
     setIsBrowserLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('retell-webcall-create', {
-        body: {
-          agentSlug: slug,
-        },
+      await callEF('retell-webcall-create', {
+        agentSlug: slug,
       });
-
-      if (error) throw error;
 
       setBrowserStatus("connected");
       toast({
