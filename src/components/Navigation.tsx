@@ -24,6 +24,9 @@ const Navigation = () => {
               <a href="#features" className="text-foreground hover:text-brand transition-colors duration-200">
                 Features
               </a>
+              <a href="#voice-demo" className="text-foreground hover:text-brand transition-colors duration-200">
+                Voice Demo
+              </a>
               <a href="#pricing" className="text-foreground hover:text-brand transition-colors duration-200">
                 Pricing
               </a>
@@ -71,6 +74,9 @@ const Navigation = () => {
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-card border border-border rounded-lg mt-2">
               <a href="#features" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
                 Features
+              </a>
+              <a href="#voice-demo" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
+                Voice Demo
               </a>
               <a href="#pricing" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
                 Pricing

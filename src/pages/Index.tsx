@@ -23,7 +23,10 @@ const Index = () => {
         {/* 1. Hero Section */}
         <Hero />
         
-        {/* 4. AI Workforce Hero */}
+        {/* 2. Voice Demo */}
+        <VoiceDemoSection />
+        
+        {/* 3. AI Workforce Hero */}
         <AIWorkforceHero />
         
         {/* 3. Info Section */}
@@ -35,10 +38,7 @@ const Index = () => {
         {/* 4. Live Demo / Interactive */}
         <LiveDemo />
         
-        {/* 5. Voice Demo */}
-        <VoiceDemoSection />
-        
-        {/* 6. Integrations */}
+        {/* 5. Integrations */}
         <IntegrationsGrid />
         
         {/* 6. Security */}

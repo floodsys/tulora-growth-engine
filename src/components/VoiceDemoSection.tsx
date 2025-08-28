@@ -28,15 +28,18 @@ export function VoiceDemoSection() {
   const envCheck = checkDevEnv();
 
   return (
-    <section className="py-24 bg-gradient-to-br from-background to-secondary/20">
+    <section id="voice-demo" className="py-24 bg-gradient-to-br from-background to-secondary/20">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold mb-4">
             Try Our AI Voice Agents
           </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-4">
             Experience the power of conversational AI. Choose an agent below to either receive a phone call 
             or try our browser-based demo.
+          </p>
+          <p className="text-sm text-muted-foreground mb-8">
+            Use a real mobile number in E.164. Calls may be recorded for testing.
           </p>
           
           {/* Dev warning banner */}
