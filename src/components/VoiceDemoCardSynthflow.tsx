@@ -139,9 +139,9 @@ export function VoiceDemoCardSynthflow({
         {/* Tags */}
         <div className="flex flex-wrap gap-1 mt-2">
           {tags.map((tag) => (
-            <Badge key={tag} variant="secondary" className="text-xs">
+            <span key={tag} className="tag-chip">
               {tag}
-            </Badge>
+            </span>
           ))}
         </div>
       </CardHeader>
