@@ -340,14 +340,6 @@ export function AgentFlowView({ agent, onBack, onViewKnowledgeBase }: AgentFlowV
     <div className="w-full max-w-6xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <Button
-          variant="ghost"
-          onClick={onBack}
-          className="mb-4 hover:bg-muted"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Use Cases
-        </Button>
         
         <div className="mb-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
