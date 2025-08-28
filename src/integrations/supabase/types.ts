@@ -414,6 +414,106 @@ export type Database = {
           },
         ]
       }
+      bookings: {
+        Row: {
+          agent_id: string | null
+          attendee_email: string | null
+          attendee_name: string | null
+          attendee_phone: string | null
+          cal_booking_id: string | null
+          created_at: string | null
+          id: string
+          payload: Json | null
+          time_end: string | null
+          time_start: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          attendee_email?: string | null
+          attendee_name?: string | null
+          attendee_phone?: string | null
+          cal_booking_id?: string | null
+          created_at?: string | null
+          id?: string
+          payload?: Json | null
+          time_end?: string | null
+          time_start?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          attendee_email?: string | null
+          attendee_name?: string | null
+          attendee_phone?: string | null
+          cal_booking_id?: string | null
+          created_at?: string | null
+          id?: string
+          payload?: Json | null
+          time_end?: string | null
+          time_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "voice_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_logs: {
+        Row: {
+          agent_id: string | null
+          call_id: string | null
+          created_at: string | null
+          direction: string | null
+          ended_at: string | null
+          from_e164: string | null
+          id: string
+          raw: Json | null
+          started_at: string | null
+          status: string | null
+          to_e164: string | null
+          transcript_url: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          call_id?: string | null
+          created_at?: string | null
+          direction?: string | null
+          ended_at?: string | null
+          from_e164?: string | null
+          id?: string
+          raw?: Json | null
+          started_at?: string | null
+          status?: string | null
+          to_e164?: string | null
+          transcript_url?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          call_id?: string | null
+          created_at?: string | null
+          direction?: string | null
+          ended_at?: string | null
+          from_e164?: string | null
+          id?: string
+          raw?: Json | null
+          started_at?: string | null
+          status?: string | null
+          to_e164?: string | null
+          transcript_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_logs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "voice_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calls: {
         Row: {
           agent_name: string | null
@@ -1274,6 +1374,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      voice_agents: {
+        Row: {
+          booking_config: Json | null
+          booking_provider: string | null
+          created_at: string | null
+          description: string | null
+          display_name: string
+          from_number: string | null
+          id: string
+          prompt: string | null
+          retell_agent_id: string | null
+          slug: string
+          use_case_tags: string[] | null
+        }
+        Insert: {
+          booking_config?: Json | null
+          booking_provider?: string | null
+          created_at?: string | null
+          description?: string | null
+          display_name: string
+          from_number?: string | null
+          id?: string
+          prompt?: string | null
+          retell_agent_id?: string | null
+          slug: string
+          use_case_tags?: string[] | null
+        }
+        Update: {
+          booking_config?: Json | null
+          booking_provider?: string | null
+          created_at?: string | null
+          description?: string | null
+          display_name?: string
+          from_number?: string | null
+          id?: string
+          prompt?: string | null
+          retell_agent_id?: string | null
+          slug?: string
+          use_case_tags?: string[] | null
+        }
+        Relationships: []
       }
     }
     Views: {
