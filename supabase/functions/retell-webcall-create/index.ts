@@ -116,10 +116,16 @@ serve(async (req) => {
     });
     
     if (!retellResponse.ok) {
-      const errorText = await retellResponse.text();
-      console.error(`[${traceId}] Retell API error: ${retellResponse.status} - Error details redacted for security`);
+      const status = retellResponse.status;
+      const text = await retellResponse.text();
+      console.error("[", traceId, "] Retell upstream", status, text.slice(0, 200));
       return new Response(
-        JSON.stringify({ error: 'UPSTREAM_RETELL_ERROR', status: retellResponse.status, traceId }),
+        JSON.stringify({ 
+          error: 'UPSTREAM_RETELL_ERROR', 
+          status: status,
+          hint: 'Check RETELL_API_KEY / from_number / agent binding / destination permissions.',
+          traceId 
+        }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
