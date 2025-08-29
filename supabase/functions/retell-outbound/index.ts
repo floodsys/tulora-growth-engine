@@ -182,7 +182,7 @@ serve(async (req) => {
     console.log(`[${traceId}] Outbound call created successfully for agent: ${body.agentSlug}`);
     
     return new Response(
-      JSON.stringify({ status: 'queued', data: retellData, traceId }),
+      JSON.stringify({ status: "queued", data: retellData, traceId }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
     
