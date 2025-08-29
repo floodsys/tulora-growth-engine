@@ -56,7 +56,7 @@ serve(async (req) => {
   // Only POST allowed for main functionality
   if (req.method !== 'POST') {
     return new Response(
-      JSON.stringify({ error: 'Method not allowed', traceId }),
+      JSON.stringify({ error: 'METHOD_NOT_ALLOWED', traceId }),
       { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -95,11 +95,11 @@ serve(async (req) => {
     }
     
     // Validate phone number format (E.164)
-    if (!body.toNumber.match(/^\+\d{10,15}$/)) {
+    if (!body.toNumber.match(/^\+[1-9]\d{7,14}$/)) {
       return new Response(
         JSON.stringify({ 
           error: 'INVALID_INPUT', 
-          details: 'toNumber must be in E.164 format (+1234567890)',
+          details: 'toNumber must be in E.164',
           traceId 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -112,15 +112,22 @@ serve(async (req) => {
     const fromNumber = Deno.env.get(`AGENT_${up}_FROM`) ?? Deno.env.get("RETELL_FROM_NUMBER");
     
     // Check for missing agent configuration
-    const missing = [];
-    if (!agentId) missing.push(`AGENT_${up}_ID`);
-    if (!fromNumber) missing.push(`AGENT_${up}_FROM or RETELL_FROM_NUMBER`);
-    
-    if (missing.length > 0) {
+    if (!agentId) {
       return new Response(
         JSON.stringify({ 
           error: 'MISCONFIG', 
-          missing,
+          missing: [`AGENT_${up}_ID`],
+          traceId 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    if (!fromNumber) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'MISCONFIG', 
+          missing: ['AGENT_*_FROM or RETELL_FROM_NUMBER'],
           traceId 
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

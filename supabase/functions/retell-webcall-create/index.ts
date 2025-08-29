@@ -53,7 +53,7 @@ serve(async (req) => {
   // Only POST allowed for main functionality
   if (req.method !== 'POST') {
     return new Response(
-      JSON.stringify({ error: 'Method not allowed', traceId }),
+      JSON.stringify({ error: 'METHOD_NOT_ALLOWED', traceId }),
       { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
