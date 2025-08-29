@@ -2,16 +2,16 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 // Get allowed origins from environment
-const allowedOrigins = [
-  Deno.env.get('VITE_APP_URL'),
-  Deno.env.get('PROJECT_URL'),
-  'https://nkjxbeypbiclvouqfjyc.supabase.co', // Project URL
-].filter(Boolean);
+const corsAllowedOrigins = Deno.env.get('CORS_ALLOWED_ORIGINS');
+const allowedOrigins = corsAllowedOrigins 
+  ? corsAllowedOrigins.split(',').map(origin => origin.trim())
+  : ['*']; // Fallback to wildcard in dev
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*', // Will be overridden per request
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Vary': 'Origin',
 };
 
 function generateTraceId(): string {
@@ -19,10 +19,10 @@ function generateTraceId(): string {
 }
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
-  const isAllowedOrigin = origin && allowedOrigins.includes(origin);
+  const isAllowedOrigin = origin && (allowedOrigins.includes('*') || allowedOrigins.includes(origin));
   return {
     ...corsHeaders,
-    'Access-Control-Allow-Origin': isAllowedOrigin ? origin : 'null',
+    'Access-Control-Allow-Origin': isAllowedOrigin ? (allowedOrigins.includes('*') ? '*' : origin) : 'null',
   };
 }
 
@@ -68,7 +68,7 @@ serve(async (req) => {
 
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: responseCorsHeaders });
+    return new Response(null, { status: 204, headers: responseCorsHeaders });
   }
 
   // Method guard - enforce POST only
