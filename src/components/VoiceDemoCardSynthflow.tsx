@@ -48,20 +48,42 @@ export function VoiceDemoCardSynthflow({
     return e164Regex.test(phone);
   };
 
-  const getErrorMessage = (error: any) => {
-    if (error.message?.includes("401")) {
-      return "Auth missing — set VITE_SUPABASE_ANON_KEY.";
+  const getErrorMessage = (error: any): { message: string; traceId?: string; details?: string } => {
+    let message = "";
+    let details = "";
+    let traceId = "";
+
+    // Extract traceId if available
+    if (error?.traceId) {
+      traceId = error.traceId;
     }
-    if (error.message?.includes("400")) {
-      return "Check the fields (E.164 phone, agent).";
+
+    // Check for HTTP status codes
+    if (error?.message?.includes('400')) {
+      message = "Invalid request - check phone number format and agent";
+    } else if (error?.message?.includes('401')) {
+      message = "Authentication missing - check VITE_SUPABASE_ANON_KEY";
+    } else if (error?.message?.includes('405')) {
+      message = "Method not allowed - use POST only";
+    } else if (error?.message?.includes('502')) {
+      message = "Upstream error - server temporarily unavailable";
+    } else if (error?.message?.includes('NON_JSON_RESPONSE') || error?.message?.includes('Expected JSON response but received:')) {
+      message = "Server returned non-JSON response";
+      // Extract first ~200 chars from error message
+      const fullMsg = error.message || "";
+      const htmlMatch = fullMsg.match(/Expected JSON response but received: (.+)/);
+      if (htmlMatch && htmlMatch[1]) {
+        details = htmlMatch[1].substring(0, 200);
+      }
+    } else {
+      message = error?.message || 'Unknown error occurred';
+      // Try to extract first 200 chars if it looks like HTML/non-JSON
+      if (typeof error === 'string' && error.includes('<')) {
+        details = error.substring(0, 200);
+      }
     }
-    if (error.message?.includes("405")) {
-      return "Use POST only.";
-    }
-    if (error.message?.includes("502")) {
-      return "Upstream error — try again.";
-    }
-    return error.message || "Unknown error occurred";
+
+    return { message, traceId, details };
   };
 
   const handleCallMe = async () => {
@@ -91,11 +113,11 @@ export function VoiceDemoCardSynthflow({
         description: `Your phone should ring shortly for ${name}`,
       });
     } catch (error: any) {
-      const errorMsg = getErrorMessage(error);
-      setStatusMessage(`Error: ${errorMsg}`);
+      const errorInfo = getErrorMessage(error);
+      setStatusMessage(`Error: ${errorInfo.message}`);
       
-      if (error?.traceId) {
-        setTraceId(error.traceId);
+      if (errorInfo.traceId) {
+        setTraceId(errorInfo.traceId);
       }
     } finally {
       setIsCallingPhone(false);
@@ -124,11 +146,11 @@ export function VoiceDemoCardSynthflow({
         setTraceId(payload.traceId);
       }
     } catch (error: any) {
-      const errorMsg = getErrorMessage(error);
-      setStatusMessage(`Error: ${errorMsg}`);
+      const errorInfo = getErrorMessage(error);
+      setStatusMessage(`Error: ${errorInfo.message}`);
       
-      if (error?.traceId) {
-        setTraceId(error.traceId);
+      if (errorInfo.traceId) {
+        setTraceId(errorInfo.traceId);
       }
     } finally {
       setIsTryingBrowser(false);
@@ -277,15 +299,22 @@ export function VoiceDemoCardSynthflow({
             {/* Status Messages */}
             {statusMessage && (
               <div 
-                className={`text-xs p-2 rounded ${
+                className={`text-xs p-2 rounded border ${
                   statusMessage.includes("Error") 
-                    ? "bg-destructive/10 text-destructive border border-destructive/20" 
-                    : "bg-green-50 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+                    ? "bg-destructive/10 text-destructive border-destructive/20" 
+                    : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
                 }`}
                 role="status"
                 aria-live="polite"
               >
-                {statusMessage}
+                <div className="font-medium">{statusMessage}</div>
+                {/* Show first 200 chars of non-JSON responses for errors */}
+                {statusMessage.includes("non-JSON") && (
+                  <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted p-2 rounded border">
+                    <div className="font-sans text-xs mb-1">Response preview:</div>
+                    <div className="break-all">{statusMessage.substring(0, 200)}...</div>
+                  </div>
+                )}
               </div>
             )}
 

@@ -24,12 +24,42 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
   const [errorMessage, setErrorMessage] = useState<string>("");
   const { toast } = useToast();
 
-  const getErrorMessage = (error: any): string => {
-    if (error?.message?.includes('400')) return "Check the fields (E.164 phone, agent).";
-    if (error?.message?.includes('401')) return "Auth missing — set VITE_SUPABASE_ANON_KEY.";
-    if (error?.message?.includes('405')) return "Use POST only.";
-    if (error?.message?.includes('502')) return "Upstream error — try again.";
-    return error instanceof Error ? error.message : 'Unknown error';
+  const getErrorMessage = (error: any): { message: string; traceId?: string; details?: string } => {
+    let message = "";
+    let details = "";
+    let traceId = "";
+
+    // Extract traceId if available
+    if (error?.traceId) {
+      traceId = error.traceId;
+    }
+
+    // Check for HTTP status codes
+    if (error?.message?.includes('400')) {
+      message = "Invalid request - check phone number format and agent";
+    } else if (error?.message?.includes('401')) {
+      message = "Authentication missing - check VITE_SUPABASE_ANON_KEY";
+    } else if (error?.message?.includes('405')) {
+      message = "Method not allowed - use POST only";
+    } else if (error?.message?.includes('502')) {
+      message = "Upstream error - server temporarily unavailable";
+    } else if (error?.message?.includes('NON_JSON_RESPONSE')) {
+      message = "Server returned non-JSON response";
+      // Extract first ~200 chars from error message
+      const fullMsg = error.message || "";
+      const htmlMatch = fullMsg.match(/Expected JSON response but received: (.+)/);
+      if (htmlMatch && htmlMatch[1]) {
+        details = htmlMatch[1].substring(0, 200);
+      }
+    } else {
+      message = error instanceof Error ? error.message : 'Unknown error occurred';
+      // Try to extract first 200 chars if it looks like HTML/non-JSON
+      if (typeof error === 'string' && error.includes('<')) {
+        details = error.substring(0, 200);
+      }
+    }
+
+    return { message, traceId, details };
   };
 
   const validatePhoneNumber = (phone: string): boolean => {
@@ -80,11 +110,16 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
       });
     } catch (error) {
       console.error('Error initiating call:', error);
-      const errorMsg = getErrorMessage(error);
-      setErrorMessage(`Call failed: ${errorMsg}`);
+      const errorInfo = getErrorMessage(error);
+      setErrorMessage(`Call failed: ${errorInfo.message}`);
+      
+      if (errorInfo.traceId) {
+        setLastTraceId(errorInfo.traceId);
+      }
+      
       toast({
         title: "Call failed",
-        description: errorMsg,
+        description: errorInfo.message,
         variant: "destructive",
       });
     } finally {
@@ -119,11 +154,16 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
 
     } catch (error) {
       console.error('Error creating web call:', error);
-      const errorMsg = getErrorMessage(error);
-      setErrorMessage(`Web call failed: ${errorMsg}`);
+      const errorInfo = getErrorMessage(error);
+      setErrorMessage(`Web call failed: ${errorInfo.message}`);
+      
+      if (errorInfo.traceId) {
+        setLastTraceId(errorInfo.traceId);
+      }
+      
       toast({
         title: "Web call failed",
-        description: errorMsg,
+        description: errorInfo.message,
         variant: "destructive",
       });
     } finally {
@@ -232,15 +272,26 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
         
         {/* Status/Error Messages */}
         {(statusMessage || errorMessage) && (
-          <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+          <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border/20">
             {statusMessage && (
               <p className="text-sm text-muted-foreground">{statusMessage}</p>
             )}
             {errorMessage && (
-              <p className="text-sm text-destructive">{errorMessage}</p>
+              <div className="space-y-2">
+                <p className="text-sm text-destructive font-medium">{errorMessage}</p>
+                {/* Show first 200 chars of non-JSON responses */}
+                {errorMessage.includes('non-JSON') && (
+                  <div className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded border">
+                    <div className="font-sans text-xs mb-1">Response preview:</div>
+                    <div className="break-all">{errorMessage.substring(0, 200)}...</div>
+                  </div>
+                )}
+              </div>
             )}
             {lastTraceId && (
-              <p className="text-xs text-muted-foreground mt-1">Trace ID: {lastTraceId}</p>
+              <p className="text-xs text-muted-foreground mt-2 font-mono">
+                Trace ID: {lastTraceId}
+              </p>
             )}
           </div>
         )}
