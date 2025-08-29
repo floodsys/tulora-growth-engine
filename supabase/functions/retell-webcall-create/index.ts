@@ -62,6 +62,10 @@ serve(async (req) => {
     // Parse request body
     const body: WebCallRequest = await req.json();
     
+    // Read environment variables inside POST handler
+    const apiKey = Deno.env.get("RETELL_API_KEY");
+    const webUrl = Deno.env.get("RETELL_WEB_CREATE_URL") ?? "https://api.retellai.com/v2/create-web-call";
+    
     if (!body.agentSlug) {
       return new Response(
         JSON.stringify({ error: 'INVALID_INPUT', details: 'Missing required field: agentSlug', traceId }),
@@ -79,27 +83,20 @@ serve(async (req) => {
     }
     
     // Resolve agent configuration
-    const UP = body.agentSlug.toUpperCase();
-    const agent_id = Deno.env.get(`AGENT_${UP}_ID`);
+    const up = body.agentSlug.toUpperCase();
+    const agentId = Deno.env.get(`AGENT_${up}_ID`);
     
-    if (!agent_id) {
+    if (!agentId) {
       return new Response(
-        JSON.stringify({ error: 'MISCONFIG', missing: [`AGENT_${UP}_ID`], traceId }),
+        JSON.stringify({ error: 'MISCONFIG', missing: [`AGENT_${up}_ID`], traceId }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Resolve Retell API configuration
-    const apiKey = Deno.env.get('RETELL_API_KEY');
-    const url = Deno.env.get('RETELL_WEB_CREATE_URL');
-    
-    const missing = [];
-    if (!apiKey) missing.push('RETELL_API_KEY');
-    if (!url) missing.push('RETELL_WEB_CREATE_URL');
-    
-    if (missing.length > 0) {
+    // Check for missing Retell API configuration
+    if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: 'MISCONFIG', missing, traceId }),
+        JSON.stringify({ error: 'MISCONFIG', missing: ['RETELL_API_KEY'], traceId }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -107,13 +104,13 @@ serve(async (req) => {
     console.log(`[${traceId}] Creating web call for agent ${body.agentSlug}`);
     
     // Call Retell API
-    const retellResponse = await fetch(url, {
+    const retellResponse = await fetch(webUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ agent_id }),
+      body: JSON.stringify({ agent_id: agentId }),
     });
     
     if (!retellResponse.ok) {

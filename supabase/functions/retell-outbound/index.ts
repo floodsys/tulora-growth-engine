@@ -65,6 +65,10 @@ serve(async (req) => {
     // Parse request body
     const body: OutboundCallRequest = await req.json();
     
+    // Read environment variables inside POST handler
+    const apiKey = Deno.env.get("RETELL_API_KEY");
+    const phoneUrl = Deno.env.get("RETELL_PHONE_CREATE_URL") ?? "https://api.retellai.com/v2/create-phone-call";
+    
     // Validate required fields
     if (!body.agentSlug || !body.toNumber) {
       return new Response(
@@ -103,14 +107,14 @@ serve(async (req) => {
     }
     
     // Resolve agent configuration
-    const UP = body.agentSlug.toUpperCase();
-    const agent_id = Deno.env.get(`AGENT_${UP}_ID`);
-    const from_number = Deno.env.get(`AGENT_${UP}_FROM`) ?? Deno.env.get('RETELL_FROM_NUMBER');
+    const up = body.agentSlug.toUpperCase();
+    const agentId = Deno.env.get(`AGENT_${up}_ID`);
+    const fromNumber = Deno.env.get(`AGENT_${up}_FROM`) ?? Deno.env.get("RETELL_FROM_NUMBER");
     
     // Check for missing agent configuration
     const missing = [];
-    if (!agent_id) missing.push(`AGENT_${UP}_ID`);
-    if (!from_number) missing.push(`AGENT_${UP}_FROM or RETELL_FROM_NUMBER`);
+    if (!agentId) missing.push(`AGENT_${up}_ID`);
+    if (!fromNumber) missing.push(`AGENT_${up}_FROM or RETELL_FROM_NUMBER`);
     
     if (missing.length > 0) {
       return new Response(
@@ -123,19 +127,12 @@ serve(async (req) => {
       );
     }
     
-    // Resolve Retell API configuration
-    const apiKey = Deno.env.get('RETELL_API_KEY');
-    const url = Deno.env.get('RETELL_PHONE_CREATE_URL');
-    
-    const retellMissing = [];
-    if (!apiKey) retellMissing.push('RETELL_API_KEY');
-    if (!url) retellMissing.push('RETELL_PHONE_CREATE_URL');
-    
-    if (retellMissing.length > 0) {
+    // Check for missing Retell API configuration
+    if (!apiKey) {
       return new Response(
         JSON.stringify({ 
           error: 'MISCONFIG', 
-          missing: retellMissing,
+          missing: ['RETELL_API_KEY'],
           traceId 
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -145,16 +142,16 @@ serve(async (req) => {
     console.log(`[${traceId}] Creating outbound call for agent ${body.agentSlug} to ${body.toNumber.substring(0, 6)}***`);
     
     // Call Retell API
-    const retellResponse = await fetch(url, {
+    const retellResponse = await fetch(phoneUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from_number,
+        from_number: fromNumber,
         to_number: body.toNumber,
-        agent_id
+        agent_id: agentId
       }),
     });
     
