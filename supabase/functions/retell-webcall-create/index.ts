@@ -34,18 +34,17 @@ serve(async (req) => {
   }
   
   // Handle /ping for external egress test
-  if (new URL(req.url).pathname === '/ping') {
+  if (new URL(req.url).pathname.endsWith('/ping')) {
     try {
-      const testResponse = await fetch('https://httpbin.org/json');
-      const testData = await testResponse.json();
+      await fetch('https://dns.google/resolve?name=api.retell.ai');
       return new Response(
-        JSON.stringify({ status: 'ok', egress: 'working', test: testData, traceId }),
+        JSON.stringify({ egress: true, traceId }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } catch (error) {
       return new Response(
-        JSON.stringify({ status: 'error', egress: 'failed', error: error.message, traceId }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ egress: false, traceId }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
   }
@@ -59,29 +58,12 @@ serve(async (req) => {
   }
   
   try {
-    // Check required secrets
-    const retellApiKey = Deno.env.get('RETELL_API_KEY');
-    if (!retellApiKey) {
-      return new Response(
-        JSON.stringify({ error: 'MISCONFIG: missing RETELL_API_KEY', traceId }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    const retellUrl = Deno.env.get('RETELL_WEB_CREATE_URL');
-    if (!retellUrl) {
-      return new Response(
-        JSON.stringify({ error: 'MISCONFIG: missing RETELL_WEB_CREATE_URL', traceId }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
     // Parse request body
     const body: WebCallRequest = await req.json();
     
     if (!body.agentSlug) {
       return new Response(
-        JSON.stringify({ error: 'Missing required field: agentSlug', traceId }),
+        JSON.stringify({ error: 'INVALID_INPUT', details: 'Missing required field: agentSlug', traceId }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -90,42 +72,52 @@ serve(async (req) => {
     const validSlugs = ['paul', 'laura', 'jessica'];
     if (!validSlugs.includes(body.agentSlug.toLowerCase())) {
       return new Response(
-        JSON.stringify({ error: 'Invalid agentSlug. Must be one of: paul, laura, jessica', traceId }),
+        JSON.stringify({ error: 'INVALID_INPUT', details: `agentSlug must be one of: ${validSlugs.join(', ')}`, traceId }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Get agent configuration
-    const agentSlugUpper = body.agentSlug.toUpperCase();
-    const agentId = Deno.env.get(`AGENT_${agentSlugUpper}_ID`);
+    // Resolve agent configuration
+    const UP = body.agentSlug.toUpperCase();
+    const agent_id = Deno.env.get(`AGENT_${UP}_ID`);
     
-    if (!agentId) {
+    if (!agent_id) {
       return new Response(
-        JSON.stringify({ error: `MISCONFIG: missing AGENT_${agentSlugUpper}_ID`, traceId }),
+        JSON.stringify({ error: 'MISCONFIG', missing: [`AGENT_${UP}_ID`], traceId }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Prepare Retell API payload
-    const retellPayload: RetellWebCallRequest = {
-      agent_id: agentId,
-    };
+    // Resolve Retell API configuration
+    const apiKey = Deno.env.get('RETELL_API_KEY');
+    const url = Deno.env.get('RETELL_WEB_CREATE_URL');
+    
+    const missing = [];
+    if (!apiKey) missing.push('RETELL_API_KEY');
+    if (!url) missing.push('RETELL_WEB_CREATE_URL');
+    
+    if (missing.length > 0) {
+      return new Response(
+        JSON.stringify({ error: 'MISCONFIG', missing, traceId }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     console.log(`[${traceId}] Creating web call for agent ${body.agentSlug}`);
     
     // Call Retell API
-    const retellResponse = await fetch(retellUrl, {
+    const retellResponse = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${retellApiKey}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(retellPayload),
+      body: JSON.stringify({ agent_id }),
     });
     
     if (!retellResponse.ok) {
       const errorText = await retellResponse.text();
-      console.error(`[${traceId}] Retell API error: ${retellResponse.status} - ${errorText}`);
+      console.error(`[${traceId}] Retell API error: ${retellResponse.status} - ${errorText.substring(0, 200)}`);
       return new Response(
         JSON.stringify({ error: 'UPSTREAM_RETELL_ERROR', status: retellResponse.status, traceId }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -136,7 +128,6 @@ serve(async (req) => {
     
     console.log(`[${traceId}] Web call created successfully for agent: ${body.agentSlug}`);
     
-    // Return the exact data from Retell for client initialization
     return new Response(
       JSON.stringify({ ...retellData, traceId }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

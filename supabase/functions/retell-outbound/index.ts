@@ -37,18 +37,17 @@ serve(async (req) => {
   }
   
   // Handle /ping for external egress test
-  if (new URL(req.url).pathname === '/ping') {
+  if (new URL(req.url).pathname.endsWith('/ping')) {
     try {
-      const testResponse = await fetch('https://httpbin.org/json');
-      const testData = await testResponse.json();
+      await fetch('https://dns.google/resolve?name=api.retell.ai');
       return new Response(
-        JSON.stringify({ status: 'ok', egress: 'working', test: testData, traceId }),
+        JSON.stringify({ egress: true, traceId }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } catch (error) {
       return new Response(
-        JSON.stringify({ status: 'error', egress: 'failed', error: error.message, traceId }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ egress: false, traceId }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
   }
