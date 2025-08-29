@@ -56,7 +56,9 @@ serve(async (req) => {
 
   // Environment variable guards - check required secrets
   const retellApiKey = Deno.env.get('RETELL_API_KEY');
-  const retellPhoneCreateUrl = Deno.env.get('RETELL_PHONE_CREATE_URL');
+  const retellPhoneCreateUrl = Deno.env.get('RETELL_PHONE_CREATE_URL') || 'https://api.retell.ai/v2/create-phone-call';
+  
+  console.log(`[${traceId}] Using Retell URL: ${retellPhoneCreateUrl}`);
   
   if (!retellApiKey) {
     return new Response(
