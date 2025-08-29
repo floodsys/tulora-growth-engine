@@ -62,23 +62,17 @@ serve(async (req) => {
   }
   
   try {
-    // Check required secrets
-    const retellApiKey = Deno.env.get('RETELL_API_KEY');
-    if (!retellApiKey) {
-      return new Response(
-        JSON.stringify({ error: 'MISCONFIG: missing RETELL_API_KEY', traceId }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    const retellUrl = Deno.env.get('RETELL_PHONE_CREATE_URL') || 'https://api.retell.ai/v2/create-phone-call';
-    
     // Parse request body
     const body: OutboundCallRequest = await req.json();
     
+    // Validate required fields
     if (!body.agentSlug || !body.toNumber) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: agentSlug, toNumber', traceId }),
+        JSON.stringify({ 
+          error: 'INVALID_INPUT', 
+          details: 'Missing required fields: agentSlug, toNumber',
+          traceId 
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -87,62 +81,92 @@ serve(async (req) => {
     const validSlugs = ['paul', 'laura', 'jessica'];
     if (!validSlugs.includes(body.agentSlug.toLowerCase())) {
       return new Response(
-        JSON.stringify({ error: 'Invalid agentSlug. Must be one of: paul, laura, jessica', traceId }),
+        JSON.stringify({ 
+          error: 'INVALID_INPUT', 
+          details: `agentSlug must be one of: ${validSlugs.join(', ')}`,
+          traceId 
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Validate phone number format
+    // Validate phone number format (E.164)
     if (!body.toNumber.match(/^\+\d{10,15}$/)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid toNumber format. Must be E.164 format (+1234567890)', traceId }),
+        JSON.stringify({ 
+          error: 'INVALID_INPUT', 
+          details: 'toNumber must be in E.164 format (+1234567890)',
+          traceId 
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Get agent configuration
-    const agentSlugUpper = body.agentSlug.toUpperCase();
-    const agentId = Deno.env.get(`AGENT_${agentSlugUpper}_ID`);
-    const fromNumber = Deno.env.get(`AGENT_${agentSlugUpper}_FROM`) ?? Deno.env.get('RETELL_FROM_NUMBER');
+    // Resolve agent configuration
+    const UP = body.agentSlug.toUpperCase();
+    const agent_id = Deno.env.get(`AGENT_${UP}_ID`);
+    const from_number = Deno.env.get(`AGENT_${UP}_FROM`) ?? Deno.env.get('RETELL_FROM_NUMBER');
     
-    if (!agentId) {
+    // Check for missing agent configuration
+    const missing = [];
+    if (!agent_id) missing.push(`AGENT_${UP}_ID`);
+    if (!from_number) missing.push(`AGENT_${UP}_FROM or RETELL_FROM_NUMBER`);
+    
+    if (missing.length > 0) {
       return new Response(
-        JSON.stringify({ error: `MISCONFIG: missing AGENT_${agentSlugUpper}_ID`, traceId }),
+        JSON.stringify({ 
+          error: 'MISCONFIG', 
+          missing,
+          traceId 
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    if (!fromNumber) {
+    // Resolve Retell API configuration
+    const apiKey = Deno.env.get('RETELL_API_KEY');
+    const url = Deno.env.get('RETELL_PHONE_CREATE_URL');
+    
+    const retellMissing = [];
+    if (!apiKey) retellMissing.push('RETELL_API_KEY');
+    if (!url) retellMissing.push('RETELL_PHONE_CREATE_URL');
+    
+    if (retellMissing.length > 0) {
       return new Response(
-        JSON.stringify({ error: `MISCONFIG: missing AGENT_${agentSlugUpper}_FROM or RETELL_FROM_NUMBER`, traceId }),
+        JSON.stringify({ 
+          error: 'MISCONFIG', 
+          missing: retellMissing,
+          traceId 
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
-    // Prepare Retell API payload
-    const retellPayload: RetellCallRequest = {
-      from_number: fromNumber,
-      to_number: body.toNumber,
-      agent_id: agentId,
-    };
     
     console.log(`[${traceId}] Creating outbound call for agent ${body.agentSlug} to ${body.toNumber.substring(0, 6)}***`);
     
     // Call Retell API
-    const retellResponse = await fetch(retellUrl, {
+    const retellResponse = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${retellApiKey}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(retellPayload),
+      body: JSON.stringify({
+        from_number,
+        to_number: body.toNumber,
+        agent_id
+      }),
     });
     
     if (!retellResponse.ok) {
       const errorText = await retellResponse.text();
-      console.error(`[${traceId}] Retell API error: ${retellResponse.status} - ${errorText}`);
+      console.error(`[${traceId}] Retell API error: ${retellResponse.status} - ${errorText.substring(0, 200)}`);
       return new Response(
-        JSON.stringify({ error: 'UPSTREAM_RETELL_ERROR', status: retellResponse.status, traceId }),
+        JSON.stringify({ 
+          error: 'UPSTREAM_RETELL_ERROR', 
+          status: retellResponse.status, 
+          traceId 
+        }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
