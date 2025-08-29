@@ -12,7 +12,8 @@ interface RetellCallRequest {
 }
 
 serve(async (req) => {
-  const traceId = `trace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const traceId = `trace_${Date.now()}_${crypto.randomUUID().slice(0,10)}`;
+  console.log("[", traceId, "]", "retell-outbound request");
   
   // Parse CORS allowlist once per request
   const allow = (Deno.env.get("CORS_ALLOWED_ORIGINS") ?? "").split(",").map(s => s.trim()).filter(Boolean);
