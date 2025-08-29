@@ -8,8 +8,12 @@ const allowedOrigins = corsAllowedOrigins
   : ['*']; // Fallback to wildcard in dev
 
 // Always allow Lovable preview domains in addition to configured origins
-const lovablePreviewPattern = /^https:\/\/[\w-]+\.(lovable\.app|sandbox\.lovable\.dev)$/;
-const isLovablePreview = (origin: string) => lovablePreviewPattern.test(origin);
+const lovablePreviewPattern = /^https:\/\/[a-zA-Z0-9-]+\.(lovable\.app|sandbox\.lovable\.dev)$/;
+const isLovablePreview = (origin: string) => {
+  const result = lovablePreviewPattern.test(origin);
+  console.log(`[DEBUG] Testing origin: ${origin}, matches: ${result}`);
+  return result;
+};
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*', // Will be overridden per request
