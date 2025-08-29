@@ -7,6 +7,10 @@ const allowedOrigins = corsAllowedOrigins
   ? corsAllowedOrigins.split(',').map(origin => origin.trim())
   : ['*']; // Fallback to wildcard in dev
 
+// Always allow Lovable preview domains in addition to configured origins
+const lovablePreviewPattern = /^https:\/\/[\w-]+\.lovable\.app$/;
+const isLovablePreview = (origin: string) => lovablePreviewPattern.test(origin);
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*', // Will be overridden per request
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
@@ -19,7 +23,11 @@ function generateTraceId(): string {
 }
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
-  const isAllowedOrigin = origin && (allowedOrigins.includes('*') || allowedOrigins.includes(origin));
+  const isAllowedOrigin = origin && (
+    allowedOrigins.includes('*') || 
+    allowedOrigins.includes(origin) || 
+    isLovablePreview(origin)
+  );
   return {
     ...corsHeaders,
     'Access-Control-Allow-Origin': isAllowedOrigin ? (allowedOrigins.includes('*') ? '*' : origin) : 'null',
@@ -81,7 +89,7 @@ serve(async (req) => {
   }
 
   // CORS origin validation
-  if (origin && !allowedOrigins.includes(origin)) {
+  if (origin && !allowedOrigins.includes('*') && !allowedOrigins.includes(origin) && !isLovablePreview(origin)) {
     console.log(`[${traceId}] Origin not allowed: ${origin}`);
     return new Response(
       JSON.stringify({ error: 'Origin not allowed', traceId }),
