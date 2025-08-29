@@ -12,29 +12,34 @@ interface RetellCallRequest {
 }
 
 serve(async (req) => {
+  // Trace ID on every request
   const traceId = `trace_${Date.now()}_${crypto.randomUUID().slice(0,10)}`;
   console.log("[", traceId, "]", "retell-outbound request");
   
-  // Parse CORS allowlist once per request
-  const allow = (Deno.env.get("CORS_ALLOWED_ORIGINS") ?? "").split(",").map(s => s.trim()).filter(Boolean);
-  
-  // CORS helper
-  function cors(origin: string | null): Record<string, string> {
-    const isAllowed = origin && allow.includes(origin);
-    return {
-      'Access-Control-Allow-Origin': isAllowed ? origin : 'null',
-      'Access-Control-Allow-Headers': 'Authorization, Content-Type',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Vary': 'Origin',
-    };
-  }
-  
-  const origin = req.headers.get('origin');
-  const corsHeaders = cors(origin);
+  // CORS helper (per request)
+  const allow = (Deno.env.get("CORS_ALLOWED_ORIGINS") ?? "")
+    .split(",").map(s => s.trim()).filter(Boolean);
+  const origin = req.headers.get("Origin") ?? "";
+  const isAllowed = allow.includes(origin);
+  const cors = {
+    "Access-Control-Allow-Origin": isAllowed ? origin : "null",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+    "Content-Type": "application/json",
+  };
   
   // Handle OPTIONS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: cors });
+  }
+  
+  // Handle /health for health checks
+  if (new URL(req.url).pathname.endsWith('/health')) {
+    return new Response(
+      JSON.stringify({ status: "healthy", traceId }),
+      { headers: cors }
+    );
   }
   
   // Handle /ping for external egress test
@@ -43,12 +48,12 @@ serve(async (req) => {
       await fetch('https://dns.google/resolve?name=api.retellai.com');
       return new Response(
         JSON.stringify({ egress: true, traceId }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: cors }
       );
     } catch (error) {
       return new Response(
         JSON.stringify({ egress: false, traceId }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 502, headers: cors }
       );
     }
   }
@@ -57,7 +62,7 @@ serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response(
       JSON.stringify({ error: 'METHOD_NOT_ALLOWED', traceId }),
-      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 405, headers: cors }
     );
   }
   
@@ -77,7 +82,7 @@ serve(async (req) => {
           details: 'Missing required fields: agentSlug, toNumber',
           traceId 
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: cors }
       );
     }
     
@@ -90,7 +95,7 @@ serve(async (req) => {
           details: `agentSlug must be one of: ${validSlugs.join(', ')}`,
           traceId 
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: cors }
       );
     }
     
@@ -102,7 +107,7 @@ serve(async (req) => {
           details: 'toNumber must be in E.164',
           traceId 
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: cors }
       );
     }
     
@@ -119,7 +124,7 @@ serve(async (req) => {
           missing: [`AGENT_${up}_ID`],
           traceId 
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 500, headers: cors }
       );
     }
     
@@ -130,7 +135,7 @@ serve(async (req) => {
           missing: ['AGENT_*_FROM or RETELL_FROM_NUMBER'],
           traceId 
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 500, headers: cors }
       );
     }
     
@@ -142,7 +147,7 @@ serve(async (req) => {
           missing: ['RETELL_API_KEY'],
           traceId 
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 500, headers: cors }
       );
     }
     
@@ -173,7 +178,7 @@ serve(async (req) => {
           hint: 'Check RETELL_API_KEY / from_number / agent binding / destination permissions.',
           traceId 
         }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 502, headers: cors }
       );
     }
     
@@ -183,14 +188,14 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ status: "queued", data: retellData, traceId }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: cors }
     );
     
   } catch (error) {
     console.error(`[${traceId}] Error in retell-outbound function: ${error.message}`);
     return new Response(
       JSON.stringify({ error: 'Internal server error', traceId }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: cors }
     );
   }
 });
