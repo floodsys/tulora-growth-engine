@@ -169,8 +169,8 @@ export function TestCallsTab() {
               </SelectTrigger>
               <SelectContent>
                 {voiceAgents.map((agent) => (
-                  <SelectItem key={agent.slug} value={agent.slug}>
-                    {agent.name} - {agent.category}
+                  <SelectItem key={agent.slug} value={agent.slug} className="truncate">
+                    <span className="truncate">{agent.name} - {agent.category}</span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -191,7 +191,7 @@ export function TestCallsTab() {
               className="font-mono"
               disabled={isCallingPhone || isTryingBrowser}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground break-words">
               Enter phone number in E.164 format, starting with + and country code
             </p>
           </div>
@@ -240,7 +240,7 @@ export function TestCallsTab() {
           {/* Status Messages */}
           {statusMessage && (
             <div 
-              className={`text-sm p-3 rounded ${
+              className={`text-sm p-3 rounded break-words ${
                 statusMessage.includes("Error") 
                   ? "bg-destructive/10 text-destructive border border-destructive/20" 
                   : "bg-green-50 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
@@ -254,8 +254,8 @@ export function TestCallsTab() {
 
           {/* Trace ID */}
           {traceId && (
-            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded font-mono">
-              <strong>Trace ID:</strong> {traceId}
+            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded font-mono break-all">
+              <strong>Trace ID:</strong> <span className="break-all">{traceId}</span>
             </div>
           )}
 
@@ -266,13 +266,13 @@ export function TestCallsTab() {
               <div className="space-y-3">
                 <h4 className="text-sm font-medium">Session Details</h4>
                 <div 
-                  className="text-sm space-y-2 bg-muted/50 p-4 rounded font-mono"
+                  className="text-sm space-y-2 bg-muted/50 p-4 rounded font-mono overflow-x-auto"
                   role="region"
                   aria-label="Web call session information"
                 >
-                  <div><strong>call_id:</strong> {sessionData.call_id}</div>
-                  <div><strong>client_secret:</strong> {sessionData.client_secret}</div>
-                  <div><strong>access_token:</strong> {sessionData.access_token}</div>
+                  <div className="break-all"><strong>call_id:</strong> <span className="break-all">{sessionData.call_id}</span></div>
+                  <div className="break-all"><strong>client_secret:</strong> <span className="break-all">{sessionData.client_secret}</span></div>
+                  <div className="break-all"><strong>access_token:</strong> <span className="break-all">{sessionData.access_token}</span></div>
                 </div>
                 <p className="text-sm text-muted-foreground italic">
                   Browser audio coming soon.
