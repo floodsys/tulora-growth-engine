@@ -102,20 +102,15 @@ serve(async (req) => {
     console.log(`[${traceId}] Creating web call for agent ${agentSlug}`);
     
     // Call Retell API
-    const retellResponse = await fetch(webUrl, {
+    const res = await fetch(webUrl, {
       method: "POST",
-      headers: {
-        "Authorization": "Bearer " + apiKey,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        agent_id: agentId
-      })
+      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ agent_id: agentId }),
     });
     
-    if (!retellResponse.ok) {
-      const status = retellResponse.status;
-      const text = await retellResponse.text();
+    if (!res.ok) {
+      const status = res.status;
+      const text = await res.text();
       console.error("[", traceId, "] Retell upstream", status, text.slice(0, 200));
       return new Response(
         JSON.stringify({ 
@@ -128,7 +123,7 @@ serve(async (req) => {
       );
     }
     
-    const retellData = await retellResponse.json();
+    const retellData = await res.json();
     
     console.log(`[${traceId}] Web call created successfully for agent: ${agentSlug}`);
     
