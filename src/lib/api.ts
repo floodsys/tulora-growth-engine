@@ -9,6 +9,7 @@ export async function callEF<T>(fnName: string, body?: Record<string, unknown>):
     throw new Error('Missing Supabase configuration. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.');
   }
 
+  // Ensure absolute URL to Supabase Functions
   const url = `${supabaseUrl}/functions/v1/${fnName}`;
   
   const res = await fetch(url, {

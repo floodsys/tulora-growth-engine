@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PlayCircle, Phone, MessageSquare, BarChart3, Users, Star, ExternalLink, Contact } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { EnvWarningBanner } from "@/components/ui/EnvWarningBanner"
 
 export function DemoSandbox() {
   const [activeAgent, setActiveAgent] = useState("demo-agent-1")
@@ -97,6 +98,7 @@ export function DemoSandbox() {
       </div>
 
       <div className="container mx-auto px-4 py-8">
+        <EnvWarningBanner />
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card>
