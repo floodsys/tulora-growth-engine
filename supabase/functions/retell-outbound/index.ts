@@ -129,28 +129,25 @@ serve(async (req) => {
     });
     
     if (!res.ok) {
-      const status = res.status;
       const text = await res.text();
-      console.error("[", traceId, "] Retell upstream", status, text.slice(0, 200));
-      return new Response(
-        JSON.stringify({ 
-          error: 'UPSTREAM_RETELL_ERROR', 
-          status: status,
-          hint: 'Check RETELL_API_KEY / from_number / agent binding / destination permissions.',
-          traceId 
-        }),
-        { status: 502, headers: cors }
-      );
+      console.error("[", traceId, "] Retell upstream", res.status, text.slice(0, 200));
+      return new Response(JSON.stringify({
+        error: "UPSTREAM_RETELL_ERROR",
+        status: res.status,
+        hint: "Check RETELL_API_KEY / from_number / agent binding / destination permissions.",
+        traceId,
+      }), { status: 502, headers: cors });
     }
     
     const retellData = await res.json();
     
     console.log(`[${traceId}] Outbound call created successfully for agent: ${agentSlug}`);
     
-    return new Response(
-      JSON.stringify({ status: "queued", data: retellData, traceId }),
-      { headers: cors }
-    );
+    return new Response(JSON.stringify({
+      status: "queued",
+      data: retellData,
+      traceId
+    }), { headers: cors });
     
   } catch (error) {
     console.error(`[${traceId}] Error in retell-outbound function: ${error.message}`);
