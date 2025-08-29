@@ -36,25 +36,49 @@ serve(async (req) => {
   
   // Handle /health for health checks
   if (new URL(req.url).pathname.endsWith('/health')) {
-    return new Response(
-      JSON.stringify({ status: "healthy", traceId }),
-      { headers: cors }
-    );
+    const apiKey = Deno.env.get("RETELL_API_KEY");
+    const phoneUrl = Deno.env.get("RETELL_PHONE_CREATE_URL");
+    const webUrl = Deno.env.get("RETELL_WEB_CREATE_URL");
+    
+    const url = new URL(req.url);
+    const agent = url.searchParams.get("agent");
+    let agentMapped = false;
+    
+    if (agent) {
+      const up = agent.toUpperCase();
+      const agentId = Deno.env.get(`AGENT_${up}_ID`);
+      agentMapped = !!agentId;
+    }
+    
+    return new Response(JSON.stringify({
+      hasApiKey: !!apiKey,
+      hasPhoneUrl: !!phoneUrl,
+      hasWebUrl: !!webUrl,
+      agentMapped,
+      traceId
+    }), { 
+      headers: { ...cors, "Content-Type": "application/json" }
+    });
   }
   
   // Handle /ping for external egress test
   if (new URL(req.url).pathname.endsWith('/ping')) {
     try {
       await fetch('https://dns.google/resolve?name=api.retellai.com');
-      return new Response(
-        JSON.stringify({ egress: true, traceId }),
-        { headers: cors }
-      );
+      return new Response(JSON.stringify({
+        egress: true,
+        traceId
+      }), { 
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
     } catch (error) {
-      return new Response(
-        JSON.stringify({ egress: false, traceId }),
-        { status: 502, headers: cors }
-      );
+      return new Response(JSON.stringify({
+        egress: false,
+        traceId
+      }), { 
+        status: 502, 
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
     }
   }
   
@@ -78,25 +102,37 @@ serve(async (req) => {
     
     // Validate required fields
     if (!apiKey) {
-      return new Response(
-        JSON.stringify({ error: "MISCONFIG", missing: ["RETELL_API_KEY"], traceId }),
-        { status: 500, headers: cors }
-      );
+      return new Response(JSON.stringify({
+        error: "MISCONFIG",
+        missing: ["RETELL_API_KEY"],
+        traceId
+      }), { 
+        status: 500, 
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
     }
     
     if (!agentSlug) {
-      return new Response(
-        JSON.stringify({ error: "INVALID_INPUT", details: "Unknown or missing agentSlug", traceId }),
-        { status: 400, headers: cors }
-      );
+      return new Response(JSON.stringify({
+        error: "INVALID_INPUT",
+        details: "Unknown or missing agentSlug",
+        traceId
+      }), { 
+        status: 400, 
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
     }
     
     // Validate phone number format (E.164)
     if (!toNumber || !toNumber.match(/^\+[1-9]\d{7,14}$/)) {
-      return new Response(
-        JSON.stringify({ error: "INVALID_INPUT", details: "toNumber must be in E.164 (+1234567890)", traceId }),
-        { status: 400, headers: cors }
-      );
+      return new Response(JSON.stringify({
+        error: "INVALID_INPUT",
+        details: "toNumber must be in E.164 (+1234567890)",
+        traceId
+      }), { 
+        status: 400, 
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
     }
     
     // Agent resolution
@@ -106,17 +142,25 @@ serve(async (req) => {
     
     // Check for missing agent configuration
     if (!agentId) {
-      return new Response(
-        JSON.stringify({ error: "INVALID_INPUT", details: "Unknown or missing agentSlug", traceId }),
-        { status: 400, headers: cors }
-      );
+      return new Response(JSON.stringify({
+        error: "INVALID_INPUT",
+        details: "Unknown or missing agentSlug",
+        traceId
+      }), { 
+        status: 400, 
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
     }
     
     if (!fromNumber) {
-      return new Response(
-        JSON.stringify({ error: "MISCONFIG", missing: ["AGENT_*_FROM or RETELL_FROM_NUMBER"], traceId }),
-        { status: 500, headers: cors }
-      );
+      return new Response(JSON.stringify({
+        error: "MISCONFIG",
+        missing: ["AGENT_*_FROM or RETELL_FROM_NUMBER"],
+        traceId
+      }), { 
+        status: 500, 
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
     }
     
     console.log(`[${traceId}] Creating outbound call for agent ${agentSlug} to ${toNumber.substring(0, 6)}***`);
@@ -136,7 +180,10 @@ serve(async (req) => {
         status: res.status,
         hint: "Check RETELL_API_KEY / from_number / agent binding / destination permissions.",
         traceId,
-      }), { status: 502, headers: cors });
+      }), { 
+        status: 502, 
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
     }
     
     const retellData = await res.json();
@@ -147,13 +194,18 @@ serve(async (req) => {
       status: "queued",
       data: retellData,
       traceId
-    }), { headers: cors });
+    }), { 
+      headers: { ...cors, "Content-Type": "application/json" }
+    });
     
   } catch (error) {
     console.error(`[${traceId}] Error in retell-outbound function: ${error.message}`);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error', traceId }),
-      { status: 500, headers: cors }
-    );
+    return new Response(JSON.stringify({
+      error: 'Internal server error',
+      traceId
+    }), { 
+      status: 500, 
+      headers: { ...cors, "Content-Type": "application/json" }
+    });
   }
 });
