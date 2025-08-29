@@ -67,91 +67,59 @@ serve(async (req) => {
   }
   
   try {
-    // Parse request body
-    const body: OutboundCallRequest = await req.json();
-    
-    // Read environment variables inside POST handler
+    // Read environment variables inside the request handler
     const apiKey = Deno.env.get("RETELL_API_KEY");
     const phoneUrl = Deno.env.get("RETELL_PHONE_CREATE_URL") ?? "https://api.retellai.com/v2/create-phone-call";
     
+    // Parse request body with error handling
+    const body = await req.json().catch(() => ({}));
+    const agentSlug = (body.agentSlug ?? body.slug ?? "").toString().trim();
+    const toNumber = body.toNumber;
+    
     // Validate required fields
-    if (!body.agentSlug || !body.toNumber) {
+    if (!apiKey) {
       return new Response(
-        JSON.stringify({ 
-          error: 'INVALID_INPUT', 
-          details: 'Missing required fields: agentSlug, toNumber',
-          traceId 
-        }),
-        { status: 400, headers: cors }
+        JSON.stringify({ error: "MISCONFIG", missing: ["RETELL_API_KEY"], traceId }),
+        { status: 500, headers: cors }
       );
     }
     
-    // Validate agent slug
-    const validSlugs = ['paul', 'laura', 'jessica'];
-    if (!validSlugs.includes(body.agentSlug.toLowerCase())) {
+    if (!agentSlug) {
       return new Response(
-        JSON.stringify({ 
-          error: 'INVALID_INPUT', 
-          details: `agentSlug must be one of: ${validSlugs.join(', ')}`,
-          traceId 
-        }),
+        JSON.stringify({ error: "INVALID_INPUT", details: "Unknown or missing agentSlug", traceId }),
         { status: 400, headers: cors }
       );
     }
     
     // Validate phone number format (E.164)
-    if (!body.toNumber.match(/^\+[1-9]\d{7,14}$/)) {
+    if (!toNumber || !toNumber.match(/^\+[1-9]\d{7,14}$/)) {
       return new Response(
-        JSON.stringify({ 
-          error: 'INVALID_INPUT', 
-          details: 'toNumber must be in E.164',
-          traceId 
-        }),
+        JSON.stringify({ error: "INVALID_INPUT", details: "toNumber must be in E.164 (+1234567890)", traceId }),
         { status: 400, headers: cors }
       );
     }
     
-    // Resolve agent configuration
-    const up = body.agentSlug.toUpperCase();
-    const agentId = Deno.env.get(`AGENT_${up}_ID`);
-    const fromNumber = Deno.env.get(`AGENT_${up}_FROM`) ?? Deno.env.get("RETELL_FROM_NUMBER");
+    // Agent resolution
+    const up = agentSlug.toUpperCase();
+    const agentId = Deno.env.get(`AGENT_${up}_ID`) ?? null;
+    const fromNumber = Deno.env.get(`AGENT_${up}_FROM`) ?? Deno.env.get("RETELL_FROM_NUMBER") ?? null;
     
     // Check for missing agent configuration
     if (!agentId) {
       return new Response(
-        JSON.stringify({ 
-          error: 'MISCONFIG', 
-          missing: [`AGENT_${up}_ID`],
-          traceId 
-        }),
-        { status: 500, headers: cors }
+        JSON.stringify({ error: "INVALID_INPUT", details: "Unknown or missing agentSlug", traceId }),
+        { status: 400, headers: cors }
       );
     }
     
     if (!fromNumber) {
       return new Response(
-        JSON.stringify({ 
-          error: 'MISCONFIG', 
-          missing: ['AGENT_*_FROM or RETELL_FROM_NUMBER'],
-          traceId 
-        }),
+        JSON.stringify({ error: "MISCONFIG", missing: ["AGENT_*_FROM or RETELL_FROM_NUMBER"], traceId }),
         { status: 500, headers: cors }
       );
     }
     
-    // Check for missing Retell API configuration
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'MISCONFIG', 
-          missing: ['RETELL_API_KEY'],
-          traceId 
-        }),
-        { status: 500, headers: cors }
-      );
-    }
-    
-    console.log(`[${traceId}] Creating outbound call for agent ${body.agentSlug} to ${body.toNumber.substring(0, 6)}***`);
+    console.log(`[${traceId}] Creating outbound call for agent ${agentSlug} to ${toNumber.substring(0, 6)}***`);
     
     // Call Retell API
     const retellResponse = await fetch(phoneUrl, {
@@ -162,7 +130,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from_number: fromNumber,
-        to_number: body.toNumber,
+        to_number: toNumber,
         agent_id: agentId
       })
     });
@@ -184,7 +152,7 @@ serve(async (req) => {
     
     const retellData = await retellResponse.json();
     
-    console.log(`[${traceId}] Outbound call created successfully for agent: ${body.agentSlug}`);
+    console.log(`[${traceId}] Outbound call created successfully for agent: ${agentSlug}`);
     
     return new Response(
       JSON.stringify({ status: "queued", data: retellData, traceId }),

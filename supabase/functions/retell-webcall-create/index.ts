@@ -55,58 +55,51 @@ serve(async (req) => {
     }
   }
   
-  // Only POST allowed for main functionality
-  if (req.method !== 'POST') {
+  // Validate method first
+  if (req.method !== "POST") {
     return new Response(
-      JSON.stringify({ error: 'METHOD_NOT_ALLOWED', traceId }),
+      JSON.stringify({ error: "METHOD_NOT_ALLOWED", traceId }),
       { status: 405, headers: cors }
     );
   }
   
   try {
-    // Parse request body
-    const body: WebCallRequest = await req.json();
-    
-    // Read environment variables inside POST handler
+    // Read environment variables inside the request handler
     const apiKey = Deno.env.get("RETELL_API_KEY");
     const webUrl = Deno.env.get("RETELL_WEB_CREATE_URL") ?? "https://api.retellai.com/v2/create-web-call";
     
-    if (!body.agentSlug) {
-      return new Response(
-        JSON.stringify({ error: 'INVALID_INPUT', details: 'Missing required field: agentSlug', traceId }),
-        { status: 400, headers: cors }
-      );
-    }
+    // Parse request body with error handling
+    const body = await req.json().catch(() => ({}));
+    const agentSlug = (body.agentSlug ?? body.slug ?? "").toString().trim();
     
-    // Validate agent slug
-    const validSlugs = ['paul', 'laura', 'jessica'];
-    if (!validSlugs.includes(body.agentSlug.toLowerCase())) {
-      return new Response(
-        JSON.stringify({ error: 'INVALID_INPUT', details: `agentSlug must be one of: ${validSlugs.join(', ')}`, traceId }),
-        { status: 400, headers: cors }
-      );
-    }
-    
-    // Resolve agent configuration
-    const up = body.agentSlug.toUpperCase();
-    const agentId = Deno.env.get(`AGENT_${up}_ID`);
-    
-    if (!agentId) {
-      return new Response(
-        JSON.stringify({ error: 'MISCONFIG', missing: [`AGENT_${up}_ID`], traceId }),
-        { status: 500, headers: cors }
-      );
-    }
-    
-    // Check for missing Retell API configuration
+    // Validate required fields
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: 'MISCONFIG', missing: ['RETELL_API_KEY'], traceId }),
+        JSON.stringify({ error: "MISCONFIG", missing: ["RETELL_API_KEY"], traceId }),
         { status: 500, headers: cors }
       );
     }
     
-    console.log(`[${traceId}] Creating web call for agent ${body.agentSlug}`);
+    if (!agentSlug) {
+      return new Response(
+        JSON.stringify({ error: "INVALID_INPUT", details: "Unknown or missing agentSlug", traceId }),
+        { status: 400, headers: cors }
+      );
+    }
+    
+    // Agent resolution
+    const up = agentSlug.toUpperCase();
+    const agentId = Deno.env.get(`AGENT_${up}_ID`) ?? null;
+    
+    // Check for missing agent configuration
+    if (!agentId) {
+      return new Response(
+        JSON.stringify({ error: "INVALID_INPUT", details: "Unknown or missing agentSlug", traceId }),
+        { status: 400, headers: cors }
+      );
+    }
+    
+    console.log(`[${traceId}] Creating web call for agent ${agentSlug}`);
     
     // Call Retell API
     const retellResponse = await fetch(webUrl, {
@@ -137,7 +130,7 @@ serve(async (req) => {
     
     const retellData = await retellResponse.json();
     
-    console.log(`[${traceId}] Web call created successfully for agent: ${body.agentSlug}`);
+    console.log(`[${traceId}] Web call created successfully for agent: ${agentSlug}`);
     
     return new Response(
       JSON.stringify({ ...retellData, traceId }),
