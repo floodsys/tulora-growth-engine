@@ -117,7 +117,7 @@ serve(async (req) => {
     
     if (!retellResponse.ok) {
       const errorText = await retellResponse.text();
-      console.error(`[${traceId}] Retell API error: ${retellResponse.status} - ${errorText.substring(0, 200)}`);
+      console.error(`[${traceId}] Retell API error: ${retellResponse.status} - Error details redacted for security`);
       return new Response(
         JSON.stringify({ error: 'UPSTREAM_RETELL_ERROR', status: retellResponse.status, traceId }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
