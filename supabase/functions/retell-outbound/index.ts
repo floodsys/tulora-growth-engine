@@ -40,7 +40,7 @@ serve(async (req) => {
   // Handle /ping for external egress test
   if (new URL(req.url).pathname.endsWith('/ping')) {
     try {
-      await fetch('https://dns.google/resolve?name=api.retell.ai');
+      await fetch('https://dns.google/resolve?name=api.retellai.com');
       return new Response(
         JSON.stringify({ egress: true, traceId }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
