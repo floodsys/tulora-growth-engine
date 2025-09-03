@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Phone, Monitor, Loader2, Copy } from "lucide-react";
 import { callEF } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { BrowserCallModal } from "./BrowserCallModal";
 
 const voiceAgents = [
   {
@@ -44,6 +45,7 @@ export function TestCallsTab() {
     client_secret?: string;
     access_token?: string;
   } | null>(null);
+  const [isBrowserCallOpen, setIsBrowserCallOpen] = useState(false);
   
   const { toast } = useToast();
 
@@ -129,23 +131,37 @@ export function TestCallsTab() {
         agentSlug: selectedAgent,
       }) as any;
       
-      setStatusMessage("Web call session created!");
-      setSessionData({
+      // Set session data and open browser call modal
+      const newSessionData = {
         call_id: payload?.call_id,
         client_secret: payload?.client_secret,
         access_token: payload?.access_token,
-      });
+      };
+      
+      setSessionData(newSessionData);
       
       if (payload?.traceId) {
         setTraceId(payload.traceId);
       }
+      
+      // Open the browser call modal
+      setIsBrowserCallOpen(true);
+      setStatusMessage("Browser call started!");
+      
     } catch (error: any) {
       const errorMsg = getErrorMessage(error);
       setStatusMessage(`Error: ${errorMsg}`);
       
       if (error?.traceId) {
         setTraceId(error.traceId);
+        console.error("Web call failed with traceId:", error.traceId);
       }
+      
+      toast({
+        title: "Web call failed",
+        description: errorMsg,
+        variant: "destructive",
+      });
     } finally {
       setIsTryingBrowser(false);
     }
@@ -323,29 +339,17 @@ export function TestCallsTab() {
             </div>
           )}
 
-          {/* Session Details for Browser Demo */}
-          {sessionData && (
-            <>
-              <Separator />
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium">Session Details</h4>
-                <div 
-                  className="text-sm space-y-2 bg-muted/50 p-4 rounded font-mono overflow-x-auto"
-                  role="region"
-                  aria-label="Web call session information"
-                >
-                  <div className="break-all"><strong>call_id:</strong> <span className="break-all">{sessionData.call_id}</span></div>
-                  <div className="break-all"><strong>client_secret:</strong> <span className="break-all">{sessionData.client_secret}</span></div>
-                  <div className="break-all"><strong>access_token:</strong> <span className="break-all">{sessionData.access_token}</span></div>
-                </div>
-                <p className="text-sm text-muted-foreground italic">
-                  Browser audio coming soon.
-                </p>
-              </div>
-            </>
-          )}
         </CardContent>
       </Card>
+
+      {/* Browser Call Modal */}
+      <BrowserCallModal
+        isOpen={isBrowserCallOpen}
+        onClose={() => setIsBrowserCallOpen(false)}
+        sessionData={sessionData}
+        traceId={traceId}
+        agentName={selectedAgentData?.name || "Agent"}
+      />
     </div>
   );
 }
