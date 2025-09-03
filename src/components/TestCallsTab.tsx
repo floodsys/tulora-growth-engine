@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Phone, Monitor, Loader2 } from "lucide-react";
+import { Phone, Monitor, Loader2, Copy } from "lucide-react";
 import { callEF } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -14,18 +14,21 @@ const voiceAgents = [
     name: "Paul",
     category: "Real Estate",
     subtitle: "Lead Qualification · Buyer",
+    phoneNumber: "+1 (289) 907-2070",
   },
   {
     slug: "laura",
     name: "Laura", 
     category: "Hospitality",
     subtitle: "Customer Service · Restaurant",
+    phoneNumber: "+1 (289) 536-8131",
   },
   {
     slug: "jessica",
     name: "Jessica",
     category: "Healthcare",
     subtitle: "Healthcare Receptionist",
+    phoneNumber: "+1 (863) 451-9425",
   },
 ];
 
@@ -148,6 +151,40 @@ export function TestCallsTab() {
     }
   };
 
+  const handleCopyPhone = async (phoneNumber: string) => {
+    try {
+      await navigator.clipboard.writeText(phoneNumber);
+      toast({
+        title: "Phone number copied",
+        description: phoneNumber,
+      });
+    } catch (error) {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = phoneNumber;
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand("copy");
+        toast({
+          title: "Phone number copied",
+          description: phoneNumber,
+        });
+      } catch (fallbackError) {
+        toast({
+          title: "Failed to copy",
+          description: "Please copy the number manually",
+          variant: "destructive",
+        });
+      }
+      document.body.removeChild(textArea);
+    }
+  };
+
+  const selectedAgentData = voiceAgents.find(agent => agent.slug === selectedAgent);
+  const agentPhoneNumber = selectedAgentData?.phoneNumber || voiceAgents.find(agent => agent.slug === "jessica")?.phoneNumber;
+
   return (
     <div className="max-w-2xl mx-auto">
       <Card>
@@ -236,6 +273,33 @@ export function TestCallsTab() {
               )}
             </Button>
           </div>
+
+          {/* Call from Phone */}
+          {selectedAgent && agentPhoneNumber && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">or call from phone</p>
+              <div className="flex items-center justify-between bg-muted/30 p-3 rounded border">
+                <a 
+                  href={`tel:${agentPhoneNumber}`}
+                  className="font-bold text-lg hover:underline"
+                >
+                  {agentPhoneNumber}
+                </a>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleCopyPhone(agentPhoneNumber)}
+                  className="h-8 px-2"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span className="sr-only">Copy phone number</span>
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Browser demo uses your mic — it won't call your phone. Carrier rates may apply.
+              </p>
+            </div>
+          )}
 
           {/* Status Messages */}
           {statusMessage && (
