@@ -94,6 +94,15 @@ export function TestCallsTab() {
       }) as any;
       
       setStatusMessage("Call queued—your phone should ring shortly.");
+      
+      // Log debugging info to console
+      console.log("Call queued successfully:", {
+        traceId: response?.traceId,
+        call_id: response?.call_id,
+        agentSlug: selectedAgent,
+        toNumber: phoneNumber
+      });
+      
       if (response?.traceId) {
         setTraceId(response.traceId);
       }
@@ -101,7 +110,7 @@ export function TestCallsTab() {
       const agentName = voiceAgents.find(a => a.slug === selectedAgent)?.name || selectedAgent;
       toast({
         title: "Call queued",
-        description: `Your phone should ring shortly for ${agentName}`,
+        description: "Your phone should ring shortly",
       });
     } catch (error: any) {
       const errorMsg = getErrorMessage(error);
@@ -251,43 +260,50 @@ export function TestCallsTab() {
 
           {/* Action Buttons */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Button
-              onClick={handleCallMe}
-              disabled={isCallingPhone || isTryingBrowser || !phoneNumber || phoneNumber === "+1" || !selectedAgent}
-              className="w-full"
-              variant="default"
-            >
-              {isCallingPhone ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Calling...
-                </>
-              ) : (
-                <>
-                  <Phone className="w-4 h-4 mr-2" />
-                  Call Me
-                </>
-              )}
-            </Button>
+            <div className="space-y-1">
+              <Button
+                onClick={handleCallMe}
+                disabled={isCallingPhone || isTryingBrowser || !phoneNumber || phoneNumber === "+1" || !selectedAgent}
+                className="w-full"
+                variant="default"
+              >
+                {isCallingPhone ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Calling...
+                  </>
+                ) : (
+                  <>
+                    <Phone className="w-4 h-4 mr-2" />
+                    Call Me
+                  </>
+                )}
+              </Button>
+            </div>
             
-            <Button
-              onClick={handleTryInBrowser}
-              disabled={isTryingBrowser || isCallingPhone || !selectedAgent}
-              className="w-full"
-              variant="outline"
-            >
-              {isTryingBrowser ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Monitor className="w-4 h-4 mr-2" />
-                  Try in Browser
-                </>
-              )}
-            </Button>
+            <div className="space-y-1">
+              <Button
+                onClick={handleTryInBrowser}
+                disabled={isTryingBrowser || isCallingPhone || !selectedAgent}
+                className="w-full"
+                variant="outline"
+              >
+                {isTryingBrowser ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Monitor className="w-4 h-4 mr-2" />
+                    Try in Browser
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                This uses your microphone and plays audio in your browser. It won't call your phone.
+              </p>
+            </div>
           </div>
 
           {/* Call from Phone */}
