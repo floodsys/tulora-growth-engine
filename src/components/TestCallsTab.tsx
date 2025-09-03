@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Phone, Monitor, Loader2, Copy } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Phone, Monitor, Loader2, Copy, ChevronDown } from "lucide-react";
 import { callEF } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { BrowserCallModal } from "./BrowserCallModal";
@@ -40,6 +41,9 @@ export function TestCallsTab() {
     access_token?: string;
   } | null>(null);
   const [isBrowserCallOpen, setIsBrowserCallOpen] = useState(false);
+  const [isDebugOpen, setIsDebugOpen] = useState(false);
+  const [lastErrorStatus, setLastErrorStatus] = useState<number | null>(null);
+  const [lastPayload, setLastPayload] = useState<any>(null);
   const {
     toast
   } = useToast();
@@ -76,11 +80,14 @@ export function TestCallsTab() {
     setStatusMessage("");
     setTraceId("");
     setSessionData(null);
+    setLastErrorStatus(null);
+    
+    const payload = { agentSlug: selectedAgent, toNumber: phoneNumber };
+    setLastPayload({ action: "retell-outbound", request: payload });
+    
     try {
-      const response = (await callEF("retell-outbound", {
-        agentSlug: selectedAgent,
-        toNumber: phoneNumber
-      })) as any;
+      const response = (await callEF("retell-outbound", payload)) as any;
+      setLastPayload({ action: "retell-outbound", request: payload, response });
       setStatusMessage("Call queued—your phone should ring shortly.");
 
       // Log debugging info to console
@@ -104,6 +111,11 @@ export function TestCallsTab() {
       if (error?.traceId) {
         setTraceId(error.traceId);
       }
+      // Extract status code from error message
+      const statusMatch = error.message?.match(/(\d{3})/);
+      if (statusMatch) {
+        setLastErrorStatus(parseInt(statusMatch[1]));
+      }
     } finally {
       setIsCallingPhone(false);
     }
@@ -117,20 +129,24 @@ export function TestCallsTab() {
     setStatusMessage("");
     setTraceId("");
     setSessionData(null);
+    setLastErrorStatus(null);
+    
+    const payload = { agentSlug: selectedAgent };
+    setLastPayload({ action: "retell-webcall-create", request: payload });
+    
     try {
-      const payload = (await callEF("retell-webcall-create", {
-        agentSlug: selectedAgent
-      })) as any;
+      const response = (await callEF("retell-webcall-create", payload)) as any;
+      setLastPayload({ action: "retell-webcall-create", request: payload, response });
 
       // Set session data and open browser call modal
       const newSessionData = {
-        call_id: payload?.call_id,
-        client_secret: payload?.client_secret,
-        access_token: payload?.access_token
+        call_id: response?.call_id,
+        client_secret: response?.client_secret,
+        access_token: response?.access_token
       };
       setSessionData(newSessionData);
-      if (payload?.traceId) {
-        setTraceId(payload.traceId);
+      if (response?.traceId) {
+        setTraceId(response.traceId);
       }
 
       // Open the browser call modal
@@ -142,6 +158,11 @@ export function TestCallsTab() {
       if (error?.traceId) {
         setTraceId(error.traceId);
         console.error("Web call failed with traceId:", error.traceId);
+      }
+      // Extract status code from error message
+      const statusMatch = error.message?.match(/(\d{3})/);
+      if (statusMatch) {
+        setLastErrorStatus(parseInt(statusMatch[1]));
       }
       toast({
         title: "Web call failed",
@@ -182,6 +203,30 @@ export function TestCallsTab() {
       document.body.removeChild(textArea);
     }
   };
+  
+  const handleCopyLogs = async () => {
+    try {
+      const logs = JSON.stringify(lastPayload, null, 2);
+      await navigator.clipboard.writeText(logs);
+      toast({
+        title: "Logs copied",
+        description: "Latest payload copied to clipboard"
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to copy logs",
+        description: "Please try again",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const maskCallId = (callId: string | undefined) => {
+    if (!callId) return "—";
+    if (callId.length <= 8) return callId;
+    return `${callId.slice(0, 4)}...${callId.slice(-4)}`;
+  };
+  
   const selectedAgentData = voiceAgents.find(agent => agent.slug === selectedAgent);
   const agentPhoneNumber = selectedAgentData?.phoneNumber || voiceAgents.find(agent => agent.slug === "jessica")?.phoneNumber;
   return <div className="max-w-2xl mx-auto">
@@ -271,13 +316,55 @@ export function TestCallsTab() {
               {statusMessage}
             </div>}
 
-          {/* Trace ID */}
-          {traceId && <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded font-mono break-all">
-              <strong>Trace ID:</strong> <span className="break-all">{traceId}</span>
-            </div>}
+           {/* Trace ID */}
+           {traceId && <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded font-mono break-all">
+               <strong>Trace ID:</strong> <span className="break-all">{traceId}</span>
+             </div>}
 
-        </CardContent>
-      </Card>
+           {/* Debug Section */}
+           <Collapsible open={isDebugOpen} onOpenChange={setIsDebugOpen}>
+             <CollapsibleTrigger asChild>
+               <Button variant="ghost" size="sm" className="w-full justify-between text-xs text-muted-foreground h-8">
+                 Debug
+                 <ChevronDown className={`w-3 h-3 transition-transform ${isDebugOpen ? 'rotate-180' : ''}`} />
+               </Button>
+             </CollapsibleTrigger>
+             <CollapsibleContent className="space-y-2">
+               <div className="text-xs space-y-2 p-3 bg-muted/30 rounded border">
+                 <div className="grid grid-cols-2 gap-2">
+                   <div>
+                     <span className="text-muted-foreground">Last traceId:</span>
+                     <div className="font-mono break-all">{traceId || "—"}</div>
+                   </div>
+                   <div>
+                     <span className="text-muted-foreground">Last call_id:</span>
+                     <div className="font-mono">{maskCallId(sessionData?.call_id)}</div>
+                   </div>
+                 </div>
+                 <div className="grid grid-cols-2 gap-2">
+                   <div>
+                     <span className="text-muted-foreground">Last error status:</span>
+                     <div className="font-mono">{lastErrorStatus || "—"}</div>
+                   </div>
+                   <div>
+                     <Button 
+                       variant="ghost" 
+                       size="sm" 
+                       onClick={handleCopyLogs}
+                       disabled={!lastPayload}
+                       className="h-6 px-2 text-xs"
+                     >
+                       <Copy className="w-3 h-3 mr-1" />
+                       Copy logs
+                     </Button>
+                   </div>
+                 </div>
+               </div>
+             </CollapsibleContent>
+           </Collapsible>
+
+         </CardContent>
+       </Card>
 
       {/* Browser Call Modal */}
       <BrowserCallModal isOpen={isBrowserCallOpen} onClose={() => setIsBrowserCallOpen(false)} sessionData={sessionData} traceId={traceId} agentName={selectedAgentData?.name || "Agent"} />
