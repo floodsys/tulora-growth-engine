@@ -17,7 +17,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let subscription: any = null;
+    let authSubscription: any = null;
 
     // Force clear any stale sessions on mount
     const clearStaleSession = async () => {
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await clearStaleSession();
       
       // Set up auth state listener
-      const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
         (event, session) => {
           setSession(session);
           setUser(session?.user ?? null);
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       );
       
-      subscription = authSubscription;
+      authSubscription = subscription;
 
       // Check for existing session
       const { data: { session } } = await supabase.auth.getSession();
@@ -59,8 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
 
     return () => {
-      if (subscription) {
-        subscription.unsubscribe();
+      if (authSubscription) {
+        authSubscription.unsubscribe();
       }
     };
   }, []);
