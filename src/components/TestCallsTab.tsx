@@ -359,7 +359,6 @@ export function TestCallsTab() {
   };
   
   const selectedAgentData = voiceAgents.find(agent => agent.slug === selectedAgent);
-  const agentPhoneNumber = selectedAgentData?.phoneNumber || voiceAgents.find(agent => agent.slug === "jessica")?.phoneNumber;
   
   // Get feature flags for selected agent from publicConfig
   const getAgentFlags = (slug: string) => {
@@ -377,6 +376,23 @@ export function TestCallsTab() {
   
   const selectedAgentFlags = selectedAgent ? getAgentFlags(selectedAgent) : null;
   const selectedAgentIsDisabled = selectedAgent ? (!selectedAgentFlags?.callMe && !selectedAgentFlags?.tryInBrowser) : false;
+  
+  // Get phone number for selected agent with fallback to Jessica
+  const getAgentPhoneNumber = (slug: string | null) => {
+    if (!slug) return JESSICA_PHONE; // fallback
+    switch (slug) {
+      case 'jessica':
+        return JESSICA_PHONE;
+      case 'paul':
+        return PAUL_PHONE;
+      case 'laura':
+        return LAURA_PHONE;
+      default:
+        return JESSICA_PHONE; // fallback
+    }
+  };
+  
+  const agentPhoneNumber = getAgentPhoneNumber(selectedAgent);
   return <div className="max-w-2xl mx-auto">
       <Card>
         <CardHeader>
@@ -496,6 +512,33 @@ export function TestCallsTab() {
             </div>
           </div>
           
+          {/* Call from Phone Section */}
+          {selectedAgent && (
+            <div className="space-y-2 border-t border-border/20 pt-4">
+              <p className="text-sm text-muted-foreground">or call from phone</p>
+              <div className="flex items-center justify-between bg-muted/30 p-3 rounded border">
+                <a 
+                  href={`tel:${agentPhoneNumber}`} 
+                  className="font-bold text-lg hover:underline focus:underline outline-none"
+                >
+                  {agentPhoneNumber}
+                </a>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => handleCopyPhone(agentPhoneNumber)} 
+                  className="h-8 px-2"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span className="sr-only">Copy phone number</span>
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Browser demo uses your mic — it won't call your phone. Carrier rates may apply.
+              </p>
+            </div>
+          )}
+
           {/* Coming Soon Message */}
           {selectedAgentIsDisabled && (
             <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-center">
@@ -506,21 +549,6 @@ export function TestCallsTab() {
             </div>
           )}
 
-          {/* Call from Phone */}
-          {selectedAgent && agentPhoneNumber && <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">or call from phone</p>
-              <div className="flex items-center justify-between bg-muted/30 p-3 rounded border">
-                <a href={`tel:${agentPhoneNumber}`} className="font-bold text-lg hover:underline">
-                  {agentPhoneNumber}
-                </a>
-                <Button variant="ghost" size="sm" onClick={() => handleCopyPhone(agentPhoneNumber)} className="h-8 px-2">
-                  <Copy className="w-3 h-3" />
-                  <span className="sr-only">Copy phone number</span>
-                </Button>
-              </div>
-              
-            </div>}
-
           {/* Status Messages */}
           {statusMessage && <div className={`text-sm p-3 rounded break-words ${statusMessage.includes("Error") ? "bg-destructive/10 text-destructive border border-destructive/20" : "bg-green-50 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"}`} role="status" aria-live="polite">
               {statusMessage}
@@ -528,17 +556,17 @@ export function TestCallsTab() {
 
            {/* Trace ID */}
            {traceId && <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded font-mono break-all">
-               <strong>Trace ID:</strong> <span className="break-all">{traceId}</span>
-             </div>}
+                <strong>Trace ID:</strong> <span className="break-all">{traceId}</span>
+              </div>}
 
            {/* Debug Section */}
            <Collapsible open={isDebugOpen} onOpenChange={setIsDebugOpen}>
-             <CollapsibleTrigger asChild>
-               <Button variant="ghost" size="sm" className="w-full justify-between text-xs text-muted-foreground h-8">
-                 Debug
-                 <ChevronDown className={`w-3 h-3 transition-transform ${isDebugOpen ? 'rotate-180' : ''}`} />
-               </Button>
-             </CollapsibleTrigger>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="w-full justify-between text-xs text-muted-foreground h-8">
+                  Debug
+                  <ChevronDown className={`w-3 h-3 transition-transform ${isDebugOpen ? 'rotate-180' : ''}`} />
+                </Button>
+              </CollapsibleTrigger>
              <CollapsibleContent className="space-y-2">
                <div className="text-xs space-y-2 p-3 bg-muted/30 rounded border">
                  <div className="grid grid-cols-2 gap-2">
