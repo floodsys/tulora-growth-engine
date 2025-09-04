@@ -13,7 +13,6 @@ export function ProfileSettings() {
   const { user } = useAuth()
   const { toast } = useToast()
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "")
-  const [profileData, setProfileData] = useState<any>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
   
   // Change password state
@@ -33,27 +32,10 @@ export function ProfileSettings() {
   const [emailErrors, setEmailErrors] = useState<{email?: string, password?: string}>({})
   const [pendingEmailChange, setPendingEmailChange] = useState("")
 
-  // Load profile data
+  // Load basic profile data (removed organization data loading)
   useEffect(() => {
-    const loadProfile = async () => {
-      if (!user) return
-      
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('organization_name, organization_size, industry')
-          .eq('user_id', user.id)
-          .single()
-        
-        setProfileData(profile)
-      } catch (error) {
-        console.error('Error loading profile:', error)
-      } finally {
-        setIsLoadingProfile(false)
-      }
-    }
-    
-    loadProfile()
+    // No need to load profile data anymore since we don't display it
+    setIsLoadingProfile(false)
   }, [user])
 
   // Countdown timer for email change
@@ -293,49 +275,6 @@ export function ProfileSettings() {
         <h1 className="text-2xl font-semibold">Profile Settings</h1>
         <p className="text-muted-foreground">Manage your personal profile information</p>
       </div>
-
-      {/* Profile Snapshot Panel */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Profile Snapshot
-          </CardTitle>
-          <CardDescription>Your current profile information</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoadingProfile ? (
-            <div className="space-y-3">
-              <div className="h-4 bg-muted rounded animate-pulse"></div>
-              <div className="h-4 bg-muted rounded animate-pulse w-2/3"></div>
-              <div className="h-4 bg-muted rounded animate-pulse w-1/2"></div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
-                <div className="font-medium">{user?.user_metadata?.full_name || "Not provided"}</div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-muted-foreground">Email Address</Label>
-                <div className="font-medium">{user?.email}</div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-muted-foreground">Organization</Label>
-                <div className="font-medium">{profileData?.organization_name || "Not provided"}</div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-muted-foreground">Organization Size</Label>
-                <div className="font-medium">{profileData?.organization_size || "Not provided"}</div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-muted-foreground">Industry</Label>
-                <div className="font-medium">{profileData?.industry || "Not provided"}</div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>

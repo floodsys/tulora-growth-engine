@@ -80,8 +80,8 @@ export default function SettingsOrganization() {
     }
   }, [location.pathname]);
 
-  // Check if user has access (Owner or Admin)
-  const hasAccess = isOwner || isAdmin;
+  // Check if user has access (Owner only - removed admin access)
+  const hasAccess = isOwner;
 
   if (!hasAccess) {
     return (
@@ -93,12 +93,12 @@ export default function SettingsOrganization() {
               Access Restricted
             </CardTitle>
             <CardDescription>
-              Only organization owners and administrators can access organization settings.
+              Only organization owners can access organization settings.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Contact your organization owner or administrator to make changes to organization settings.
+              Contact your organization owner to make changes to organization settings.
             </p>
           </CardContent>
         </Card>
@@ -142,7 +142,7 @@ export default function SettingsOrganization() {
     if (!hasAccess) {
       toast({
         title: "Access denied",
-        description: "Only owners and admins can update organization settings.",
+        description: "Only organization owners can update organization settings.",
         variant: "destructive"
       });
       return;
@@ -216,7 +216,7 @@ export default function SettingsOrganization() {
       if (error.code === 'PGRST301' || error.message?.includes('access denied')) {
         toast({
           title: "Access denied",
-          description: "Only owners and admins can update organization profile.",
+          description: "Only organization owners can update organization profile.",
           variant: "destructive"
         });
       } else {
@@ -436,7 +436,7 @@ export default function SettingsOrganization() {
               {!hasAccess && (
                 <div className="p-3 bg-muted/50 rounded-md">
                   <p className="text-sm text-muted-foreground">
-                    <strong>Admins only.</strong> You have read-only access to organization settings.
+                    <strong>Owners only.</strong> You have read-only access to organization settings.
                   </p>
                 </div>
               )}
