@@ -66,6 +66,7 @@ export function ChangeEmailModal({ open, onOpenChange }: ChangeEmailModalProps) 
       })
       
       if (signInError) {
+        console.error('Sign-in error:', signInError)
         if (signInError.message.includes('Invalid login credentials')) {
           setEmailErrors({ password: "Incorrect password" })
         } else {
@@ -78,19 +79,24 @@ export function ChangeEmailModal({ open, onOpenChange }: ChangeEmailModalProps) 
         return
       }
       
-      // If re-auth succeeds, update the email
+      // If re-auth succeeds, update the email with proper redirect URL
       const { error: updateError } = await supabase.auth.updateUser(
         { email: newEmail },
-        { emailRedirectTo: `${window.location.origin}/auth/callback` }
+        { 
+          emailRedirectTo: `${window.location.origin}/auth/callback` 
+        }
       )
       
       if (updateError) {
-        if (updateError.message.includes('User already registered')) {
+        console.error('Update error:', updateError)
+        if (updateError.message.includes('already registered')) {
           setEmailErrors({ email: "That email is already registered" })
+        } else if (updateError.message.includes('invalid')) {
+          setEmailErrors({ email: "Please enter a valid email address" })
         } else {
           toast({
             title: "Couldn't start email change",
-            description: "Please try again.",
+            description: updateError.message || "Please try again.",
             variant: "destructive"
           })
         }
