@@ -61,7 +61,7 @@ export function AuditLogBackfill() {
   const config = getEnvironmentConfig();
   
   // Check if backfill is enabled (simulated env flag check)
-  const backfillEnabled = import.meta.env.VITE_BACKFILL_ENABLED === 'true' || config.testLevel !== 'off';
+  const backfillEnabled = config.testLevel !== 'off';
   
   if (!organization) {
     return (

@@ -10,24 +10,26 @@ import { callEF } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { BrowserCallModal } from "./BrowserCallModal";
 import { getAgentFeatureFlags, isAgentDisabled } from "@/lib/agent-feature-flags";
+import { JESSICA_PHONE, PAUL_PHONE, LAURA_PHONE } from "@/config/publicConfig";
+
 const voiceAgents = [{
   slug: "paul",
   name: "Paul",
   category: "Real Estate",
   subtitle: "Lead Qualification · Buyer",
-  phoneNumber: "+1 (289) 907-2070"
+  phoneNumber: PAUL_PHONE
 }, {
   slug: "laura",
   name: "Laura",
   category: "Hospitality",
   subtitle: "Customer Service · Restaurant",
-  phoneNumber: "+1 (289) 536-8131"
+  phoneNumber: LAURA_PHONE
 }, {
   slug: "jessica",
   name: "Jessica",
   category: "Healthcare",
   subtitle: "Healthcare Receptionist",
-  phoneNumber: "+1 (863) 451-9425"
+  phoneNumber: JESSICA_PHONE
 }];
 export function TestCallsTab() {
   const [selectedAgent, setSelectedAgent] = useState("");
@@ -55,7 +57,7 @@ export function TestCallsTab() {
   };
   const getErrorMessage = (error: any) => {
     if (error.message?.includes("401")) {
-      return "Auth missing — set VITE_SUPABASE_ANON_KEY.";
+      return "Auth missing — check Supabase configuration.";
     }
     if (error.message?.includes("400")) {
       return "Check the fields (E.164 phone, agent).";

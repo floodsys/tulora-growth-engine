@@ -38,7 +38,7 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
     if (error?.message?.includes('400')) {
       message = "Invalid request - check phone number format and agent";
     } else if (error?.message?.includes('401')) {
-      message = "Authentication missing - check VITE_SUPABASE_ANON_KEY";
+      message = "Authentication missing - check Supabase configuration";
     } else if (error?.message?.includes('405')) {
       message = "Method not allowed - use POST only";
     } else if (error?.message?.includes('502')) {

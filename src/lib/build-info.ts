@@ -1,14 +1,14 @@
 // Build information and cache management utilities
 
 // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.
-export const BUILD_ID = import.meta.env.VITE_BUILD_ID || `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+export const BUILD_ID = `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 export const BUILD_TIMESTAMP = new Date().toISOString();
 
 // COSMETIC ONLY - These environment variables are NEVER used for authorization
 // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin)
 export function getCosmenticEnvVars() {
   // Frontend env (client-side only)
-  const frontendEnv = import.meta.env.VITE_SUPERADMINS_EMAILS || null;
+  const frontendEnv = null; // No longer using environment variables
   
   return {
     frontend: frontendEnv,

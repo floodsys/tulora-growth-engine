@@ -66,29 +66,22 @@ export type TestLevel = 'full' | 'smoke' | 'off';
 
 // Get current test level from environment
 export function getTestLevel(): TestLevel {
-  const level = import.meta.env.VITE_RUN_TEST_LEVEL as TestLevel;
-  return ['full', 'smoke', 'off'].includes(level) ? level : 'off';
+  return 'off'; // Default to off since we're not using environment variables
 }
 
 // Get test organization ID
 export function getTestOrgId(): string | null {
-  const testOrgId = import.meta.env.VITE_TEST_ORG_ID;
-  return testOrgId && testOrgId.trim() !== '' ? testOrgId.trim() : null;
+  return null; // Not using environment variables for test org ID
 }
 
 // Check if email delivery is disabled for tests
 export function isEmailDeliveryDisabled(): boolean {
-  return import.meta.env.VITE_DISABLE_EMAIL_DELIVERY_FOR_TESTS === 'true';
+  return false; // Default to false since we're not using environment variables
 }
 
 // Get analytics excluded organizations
 export function getAnalyticsExcludedOrgs(): string[] {
-  try {
-    const excluded = import.meta.env.VITE_ANALYTICS_EXCLUDE_ORGS;
-    return excluded ? JSON.parse(excluded) : [];
-  } catch {
-    return [];
-  }
+  return []; // Return empty array since we're not using environment variables
 }
 
 // Check if tests are enabled

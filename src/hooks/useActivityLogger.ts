@@ -272,8 +272,8 @@ export function useActivityLogger() {
 
   // Test event helper that always uses test_invites channel
   const logTestEvent = useCallback((data: Omit<ActivityEventData, 'channel'>) => {
-    // Only log test events if testing is enabled
-    const testLevel = (globalThis as any).VITE_RUN_TEST_LEVEL || 'off';
+    // Use default test level since we're not using environment variables
+    const testLevel = 'off';
     if (testLevel === 'off') {
       console.log('Test logging disabled (RUN_TEST_LEVEL=off)');
       return Promise.resolve();

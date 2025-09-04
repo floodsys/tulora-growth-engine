@@ -1,4 +1,13 @@
 // Agent feature flags configuration
+import { 
+  JESSICA_CALL, 
+  JESSICA_WEB, 
+  PAUL_CALL, 
+  PAUL_WEB, 
+  LAURA_CALL, 
+  LAURA_WEB 
+} from "@/config/publicConfig";
+
 export interface AgentFeatureFlags {
   callMe: boolean;
   tryInBrowser: boolean;
@@ -13,16 +22,16 @@ export interface AgentConfig {
 // Feature flags for each agent
 export const AGENT_FEATURE_FLAGS: Record<string, AgentFeatureFlags> = {
   jessica: {
-    callMe: true,
-    tryInBrowser: true,
+    callMe: JESSICA_CALL,
+    tryInBrowser: JESSICA_WEB,
   },
   paul: {
-    callMe: false,
-    tryInBrowser: false,
+    callMe: PAUL_CALL,
+    tryInBrowser: PAUL_WEB,
   },
   laura: {
-    callMe: false,
-    tryInBrowser: false,
+    callMe: LAURA_CALL,
+    tryInBrowser: LAURA_WEB,
   },
 };
 

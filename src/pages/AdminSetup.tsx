@@ -18,9 +18,8 @@ export default function AdminSetup() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Check if bootstrap is enabled via environment variable (cosmetic only)
-  const isBootstrapEnabled = import.meta.env.VITE_ADMIN_BOOTSTRAP_ENABLED === 'true' ||
-    (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost');
+  // Check if bootstrap is enabled (cosmetic only)
+  const isBootstrapEnabled = (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost');
 
   const handleBootstrap = async () => {
     if (!token.trim()) {

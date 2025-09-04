@@ -1,12 +1,13 @@
 import { supabase } from "@/integrations/supabase/client";
+import { SUPABASE_URL, SUPABASE_ANON } from "@/config/publicConfig";
 
 // Helper for calling Edge Functions with proper auth and absolute URLs
 export async function callEF<T>(fnName: string, body?: Record<string, unknown>): Promise<T> {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const supabaseUrl = SUPABASE_URL;
+  const anonKey = SUPABASE_ANON;
   
   if (!supabaseUrl || !anonKey) {
-    throw new Error('Missing Supabase configuration. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.');
+    throw new Error('Missing Supabase configuration. Check SUPABASE_URL and SUPABASE_ANON configuration.');
   }
 
   // Ensure absolute URL to Supabase Functions
@@ -60,12 +61,12 @@ export function checkDevEnv(): {
   warning?: string; 
   isComplete: boolean;
 } {
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey = SUPABASE_ANON;
+  const supabaseUrl = SUPABASE_URL;
   
   const missing = [];
-  if (!anonKey) missing.push('VITE_SUPABASE_ANON_KEY');
-  if (!supabaseUrl) missing.push('VITE_SUPABASE_URL');
+  if (!anonKey) missing.push('SUPABASE_ANON');
+  if (!supabaseUrl) missing.push('SUPABASE_URL');
   
   if (missing.length > 0 && import.meta.env.DEV) {
     return {
