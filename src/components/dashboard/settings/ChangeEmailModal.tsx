@@ -40,8 +40,8 @@ export function ChangeEmailModal({ open, onOpenChange }: ChangeEmailModalProps) 
       errors.email = "New email address is required"
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
       errors.email = "Please enter a valid email address"
-    } else if (newEmail === user?.email) {
-      errors.email = "That's already your email"
+    } else if (newEmail.toLowerCase().trim() === user?.email?.toLowerCase().trim()) {
+      errors.email = "That's already your current email address"
     }
     
     if (!emailChangePassword) {

@@ -8,12 +8,24 @@ import { Camera, Mail, Lock, Shield } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { ChangePasswordModal } from "./ChangePasswordModal"
 import { ChangeEmailModal } from "./ChangeEmailModal"
+import { ChangePhotoModal } from "./ChangePhotoModal"
 
 export function ProfileSettings() {
   const { user } = useAuth()
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "")
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false)
+
+  // Get user's initials for avatar fallback
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+  }
 
   const handleProfileUpdate = () => {
     // TODO: Implement profile update
@@ -35,10 +47,16 @@ export function ProfileSettings() {
         <CardContent className="space-y-6">
           <div className="flex items-center space-x-4">
             <Avatar className="h-20 w-20">
-              <AvatarImage src="" />
-              <AvatarFallback>JD</AvatarFallback>
+              <AvatarImage src={user?.user_metadata?.avatar_url || ""} />
+              <AvatarFallback className="text-lg font-medium">
+                {getInitials(fullName || user?.email?.charAt(0).toUpperCase() || "U")}
+              </AvatarFallback>
             </Avatar>
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setIsPhotoModalOpen(true)}
+            >
               <Camera className="h-4 w-4 mr-2" />
               Change Photo
             </Button>
@@ -152,6 +170,10 @@ export function ProfileSettings() {
       <ChangeEmailModal 
         open={isEmailModalOpen} 
         onOpenChange={setIsEmailModalOpen} 
+      />
+      <ChangePhotoModal 
+        open={isPhotoModalOpen} 
+        onOpenChange={setIsPhotoModalOpen} 
       />
     </div>
   )
