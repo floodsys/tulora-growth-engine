@@ -81,9 +81,9 @@ export function ChangeEmailModal({ open, onOpenChange }: ChangeEmailModalProps) 
       
       // If re-auth succeeds, update the email with proper redirect URL
       const { error: updateError } = await supabase.auth.updateUser(
-        { email: newEmail },
+        { email: newEmail.trim().toLowerCase() },
         { 
-          emailRedirectTo: `${window.location.origin}/auth/callback` 
+          emailRedirectTo: `${window.location.origin}/dashboard` 
         }
       )
       
