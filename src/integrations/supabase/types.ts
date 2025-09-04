@@ -1508,6 +1508,10 @@ export type Database = {
         Args: { p_bootstrap_token: string }
         Returns: Json
       }
+      can_access_membership: {
+        Args: { p_org_id: string; p_user_id: string }
+        Returns: boolean
+      }
       can_perform_action: {
         Args: { p_action: string; p_org_id: string; p_resource_type?: string }
         Returns: boolean
@@ -1523,6 +1527,10 @@ export type Database = {
       check_alert_rules: {
         Args: { p_org_id: string }
         Returns: Json
+      }
+      check_org_admin_no_recursion: {
+        Args: { p_org_id: string }
+        Returns: boolean
       }
       check_org_member_access: {
         Args: { target_org_id: string; target_user_id?: string }
