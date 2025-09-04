@@ -1,16 +1,21 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { safeProfileUpsert, splitFullName } from "@/lib/profileUtils";
-import logo from "@/assets/logo.svg";
+import { Edit } from "lucide-react";
 
-const CompleteProfile = () => {
+interface ProfileEditModalProps {
+  trigger?: React.ReactNode;
+}
+
+export function ProfileEditModal({ trigger }: ProfileEditModalProps) {
+  const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
@@ -21,29 +26,38 @@ const CompleteProfile = () => {
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
-  const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
 
-  // Pre-fill name from OAuth provider if available
+  // Load existing profile data when modal opens
   useEffect(() => {
-    if (user && !loading) {
-      const displayName = user.user_metadata?.full_name || 
-                         user.user_metadata?.name || 
-                         user.user_metadata?.display_name || "";
-      
-      setFormData(prev => ({
-        ...prev,
-        fullName: displayName
-      }));
+    if (open && user) {
+      loadProfileData();
     }
-  }, [user, loading]);
+  }, [open, user]);
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate('/auth');
+  const loadProfileData = async () => {
+    if (!user) return;
+
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, organization_name, organization_size, industry')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profile) {
+        setFormData({
+          fullName: profile.full_name || '',
+          organizationName: profile.organization_name || '',
+          organizationSize: profile.organization_size || '',
+          industry: profile.industry || '',
+          customIndustry: profile.industry && !['Technology', 'Healthcare', 'Financial Services', 'Education', 'Retail', 'Manufacturing', 'Professional Services', 'Real Estate', 'Media & Entertainment', 'Non-profit', 'Government', 'Agriculture', 'Energy', 'Transportation', 'Hospitality'].includes(profile.industry) ? profile.industry : '',
+        });
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
     }
-  }, [user, loading, navigate]);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -95,11 +109,10 @@ const CompleteProfile = () => {
     setIsLoading(true);
 
     try {
-      // Split full name into first and last name
       const { firstName, lastName } = splitFullName(formData.fullName);
       const industry = formData.industry === "Other" ? formData.customIndustry : formData.industry;
 
-      // Use safe upsert that won't overwrite existing data
+      // Use safe upsert that won't overwrite existing data with empty values
       const { error: profileError } = await safeProfileUpsert({
         user_id: user.id,
         full_name: formData.fullName,
@@ -131,15 +144,15 @@ const CompleteProfile = () => {
       }
 
       toast({
-        title: "Profile completed!",
-        description: "Welcome to your dashboard.",
+        title: "Profile updated",
+        description: "Your profile has been successfully updated.",
       });
 
-      navigate('/dashboard');
+      setOpen(false);
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to complete profile. Please try again.",
+        description: error.message || "Failed to update profile. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -147,35 +160,22 @@ const CompleteProfile = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Left Panel - Form */}
-      <div className="flex-1 flex flex-col justify-center px-8 lg:px-16 max-w-md lg:max-w-lg mx-auto lg:mx-0">
-        {/* Header */}
-        <div className="mb-8">
-          <img src={logo} alt="Tulora" className="h-8 w-auto mb-8" />
-          
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Complete your profile
-          </h1>
-          <p className="text-muted-foreground">
-            We need a few more details to set up your account.
-          </p>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        {trigger || (
+          <Button variant="outline" size="sm">
+            <Edit className="h-4 w-4 mr-2" />
+            Edit Profile
+          </Button>
+        )}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Edit Profile</DialogTitle>
+        </DialogHeader>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="fullName">Full name *</Label>
             <Input
@@ -210,7 +210,10 @@ const CompleteProfile = () => {
 
           <div className="space-y-2">
             <Label htmlFor="organizationSize">Organization size *</Label>
-            <Select onValueChange={(value) => handleSelectChange("organizationSize", value)}>
+            <Select 
+              value={formData.organizationSize}
+              onValueChange={(value) => handleSelectChange("organizationSize", value)}
+            >
               <SelectTrigger className={formErrors.organizationSize ? "border-destructive" : ""}>
                 <SelectValue placeholder="Select organization size" />
               </SelectTrigger>
@@ -231,7 +234,10 @@ const CompleteProfile = () => {
 
           <div className="space-y-2">
             <Label htmlFor="industry">Industry *</Label>
-            <Select onValueChange={(value) => handleSelectChange("industry", value)}>
+            <Select 
+              value={formData.industry || (formData.customIndustry ? "Other" : "")}
+              onValueChange={(value) => handleSelectChange("industry", value)}
+            >
               <SelectTrigger className={formErrors.industry ? "border-destructive" : ""}>
                 <SelectValue placeholder="Select your industry" />
               </SelectTrigger>
@@ -277,22 +283,16 @@ const CompleteProfile = () => {
             </div>
           )}
 
-          <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-            {isLoading ? "Completing profile..." : "Complete profile"}
-          </Button>
+          <div className="flex gap-2 pt-4">
+            <Button type="submit" disabled={isLoading} className="flex-1">
+              {isLoading ? "Updating..." : "Update Profile"}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+          </div>
         </form>
-      </div>
-
-      {/* Right Panel - Image */}
-      <div className="hidden lg:flex flex-1 bg-card">
-        <img
-          src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjYwMCIgdmlld0JveD0iMCAwIDgwMCA2MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI4MDAiIGhlaWdodD0iNjAwIiBmaWxsPSIjRjhGQUZDIi8+CjxjaXJjbGUgY3g9IjQwMCIgY3k9IjMwMCIgcj0iMTAwIiBmaWxsPSIjRTJFOEYwIi8+CjxjaXJjbGUgY3g9IjQwMCIgY3k9IjMwMCIgcj0iNjAiIGZpbGw9IiNBRDlCRjAiLz4KPHRleHQgeD0iNDAwIiB5PSIzMTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZvbnQtd2VpZ2h0PSJib2xkIj7inJM8L3RleHQ+Cjx0ZXh0IHg9IjQwMCIgeT0iNDIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjc4MDdDIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTgiPkNvbXBsZXRlIHlvdXIgcHJvZmlsZTwvdGV4dD4KPC9zdmc+"
-          alt="Complete profile illustration"
-          className="w-full h-full object-contain"
-        />
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
-};
-
-export default CompleteProfile;
+}

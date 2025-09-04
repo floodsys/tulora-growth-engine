@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { safeProfileUpsert, splitFullName } from "@/lib/profileUtils";
 import logo from "@/assets/logo.svg";
 import saasAuth from "@/assets/saas-auth.svg";
 
@@ -145,9 +146,7 @@ const Auth = () => {
     try {
       if (isSignUp) {
         // Split full name into first and last name
-        const nameParts = formData.fullName.trim().split(/\s+/);
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
+        const { firstName, lastName } = splitFullName(formData.fullName);
 
         // Sign up
         const { data, error } = await supabase.auth.signUp({
@@ -173,20 +172,17 @@ const Auth = () => {
           try {
             const industry = formData.industry === "Other" ? formData.customIndustry : formData.industry;
             
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .upsert({
-                user_id: data.user.id,
-                full_name: formData.fullName,
-                first_name: firstName,
-                last_name: lastName,
-                email: formData.email,
-                organization_name: formData.organizationName,
-                organization_size: formData.organizationSize,
-                industry: industry,
-              }, {
-                onConflict: 'user_id'
-              });
+            // Use safe upsert that won't overwrite existing data
+            const { error: profileError } = await safeProfileUpsert({
+              user_id: data.user.id,
+              full_name: formData.fullName,
+              first_name: firstName,
+              last_name: lastName,
+              email: formData.email,
+              organization_name: formData.organizationName,
+              organization_size: formData.organizationSize,
+              industry: industry,
+            });
 
             if (profileError) {
               console.error('Profile upsert error:', profileError);

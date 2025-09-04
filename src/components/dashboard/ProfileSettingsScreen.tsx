@@ -1,33 +1,61 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Switch } from "@/components/ui/switch"
+import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/contexts/AuthContext"
+import { supabase } from "@/integrations/supabase/client"
+import { ProfileEditModal } from "@/components/ProfileEditModal"
 import { NotificationSettings } from "./settings/NotificationSettings"
 import { SecuritySettings } from "./settings/SecuritySettings"
 import { PersonalDangerZone } from "./settings/PersonalDangerZone"
+import { User } from "lucide-react"
 
 export function ProfileSettingsScreen() {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState("profile")
+  const [profile, setProfile] = useState<any>(null)
   const [formData, setFormData] = useState({
-    fullName: user?.user_metadata?.full_name || "",
-    email: user?.email || "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   })
 
-  const handleUpdateProfile = () => {
-    // TODO: Implement profile update logic
-    console.log("Profile update:", formData)
+  // Load profile data
+  useEffect(() => {
+    if (user) {
+      loadProfile()
+    }
+  }, [user])
+
+  const loadProfile = async () => {
+    if (!user) return
+
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+
+      setProfile(data)
+    } catch (error) {
+      console.error('Error loading profile:', error)
+    }
   }
 
   const getUserInitials = () => {
+    if (profile?.full_name) {
+      return profile.full_name
+        .split(' ')
+        .map((name: string) => name[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+    }
     if (user?.user_metadata?.full_name) {
       return user.user_metadata.full_name
         .split(' ')
@@ -46,8 +74,13 @@ export function ProfileSettingsScreen() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Profile Information</CardTitle>
-                <CardDescription>Update your personal information and profile picture</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Profile Information
+                </CardTitle>
+                <CardDescription>
+                  View and update your personal and organization details
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center space-x-4">
@@ -61,25 +94,42 @@ export function ProfileSettingsScreen() {
                     Change Picture
                   </Button>
                 </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name</Label>
-                    <Input
-                      id="fullName"
-                      value={formData.fullName}
-                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                    />
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Full Name</label>
+                    <p className="text-sm">{profile?.full_name || 'Not set'}</p>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    />
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Email</label>
+                    <p className="text-sm">{profile?.email || user?.email || 'Not set'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Organization</label>
+                    <p className="text-sm">{profile?.organization_name || 'Not set'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Organization Size</label>
+                    <p className="text-sm">{profile?.organization_size || 'Not set'}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-medium text-muted-foreground">Industry</label>
+                    <p className="text-sm">{profile?.industry || 'Not set'}</p>
                   </div>
                 </div>
+                
+                <Separator />
+                
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h4 className="text-sm font-medium">Update Profile</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Edit your profile information and organization details
+                    </p>
+                  </div>
+                  <ProfileEditModal />
+                </div>
+                
                 <div className="space-y-2">
                   <Label htmlFor="userId">User ID</Label>
                   <Input
@@ -90,9 +140,6 @@ export function ProfileSettingsScreen() {
                   />
                   <p className="text-xs text-muted-foreground">Your unique user identifier. This cannot be changed.</p>
                 </div>
-                <Button onClick={handleUpdateProfile}>
-                  Update Profile
-                </Button>
               </CardContent>
             </Card>
 

@@ -9,6 +9,7 @@ import { UsageBilling } from "@/components/dashboard/UsageBilling"
 import { TeamManagement } from "@/components/dashboard/TeamManagement"
 import { UnifiedSettings } from "@/components/UnifiedSettings"
 import { ProfileSettingsScreen } from "@/components/dashboard/ProfileSettingsScreen"
+import { ProfileEditModal } from "@/components/ProfileEditModal"
 import SettingsTeams from "@/pages/SettingsTeams"
 import SettingsOrganization from "@/pages/SettingsOrganization"
 
