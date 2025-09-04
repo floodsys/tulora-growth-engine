@@ -84,10 +84,19 @@ export function TestCallsTab() {
       setStatusMessage("Please select an agent first.");
       return;
     }
+    
+    // Enhanced phone validation with better error messaging
     if (!validatePhoneNumber(phoneNumber)) {
-      setStatusMessage("Please enter a valid E.164 phone number (e.g., +1234567890)");
+      const errorMsg = "Please enter a valid phone number in E.164 format (e.g., +1234567890)";
+      setStatusMessage(errorMsg);
+      toast({
+        title: "Invalid phone number",
+        description: errorMsg,
+        variant: "destructive",
+      });
       return;
     }
+    
     setIsCallingPhone(true);
     setStatusMessage("");
     setTraceId("");
@@ -100,34 +109,92 @@ export function TestCallsTab() {
     try {
       const response = (await callEF("retell-outbound", payload)) as any;
       setLastPayload({ action: "retell-outbound", request: payload, response });
-      setStatusMessage("Call queued—your phone should ring shortly.");
-
-      // Log debugging info to console
+      
+      // Success feedback
+      setStatusMessage("Call queued — your phone should ring shortly.");
+      
+      // Console logging for debugging
       console.log("Call queued successfully:", {
         traceId: response?.traceId,
         call_id: response?.call_id,
         agentSlug: selectedAgent,
-        toNumber: phoneNumber
+        toNumber: phoneNumber,
+        response: response
       });
+      
+      // Extract traceId for display
       if (response?.traceId) {
         setTraceId(response.traceId);
       }
-      const agentName = voiceAgents.find(a => a.slug === selectedAgent)?.name || selectedAgent;
+      
+      // Success toast
       toast({
         title: "Call queued",
-        description: "Your phone should ring shortly"
+        description: "Your phone should ring shortly",
       });
+      
     } catch (error: any) {
-      const errorMsg = getErrorMessage(error);
-      setStatusMessage(`Error: ${errorMsg}`);
-      if (error?.traceId) {
-        setTraceId(error.traceId);
+      // Enhanced error handling with specific mappings
+      let errorTitle = "Call failed";
+      let errorDescription = "Unknown error occurred";
+      
+      // Extract error details
+      const status = error.status || null;
+      const traceId = error.traceId || null;
+      
+      // Map specific error cases
+      if (status === 404) {
+        errorTitle = "Agent not configured";
+        errorDescription = "Agent not configured yet.";
+      } else if (status === 401) {
+        errorTitle = "Authentication invalid";
+        errorDescription = "Auth invalid.";
+      } else if (status === 403 || status === 409) {
+        errorTitle = "Number not authorized";
+        errorDescription = "From-number not authorized.";
+      } else if (error.message?.includes("401")) {
+        errorTitle = "Authentication invalid";
+        errorDescription = "Auth invalid.";
+      } else if (error.message?.includes("404")) {
+        errorTitle = "Agent not configured";
+        errorDescription = "Agent not configured yet.";
+      } else if (error.message?.includes("403") || error.message?.includes("409")) {
+        errorTitle = "Number not authorized";
+        errorDescription = "From-number not authorized.";
+      } else {
+        // Generic error message
+        errorDescription = error.message || "Call failed.";
       }
-      // Extract status code from error message
-      const statusMatch = error.message?.match(/(\d{3})/);
-      if (statusMatch) {
-        setLastErrorStatus(parseInt(statusMatch[1]));
+      
+      setStatusMessage(`Error: ${errorDescription}`);
+      
+      // Console logging for debugging (always include traceId if available)
+      console.error("Call failed:", {
+        error: error.message,
+        status: status,
+        traceId: traceId,
+        agentSlug: selectedAgent,
+        toNumber: phoneNumber,
+        originalPayload: error.originalPayload
+      });
+      
+      // Set traceId for display if available
+      if (traceId) {
+        setTraceId(traceId);
       }
+      
+      // Error toast
+      toast({
+        title: errorTitle,
+        description: errorDescription,
+        variant: "destructive",
+      });
+      
+      // Extract status code for debugging display
+      if (status) {
+        setLastErrorStatus(status);
+      }
+      
     } finally {
       setIsCallingPhone(false);
     }
@@ -303,9 +370,17 @@ export function TestCallsTab() {
             <label htmlFor="phone-input" className="text-sm font-medium">
               Phone Number (E.164 format)
             </label>
-            <Input id="phone-input" type="tel" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} placeholder="+1234567890" className="font-mono" disabled={isCallingPhone || isTryingBrowser} />
-            <p className="text-xs text-muted-foreground break-words">
-              Enter phone number in E.164 format, starting with + and country code
+            <Input 
+              id="phone-input" 
+              type="tel" 
+              value={phoneNumber} 
+              onChange={e => setPhoneNumber(e.target.value)} 
+              placeholder="+1234567890" 
+              className="font-mono" 
+              disabled={isCallingPhone || isTryingBrowser} 
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter phone number starting with + and country code (e.g., +1234567890)
             </p>
           </div>
 
