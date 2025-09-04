@@ -111,11 +111,8 @@ export function ChangeEmailModal({ open, onOpenChange }: ChangeEmailModalProps) 
       setEmailChangePassword("")
       
     } catch (error: any) {
-      toast({
-        title: "Couldn't start email change",
-        description: "Please try again.",
-        variant: "destructive"
-      })
+      console.error('Email change error:', error)
+      setEmailErrors({ email: "Network error. Please check your connection and try again." })
     } finally {
       setIsChangingEmail(false)
     }
