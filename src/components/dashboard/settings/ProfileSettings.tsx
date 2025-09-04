@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -7,15 +7,31 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Camera, Mail, Lock, User, Shield } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
+import { supabase } from "@/integrations/supabase/client"
 
 export function ProfileSettings() {
   const { user } = useAuth()
   const { toast } = useToast()
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "")
-  const [email] = useState(user?.email || "") // Non-editable
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  
+  // Change email state
+  const [newEmail, setNewEmail] = useState("")
+  const [emailChangePassword, setEmailChangePassword] = useState("")
+  const [isChangingEmail, setIsChangingEmail] = useState(false)
+  const [emailChangeSuccess, setEmailChangeSuccess] = useState(false)
+  const [emailChangeCountdown, setEmailChangeCountdown] = useState(0)
+  const [emailErrors, setEmailErrors] = useState<{email?: string, password?: string}>({})
+
+  // Countdown timer for email change
+  useEffect(() => {
+    if (emailChangeCountdown > 0) {
+      const timer = setTimeout(() => setEmailChangeCountdown(emailChangeCountdown - 1), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [emailChangeCountdown])
 
   const handleProfileUpdate = () => {
     // TODO: Implement profile update
@@ -32,6 +48,123 @@ export function ProfileSettings() {
     setCurrentPassword("")
     setNewPassword("")
     setConfirmPassword("")
+  }
+
+  const validateEmailChange = () => {
+    const errors: {email?: string, password?: string} = {}
+    
+    if (!newEmail) {
+      errors.email = "New email address is required"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+      errors.email = "Please enter a valid email address"
+    } else if (newEmail === user?.email) {
+      errors.email = "That's already your email"
+    }
+    
+    if (!emailChangePassword) {
+      errors.password = "Current password is required"
+    }
+    
+    setEmailErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleEmailChange = async () => {
+    if (!validateEmailChange() || !user) return
+    
+    setIsChangingEmail(true)
+    setEmailErrors({})
+    
+    try {
+      // First, re-authenticate the user
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email!,
+        password: emailChangePassword
+      })
+      
+      if (signInError) {
+        if (signInError.message.includes('Invalid login credentials')) {
+          setEmailErrors({ password: "Incorrect password" })
+        } else {
+          toast({
+            title: "Authentication failed",
+            description: "Please check your password and try again.",
+            variant: "destructive"
+          })
+        }
+        return
+      }
+      
+      // If re-auth succeeds, update the email
+      const { error: updateError } = await supabase.auth.updateUser(
+        { email: newEmail },
+        { emailRedirectTo: `${window.location.origin}/auth/callback` }
+      )
+      
+      if (updateError) {
+        if (updateError.message.includes('User already registered')) {
+          setEmailErrors({ email: "That email is already registered" })
+        } else {
+          toast({
+            title: "Couldn't start email change",
+            description: "Please try again.",
+            variant: "destructive"
+          })
+        }
+        return
+      }
+      
+      // Success - show success state
+      setEmailChangeSuccess(true)
+      setEmailChangeCountdown(60)
+      setNewEmail("")
+      setEmailChangePassword("")
+      
+    } catch (error: any) {
+      toast({
+        title: "Couldn't start email change",
+        description: "Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsChangingEmail(false)
+    }
+  }
+
+  const handleResendEmailVerification = async () => {
+    if (!user || emailChangeCountdown > 0) return
+    
+    try {
+      setIsChangingEmail(true)
+      const { error } = await supabase.auth.updateUser(
+        { email: newEmail || user.email! },
+        { emailRedirectTo: `${window.location.origin}/auth/callback` }
+      )
+      
+      if (error) {
+        toast({
+          title: "Couldn't resend verification",
+          description: "Please try again.",
+          variant: "destructive"
+        })
+        return
+      }
+      
+      setEmailChangeCountdown(60)
+      toast({
+        title: "Verification email sent",
+        description: "Please check your email for the verification link."
+      })
+      
+    } catch (error: any) {
+      toast({
+        title: "Couldn't resend verification",
+        description: "Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsChangingEmail(false)
+    }
   }
 
   return (
@@ -70,19 +203,16 @@ export function ProfileSettings() {
             </div>
 
             <div>
-              <Label htmlFor="email">Email Address</Label>
+              <Label htmlFor="currentEmail">Current Email Address</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="email"
-                  value={email}
+                  id="currentEmail"
+                  value={user?.email || ""}
                   disabled
                   className="pl-10"
                 />
               </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Email address cannot be changed
-              </p>
             </div>
           </div>
 
@@ -146,6 +276,111 @@ export function ProfileSettings() {
           <Button onClick={handlePasswordUpdate}>
             Update Password
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Change Email Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            Change Email
+          </CardTitle>
+          <CardDescription>
+            Update your account email address
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {emailChangeSuccess ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <h3 className="font-medium text-green-900 mb-2">Verification email sent</h3>
+                <p className="text-sm text-green-700">
+                  We've emailed {newEmail || user?.email} a verification link to finalize the change. 
+                  Your login email will update after you click the link.
+                </p>
+              </div>
+              
+              {emailChangeCountdown > 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Resend available in {emailChangeCountdown} seconds
+                </p>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={handleResendEmailVerification}
+                  disabled={isChangingEmail}
+                >
+                  {isChangingEmail ? "Sending..." : "Resend verification email"}
+                </Button>
+              )}
+              
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEmailChangeSuccess(false)
+                  setEmailChangeCountdown(0)
+                }}
+              >
+                Change different email
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div>
+                <Label htmlFor="newEmail">New email address *</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="newEmail"
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => {
+                      setNewEmail(e.target.value)
+                      if (emailErrors.email) {
+                        setEmailErrors(prev => ({ ...prev, email: undefined }))
+                      }
+                    }}
+                    className={`pl-10 ${emailErrors.email ? "border-destructive" : ""}`}
+                    placeholder="Enter new email address"
+                  />
+                </div>
+                {emailErrors.email && (
+                  <p className="text-xs text-destructive mt-1">{emailErrors.email}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="emailChangePassword">Current password *</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="emailChangePassword"
+                    type="password"
+                    value={emailChangePassword}
+                    onChange={(e) => {
+                      setEmailChangePassword(e.target.value)
+                      if (emailErrors.password) {
+                        setEmailErrors(prev => ({ ...prev, password: undefined }))
+                      }
+                    }}
+                    className={`pl-10 ${emailErrors.password ? "border-destructive" : ""}`}
+                    placeholder="Enter current password"
+                  />
+                </div>
+                {emailErrors.password && (
+                  <p className="text-xs text-destructive mt-1">{emailErrors.password}</p>
+                )}
+              </div>
+
+              <Button 
+                onClick={handleEmailChange}
+                disabled={isChangingEmail}
+              >
+                {isChangingEmail ? "Updating..." : "Update Email"}
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
 
