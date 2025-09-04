@@ -261,7 +261,7 @@ const CompleteProfile = () => {
 
           {formData.industry === "Other" && (
             <div className="space-y-2">
-              <Label htmlFor="customIndustry">Please specify your industry *</Label>
+              <Label htmlFor="customIndustry">Specify industry *</Label>
               <Input
                 id="customIndustry"
                 name="customIndustry"
