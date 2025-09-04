@@ -116,16 +116,18 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
             <SidebarGroup>
               <SidebarGroupContent className="px-3">
                 <SidebarMenu className="space-y-1">
-                  {/* Notifications */}
-                  <SidebarMenuItem>
-                    <SidebarMenuButton 
-                      onClick={() => setActiveScreen("notifications")}
-                      className={`h-10 px-3 ${activeScreen === "notifications" ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
-                    >
-                      <Bell className="h-4 w-4" />
-                      <span className="ml-3">Notifications</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                   {/* Notifications */}
+                   <SidebarMenuItem>
+                     <SidebarMenuButton 
+                       onClick={() => setActiveScreen("notifications")}
+                       className={`h-10 px-3 ${activeScreen === "notifications" ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
+                     >
+                       <div className="flex items-center">
+                         <Bell className="h-4 w-4" />
+                         <span className="ml-3">Notifications</span>
+                       </div>
+                     </SidebarMenuButton>
+                   </SidebarMenuItem>
 
                   {/* Help with Popover Menu */}
                   <SidebarMenuItem>
