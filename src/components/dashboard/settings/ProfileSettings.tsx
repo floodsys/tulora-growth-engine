@@ -13,6 +13,8 @@ export function ProfileSettings() {
   const { user } = useAuth()
   const { toast } = useToast()
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "")
+  const [profileData, setProfileData] = useState<any>(null)
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true)
   
   // Change password state
   const [currentPassword, setCurrentPassword] = useState("")
@@ -29,6 +31,30 @@ export function ProfileSettings() {
   const [emailChangeSuccess, setEmailChangeSuccess] = useState(false)
   const [emailChangeCountdown, setEmailChangeCountdown] = useState(0)
   const [emailErrors, setEmailErrors] = useState<{email?: string, password?: string}>({})
+  const [pendingEmailChange, setPendingEmailChange] = useState("")
+
+  // Load profile data
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user) return
+      
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('organization_name, organization_size, industry')
+          .eq('user_id', user.id)
+          .single()
+        
+        setProfileData(profile)
+      } catch (error) {
+        console.error('Error loading profile:', error)
+      } finally {
+        setIsLoadingProfile(false)
+      }
+    }
+    
+    loadProfile()
+  }, [user])
 
   // Countdown timer for email change
   useEffect(() => {
@@ -210,6 +236,7 @@ export function ProfileSettings() {
       // Success - show success state
       setEmailChangeSuccess(true)
       setEmailChangeCountdown(60)
+      setPendingEmailChange(newEmail)
       setNewEmail("")
       setEmailChangePassword("")
       
@@ -230,7 +257,7 @@ export function ProfileSettings() {
     try {
       setIsChangingEmail(true)
       const { error } = await supabase.auth.updateUser(
-        { email: newEmail || user.email! },
+        { email: pendingEmailChange || user.email! },
         { emailRedirectTo: `${window.location.origin}/auth/callback` }
       )
       
@@ -266,6 +293,49 @@ export function ProfileSettings() {
         <h1 className="text-2xl font-semibold">Profile Settings</h1>
         <p className="text-muted-foreground">Manage your personal profile information</p>
       </div>
+
+      {/* Profile Snapshot Panel */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Profile Snapshot
+          </CardTitle>
+          <CardDescription>Your current profile information</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoadingProfile ? (
+            <div className="space-y-3">
+              <div className="h-4 bg-muted rounded animate-pulse"></div>
+              <div className="h-4 bg-muted rounded animate-pulse w-2/3"></div>
+              <div className="h-4 bg-muted rounded animate-pulse w-1/2"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
+                <div className="font-medium">{user?.user_metadata?.full_name || "Not provided"}</div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-muted-foreground">Email Address</Label>
+                <div className="font-medium">{user?.email}</div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-muted-foreground">Organization</Label>
+                <div className="font-medium">{profileData?.organization_name || "Not provided"}</div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-muted-foreground">Organization Size</Label>
+                <div className="font-medium">{profileData?.organization_size || "Not provided"}</div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-muted-foreground">Industry</Label>
+                <div className="font-medium">{profileData?.industry || "Not provided"}</div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -426,9 +496,17 @@ export function ProfileSettings() {
 
           <Button 
             onClick={handlePasswordUpdate}
-            disabled={isChangingPassword}
+            disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword}
+            className="relative"
           >
-            {isChangingPassword ? "Updating..." : "Update Password"}
+            {isChangingPassword && (
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              </div>
+            )}
+            <span className={isChangingPassword ? "ml-6" : ""}>
+              {isChangingPassword ? "Updating..." : "Update Password"}
+            </span>
           </Button>
         </CardContent>
       </Card>
@@ -449,31 +527,28 @@ export function ProfileSettings() {
             <div className="space-y-4">
               <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                 <h3 className="font-medium text-green-900 mb-2">Verification email sent</h3>
-                <p className="text-sm text-green-700">
-                  We've emailed {newEmail || user?.email} a verification link to finalize the change. 
+                <p className="text-sm text-green-700 mb-3">
+                  We've emailed {pendingEmailChange} a verification link to finalize the change. 
                   Your login email will update after you click the link.
                 </p>
+                
+                <div className="text-sm text-green-600 mb-2">
+                  Didn't get the email? <button 
+                    onClick={handleResendEmailVerification}
+                    disabled={isChangingEmail || emailChangeCountdown > 0}
+                    className="underline hover:no-underline disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isChangingEmail ? "Sending..." : emailChangeCountdown > 0 ? `Resend in ${emailChangeCountdown}s` : "Click here to resend"}
+                  </button>
+                </div>
               </div>
-              
-              {emailChangeCountdown > 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Resend available in {emailChangeCountdown} seconds
-                </p>
-              ) : (
-                <Button
-                  variant="outline"
-                  onClick={handleResendEmailVerification}
-                  disabled={isChangingEmail}
-                >
-                  {isChangingEmail ? "Sending..." : "Resend verification email"}
-                </Button>
-              )}
               
               <Button
                 variant="outline"
                 onClick={() => {
                   setEmailChangeSuccess(false)
                   setEmailChangeCountdown(0)
+                  setPendingEmailChange("")
                 }}
               >
                 Change different email
@@ -529,9 +604,17 @@ export function ProfileSettings() {
 
               <Button 
                 onClick={handleEmailChange}
-                disabled={isChangingEmail}
+                disabled={isChangingEmail || !newEmail || !emailChangePassword}
+                className="relative"
               >
-                {isChangingEmail ? "Updating..." : "Update Email"}
+                {isChangingEmail && (
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  </div>
+                )}
+                <span className={isChangingEmail ? "ml-6" : ""}>
+                  {isChangingEmail ? "Updating..." : "Update Email"}
+                </span>
               </Button>
             </>
           )}
