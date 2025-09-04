@@ -13,9 +13,14 @@ export function ProfileSettings() {
   const { user } = useAuth()
   const { toast } = useToast()
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "")
+  
+  // Change password state
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [passwordErrors, setPasswordErrors] = useState<{current?: string, new?: string, confirm?: string}>({})
+  const [showPasswordSuccess, setShowPasswordSuccess] = useState(false)
   
   // Change email state
   const [newEmail, setNewEmail] = useState("")
@@ -38,16 +43,104 @@ export function ProfileSettings() {
     console.log("Profile updated successfully")
   }
 
-  const handlePasswordUpdate = () => {
-    if (newPassword !== confirmPassword) {
-      console.log("Passwords do not match")
-      return
+  const getPasswordStrength = (password: string) => {
+    if (password.length < 8) return { strength: 'weak', message: 'At least 8 characters required' }
+    if (password.length < 12) return { strength: 'medium', message: 'Consider a longer password' }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) return { strength: 'medium', message: 'Add uppercase, lowercase, and numbers' }
+    return { strength: 'strong', message: 'Strong password' }
+  }
+
+  const validatePasswordChange = () => {
+    const errors: {current?: string, new?: string, confirm?: string} = {}
+    
+    if (!currentPassword) {
+      errors.current = "Current password is required"
     }
-    // TODO: Implement password update
-    console.log("Password updated successfully")
-    setCurrentPassword("")
-    setNewPassword("")
-    setConfirmPassword("")
+    
+    if (!newPassword) {
+      errors.new = "New password is required"
+    } else if (newPassword.length < 8) {
+      errors.new = "Password must be at least 8 characters"
+    }
+    
+    if (!confirmPassword) {
+      errors.confirm = "Please confirm your new password"
+    } else if (newPassword !== confirmPassword) {
+      errors.confirm = "Passwords do not match"
+    }
+    
+    setPasswordErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handlePasswordUpdate = async () => {
+    if (!validatePasswordChange() || !user) return
+    
+    setIsChangingPassword(true)
+    setPasswordErrors({})
+    setShowPasswordSuccess(false)
+    
+    try {
+      // First, re-authenticate the user
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email!,
+        password: currentPassword
+      })
+      
+      if (signInError) {
+        if (signInError.message.includes('Invalid login credentials')) {
+          setPasswordErrors({ current: "Incorrect password" })
+        } else {
+          toast({
+            title: "Authentication failed",
+            description: "Please check your current password and try again.",
+            variant: "destructive"
+          })
+        }
+        return
+      }
+      
+      // If re-auth succeeds, update the password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      })
+      
+      if (updateError) {
+        if (updateError.message.includes('Password should be at least')) {
+          setPasswordErrors({ new: "Choose a stronger password" })
+        } else {
+          toast({
+            title: "Couldn't update password",
+            description: "Please try again.",
+            variant: "destructive"
+          })
+        }
+        return
+      }
+      
+      // Success - clear fields and show success
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+      setShowPasswordSuccess(true)
+      
+      toast({
+        title: "Password updated",
+        description: "Your password has been successfully updated."
+      })
+      
+      // Hide success banner after 5 seconds
+      setTimeout(() => setShowPasswordSuccess(false), 5000)
+      
+    } catch (error: any) {
+      toast({
+        title: "Couldn't update password",
+        description: "Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsChangingPassword(false)
+    }
   }
 
   const validateEmailChange = () => {
@@ -224,57 +317,118 @@ export function ProfileSettings() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Change Password</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="h-5 w-5" />
+            Change Password
+          </CardTitle>
           <CardDescription>Update your account password</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {showPasswordSuccess && (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Shield className="h-4 w-4 text-blue-600" />
+                <h3 className="font-medium text-blue-900">Password updated successfully</h3>
+              </div>
+              <p className="text-sm text-blue-700">
+                For security, please sign in again on other devices.
+              </p>
+            </div>
+          )}
+          
           <div>
-            <Label htmlFor="currentPassword">Current Password</Label>
+            <Label htmlFor="currentPassword">Current password *</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 id="currentPassword"
                 type="password"
                 value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="pl-10"
+                onChange={(e) => {
+                  setCurrentPassword(e.target.value)
+                  if (passwordErrors.current) {
+                    setPasswordErrors(prev => ({ ...prev, current: undefined }))
+                  }
+                }}
+                className={`pl-10 ${passwordErrors.current ? "border-destructive" : ""}`}
                 placeholder="Enter current password"
+                autoComplete="current-password"
               />
             </div>
+            {passwordErrors.current && (
+              <p className="text-xs text-destructive mt-1">{passwordErrors.current}</p>
+            )}
           </div>
 
           <div>
-            <Label htmlFor="newPassword">New Password</Label>
+            <Label htmlFor="newPassword">New password *</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 id="newPassword"
                 type="password"
                 value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="pl-10"
+                onChange={(e) => {
+                  setNewPassword(e.target.value)
+                  if (passwordErrors.new) {
+                    setPasswordErrors(prev => ({ ...prev, new: undefined }))
+                  }
+                }}
+                className={`pl-10 ${passwordErrors.new ? "border-destructive" : ""}`}
                 placeholder="Enter new password"
+                autoComplete="new-password"
               />
             </div>
+            {passwordErrors.new && (
+              <p className="text-xs text-destructive mt-1">{passwordErrors.new}</p>
+            )}
+            {newPassword && (
+              <div className="mt-1">
+                {(() => {
+                  const { strength, message } = getPasswordStrength(newPassword)
+                  return (
+                    <p className={`text-xs ${
+                      strength === 'weak' ? 'text-red-600' : 
+                      strength === 'medium' ? 'text-yellow-600' : 
+                      'text-green-600'
+                    }`}>
+                      {message}
+                    </p>
+                  )
+                })()}
+              </div>
+            )}
           </div>
 
           <div>
-            <Label htmlFor="confirmPassword">Confirm New Password</Label>
+            <Label htmlFor="confirmPassword">Confirm new password *</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 id="confirmPassword"
                 type="password"
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="pl-10"
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value)
+                  if (passwordErrors.confirm) {
+                    setPasswordErrors(prev => ({ ...prev, confirm: undefined }))
+                  }
+                }}
+                className={`pl-10 ${passwordErrors.confirm ? "border-destructive" : ""}`}
                 placeholder="Confirm new password"
+                autoComplete="new-password"
               />
             </div>
+            {passwordErrors.confirm && (
+              <p className="text-xs text-destructive mt-1">{passwordErrors.confirm}</p>
+            )}
           </div>
 
-          <Button onClick={handlePasswordUpdate}>
-            Update Password
+          <Button 
+            onClick={handlePasswordUpdate}
+            disabled={isChangingPassword}
+          >
+            {isChangingPassword ? "Updating..." : "Update Password"}
           </Button>
         </CardContent>
       </Card>
