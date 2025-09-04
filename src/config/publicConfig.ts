@@ -15,7 +15,7 @@ export const LAURA_PHONE = "+1 (289) 536-8131";
 // Feature flags for agent capabilities
 export const JESSICA_CALL = true;
 export const JESSICA_WEB = true;
-export const PAUL_CALL = false;
-export const PAUL_WEB = false;
-export const LAURA_CALL = false;
-export const LAURA_WEB = false;
+export const PAUL_CALL = true;
+export const PAUL_WEB = true;
+export const LAURA_CALL = true;
+export const LAURA_WEB = true;
