@@ -23,35 +23,75 @@ export async function callEF<T>(fnName: string, body?: Record<string, unknown>):
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  // Check if response is JSON before parsing
+  // Try to parse response as JSON safely
+  let responseData: any = null;
+  let isJsonResponse = false;
+  
   const contentType = res.headers.get('content-type');
   
-  if (!res.ok) {
-    if (contentType && contentType.includes('application/json')) {
-      const errorData = await res.json();
-      throw new Error(errorData.error || `HTTP ${res.status}: ${res.statusText}`);
-    } else {
-      // Handle non-JSON responses (HTML error pages, etc.)
+  if (contentType && contentType.includes('application/json')) {
+    try {
+      responseData = await res.json();
+      isJsonResponse = true;
+    } catch (parseError) {
+      // JSON parsing failed, will handle as text below
+      isJsonResponse = false;
+    }
+  }
+  
+  // If not JSON or parsing failed, get text response
+  if (!isJsonResponse) {
+    try {
       const textResponse = await res.text();
-      const preview = textResponse.substring(0, 200);
-      throw new Error(`Received HTML/Non-JSON response (${res.status}): ${preview}${textResponse.length > 200 ? '...' : ''}`);
+      responseData = textResponse;
+    } catch (textError) {
+      responseData = `Failed to read response: ${textError.message}`;
     }
   }
 
-  // Ensure successful response is JSON
-  if (!contentType || !contentType.includes('application/json')) {
-    const textResponse = await res.text();
-    const preview = textResponse.substring(0, 200);
-    throw new Error(`Expected JSON response but received: ${preview}${textResponse.length > 200 ? '...' : ''}`);
+  // Handle error responses
+  if (!res.ok) {
+    const errorInfo = {
+      status: res.status,
+      statusText: res.statusText,
+      traceId: isJsonResponse && responseData?.traceId ? responseData.traceId : undefined,
+      originalPayload: responseData,
+    };
+    
+    // Log the full error details for debugging
+    console.error('Edge Function Error:', {
+      function: fnName,
+      url,
+      requestBody: body,
+      responseStatus: res.status,
+      responseData,
+      traceId: errorInfo.traceId,
+    });
+    
+    // Create a structured error
+    const errorMessage = isJsonResponse && responseData?.error 
+      ? responseData.error 
+      : isJsonResponse 
+        ? `Edge Function returned ${res.status}: ${JSON.stringify(responseData)}`
+        : `HTTP ${res.status}: ${typeof responseData === 'string' ? responseData.substring(0, 200) : res.statusText}`;
+    
+    const error = new Error(errorMessage);
+    // Attach additional error info for components that need it
+    (error as any).status = errorInfo.status;
+    (error as any).traceId = errorInfo.traceId;
+    (error as any).originalPayload = errorInfo.originalPayload;
+    
+    throw error;
   }
 
-  try {
-    return await res.json();
-  } catch (parseError) {
-    const textResponse = await res.text();
-    const preview = textResponse.substring(0, 200);
-    throw new Error(`Failed to parse JSON response: ${preview}${textResponse.length > 200 ? '...' : ''}`);
+  // Handle successful non-JSON responses
+  if (!isJsonResponse) {
+    const preview = typeof responseData === 'string' ? responseData.substring(0, 200) : String(responseData);
+    throw new Error(`Expected JSON response but received: ${preview}${typeof responseData === 'string' && responseData.length > 200 ? '...' : ''}`);
   }
+
+  // Return the parsed JSON data
+  return responseData as T;
 }
 
 // Development helper to check for missing env vars
@@ -68,7 +108,7 @@ export function checkDevEnv(): {
   if (!anonKey) missing.push('SUPABASE_ANON');
   if (!supabaseUrl) missing.push('SUPABASE_URL');
   
-  if (missing.length > 0 && import.meta.env.DEV) {
+  if (missing.length > 0 && (typeof window !== 'undefined')) {
     return {
       hasAnonKey: !!anonKey,
       hasSupabaseUrl: !!supabaseUrl,
