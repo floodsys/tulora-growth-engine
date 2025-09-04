@@ -53,10 +53,10 @@ export function SuperadminManagement() {
       const userIds = superadminData?.map(s => s.user_id) || [];
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, email')
-        .in('id', userIds);
+        .select('user_id, email')
+        .in('user_id', userIds);
 
-      const profileMap = new Map(profiles?.map(p => [p.id, p.email]) || []);
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p.email]) || []);
 
       const superadminsWithEmails = (superadminData || []).map(admin => ({
         ...admin,

@@ -90,7 +90,7 @@ export default function SettingsTeams() {
           const { data: profile } = await supabase
             .from('profiles')
             .select('full_name, email, avatar_url')
-            .eq('id', member.user_id)
+            .eq('user_id', member.user_id)
             .single();
           
           return {

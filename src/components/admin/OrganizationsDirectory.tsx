@@ -102,10 +102,10 @@ export function OrganizationsDirectory() {
       const orgIds = orgsData?.map(org => org.owner_user_id) || [];
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, email')
-        .in('id', orgIds);
+        .select('user_id, email')
+        .in('user_id', orgIds);
 
-      const profileMap = new Map(profiles?.map(p => [p.id, p.email]) || []);
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p.email]) || []);
 
 
       // Get member counts for each organization
