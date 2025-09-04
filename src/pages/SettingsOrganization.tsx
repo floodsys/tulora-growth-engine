@@ -111,10 +111,21 @@ export default function SettingsOrganization() {
 
   const normalizeWebsite = (url: string): string => {
     if (!url.trim()) return "";
-    let normalized = url.trim().toLowerCase();
-    if (normalized && !normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+    
+    let normalized = url.trim();
+    
+    // Add https:// if no protocol specified
+    if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
       normalized = 'https://' + normalized;
     }
+    
+    // Validate domain format with TLD
+    const urlPattern = /^https?:\/\/[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}(\/.*)?$/;
+    
+    if (!urlPattern.test(normalized)) {
+      throw new Error('Please enter a valid website URL with a proper domain extension (e.g., .com, .org, .net)');
+    }
+    
     return normalized;
   };
 
@@ -154,9 +165,23 @@ export default function SettingsOrganization() {
     });
     
     try {
+      // Validate and normalize website URL
+      let normalizedWebsite = '';
+      try {
+        normalizedWebsite = normalizeWebsite(formData.website);
+      } catch (error) {
+        toast({
+          title: "Invalid Website URL",
+          description: error instanceof Error ? error.message : "Please enter a valid website URL",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
       const updateData = {
         name: formData.name.trim(),
-        website: normalizeWebsite(formData.website),
+        website: normalizedWebsite,
         industry: formData.industry,
         size_band: formData.size_band || null
       };
