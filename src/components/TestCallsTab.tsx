@@ -204,6 +204,7 @@ export function TestCallsTab() {
       setStatusMessage("Please select an agent first.");
       return;
     }
+    
     setIsTryingBrowser(true);
     setStatusMessage("");
     setTraceId("");
@@ -217,6 +218,11 @@ export function TestCallsTab() {
       const response = (await callEF("retell-webcall-create", payload)) as any;
       setLastPayload({ action: "retell-webcall-create", request: payload, response });
 
+      // Check for successful response
+      if (!response || !response.access_token) {
+        throw new Error("Invalid response: missing access_token");
+      }
+
       // Set session data and open browser call modal
       const newSessionData = {
         call_id: response?.call_id,
@@ -224,30 +230,76 @@ export function TestCallsTab() {
         access_token: response?.access_token
       };
       setSessionData(newSessionData);
+      
+      // Extract traceId for debugging
       if (response?.traceId) {
         setTraceId(response.traceId);
       }
 
+      // Console logging for debugging
+      console.log("Web call session created successfully:", {
+        call_id: response?.call_id,
+        traceId: response?.traceId,
+        agentSlug: selectedAgent,
+        hasAccessToken: !!response?.access_token
+      });
+
       // Open the browser call modal
       setIsBrowserCallOpen(true);
-      setStatusMessage("Browser call started!");
+      setStatusMessage("Browser call session created!");
+      
     } catch (error: any) {
-      const errorMsg = getErrorMessage(error);
-      setStatusMessage(`Error: ${errorMsg}`);
-      if (error?.traceId) {
-        setTraceId(error.traceId);
-        console.error("Web call failed with traceId:", error.traceId);
+      // Enhanced error handling with specific mappings
+      let errorTitle = "Web call failed";
+      let errorDescription = "Unknown error occurred";
+      
+      // Extract error details
+      const status = error.status || null;
+      const traceId = error.traceId || null;
+      
+      // Map specific error cases
+      if (status === 404) {
+        errorTitle = "Agent not configured";
+        errorDescription = "Agent not configured yet.";
+      } else if (status === 401) {
+        errorTitle = "Authentication invalid";
+        errorDescription = "Auth invalid.";
+      } else if (status === 403 || status === 409) {
+        errorTitle = "Access denied";
+        errorDescription = "Access denied for web calls.";
+      } else {
+        // Generic error message
+        errorDescription = error.message || "Web call failed.";
       }
-      // Extract status code from error message
-      const statusMatch = error.message?.match(/(\d{3})/);
-      if (statusMatch) {
-        setLastErrorStatus(parseInt(statusMatch[1]));
-      }
-      toast({
-        title: "Web call failed",
-        description: errorMsg,
-        variant: "destructive"
+      
+      setStatusMessage(`Error: ${errorDescription}`);
+      
+      // Console logging for debugging (always include traceId if available)
+      console.error("Web call failed:", {
+        error: error.message,
+        status: status,
+        traceId: traceId,
+        agentSlug: selectedAgent,
+        originalPayload: error.originalPayload
       });
+      
+      // Set traceId for display if available
+      if (traceId) {
+        setTraceId(traceId);
+      }
+      
+      // Error toast
+      toast({
+        title: errorTitle,
+        description: errorDescription,
+        variant: "destructive",
+      });
+      
+      // Extract status code for debugging display
+      if (status) {
+        setLastErrorStatus(status);
+      }
+      
     } finally {
       setIsTryingBrowser(false);
     }

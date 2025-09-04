@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Mic, MicOff, Phone, ChevronDown, Copy } from "lucide-react";
+import { Mic, MicOff, Phone, ChevronDown, Copy, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-// Using native WebRTC instead of Retell SDK
+import { RetellWebClient } from "retell-client-js-sdk";
 
 interface BrowserCallModalProps {
   isOpen: boolean;
@@ -32,9 +32,10 @@ export function BrowserCallModal({
   const [isMuted, setIsMuted] = useState(false);
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const [error, setError] = useState<string>("");
+  const [micPermissionDenied, setMicPermissionDenied] = useState(false);
   
   const { toast } = useToast();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const retellClientRef = useRef<RetellWebClient | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
@@ -48,79 +49,185 @@ export function BrowserCallModal({
   }, [isOpen, sessionData]);
 
   const cleanup = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
+    console.log("Cleaning up browser call resources...");
+    
+    // Stop Retell client
+    if (retellClientRef.current) {
+      try {
+        retellClientRef.current.stopCall();
+        console.log("Retell client stopped");
+      } catch (error) {
+        console.warn("Error stopping Retell client:", error);
+      }
+      retellClientRef.current = null;
     }
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.srcObject = null;
+    
+    // Stop media stream
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+        console.log("Stopped track:", track.label);
+      });
+      streamRef.current = null;
     }
   };
 
   const initializeCall = async () => {
     try {
-      // Request microphone permission
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        } 
+      console.log("Initializing browser call with sessionData:", sessionData);
+      
+      if (!sessionData?.access_token) {
+        throw new Error("No access token provided");
+      }
+
+      setError("");
+      setMicPermissionDenied(false);
+      setStatus("connecting");
+
+      // Request microphone permission first
+      console.log("Requesting microphone permission...");
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            sampleRate: 24000,
+            channelCount: 1
+          } 
+        });
+        
+        streamRef.current = stream;
+        console.log("Microphone permission granted, got stream:", stream);
+        
+      } catch (permError: any) {
+        console.error("Microphone permission denied:", permError);
+        setMicPermissionDenied(true);
+        setError("Microphone permission required. Please allow microphone access and try again.");
+        setStatus("failed");
+        
+        toast({
+          title: "Microphone required",
+          description: "Please allow microphone access to start the call",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Initialize Retell Web Client
+      console.log("Initializing Retell Web Client...");
+      const retellClient = new RetellWebClient();
+      retellClientRef.current = retellClient;
+
+      // Set up event listeners
+      retellClient.on("call_started", () => {
+        console.log("Call started event received");
+        setStatus("connected");
+        toast({
+          title: "Connected",
+          description: `Browser call with ${agentName} started`,
+        });
       });
-      
-      streamRef.current = stream;
-      
-      // Create audio element for playback
-      const audio = new Audio();
-      audio.autoplay = true;
-      audioRef.current = audio;
-      
-      // Simulate connection process
-      setStatus("connected");
-      
-      toast({
-        title: "Connected",
-        description: `Browser call with ${agentName} started`,
+
+      retellClient.on("call_ended", () => {
+        console.log("Call ended event received");
+        setStatus("ended");
+        toast({
+          title: "Call ended",
+          description: "Browser call session ended",
+        });
+        onClose();
       });
-      
-      // Note: In a real implementation, you would use the access_token
-      // to establish a WebRTC connection with Retell's servers
-      console.log("Using access token:", sessionData?.access_token?.slice(0, 12) + "...");
+
+      retellClient.on("agent_start_talking", () => {
+        console.log("Agent started talking");
+      });
+
+      retellClient.on("agent_stop_talking", () => {
+        console.log("Agent stopped talking");
+      });
+
+      retellClient.on("error", (error) => {
+        console.error("Retell client error:", error);
+        setError(`Connection error: ${error.message || 'Unknown error'}`);
+        setStatus("failed");
+        toast({
+          title: "Call failed",
+          description: error.message || "Connection error occurred",
+          variant: "destructive",
+        });
+      });
+
+      retellClient.on("update", (update) => {
+        console.log("Call update:", update);
+      });
+
+      // Start the call with the access token
+      console.log("Starting call with access token:", sessionData.access_token.slice(0, 12) + "...");
+      await retellClient.startCall({
+        accessToken: sessionData.access_token,
+      });
+
+      console.log("Call initialization completed");
 
     } catch (error: any) {
       console.error("Failed to initialize call:", error, "traceId:", traceId);
       
-      if (error.name === "NotAllowedError" || error.message.includes("permission")) {
-        setError("Mic permission required for browser demo. Please allow microphone and try again.");
-      } else {
-        setError(`Couldn't connect ${traceId ? `(traceId: ${traceId})` : ""}`);
-      }
-      
+      setError(`Connection failed: ${error.message || 'Unknown error'} ${traceId ? `(traceId: ${traceId})` : ""}`);
       setStatus("failed");
+      
       toast({
         title: "Call failed",
-        description: error.message,
+        description: error.message || "Failed to connect",
         variant: "destructive",
       });
     }
   };
 
   const handleMuteToggle = () => {
-    if (streamRef.current) {
-      streamRef.current.getAudioTracks().forEach(track => {
-        track.enabled = isMuted; // Toggle opposite of current state
-      });
-      setIsMuted(!isMuted);
-      
-      toast({
-        title: isMuted ? "Unmuted" : "Muted",
-        description: isMuted ? "Microphone enabled" : "Microphone disabled",
-      });
+    console.log("Toggling mute state, current isMuted:", isMuted);
+    
+    if (retellClientRef.current) {
+      try {
+        if (isMuted) {
+          // Unmute - enable microphone
+          if (streamRef.current) {
+            streamRef.current.getAudioTracks().forEach(track => {
+              track.enabled = true;
+            });
+          }
+          console.log("Microphone enabled");
+        } else {
+          // Mute - disable microphone
+          if (streamRef.current) {
+            streamRef.current.getAudioTracks().forEach(track => {
+              track.enabled = false;
+            });
+          }
+          console.log("Microphone disabled");
+        }
+        
+        setIsMuted(!isMuted);
+        
+        toast({
+          title: isMuted ? "Unmuted" : "Muted",
+          description: isMuted ? "Microphone enabled" : "Microphone disabled",
+        });
+      } catch (error) {
+        console.error("Error toggling mute:", error);
+        toast({
+          title: "Error",
+          description: "Failed to toggle microphone",
+          variant: "destructive",
+        });
+      }
+    } else {
+      console.warn("Retell client not available for mute toggle");
     }
   };
 
   const handleEndCall = () => {
+    console.log("Ending call");
     cleanup();
     setStatus("ended");
     
@@ -184,17 +291,30 @@ export function BrowserCallModal({
         </DialogHeader>
         
         <div className="space-y-4">
-          {/* Status */}
+          {/* Status with loading indicator */}
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">Status:</span>
-            <span className={`text-sm font-medium ${getStatusColor()}`}>
-              {getStatusText()}
-            </span>
+            <div className="flex items-center gap-2">
+              {status === "connecting" && (
+                <Loader2 className="w-4 h-4 animate-spin text-yellow-600" />
+              )}
+              <span className={`text-sm font-medium ${getStatusColor()}`}>
+                {getStatusText()}
+              </span>
+            </div>
           </div>
 
+          {/* Microphone Permission Prompt */}
+          {micPermissionDenied && (
+            <div className="text-sm bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 rounded dark:bg-yellow-950 dark:border-yellow-800 dark:text-yellow-200">
+              <div className="font-medium">Microphone access required</div>
+              <div className="mt-1">Please allow microphone access in your browser and try again.</div>
+            </div>
+          )}
+
           {/* Error Message */}
-          {error && (
-            <div className="text-sm text-red-600 bg-red-50 p-3 rounded border border-red-200 dark:bg-red-950 dark:border-red-800">
+          {error && !micPermissionDenied && (
+            <div className="text-sm text-red-600 bg-red-50 p-3 rounded border border-red-200 dark:bg-red-950 dark:border-red-800 dark:text-red-200">
               {error}
             </div>
           )}
