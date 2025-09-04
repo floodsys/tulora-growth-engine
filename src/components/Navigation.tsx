@@ -56,6 +56,10 @@ const Navigation = () => {
                       Get started
                     </Button>
                   </Link>
+                  {/* Temporary test link */}
+                  <Link to="/profile-test" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    Profile Test
+                  </Link>
                 </>
               )}
             </div>
@@ -104,6 +108,10 @@ const Navigation = () => {
                       </Button>
                     </Link>
                   </div>
+                  {/* Temporary test link */}
+                  <Link to="/profile-test" className="block px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors" onClick={() => setIsMenuOpen(false)}>
+                    Profile Test
+                  </Link>
                 </>
               )}
             </div>

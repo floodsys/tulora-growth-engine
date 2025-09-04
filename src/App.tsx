@@ -9,7 +9,8 @@ import { RedirectToOrganizationTeam } from "@/components/RedirectToOrganizationT
 import Index from "@/pages/Index";
 import Dashboard from "@/pages/Dashboard";
 import Auth from "@/pages/Auth";
-import CompleteProfile from "@/pages/CompleteProfile";
+import CompleteProfile from "@/pages/CompleteProfile"
+import ProfileTest from "@/pages/ProfileTest";
 import TalkToUs from "@/pages/TalkToUs";
 import NotFound from "@/pages/NotFound";
 import AgentSettings from "@/pages/AgentSettings";
@@ -47,6 +48,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/complete-profile" element={<CompleteProfile />} />
+            <Route path="/profile-test" element={<ProfileTest />} />
             <Route path="/talk-to-us" element={<TalkToUs />} />
             <Route path="/agent-settings" element={<AgentSettings />} />
             <Route path="/settings" element={<SettingsLayout />}>
