@@ -17,10 +17,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Debug: Check what's in localStorage
+    console.log('🔍 LocalStorage auth keys:', Object.keys(localStorage).filter(key => key.includes('auth') || key.includes('supabase')));
+    Object.keys(localStorage).forEach(key => {
+      if (key.includes('auth') || key.includes('supabase')) {
+        console.log('🔍 Storage key:', key, 'Value preview:', localStorage.getItem(key)?.substring(0, 100));
+      }
+    });
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('🔐 Auth state changed:', event, 'User:', session?.user?.email, 'ID:', session?.user?.id);
+        
+        // Additional debugging for unexpected sessions
+        if (session?.user?.email === 'admin@axionstack.xyz' && event !== 'SIGNED_OUT') {
+          console.error('⚠️ UNEXPECTED ADMIN SESSION LOADED! Event:', event);
+          console.log('⚠️ Session details:', {
+            expires_at: session.expires_at,
+            expires_in: session.expires_in,
+            token_type: session.token_type
+          });
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -30,6 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('🔍 Initial session check:', session?.user?.email, 'ID:', session?.user?.id);
+      
+      if (session?.user?.email === 'admin@axionstack.xyz') {
+        console.error('⚠️ UNEXPECTED ADMIN SESSION IN INITIAL CHECK!');
+        console.log('⚠️ This session should not exist after signout');
+      }
+      
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
