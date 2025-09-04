@@ -90,6 +90,46 @@ export function OrgSwitcher() {
     fetchOrganizations()
   }, [organization, loading, isNonPaying])
 
+  // Set up real-time updates for organization name changes
+  useEffect(() => {
+    if (loading || !organization) return
+
+    const channel = supabase
+      .channel('org-switcher-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'organizations'
+        },
+        (payload) => {
+          const updatedOrg = payload.new as Organization
+          
+          // Update organizations list
+          setOrganizations(prev => 
+            prev.map(org => 
+              org.id === updatedOrg.id 
+                ? { ...org, name: updatedOrg.name }
+                : org
+            )
+          )
+          
+          // Update selected org if it's the one that changed
+          setSelectedOrg(prev => 
+            prev?.id === updatedOrg.id 
+              ? { ...prev, name: updatedOrg.name }
+              : prev
+          )
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [loading, organization])
+
   const handleCreateOrganization = async () => {
     if (!canCreateOrganization) {
       setUpgradeModalOpen(true)
