@@ -113,13 +113,13 @@ Deno.serve(async (req) => {
       };
     }
 
-    // Log the audit event
+    // Log the audit event with proper role
     await supabase.rpc('log_event', {
       p_org_id: organizationId,
       p_action: 'org.settings_updated',
       p_target_type: 'org',
       p_actor_user_id: user.id,
-      p_actor_role_snapshot: 'admin',
+      p_actor_role_snapshot: 'user',
       p_target_id: organizationId,
       p_status: auditStatus,
       p_metadata: auditMetadata
