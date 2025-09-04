@@ -9,8 +9,17 @@ import { Phone, Monitor, Loader2, Copy, ChevronDown, Clock } from "lucide-react"
 import { callEF } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { BrowserCallModal } from "./BrowserCallModal";
-import { getAgentFeatureFlags, isAgentDisabled } from "@/lib/agent-feature-flags";
-import { JESSICA_PHONE, PAUL_PHONE, LAURA_PHONE } from "@/config/publicConfig";
+import { 
+  JESSICA_PHONE, 
+  PAUL_PHONE, 
+  LAURA_PHONE,
+  JESSICA_CALL,
+  JESSICA_WEB,
+  PAUL_CALL,
+  PAUL_WEB,
+  LAURA_CALL,
+  LAURA_WEB
+} from "@/config/publicConfig";
 
 const voiceAgents = [{
   slug: "paul",
@@ -232,8 +241,23 @@ export function TestCallsTab() {
   
   const selectedAgentData = voiceAgents.find(agent => agent.slug === selectedAgent);
   const agentPhoneNumber = selectedAgentData?.phoneNumber || voiceAgents.find(agent => agent.slug === "jessica")?.phoneNumber;
-  const selectedAgentFlags = selectedAgent ? getAgentFeatureFlags(selectedAgent) : null;
-  const selectedAgentIsDisabled = selectedAgent ? isAgentDisabled(selectedAgent) : false;
+  
+  // Get feature flags for selected agent from publicConfig
+  const getAgentFlags = (slug: string) => {
+    switch (slug) {
+      case 'jessica':
+        return { callMe: JESSICA_CALL, tryInBrowser: JESSICA_WEB };
+      case 'paul':
+        return { callMe: PAUL_CALL, tryInBrowser: PAUL_WEB };
+      case 'laura':
+        return { callMe: LAURA_CALL, tryInBrowser: LAURA_WEB };
+      default:
+        return { callMe: false, tryInBrowser: false };
+    }
+  };
+  
+  const selectedAgentFlags = selectedAgent ? getAgentFlags(selectedAgent) : null;
+  const selectedAgentIsDisabled = selectedAgent ? (!selectedAgentFlags?.callMe && !selectedAgentFlags?.tryInBrowser) : false;
   return <div className="max-w-2xl mx-auto">
       <Card>
         <CardHeader>
@@ -254,7 +278,8 @@ export function TestCallsTab() {
               </SelectTrigger>
               <SelectContent>
                 {voiceAgents.map(agent => {
-                  const agentIsDisabled = isAgentDisabled(agent.slug);
+                  const agentFlags = getAgentFlags(agent.slug);
+                  const agentIsDisabled = !agentFlags.callMe && !agentFlags.tryInBrowser;
                   return (
                     <SelectItem key={agent.slug} value={agent.slug} className="truncate">
                       <div className="flex items-center gap-2 truncate">
@@ -308,6 +333,11 @@ export function TestCallsTab() {
                     {selectedAgentFlags?.callMe ? 'Call Me' : 'Call Me (Coming Soon)'}
                   </>}
               </Button>
+              {!selectedAgentFlags?.callMe && selectedAgent && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Phone calling coming soon for this agent.
+                </p>
+              )}
             </div>
             
             <div className="space-y-1">
