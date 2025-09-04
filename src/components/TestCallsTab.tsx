@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Phone, Monitor, Loader2, Copy, ChevronDown } from "lucide-react";
+import { Phone, Monitor, Loader2, Copy, ChevronDown, Clock } from "lucide-react";
 import { callEF } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { BrowserCallModal } from "./BrowserCallModal";
+import { getAgentFeatureFlags, isAgentDisabled } from "@/lib/agent-feature-flags";
 const voiceAgents = [{
   slug: "paul",
   name: "Paul",
@@ -229,6 +230,8 @@ export function TestCallsTab() {
   
   const selectedAgentData = voiceAgents.find(agent => agent.slug === selectedAgent);
   const agentPhoneNumber = selectedAgentData?.phoneNumber || voiceAgents.find(agent => agent.slug === "jessica")?.phoneNumber;
+  const selectedAgentFlags = selectedAgent ? getAgentFeatureFlags(selectedAgent) : null;
+  const selectedAgentIsDisabled = selectedAgent ? isAgentDisabled(selectedAgent) : false;
   return <div className="max-w-2xl mx-auto">
       <Card>
         <CardHeader>
@@ -248,9 +251,22 @@ export function TestCallsTab() {
                 <SelectValue placeholder="Choose an agent to test" />
               </SelectTrigger>
               <SelectContent>
-                {voiceAgents.map(agent => <SelectItem key={agent.slug} value={agent.slug} className="truncate">
-                    <span className="truncate">{agent.name} - {agent.category}</span>
-                  </SelectItem>)}
+                {voiceAgents.map(agent => {
+                  const agentIsDisabled = isAgentDisabled(agent.slug);
+                  return (
+                    <SelectItem key={agent.slug} value={agent.slug} className="truncate">
+                      <div className="flex items-center gap-2 truncate">
+                        <span className="truncate">{agent.name} - {agent.category}</span>
+                        {agentIsDisabled && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="w-3 h-3" />
+                            Coming Soon
+                          </div>
+                        )}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -269,32 +285,67 @@ export function TestCallsTab() {
           {/* Action Buttons */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <Button onClick={handleCallMe} disabled={isCallingPhone || isTryingBrowser || !phoneNumber || phoneNumber === "+1" || !selectedAgent} className="w-full" variant="default">
+              <Button 
+                onClick={handleCallMe} 
+                disabled={
+                  isCallingPhone || 
+                  isTryingBrowser || 
+                  !phoneNumber || 
+                  phoneNumber === "+1" || 
+                  !selectedAgent ||
+                  !selectedAgentFlags?.callMe
+                } 
+                className="w-full" 
+                variant="default"
+              >
                 {isCallingPhone ? <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Calling...
                   </> : <>
                     <Phone className="w-4 h-4 mr-2" />
-                    Call Me
+                    {selectedAgentFlags?.callMe ? 'Call Me' : 'Call Me (Coming Soon)'}
                   </>}
               </Button>
             </div>
             
             <div className="space-y-1">
-              <Button onClick={handleTryInBrowser} disabled={isTryingBrowser || isCallingPhone || !selectedAgent} className="w-full" variant="outline">
+              <Button 
+                onClick={handleTryInBrowser} 
+                disabled={
+                  isTryingBrowser || 
+                  isCallingPhone || 
+                  !selectedAgent ||
+                  !selectedAgentFlags?.tryInBrowser
+                } 
+                className="w-full" 
+                variant="outline"
+              >
                 {isTryingBrowser ? <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Creating...
                   </> : <>
                     <Monitor className="w-4 h-4 mr-2" />
-                    Try in Browser
+                    {selectedAgentFlags?.tryInBrowser ? 'Try in Browser' : 'Try in Browser (Coming Soon)'}
                   </>}
               </Button>
               <p className="text-xs text-muted-foreground">
-                This uses your microphone and plays audio in your browser. It won't call your phone.
+                {selectedAgentFlags?.tryInBrowser 
+                  ? "This uses your microphone and plays audio in your browser. It won't call your phone."
+                  : "Browser calling coming soon for this agent."
+                }
               </p>
             </div>
           </div>
+          
+          {/* Coming Soon Message */}
+          {selectedAgentIsDisabled && (
+            <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-center">
+              <div className="flex items-center justify-center gap-2 text-yellow-800 dark:text-yellow-200 text-sm">
+                <Clock className="w-4 h-4" />
+                This agent is coming soon. Try Jessica for full functionality!
+              </div>
+            </div>
+          )}
 
           {/* Call from Phone */}
           {selectedAgent && agentPhoneNumber && <div className="space-y-2">

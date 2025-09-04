@@ -4,9 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Phone, Monitor, Loader2, AudioWaveform } from "lucide-react";
+import { Phone, Monitor, Loader2, AudioWaveform, Clock } from "lucide-react";
 import { callEF } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { getAgentFeatureFlags, isAgentDisabled } from "@/lib/agent-feature-flags";
 
 interface VoiceDemoCardSynthflowProps {
   slug: string;
@@ -167,13 +168,26 @@ export function VoiceDemoCardSynthflow({
     }
   };
 
+  const agentFlags = getAgentFeatureFlags(slug);
+  const agentIsDisabled = isAgentDisabled(slug);
+
   // If no actions, return compact card
   if (!showActions) {
     return (
       <Card 
-        className="playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300 cursor-pointer"
+        className={`playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300 cursor-pointer relative ${
+          agentIsDisabled ? 'opacity-75' : ''
+        }`}
         onClick={() => onCardClick?.(slug)}
       >
+        {/* Coming Soon Ribbon */}
+        {agentIsDisabled && (
+          <div className="absolute top-3 right-3 bg-yellow-500/90 text-yellow-950 text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 z-10">
+            <Clock className="w-3 h-3" />
+            Coming Soon
+          </div>
+        )}
+        
         <div className="p-4 min-h-[140px] flex flex-col justify-between">
           <div className="space-y-2">
             <div className="flex items-start justify-between">
@@ -185,7 +199,7 @@ export function VoiceDemoCardSynthflow({
                   <p className="text-xs font-medium text-muted-foreground mt-1">{subtitle}</p>
                 )}
               </div>
-              <AudioWaveform className={`w-5 h-5 ${getIconColor(slug)} animate-pulse flex-shrink-0`} />
+              <AudioWaveform className={`w-5 h-5 ${getIconColor(slug)} ${agentIsDisabled ? 'opacity-50' : 'animate-pulse'} flex-shrink-0`} />
             </div>
             
             {/* Tags */}
@@ -205,7 +219,17 @@ export function VoiceDemoCardSynthflow({
   }
 
   return (
-    <Card className="playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300">
+    <Card className={`playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300 relative ${
+      agentIsDisabled ? 'opacity-90' : ''
+    }`}>
+      {/* Coming Soon Ribbon */}
+      {agentIsDisabled && (
+        <div className="absolute top-4 right-4 bg-yellow-500/90 text-yellow-950 text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 z-10">
+          <Clock className="w-3 h-3" />
+          Coming Soon
+        </div>
+      )}
+      
       <div className="flex flex-col lg:flex-row">
         {/* Left side - Content */}
         <div className="flex-1 p-6">
@@ -257,7 +281,7 @@ export function VoiceDemoCardSynthflow({
             <div className="space-y-2">
               <Button
                 onClick={handleCallMe}
-                disabled={isCallingPhone || isTryingBrowser || !phoneNumber || phoneNumber === "+1"}
+                disabled={!agentFlags.callMe || isCallingPhone || isTryingBrowser || !phoneNumber || phoneNumber === "+1"}
                 className="w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 variant="default"
                 aria-label={`Call ${name} on your phone`}
@@ -270,14 +294,14 @@ export function VoiceDemoCardSynthflow({
                 ) : (
                   <>
                     <Phone className="w-4 h-4 mr-2" aria-hidden="true" />
-                    Call Me
+                    {agentFlags.callMe ? 'Call Me' : 'Call Me (Coming Soon)'}
                   </>
                 )}
               </Button>
               
               <Button
                 onClick={handleTryInBrowser}
-                disabled={isTryingBrowser || isCallingPhone}
+                disabled={!agentFlags.tryInBrowser || isTryingBrowser || isCallingPhone}
                 className="w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 variant="outline"
                 aria-label={`Start ${name} in browser`}
@@ -290,10 +314,16 @@ export function VoiceDemoCardSynthflow({
                 ) : (
                   <>
                     <Monitor className="w-4 h-4 mr-2" aria-hidden="true" />
-                    Try in Browser
+                    {agentFlags.tryInBrowser ? 'Try in Browser' : 'Try in Browser (Coming Soon)'}
                   </>
                 )}
               </Button>
+              
+              {agentIsDisabled && (
+                <p className="text-xs text-muted-foreground text-center italic mt-2">
+                  This agent is coming soon. Try Jessica for now!
+                </p>
+              )}
             </div>
 
             {/* Status Messages */}
