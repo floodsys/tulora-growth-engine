@@ -90,14 +90,21 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
+        // Split full name into first and last name
+        const nameParts = formData.fullName.trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
         // Sign up
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
             emailRedirectTo: `${window.location.origin}/dashboard`,
             data: {
               full_name: formData.fullName,
+              first_name: firstName,
+              last_name: lastName,
               organization_name: formData.organizationName,
               organization_size: formData.organizationSize,
               industry: formData.industry === "Other" ? formData.customIndustry : formData.industry,
@@ -106,6 +113,51 @@ const Auth = () => {
         });
 
         if (error) throw error;
+
+        // If user is immediately available (email confirmation disabled), upsert profile
+        if (data.user) {
+          try {
+            const industry = formData.industry === "Other" ? formData.customIndustry : formData.industry;
+            
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .upsert({
+                user_id: data.user.id,
+                full_name: formData.fullName,
+                first_name: firstName,
+                last_name: lastName,
+                email: formData.email,
+                organization_name: formData.organizationName,
+                organization_size: formData.organizationSize,
+                industry: industry,
+              }, {
+                onConflict: 'user_id'
+              });
+
+            if (profileError) {
+              console.error('Profile upsert error:', profileError);
+              toast({
+                title: "Account created, but profile incomplete",
+                description: "Your account was created successfully, but we couldn't save your profile. Please update it in settings.",
+                variant: "destructive",
+              });
+            }
+
+            // Navigate to dashboard if we have a session
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              navigate('/dashboard');
+              return;
+            }
+          } catch (profileError) {
+            console.error('Profile sync error:', profileError);
+            toast({
+              title: "Account created, but profile incomplete", 
+              description: "Your account was created successfully, but we couldn't save your profile. Please update it in settings.",
+              variant: "destructive",
+            });
+          }
+        }
 
         toast({
           title: "Check your email",
