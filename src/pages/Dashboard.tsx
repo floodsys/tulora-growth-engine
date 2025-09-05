@@ -20,12 +20,13 @@ const Dashboard = () => {
   const [activeScreen, setActiveScreen] = useState("overview")
   const { toast } = useToast()
 
-  // Handle checkout success/cancel redirects
+  // Handle checkout success/cancel redirects and tab parameter
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     const checkoutSuccess = urlParams.get('checkout_success')
     const checkoutCanceled = urlParams.get('checkout_canceled')
     const sessionId = urlParams.get('session_id')
+    const tab = urlParams.get('tab')
 
     if (checkoutSuccess) {
       // Switch to billing screen and show success message
@@ -46,6 +47,11 @@ const Dashboard = () => {
         variant: "destructive",
       })
       
+      // Clean up URL parameters
+      window.history.replaceState({}, '', '/dashboard')
+    } else if (tab) {
+      // Set active screen based on tab parameter
+      setActiveScreen(tab)
       // Clean up URL parameters
       window.history.replaceState({}, '', '/dashboard')
     }

@@ -368,7 +368,7 @@ const AgentSettings = () => {
                   const shouldLeave = confirm("You have unsaved changes. Are you sure you want to leave?")
                   if (!shouldLeave) return
                 }
-                navigate("/dashboard")
+                navigate("/dashboard?tab=agents")
               }}
             >
               <ArrowLeft className="h-4 w-4" />
