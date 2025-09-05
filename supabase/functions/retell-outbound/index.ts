@@ -64,7 +64,7 @@ serve(async (req) => {
   // Handle /ping for external egress test
   if (new URL(req.url).pathname.endsWith('/ping')) {
     try {
-      await fetch('https://dns.google/resolve?name=api.retellai.com');
+      await fetch('https://dns.google/resolve?name=api.retell.ai');
       return new Response(JSON.stringify({
         egress: true,
         traceId
@@ -93,7 +93,7 @@ serve(async (req) => {
   try {
     // Read environment variables inside the request handler
     const apiKey = Deno.env.get("RETELL_API_KEY");
-    const phoneUrl = Deno.env.get("RETELL_PHONE_CREATE_URL") ?? "https://api.retellai.com/v2/create-phone-call";
+    const phoneUrl = Deno.env.get("RETELL_PHONE_CREATE_URL") ?? "https://api.retell.ai/v2/create-phone-call";
     
     // Parse request body with error handling
     const body = await req.json().catch(() => ({}));
