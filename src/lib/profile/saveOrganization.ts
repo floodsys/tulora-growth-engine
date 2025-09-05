@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { safeProfileUpsert, splitFullName } from '@/lib/profileUtils';
+import { telemetry } from '@/lib/telemetry';
 
 export interface OrganizationData {
   organization_name: string;
@@ -11,6 +12,7 @@ export interface SaveOrganizationParams {
   userId: string;
   fullName?: string;
   organizationData: OrganizationData;
+  source?: 'signup' | 'onboarding'; // For telemetry
 }
 
 export interface SaveOrganizationResult {
@@ -21,7 +23,8 @@ export interface SaveOrganizationResult {
 export async function saveOrganization({
   userId,
   fullName,
-  organizationData
+  organizationData,
+  source = 'signup'
 }: SaveOrganizationParams): Promise<SaveOrganizationResult> {
   try {
     // Prepare profile data for upsert
@@ -71,6 +74,9 @@ export async function saveOrganization({
         console.error('Auth metadata update error:', authError);
       }
     }
+
+    // Track successful profile save
+    telemetry.profileSaved(source);
 
     return { ok: true };
 

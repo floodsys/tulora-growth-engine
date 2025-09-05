@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { saveOrganization, type OrganizationData } from "@/lib/profile/saveOrganization";
 import { OrganizationStep, type OrganizationStepValues } from "@/components/onboarding/OrganizationStep";
+import { telemetry } from "@/lib/telemetry";
 import { CheckCircle2 } from "lucide-react";
 import logo from "@/assets/logo.svg";
 import saasAuth from "@/assets/saas-auth.svg";
@@ -102,6 +103,7 @@ const Auth = () => {
 
   const handleContinueToStep2 = () => {
     if (validateStep1()) {
+      telemetry.signupStepCompleted('account', 'email');
       setSignupStep(2);
     }
   };
@@ -161,6 +163,9 @@ const Auth = () => {
             description: result.error || "We couldn't save your profile. Please update it in settings.",
             variant: "destructive",
           });
+        } else {
+          // Track successful signup completion
+          telemetry.signupStepCompleted('organization', 'email');
         }
 
         // Navigate to dashboard if we have a session
@@ -169,6 +174,7 @@ const Auth = () => {
       }
 
       // Email confirmation required - show success state
+      telemetry.signupStepCompleted('organization', 'email');
       setShowEmailSent(true);
     } catch (error: any) {
       console.error('Authentication error:', error);
@@ -240,10 +246,13 @@ const Auth = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth`
+          redirectTo: `${window.location.origin}/auth/callback`
         }
       });
       if (error) throw error;
+      
+      // Track Google auth initiation (completion will be tracked in callback/onboarding)
+      telemetry.track('google_auth_initiated', { action: isSignUp ? 'signup' : 'signin' });
     } catch (error: any) {
       toast({
         title: "Error",

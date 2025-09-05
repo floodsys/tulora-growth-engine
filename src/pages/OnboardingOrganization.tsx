@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { saveOrganization, type OrganizationData } from "@/lib/profile/saveOrganization";
 import { OrganizationStep, type OrganizationStepValues } from "@/components/onboarding/OrganizationStep";
+import { telemetry } from "@/lib/telemetry";
 import { CheckCircle2, User, Mail, LogOut } from "lucide-react";
 import logo from "@/assets/logo.svg";
 
@@ -103,11 +104,15 @@ const OnboardingOrganization = () => {
         userId: user.id,
         fullName,
         organizationData,
+        source: 'onboarding',
       });
 
       if (!result.ok) {
         throw new Error(result.error || 'Failed to save profile information');
       }
+
+      // Track successful onboarding completion for Google users
+      telemetry.signupStepCompleted('organization', 'google');
 
       toast({
         title: "Profile updated",
