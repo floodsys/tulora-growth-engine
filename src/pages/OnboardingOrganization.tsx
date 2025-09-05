@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { safeProfileUpsert, splitFullName } from "@/lib/profileUtils";
-import { CheckCircle2, User, Mail, LogOut } from "lucide-react";
+import { CheckCircle2, User, Mail, LogOut, Info } from "lucide-react";
 import logo from "@/assets/logo.svg";
+
+const STORAGE_KEY = 'onboarding-organization-draft';
 
 const OnboardingOrganization = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -23,6 +25,20 @@ const OnboardingOrganization = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const firstErrorRef = useRef<HTMLElement | null>(null);
+
+  // Load draft from sessionStorage on mount
+  useEffect(() => {
+    const savedDraft = sessionStorage.getItem(STORAGE_KEY);
+    if (savedDraft) {
+      try {
+        const parsedDraft = JSON.parse(savedDraft);
+        setFormData(prev => ({ ...prev, ...parsedDraft }));
+      } catch (error) {
+        console.error('Failed to parse saved draft');
+      }
+    }
+  }, []);
 
   // Check authentication and get user info
   useEffect(() => {
@@ -42,6 +58,13 @@ const OnboardingOrganization = () => {
     };
     checkAuthAndGetUser();
   }, [navigate]);
+
+  // Save draft to sessionStorage whenever form data changes
+  useEffect(() => {
+    if (formData.organizationName || formData.organizationSize || formData.industry || formData.customIndustry) {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+    }
+  }, [formData]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -83,7 +106,10 @@ const OnboardingOrganization = () => {
       const firstError = Object.keys(errors)[0];
       setTimeout(() => {
         const element = document.getElementById(firstError);
-        if (element) element.focus();
+        if (element) {
+          element.focus();
+          firstErrorRef.current = element;
+        }
       }, 100);
     }
     
@@ -206,8 +232,11 @@ const OnboardingOrganization = () => {
         }
       }
 
+      // Clear the draft from sessionStorage on successful save
+      sessionStorage.removeItem(STORAGE_KEY);
+
       toast({
-        title: "Profile completed!",
+        title: "Profile updated",
         description: "Your organization information has been saved.",
       });
 
@@ -389,6 +418,14 @@ const OnboardingOrganization = () => {
               )}
             </div>
           )}
+
+          {/* Info message */}
+          <div className="flex items-start space-x-2 p-3 bg-muted/30 rounded-lg">
+            <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              You can change this later in Settings → Profile.
+            </p>
+          </div>
 
           {/* Submit button and Sign out link */}
           <div className="space-y-4">
