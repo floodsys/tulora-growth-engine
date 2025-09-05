@@ -468,24 +468,18 @@ const Auth = () => {
                   onValueChange={(value) => handleSelectChange("industry", value)}
                 >
                   <SelectTrigger className={formErrors.industry ? "border-destructive" : ""}>
-                    <SelectValue placeholder="Select your industry" />
+                    <SelectValue placeholder="Select industry" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Technology">Technology</SelectItem>
                     <SelectItem value="Healthcare">Healthcare</SelectItem>
-                    <SelectItem value="Financial Services">Financial Services</SelectItem>
+                    <SelectItem value="Finance">Finance</SelectItem>
                     <SelectItem value="Education">Education</SelectItem>
                     <SelectItem value="Retail">Retail</SelectItem>
                     <SelectItem value="Manufacturing">Manufacturing</SelectItem>
-                    <SelectItem value="Professional Services">Professional Services</SelectItem>
                     <SelectItem value="Real Estate">Real Estate</SelectItem>
-                    <SelectItem value="Media & Entertainment">Media & Entertainment</SelectItem>
-                    <SelectItem value="Non-profit">Non-profit</SelectItem>
-                    <SelectItem value="Government">Government</SelectItem>
-                    <SelectItem value="Agriculture">Agriculture</SelectItem>
-                    <SelectItem value="Energy">Energy</SelectItem>
-                    <SelectItem value="Transportation">Transportation</SelectItem>
-                    <SelectItem value="Hospitality">Hospitality</SelectItem>
+                    <SelectItem value="Consulting">Consulting</SelectItem>
+                    <SelectItem value="Marketing">Marketing</SelectItem>
                     <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
@@ -494,6 +488,7 @@ const Auth = () => {
                 )}
               </div>
 
+              {/* Conditional "Other" industry input */}
               {formData.industry === "Other" && (
                 <div className="space-y-2">
                   <Label htmlFor="customIndustry">Specify industry *</Label>
@@ -514,7 +509,7 @@ const Auth = () => {
             </>
           )}
 
-          {/* Sign In Form */}
+          {/* Sign In Fields */}
           {!isSignUp && (
             <>
               <div className="space-y-2">
@@ -523,11 +518,14 @@ const Auth = () => {
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="Enter your email..."
+                  placeholder="name@email.com"
                   value={formData.email}
                   onChange={handleInputChange}
-                  required
+                  className={formErrors.email ? "border-destructive" : ""}
                 />
+                {formErrors.email && (
+                  <p className="text-xs text-destructive">{formErrors.email}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -536,76 +534,67 @@ const Auth = () => {
                   id="password"
                   name="password"
                   type="password"
-                  placeholder="Enter password..."
+                  placeholder="Password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  required
+                  className={formErrors.password ? "border-destructive" : ""}
                 />
+                {formErrors.password && (
+                  <p className="text-xs text-destructive">{formErrors.password}</p>
+                )}
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="stayLoggedIn"
+                  checked={formData.stayLoggedIn}
+                  onCheckedChange={(checked) => 
+                    setFormData(prev => ({ ...prev, stayLoggedIn: !!checked }))
+                  }
+                />
+                <Label htmlFor="stayLoggedIn" className="text-sm font-normal">
+                  Keep me signed in for 30 days
+                </Label>
               </div>
             </>
           )}
 
-          {!isSignUp && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="stayLoggedIn"
-                  checked={formData.stayLoggedIn}
-                  onCheckedChange={(checked) => 
-                    setFormData(prev => ({ ...prev, stayLoggedIn: checked as boolean }))
-                  }
-                />
-                <Label htmlFor="stayLoggedIn" className="text-sm">Stay logged in</Label>
-              </div>
-              <Link 
-                to="/forgot-password" 
-                className="text-sm text-primary hover:underline"
-              >
-                Forgot Password?
-              </Link>
-            </div>
-          )}
-
           {/* Form Actions */}
-          {isSignUp && signupStep === 2 && (
-            <div className="flex space-x-3">
-              <Button 
-                type="button" 
-                variant="outline" 
-                className="flex-1" 
-                size="lg" 
-                onClick={handleBackToStep1}
-                disabled={isLoading}
+          <div className="space-y-4">
+            {isSignUp && signupStep === 2 ? (
+              /* Step 2 buttons */
+              <div className="flex flex-col space-y-3">
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Creating account..." : "Create account"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full"
+                  onClick={handleBackToStep1}
+                  disabled={isLoading}
+                >
+                  Back
+                </Button>
+              </div>
+            ) : (
+              /* Step 1 or Sign In button */
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
+                disabled={isLoading || (isSignUp && signupStep === 1 && (!formData.fullName.trim() || !formData.email.trim() || !formData.password.trim() || formData.password.length < 8))}
               >
-                Back
+                {isLoading ? "Please wait..." : (isSignUp ? "Continue" : "Sign in")}
               </Button>
-              <Button 
-                type="submit" 
-                className="flex-1" 
-                size="lg" 
-                disabled={isLoading}
-              >
-                {isLoading ? "Creating account..." : "Sign up"}
-              </Button>
-            </div>
-          )}
-
-          {isSignUp && signupStep === 1 && (
-            <Button 
-              type="submit" 
-              className="w-full" 
-              size="lg" 
-              disabled={isLoading || !formData.fullName.trim() || !formData.email.trim() || !formData.password.trim() || formData.password.length < 8}
-            >
-              Continue
-            </Button>
-          )}
-
-          {!isSignUp && (
-            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-              {isLoading ? "Loading..." : "Sign in"}
-            </Button>
-          )}
+            )}
+          </div>
         </form>
 
         {/* Footer */}
