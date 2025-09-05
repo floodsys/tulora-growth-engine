@@ -8,12 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { safeProfileUpsert, splitFullName } from "@/lib/profileUtils";
+import { CheckCircle2 } from "lucide-react";
 import logo from "@/assets/logo.svg";
 import saasAuth from "@/assets/saas-auth.svg";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [signupStep, setSignupStep] = useState(1); // 1 = Account, 2 = Organization
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -68,12 +70,30 @@ const Auth = () => {
     }
   };
 
-  const validateSignUpForm = () => {
+  const validateStep1 = () => {
     const errors: Record<string, string> = {};
     
     if (!formData.fullName.trim()) {
       errors.fullName = "Full name is required";
     }
+    if (!formData.email.trim()) {
+      errors.email = "Email address is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = "Please enter a valid email address";
+    }
+    if (!formData.password.trim()) {
+      errors.password = "Password is required";
+    } else if (formData.password.length < 8) {
+      errors.password = "Password must be at least 8 characters";
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateStep2 = () => {
+    const errors: Record<string, string> = {};
+    
     if (!formData.organizationName.trim()) {
       errors.organizationName = "Organization name is required";
     }
@@ -89,6 +109,17 @@ const Auth = () => {
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  const handleContinueToStep2 = () => {
+    if (validateStep1()) {
+      setSignupStep(2);
+    }
+  };
+
+  const handleBackToStep1 = () => {
+    setSignupStep(1);
+    setFormErrors({});
   };
 
   const handleGoogleSignIn = async () => {
@@ -116,9 +147,14 @@ const Auth = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate signup form if it's signup
-    if (isSignUp && !validateSignUpForm()) {
-      return;
+    // For signup, validate current step
+    if (isSignUp) {
+      if (signupStep === 1) {
+        handleContinueToStep2();
+        return;
+      } else if (signupStep === 2 && !validateStep2()) {
+        return;
+      }
     }
     
     setIsLoading(true);
@@ -263,6 +299,35 @@ const Auth = () => {
           <p className="text-muted-foreground">
             {isSignUp ? "Start free" : "Welcome back!"}
           </p>
+
+          {/* Step indicator for signup */}
+          {isSignUp && (
+            <div className="mt-6 mb-6">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    signupStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {signupStep > 1 ? <CheckCircle2 className="w-4 h-4" /> : '1'}
+                  </div>
+                  <span className={`text-sm font-medium ${signupStep >= 1 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    Account
+                  </span>
+                </div>
+                <div className={`flex-1 h-px ${signupStep > 1 ? 'bg-primary' : 'bg-border'}`} />
+                <div className="flex items-center space-x-2">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    signupStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                  }`}>
+                    2
+                  </div>
+                  <span className={`text-sm font-medium ${signupStep >= 2 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    Organization
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* OAuth Buttons */}
@@ -300,7 +365,8 @@ const Auth = () => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          {isSignUp && (
+          {/* Step 1: Account Information */}
+          {isSignUp && signupStep === 1 && (
             <>
               <div className="space-y-2">
                 <Label htmlFor="fullName">Full name *</Label>
@@ -319,6 +385,43 @@ const Auth = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="email">Email address *</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="name@email.com"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className={formErrors.email ? "border-destructive" : ""}
+                />
+                {formErrors.email && (
+                  <p className="text-xs text-destructive">{formErrors.email}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password *</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="Password (minimum 8 characters)"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className={formErrors.password ? "border-destructive" : ""}
+                />
+                {formErrors.password && (
+                  <p className="text-xs text-destructive">{formErrors.password}</p>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Step 2: Organization Information */}
+          {isSignUp && signupStep === 2 && (
+            <>
+              <div className="space-y-2">
                 <Label htmlFor="organizationName">Organization name *</Label>
                 <Input
                   id="organizationName"
@@ -336,7 +439,10 @@ const Auth = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="organizationSize">Organization size *</Label>
-                <Select onValueChange={(value) => handleSelectChange("organizationSize", value)}>
+                <Select 
+                  value={formData.organizationSize}
+                  onValueChange={(value) => handleSelectChange("organizationSize", value)}
+                >
                   <SelectTrigger className={formErrors.organizationSize ? "border-destructive" : ""}>
                     <SelectValue placeholder="Select organization size" />
                   </SelectTrigger>
@@ -357,7 +463,10 @@ const Auth = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="industry">Industry *</Label>
-                <Select onValueChange={(value) => handleSelectChange("industry", value)}>
+                <Select 
+                  value={formData.industry}
+                  onValueChange={(value) => handleSelectChange("industry", value)}
+                >
                   <SelectTrigger className={formErrors.industry ? "border-destructive" : ""}>
                     <SelectValue placeholder="Select your industry" />
                   </SelectTrigger>
@@ -405,31 +514,36 @@ const Auth = () => {
             </>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email address</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder={isSignUp ? "name@email.com" : "Enter your email..."}
-              value={formData.email}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
+          {/* Sign In Form */}
+          {!isSignUp && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email address</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="Enter your email..."
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              placeholder={isSignUp ? "Password" : "Enter password..."}
-              value={formData.password}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="Enter password..."
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+            </>
+          )}
 
           {!isSignUp && (
             <div className="flex items-center justify-between">
@@ -452,23 +566,78 @@ const Auth = () => {
             </div>
           )}
 
-          <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-            {isLoading ? "Loading..." : (isSignUp ? "Sign up" : "Sign in")}
-          </Button>
+          {/* Form Actions */}
+          {isSignUp && signupStep === 2 && (
+            <div className="flex space-x-3">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="flex-1" 
+                size="lg" 
+                onClick={handleBackToStep1}
+                disabled={isLoading}
+              >
+                Back
+              </Button>
+              <Button 
+                type="submit" 
+                className="flex-1" 
+                size="lg" 
+                disabled={isLoading}
+              >
+                {isLoading ? "Creating account..." : "Sign up"}
+              </Button>
+            </div>
+          )}
+
+          {isSignUp && signupStep === 1 && (
+            <Button 
+              type="submit" 
+              className="w-full" 
+              size="lg" 
+              disabled={isLoading || !formData.fullName.trim() || !formData.email.trim() || !formData.password.trim() || formData.password.length < 8}
+            >
+              Continue
+            </Button>
+          )}
+
+          {!isSignUp && (
+            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+              {isLoading ? "Loading..." : "Sign in"}
+            </Button>
+          )}
         </form>
 
-        {/* Toggle between Sign In/Sign Up */}
+        {/* Footer */}
         <div className="mt-6 text-center">
-          <p className="text-muted-foreground text-sm">
-            {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-            <button
-              type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-primary hover:underline font-medium"
-            >
-              {isSignUp ? "Sign In" : "Get started for free"}
-            </button>
-          </p>
+          {isSignUp && signupStep === 1 && (
+            <p className="text-sm text-muted-foreground">
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={() => setIsSignUp(false)}
+                className="text-primary hover:underline font-medium"
+              >
+                Sign in
+              </button>
+            </p>
+          )}
+          {!isSignUp && (
+            <p className="text-sm text-muted-foreground">
+              Don't have an account?{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSignUp(true);
+                  setSignupStep(1);
+                  setFormErrors({});
+                }}
+                className="text-primary hover:underline font-medium"
+              >
+                Sign up
+              </button>
+            </p>
+          )}
         </div>
       </div>
 
