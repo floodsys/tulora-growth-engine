@@ -473,7 +473,7 @@ export function TestCallsTab() {
                     Calling...
                   </> : <>
                     <Phone className="w-4 h-4 mr-2" />
-                    {selectedAgentFlags?.callMe ? 'Call Me' : 'Call Me (Coming Soon)'}
+                    {selectedAgentFlags?.callMe ? 'Call Me' : 'Call Me'}
                   </>}
               </Button>
               {!selectedAgentFlags?.callMe && selectedAgent && (
@@ -500,7 +500,7 @@ export function TestCallsTab() {
                     Creating...
                   </> : <>
                     <Monitor className="w-4 h-4 mr-2" />
-                    {selectedAgentFlags?.tryInBrowser ? 'Try in Browser' : 'Try in Browser (Coming Soon)'}
+                    {selectedAgentFlags?.tryInBrowser ? 'Try in Browser' : 'Try in Browser'}
                   </>}
               </Button>
               <p className="text-xs text-muted-foreground">
