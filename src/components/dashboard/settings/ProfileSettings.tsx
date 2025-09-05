@@ -9,13 +9,18 @@ import { useAuth } from "@/contexts/AuthContext"
 import { ChangePasswordModal } from "./ChangePasswordModal"
 import { ChangeEmailModal } from "./ChangeEmailModal"
 import { ChangePhotoModal } from "./ChangePhotoModal"
+import { supabase } from "@/integrations/supabase/client"
+import { useToast } from "@/hooks/use-toast"
+import { safeProfileUpsert, splitFullName } from "@/lib/profileUtils"
 
 export function ProfileSettings() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "")
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
 
   // Get user's initials for avatar fallback
   const getInitials = (name: string) => {
@@ -27,9 +32,67 @@ export function ProfileSettings() {
       .slice(0, 2)
   }
 
-  const handleProfileUpdate = () => {
-    // TODO: Implement profile update
-    console.log("Profile updated successfully")
+  const handleProfileUpdate = async () => {
+    if (!user?.id || !fullName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid full name",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsUpdating(true)
+    try {
+      // Split full name into first and last name
+      const { firstName, lastName } = splitFullName(fullName.trim())
+
+      // Update profile in database
+      const { error: profileError } = await safeProfileUpsert({
+        user_id: user.id,
+        full_name: fullName.trim(),
+        first_name: firstName,
+        last_name: lastName,
+      })
+
+      if (profileError) {
+        console.error('Profile update error:', profileError)
+        toast({
+          title: "Error",
+          description: "Failed to update profile. Please try again.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Update auth user metadata
+      const { error: authError } = await supabase.auth.updateUser({
+        data: {
+          full_name: fullName.trim(),
+          first_name: firstName,
+          last_name: lastName
+        }
+      })
+
+      if (authError) {
+        console.error('Auth metadata update error:', authError)
+        // Don't show error to user since profile was updated successfully
+      }
+
+      toast({
+        title: "Success",
+        description: "Profile updated successfully",
+      })
+    } catch (error) {
+      console.error('Update profile error:', error)
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUpdating(false)
+    }
   }
 
   return (
@@ -121,8 +184,8 @@ export function ProfileSettings() {
             </div>
           </div>
 
-          <Button onClick={handleProfileUpdate}>
-            Update Profile
+          <Button onClick={handleProfileUpdate} disabled={isUpdating}>
+            {isUpdating ? "Updating..." : "Update Profile"}
           </Button>
         </CardContent>
       </Card>
