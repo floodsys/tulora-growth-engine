@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { safeProfileUpsert } from "@/lib/profileUtils";
+import { safeProfileUpsert, splitFullName } from "@/lib/profileUtils";
 import { CheckCircle2, User, Mail, LogOut } from "lucide-react";
 import logo from "@/assets/logo.svg";
 
@@ -123,17 +123,87 @@ const OnboardingOrganization = () => {
       // Get final industry value (use custom industry if "Other" was selected)
       const finalIndustry = formData.industry === "Other" ? formData.customIndustry : formData.industry;
 
-      // Upsert profile with organization data
-      const { error: profileError } = await safeProfileUpsert({
+      // Get full name from user info (from Google metadata)
+      const fullName = userInfo.name || "";
+      
+      // Split full name into first and last name (only if we have a full name)
+      let firstName = "";
+      let lastName = "";
+      if (fullName.trim()) {
+        const nameResult = splitFullName(fullName);
+        firstName = nameResult.firstName;
+        lastName = nameResult.lastName;
+      }
+
+      // Check current profile to see what's missing
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('full_name, first_name, last_name')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      // Prepare profile data - only update name fields if they're missing in DB
+      const profileData: any = {
         user_id: user.id,
         organization_name: formData.organizationName,
         organization_size: formData.organizationSize,
         industry: finalIndustry,
-      });
+      };
+
+      // Add name fields only if they're missing in existing profile
+      if (!existingProfile?.full_name && fullName.trim()) {
+        profileData.full_name = fullName;
+      }
+      if (!existingProfile?.first_name && firstName) {
+        profileData.first_name = firstName;
+      }
+      if (!existingProfile?.last_name && lastName) {
+        profileData.last_name = lastName;
+      }
+
+      // Upsert profile with organization data and name fields if needed
+      const { error: profileError } = await safeProfileUpsert(profileData);
 
       if (profileError) {
-        console.error('Profile upsert error:', profileError);
+        console.error('Profile upsert error (non-PII details):', {
+          error_message: profileError.message,
+          error_code: profileError.code,
+          timestamp: new Date().toISOString(),
+        });
         throw new Error('Failed to save profile information');
+      }
+
+      // Update auth user metadata if name fields were missing
+      const currentMetadata = user.user_metadata || {};
+      const needsMetadataUpdate = (
+        (!currentMetadata.full_name && fullName.trim()) ||
+        (!currentMetadata.first_name && firstName) ||
+        (!currentMetadata.last_name && lastName)
+      );
+
+      if (needsMetadataUpdate) {
+        const updatedMetadata = { ...currentMetadata };
+        if (!currentMetadata.full_name && fullName.trim()) {
+          updatedMetadata.full_name = fullName;
+        }
+        if (!currentMetadata.first_name && firstName) {
+          updatedMetadata.first_name = firstName;
+        }
+        if (!currentMetadata.last_name && lastName) {
+          updatedMetadata.last_name = lastName;
+        }
+
+        const { error: authError } = await supabase.auth.updateUser({
+          data: updatedMetadata
+        });
+
+        if (authError) {
+          console.error('Auth metadata update error (non-PII details):', {
+            error_message: authError.message,
+            timestamp: new Date().toISOString(),
+          });
+          // Don't throw here - profile was saved successfully, metadata update is secondary
+        }
       }
 
       toast({
@@ -146,10 +216,15 @@ const OnboardingOrganization = () => {
       navigate(nextUrl);
 
     } catch (error: any) {
-      console.error('Profile completion error:', error);
+      console.error('Profile completion error (non-PII details):', {
+        error_message: error.message,
+        timestamp: new Date().toISOString(),
+        step: 'profile_completion'
+      });
+      
       toast({
-        title: "Error",
-        description: error.message || "Failed to save your information. Please try again.",
+        title: "Couldn't save profile. Please try again.",
+        description: "There was an issue saving your information.",
         variant: "destructive",
       });
     } finally {
