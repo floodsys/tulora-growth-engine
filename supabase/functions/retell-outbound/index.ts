@@ -172,7 +172,7 @@ serve(async (req) => {
       });
     }
     
-    console.log(`[${traceId}] Creating outbound call for agent ${agentSlug} to ${toNumber.substring(0, 6)}***`);
+    console.log(`[${traceId}] Creating outbound call for agent ${agentSlug} to ${toNumber.substring(0, 6)}*** using URL: ${phoneUrl}`);
     
     // Call Retell API
     const res = await fetch(phoneUrl, {

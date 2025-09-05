@@ -146,7 +146,7 @@ serve(async (req) => {
       });
     }
     
-    console.log(`[${traceId}] Creating web call for agent ${agentSlug}`);
+    console.log(`[${traceId}] Creating web call for agent ${agentSlug} using URL: ${webUrl}`);
     
     // Call Retell API
     const res = await fetch(webUrl, {
