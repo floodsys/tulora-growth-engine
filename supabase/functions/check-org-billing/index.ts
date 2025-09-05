@@ -57,7 +57,7 @@ serve(async (req) => {
     const { data: membership } = await supabase
       .from('organization_members')
       .select('role')
-      .eq('org_id', orgId)
+      .eq('organization_id', orgId)
       .eq('user_id', userData.user.id)
       .single()
 
@@ -76,9 +76,9 @@ serve(async (req) => {
 
     // Get most recent subscription from database
     const { data: dbSubscription } = await supabase
-      .from('org_subscriptions')
+      .from('org_stripe_subscriptions')
       .select('*')
-      .eq('org_id', orgId)
+      .eq('organization_id', orgId)
       .order('updated_at', { ascending: false })
       .limit(1)
       .single()

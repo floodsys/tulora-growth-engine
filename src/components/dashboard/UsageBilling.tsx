@@ -27,6 +27,7 @@ import { DateRange } from "react-day-picker"
 import { format } from "date-fns"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
+import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { BillingTestPanel } from "./BillingTestPanel"
 
 interface UsageData {
@@ -121,23 +122,29 @@ export function UsageBilling() {
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null)
   const [isLoadingBilling, setIsLoadingBilling] = useState(true)
   const { toast } = useToast()
-
-  // Use actual org ID for testing
-  const currentOrgId = "8ed6b425-57ad-4b5c-9618-747264d6c4f9"
+  const { organizationId, loading: orgLoading } = useUserOrganization()
 
   
-  // Load billing status on component mount
+  // Load billing status when organization loads
   useEffect(() => {
-    fetchBillingStatus()
-  }, [currentOrgId])
+    if (organizationId && !orgLoading) {
+      fetchBillingStatus()
+    }
+  }, [organizationId, orgLoading])
 
   const fetchBillingStatus = async () => {
+    if (!organizationId) {
+      console.warn('No organization ID available for billing status')
+      setIsLoadingBilling(false)
+      return
+    }
+
     try {
       setIsLoadingBilling(true)
-      console.log('Fetching billing status for org:', currentOrgId)
+      console.log('Fetching billing status for org:', organizationId)
       
       const { data, error } = await supabase.functions.invoke('check-org-billing', {
-        body: { orgId: currentOrgId }
+        body: { orgId: organizationId }
       })
 
       if (error) {
@@ -220,7 +227,7 @@ export function UsageBilling() {
       
       const { data, error } = await supabase.functions.invoke('create-org-checkout', {
         body: { 
-          orgId: currentOrgId,
+          orgId: organizationId,
           interval: interval,
           seats: billingStatus?.quantity || 1
         }
@@ -252,7 +259,7 @@ export function UsageBilling() {
       setIsOpeningPortal(true)
       
       const { data, error } = await supabase.functions.invoke('org-customer-portal', {
-        body: { orgId: currentOrgId }
+        body: { orgId: organizationId }
       })
 
       if (error) throw error
@@ -281,7 +288,7 @@ export function UsageBilling() {
       setIsSyncing(true)
       
       const { data, error } = await supabase.functions.invoke('org-update-seats', {
-        body: { orgId: currentOrgId }
+        body: { orgId: organizationId }
       })
 
       if (error) throw error
@@ -308,7 +315,7 @@ export function UsageBilling() {
     <div className="space-y-6">
       {/* Test Panel for Development */}
       <BillingTestPanel 
-        currentOrgId={currentOrgId}
+        currentOrgId={organizationId}
         billingStatus={billingStatus}
         onRefresh={fetchBillingStatus}
       />
