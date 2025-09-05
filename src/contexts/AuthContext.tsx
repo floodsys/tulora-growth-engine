@@ -19,28 +19,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let authSubscription: any = null;
 
-    // Force clear any stale sessions on mount
-    const clearStaleSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.email === 'admin@axionstack.xyz') {
-        console.warn('Clearing stale admin session');
-        await supabase.auth.signOut({ scope: 'global' });
-        // Clear all auth-related localStorage
-        Object.keys(localStorage).forEach(key => {
-          if (key.includes('supabase') || key.includes('auth')) {
-            localStorage.removeItem(key);
-          }
-        });
-        return;
-      }
-    };
-
     const initAuth = async () => {
-      await clearStaleSession();
-      
       // Set up auth state listener
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         (event, session) => {
+          console.log('Auth state change:', event, session?.user?.email);
           setSession(session);
           setUser(session?.user ?? null);
           setLoading(false);
