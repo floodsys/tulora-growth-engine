@@ -163,20 +163,23 @@ const Auth = () => {
       if (isSignUp) {
         // Split full name into first and last name
         const { firstName, lastName } = splitFullName(formData.fullName);
+        
+        // Get final industry value (use custom industry if "Other" was selected)
+        const finalIndustry = formData.industry === "Other" ? formData.customIndustry : formData.industry;
 
-        // Sign up
+        // Sign up with Supabase Auth
         const { data, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
             data: {
               full_name: formData.fullName,
               first_name: firstName,
               last_name: lastName,
               organization_name: formData.organizationName,
               organization_size: formData.organizationSize,
-              industry: formData.industry === "Other" ? formData.customIndustry : formData.industry,
+              industry: finalIndustry,
             }
           }
         });
@@ -186,8 +189,6 @@ const Auth = () => {
         // If user is immediately available (email confirmation disabled), upsert profile
         if (data.user) {
           try {
-            const industry = formData.industry === "Other" ? formData.customIndustry : formData.industry;
-            
             // Use safe upsert that won't overwrite existing data
             const { error: profileError } = await safeProfileUpsert({
               user_id: data.user.id,
@@ -197,7 +198,7 @@ const Auth = () => {
               email: formData.email,
               organization_name: formData.organizationName,
               organization_size: formData.organizationSize,
-              industry: industry,
+              industry: finalIndustry,
             });
 
             if (profileError) {
