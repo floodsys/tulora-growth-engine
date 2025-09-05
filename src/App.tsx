@@ -9,7 +9,9 @@ import { RedirectToOrganizationTeam } from "@/components/RedirectToOrganizationT
 import Index from "@/pages/Index";
 import Dashboard from "@/pages/Dashboard";
 import Auth from "@/pages/Auth";
-import CompleteProfile from "@/pages/CompleteProfile"
+import AuthCallback from "@/pages/AuthCallback";
+import OnboardingOrganization from "@/pages/OnboardingOrganization";
+import CompleteProfile from "@/pages/CompleteProfile";
 import ProfileTest from "@/pages/ProfileTest";
 import TalkToUs from "@/pages/TalkToUs";
 import NotFound from "@/pages/NotFound";
@@ -47,6 +49,8 @@ function App() {
             <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/onboarding/organization" element={<OnboardingOrganization />} />
             <Route path="/complete-profile" element={<CompleteProfile />} />
             <Route path="/profile-test" element={<ProfileTest />} />
             <Route path="/talk-to-us" element={<TalkToUs />} />
