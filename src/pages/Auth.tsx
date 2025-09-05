@@ -16,6 +16,7 @@ const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [signupStep, setSignupStep] = useState(1); // 1 = Account, 2 = Organization
+  const [showEmailSent, setShowEmailSent] = useState(false); // Success state for email confirmation
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -122,6 +123,63 @@ const Auth = () => {
     setFormErrors({});
   };
 
+  const handleResendEmail = async () => {
+    setIsLoading(true);
+    try {
+      const { firstName, lastName } = splitFullName(formData.fullName);
+      const finalIndustry = formData.industry === "Other" ? formData.customIndustry : formData.industry;
+
+      const { error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            full_name: formData.fullName,
+            first_name: firstName,
+            last_name: lastName,
+            organization_name: formData.organizationName,
+            organization_size: formData.organizationSize,
+            industry: finalIndustry,
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Email sent",
+        description: "We've sent you another verification link.",
+      });
+    } catch (error: any) {
+      console.error('Resend email error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to resend verification email. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBackToSignIn = () => {
+    setShowEmailSent(false);
+    setIsSignUp(false);
+    setSignupStep(1);
+    setFormErrors({});
+    setFormData({
+      email: "",
+      password: "",
+      fullName: "",
+      organizationName: "",
+      organizationSize: "",
+      industry: "",
+      customIndustry: "",
+      stayLoggedIn: false,
+    });
+  };
+
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
@@ -184,10 +242,23 @@ const Auth = () => {
           }
         });
 
-        if (error) throw error;
+        if (error) {
+          // Handle specific error types
+          if (error.message.includes('already registered') || error.message.includes('already been registered')) {
+            setFormErrors({ email: "An account with this email already exists." });
+            setSignupStep(1); // Go back to step 1 to show the error
+            return;
+          }
+          if (error.message.includes('password') && (error.message.includes('weak') || error.message.includes('short') || error.message.includes('6 characters'))) {
+            setFormErrors({ password: "Password is too weak. Please choose a stronger password." });
+            setSignupStep(1); // Go back to step 1 to show the error
+            return;
+          }
+          throw error;
+        }
 
         // If user is immediately available (email confirmation disabled), upsert profile
-        if (data.user) {
+        if (data.user && data.session) {
           try {
             // Use safe upsert that won't overwrite existing data
             const { error: profileError } = await safeProfileUpsert({
@@ -211,11 +282,8 @@ const Auth = () => {
             }
 
             // Navigate to dashboard if we have a session
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-              navigate('/dashboard');
-              return;
-            }
+            navigate('/dashboard');
+            return;
           } catch (profileError) {
             console.error('Profile sync error:', profileError);
             toast({
@@ -223,13 +291,13 @@ const Auth = () => {
               description: "Your account was created successfully, but we couldn't save your profile. Please update it in settings.",
               variant: "destructive",
             });
+            navigate('/dashboard');
+            return;
           }
         }
 
-        toast({
-          title: "Check your email",
-          description: "We've sent you a confirmation link to complete your signup.",
-        });
+        // Email confirmation required - show success state
+        setShowEmailSent(true);
       } else {
         // Sign in
         const { error } = await supabase.auth.signInWithPassword({
@@ -267,8 +335,11 @@ const Auth = () => {
         navigate('/dashboard');
       }
     } catch (error: any) {
+      console.error('Authentication error:', error);
+      
+      // Generic error handling
       toast({
-        title: "Error",
+        title: "Couldn't create your account. Please try again.",
         description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
@@ -294,15 +365,29 @@ const Auth = () => {
             ← Go to home
           </Link>
           
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            {isSignUp ? "Sign up" : "Sign in"}
-          </h1>
-          <p className="text-muted-foreground">
-            {isSignUp ? "Start free" : "Welcome back!"}
-          </p>
+          {/* Email Sent Success State */}
+          {showEmailSent ? (
+            <>
+              <h1 className="text-3xl font-bold text-foreground mb-2">
+                Check your email
+              </h1>
+              <p className="text-muted-foreground">
+                We sent a verification link to <strong>{formData.email}</strong> to activate your account.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-3xl font-bold text-foreground mb-2">
+                {isSignUp ? "Sign up" : "Sign in"}
+              </h1>
+              <p className="text-muted-foreground">
+                {isSignUp ? "Start free" : "Welcome back!"}
+              </p>
+            </>
+          )}
 
           {/* Step indicator for signup */}
-          {isSignUp && (
+          {isSignUp && !showEmailSent && (
             <div className="mt-6 mb-6">
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
@@ -331,38 +416,75 @@ const Auth = () => {
           )}
         </div>
 
-        {/* OAuth Buttons */}
-        {!isSignUp && (
-          <>
-            <div className="space-y-3 mb-6">
+        {/* Email Sent Success State Content */}
+        {showEmailSent ? (
+          <div className="space-y-6">
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
+              </div>
+              <p className="text-muted-foreground">
+                Please check your email and click the verification link to activate your account.
+              </p>
+            </div>
+            
+            <div className="space-y-3">
               <Button
                 type="button"
                 variant="outline"
                 className="w-full"
                 size="lg"
-                onClick={handleGoogleSignIn}
+                onClick={handleResendEmail}
                 disabled={isLoading}
               >
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                  <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                Continue with Google
+                {isLoading ? "Sending..." : "Resend email"}
+              </Button>
+              
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                size="lg"
+                onClick={handleBackToSignIn}
+              >
+                Back to Sign in
               </Button>
             </div>
+          </div>
+        ) : (
+          <>
+            {/* OAuth Buttons */}
+            {!isSignUp && (
+              <>
+                <div className="space-y-3 mb-6">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    size="lg"
+                    onClick={handleGoogleSignIn}
+                    disabled={isLoading}
+                  >
+                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                      <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                      <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    Continue with Google
+                  </Button>
+                </div>
 
-            <div className="relative mb-6">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Or continue with email</span>
-              </div>
-            </div>
-          </>
-        )}
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or continue with email</span>
+                  </div>
+                </div>
+              </>
+            )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -600,7 +722,7 @@ const Auth = () => {
 
         {/* Footer */}
         <div className="mt-6 text-center">
-          {isSignUp && signupStep === 1 && (
+          {isSignUp && signupStep === 1 && !showEmailSent && (
             <p className="text-sm text-muted-foreground">
               Already have an account?{" "}
               <button
@@ -612,7 +734,7 @@ const Auth = () => {
               </button>
             </p>
           )}
-          {!isSignUp && (
+          {!isSignUp && !showEmailSent && (
             <p className="text-sm text-muted-foreground">
               Don't have an account?{" "}
               <button
@@ -629,6 +751,8 @@ const Auth = () => {
             </p>
           )}
         </div>
+          </>
+        )}
       </div>
 
       {/* Right Panel - Image */}
