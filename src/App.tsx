@@ -57,6 +57,7 @@ function App() {
               <Route path="/profile-test" element={<ProfileTest />} />
               <Route path="/talk-to-us" element={<TalkToUs />} />
               <Route path="/agent-settings" element={<AgentSettings />} />
+              <Route path="/app/agents/:agentId" element={<AgentSettings />} />
               <Route path="/settings" element={<SettingsLayout />}>
                 
                 <Route path="teams" element={<RedirectToOrganizationTeam />} />
