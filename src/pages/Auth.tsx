@@ -54,6 +54,29 @@ const Auth = () => {
     checkUserAndProfile();
   }, [navigate]);
 
+  // Keyboard event handlers
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Enter submits current step
+      if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey) {
+        const activeElement = document.activeElement;
+        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'BUTTON')) {
+          e.preventDefault();
+          const form = document.querySelector('form');
+          if (form) {
+            const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+            form.dispatchEvent(submitEvent);
+          }
+        }
+      }
+      
+      // Esc closes toasts (handled by shadcn toast component automatically)
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -89,6 +112,16 @@ const Auth = () => {
     }
     
     setFormErrors(errors);
+    
+    // Focus first invalid field
+    if (Object.keys(errors).length > 0) {
+      const firstError = Object.keys(errors)[0];
+      setTimeout(() => {
+        const element = document.getElementById(firstError);
+        if (element) element.focus();
+      }, 100);
+    }
+    
     return Object.keys(errors).length === 0;
   };
 
@@ -109,6 +142,16 @@ const Auth = () => {
     }
     
     setFormErrors(errors);
+    
+    // Focus first invalid field
+    if (Object.keys(errors).length > 0) {
+      const firstError = Object.keys(errors)[0];
+      setTimeout(() => {
+        const element = document.getElementById(firstError);
+        if (element) element.focus();
+      }, 100);
+    }
+    
     return Object.keys(errors).length === 0;
   };
 
@@ -487,7 +530,15 @@ const Auth = () => {
             )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form 
+          onSubmit={handleSubmit} 
+          className="space-y-6"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !isLoading) {
+              // Let the form handle submit naturally
+            }
+          }}
+        >
           {/* Step 1: Account Information */}
           {isSignUp && signupStep === 1 && (
             <>
@@ -501,6 +552,8 @@ const Auth = () => {
                   value={formData.fullName}
                   onChange={handleInputChange}
                   className={formErrors.fullName ? "border-destructive" : ""}
+                  autoComplete="name"
+                  disabled={isLoading}
                 />
                 {formErrors.fullName && (
                   <p className="text-xs text-destructive">{formErrors.fullName}</p>
@@ -517,6 +570,8 @@ const Auth = () => {
                   value={formData.email}
                   onChange={handleInputChange}
                   className={formErrors.email ? "border-destructive" : ""}
+                  autoComplete="email"
+                  disabled={isLoading}
                 />
                 {formErrors.email && (
                   <p className="text-xs text-destructive">{formErrors.email}</p>
@@ -533,6 +588,8 @@ const Auth = () => {
                   value={formData.password}
                   onChange={handleInputChange}
                   className={formErrors.password ? "border-destructive" : ""}
+                  autoComplete="new-password"
+                  disabled={isLoading}
                 />
                 {formErrors.password && (
                   <p className="text-xs text-destructive">{formErrors.password}</p>
@@ -554,6 +611,8 @@ const Auth = () => {
                   value={formData.organizationName}
                   onChange={handleInputChange}
                   className={formErrors.organizationName ? "border-destructive" : ""}
+                  autoComplete="organization"
+                  disabled={isLoading}
                 />
                 {formErrors.organizationName && (
                   <p className="text-xs text-destructive">{formErrors.organizationName}</p>
@@ -565,6 +624,7 @@ const Auth = () => {
                 <Select 
                   value={formData.organizationSize}
                   onValueChange={(value) => handleSelectChange("organizationSize", value)}
+                  disabled={isLoading}
                 >
                   <SelectTrigger className={formErrors.organizationSize ? "border-destructive" : ""}>
                     <SelectValue placeholder="Select organization size" />
@@ -589,6 +649,7 @@ const Auth = () => {
                 <Select 
                   value={formData.industry}
                   onValueChange={(value) => handleSelectChange("industry", value)}
+                  disabled={isLoading}
                 >
                   <SelectTrigger className={formErrors.industry ? "border-destructive" : ""}>
                     <SelectValue placeholder="Select industry" />
@@ -623,6 +684,7 @@ const Auth = () => {
                     value={formData.customIndustry}
                     onChange={handleInputChange}
                     className={formErrors.customIndustry ? "border-destructive" : ""}
+                    disabled={isLoading}
                   />
                   {formErrors.customIndustry && (
                     <p className="text-xs text-destructive">{formErrors.customIndustry}</p>
