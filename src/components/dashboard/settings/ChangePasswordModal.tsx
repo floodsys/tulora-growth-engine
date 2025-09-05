@@ -186,7 +186,7 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
             )}
           </div>
 
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="newPassword">New password *</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -226,7 +226,7 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
             )}
           </div>
 
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirm new password *</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
