@@ -7,11 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { safeProfileUpsert } from "@/lib/profileUtils";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, User, Mail, LogOut } from "lucide-react";
 import logo from "@/assets/logo.svg";
 
 const OnboardingOrganization = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [userInfo, setUserInfo] = useState({ name: "", email: "" });
   const [formData, setFormData] = useState({
     organizationName: "",
     organizationSize: "",
@@ -23,15 +24,23 @@ const OnboardingOrganization = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Check authentication and redirect if not authenticated
+  // Check authentication and get user info
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkAuthAndGetUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         navigate('/auth');
+        return;
       }
+
+      // Get user info from auth metadata
+      const user = session.user;
+      const fullName = user.user_metadata?.full_name || user.user_metadata?.name || "";
+      const email = user.email || "";
+      
+      setUserInfo({ name: fullName, email });
     };
-    checkAuth();
+    checkAuthAndGetUser();
   }, [navigate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,6 +88,20 @@ const OnboardingOrganization = () => {
     }
     
     return Object.keys(errors).length === 0;
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigate('/auth');
+    } catch (error) {
+      console.error('Sign out error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -148,7 +171,7 @@ const OnboardingOrganization = () => {
             Complete your profile
           </h1>
           <p className="text-muted-foreground">
-            Tell us about your organization to get started.
+            Tell us about your organization so we can tailor the experience.
           </p>
 
           {/* Progress indicator */}
@@ -170,6 +193,34 @@ const OnboardingOrganization = () => {
             </div>
           </div>
         </div>
+
+        {/* User Info Section (Read-only) */}
+        {(userInfo.name || userInfo.email) && (
+          <div className="mb-6 p-4 bg-muted/50 rounded-lg space-y-3">
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              <User className="w-4 h-4" />
+              <span>Account Information</span>
+            </div>
+            {userInfo.name && (
+              <div className="flex items-center space-x-3">
+                <User className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <Label className="text-xs text-muted-foreground">Full name</Label>
+                  <p className="text-sm font-medium">{userInfo.name}</p>
+                </div>
+              </div>
+            )}
+            {userInfo.email && (
+              <div className="flex items-center space-x-3">
+                <Mail className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <p className="text-sm font-medium">{userInfo.email}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -264,7 +315,7 @@ const OnboardingOrganization = () => {
             </div>
           )}
 
-          {/* Submit button */}
+          {/* Submit button and Sign out link */}
           <div className="space-y-4">
             <Button
               type="submit"
@@ -272,8 +323,19 @@ const OnboardingOrganization = () => {
               className="w-full"
               disabled={isLoading}
             >
-              {isLoading ? "Saving..." : "Complete setup"}
+              {isLoading ? "Saving..." : "Save & continue"}
             </Button>
+            
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center space-x-1"
+              >
+                <LogOut className="w-3 h-3" />
+                <span>Sign out</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>
