@@ -21,6 +21,7 @@ import Demo from "@/pages/Demo";
 import VoiceDemo from "@/pages/demos/voice";
 import SettingsLayout from "@/pages/SettingsLayout";
 import { TeamAccessGuard } from "@/components/guards/TeamAccessGuard";
+import ProgressiveProfilingGuard from "@/components/guards/ProgressiveProfilingGuard";
 
 import SettingsTeams from "@/pages/SettingsTeams";
 import SettingsOrganization from "@/pages/SettingsOrganization";
@@ -45,39 +46,41 @@ function App() {
         <TooltipProvider>
           <Router>
           <AdminSecurityWrapper>
-            <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/onboarding/organization" element={<OnboardingOrganization />} />
-            <Route path="/complete-profile" element={<CompleteProfile />} />
-            <Route path="/profile-test" element={<ProfileTest />} />
-            <Route path="/talk-to-us" element={<TalkToUs />} />
-            <Route path="/agent-settings" element={<AgentSettings />} />
-            <Route path="/settings" element={<SettingsLayout />}>
+            <ProgressiveProfilingGuard>
+              <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/onboarding/organization" element={<OnboardingOrganization />} />
+              <Route path="/complete-profile" element={<CompleteProfile />} />
+              <Route path="/profile-test" element={<ProfileTest />} />
+              <Route path="/talk-to-us" element={<TalkToUs />} />
+              <Route path="/agent-settings" element={<AgentSettings />} />
+              <Route path="/settings" element={<SettingsLayout />}>
+                
+                <Route path="teams" element={<RedirectToOrganizationTeam />} />
+                <Route path="organization" element={<SettingsOrganization />} />
+                <Route path="organization/team" element={<SettingsOrganization />} />
+              </Route>
+              <Route path="/invite/accept" element={<InviteAccept />} />
+              <Route path="/invite/accept-new" element={<InviteAcceptRedirect />} />
+              <Route path="/demo" element={<Demo />} />
+              <Route path="/demos/voice" element={<VoiceDemo />} />
+              <Route path="/activity-logs" element={<ActivityLogs />} />
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/_diag" element={<AdminDiagnostic />} />
+              <Route path="/admin/_mfa_diag" element={<AdminMFADiag />} />
+              <Route path="/admin/access-denied" element={<AdminAccessDenied />} />
+              <Route path="/admin-setup" element={<AdminSetup />} />
+              <Route path="/admin/logs/org/:orgId" element={<AdminOrgLogs />} />
+              <Route path="/admin/tests/invites" element={<AdminInviteTests />} />
+              <Route path="/admin/agents" element={<AdminGuard><AdminAgents /></AdminGuard>} />
+              <Route path="/admin/calls" element={<AdminGuard><AdminCalls /></AdminGuard>} />
               
-              <Route path="teams" element={<RedirectToOrganizationTeam />} />
-              <Route path="organization" element={<SettingsOrganization />} />
-              <Route path="organization/team" element={<SettingsOrganization />} />
-            </Route>
-            <Route path="/invite/accept" element={<InviteAccept />} />
-            <Route path="/invite/accept-new" element={<InviteAcceptRedirect />} />
-            <Route path="/demo" element={<Demo />} />
-            <Route path="/demos/voice" element={<VoiceDemo />} />
-            <Route path="/activity-logs" element={<ActivityLogs />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/_diag" element={<AdminDiagnostic />} />
-            <Route path="/admin/_mfa_diag" element={<AdminMFADiag />} />
-            <Route path="/admin/access-denied" element={<AdminAccessDenied />} />
-            <Route path="/admin-setup" element={<AdminSetup />} />
-            <Route path="/admin/logs/org/:orgId" element={<AdminOrgLogs />} />
-            <Route path="/admin/tests/invites" element={<AdminInviteTests />} />
-            <Route path="/admin/agents" element={<AdminGuard><AdminAgents /></AdminGuard>} />
-            <Route path="/admin/calls" element={<AdminGuard><AdminCalls /></AdminGuard>} />
-            
-            <Route path="*" element={<NotFound />} />
-            </Routes>
+              <Route path="*" element={<NotFound />} />
+              </Routes>
+            </ProgressiveProfilingGuard>
             <Toaster />
           </AdminSecurityWrapper>
         </Router>
