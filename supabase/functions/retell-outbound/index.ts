@@ -95,13 +95,18 @@ serve(async (req) => {
     const apiKey = Deno.env.get("RETELL_API_KEY");
     const phoneUrl = Deno.env.get("RETELL_PHONE_CREATE_URL") ?? "https://api.retellai.com/v2/create-phone-call";
     
+    console.log(`[${traceId}] Environment check: API Key exists: ${!!apiKey}, Phone URL: ${phoneUrl}`);
+    
     // Parse request body with error handling
     const body = await req.json().catch(() => ({}));
     const agentSlug = (body.agentSlug ?? body.slug ?? "").toString().trim();
     const toNumber = body.toNumber;
     
+    console.log(`[${traceId}] Request parsed: agentSlug=${agentSlug}, toNumber=${toNumber ? toNumber.substring(0, 6) + '***' : 'undefined'}`);
+    
     // Validate required fields
     if (!apiKey) {
+      console.error(`[${traceId}] Missing RETELL_API_KEY`);
       return new Response(JSON.stringify({
         error: "MISCONFIG",
         missing: ["RETELL_API_KEY"],
@@ -140,8 +145,11 @@ serve(async (req) => {
     const agentId = Deno.env.get(`AGENT_${up}_ID`) ?? null;
     const fromNumber = Deno.env.get(`AGENT_${up}_FROM`) ?? Deno.env.get("RETELL_FROM_NUMBER") ?? null;
     
+    console.log(`[${traceId}] Agent resolution: slug=${agentSlug}, agentId exists: ${!!agentId}, fromNumber exists: ${!!fromNumber}`);
+    
     // Check for missing agent configuration
     if (!agentId) {
+      console.error(`[${traceId}] Missing agent ID for ${agentSlug} (looked for AGENT_${up}_ID)`);
       return new Response(JSON.stringify({
         error: "INVALID_INPUT",
         details: "Unknown or missing agentSlug",
@@ -153,6 +161,7 @@ serve(async (req) => {
     }
     
     if (!fromNumber) {
+      console.error(`[${traceId}] Missing from number for ${agentSlug} (looked for AGENT_${up}_FROM or RETELL_FROM_NUMBER)`);
       return new Response(JSON.stringify({
         error: "MISCONFIG",
         missing: ["AGENT_*_FROM or RETELL_FROM_NUMBER"],
@@ -200,8 +209,10 @@ serve(async (req) => {
     
   } catch (error) {
     console.error(`[${traceId}] Error in retell-outbound function: ${error.message}`);
+    console.error(`[${traceId}] Error stack: ${error.stack}`);
     return new Response(JSON.stringify({
       error: 'Internal server error',
+      details: error.message,
       traceId
     }), { 
       status: 500, 

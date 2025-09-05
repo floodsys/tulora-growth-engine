@@ -95,12 +95,17 @@ serve(async (req) => {
     const apiKey = Deno.env.get("RETELL_API_KEY");
     const webUrl = Deno.env.get("RETELL_WEB_CREATE_URL") ?? "https://api.retellai.com/v2/create-web-call";
     
+    console.log(`[${traceId}] Environment check: API Key exists: ${!!apiKey}, Web URL: ${webUrl}`);
+    
     // Parse request body with error handling
     const body = await req.json().catch(() => ({}));
     const agentSlug = (body.agentSlug ?? body.slug ?? "").toString().trim();
     
+    console.log(`[${traceId}] Request parsed: agentSlug=${agentSlug}`);
+    
     // Validate required fields
     if (!apiKey) {
+      console.error(`[${traceId}] Missing RETELL_API_KEY`);
       return new Response(JSON.stringify({
         error: "MISCONFIG",
         missing: ["RETELL_API_KEY"],
@@ -126,8 +131,11 @@ serve(async (req) => {
     const up = agentSlug.toUpperCase();
     const agentId = Deno.env.get(`AGENT_${up}_ID`) ?? null;
     
+    console.log(`[${traceId}] Agent resolution: slug=${agentSlug}, agentId exists: ${!!agentId}`);
+    
     // Check for missing agent configuration
     if (!agentId) {
+      console.error(`[${traceId}] Missing agent ID for ${agentSlug} (looked for AGENT_${up}_ID)`);
       return new Response(JSON.stringify({
         error: "INVALID_INPUT",
         details: "Unknown or missing agentSlug",
@@ -174,8 +182,10 @@ serve(async (req) => {
     
   } catch (error) {
     console.error(`[${traceId}] Error in retell-webcall-create function: ${error.message}`);
+    console.error(`[${traceId}] Error stack: ${error.stack}`);
     return new Response(JSON.stringify({
       error: 'Internal server error',
+      details: error.message,
       traceId
     }), { 
       status: 500, 
