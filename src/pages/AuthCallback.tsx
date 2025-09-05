@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { isProfileComplete } from "@/lib/profile/isProfileComplete";
 import { Loader2 } from "lucide-react";
 import logo from "@/assets/logo.svg";
 
@@ -49,13 +50,8 @@ const AuthCallback = () => {
           return;
         }
 
-        // Check if any required org fields are missing or empty
-        const isProfileIncomplete = !profile || 
-          !profile.organization_name?.trim() || 
-          !profile.organization_size?.trim() || 
-          !profile.industry?.trim();
-
-        if (isProfileIncomplete) {
+         // Check if profile is complete using centralized function
+         if (!isProfileComplete(profile)) {
           setStatus("Setting up your profile...");
           const nextUrl = searchParams.get('next') || '/dashboard';
           setTimeout(() => navigate(`/onboarding/organization?next=${encodeURIComponent(nextUrl)}`), 1000);

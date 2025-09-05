@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { isProfileComplete } from "@/lib/profile/isProfileComplete";
 import { Loader2 } from "lucide-react";
 
 interface ProgressiveProfilingGuardProps {
@@ -61,13 +62,8 @@ const ProgressiveProfilingGuard = ({ children }: ProgressiveProfilingGuardProps)
           return;
         }
 
-        // Check if any required org fields are missing or empty
-        const isProfileIncomplete = !profile || 
-          !profile.organization_name?.trim() || 
-          !profile.organization_size?.trim() || 
-          !profile.industry?.trim();
-
-        if (isProfileIncomplete) {
+         // Check if profile is complete using centralized function
+         if (!isProfileComplete(profile)) {
           // Redirect to onboarding with current path as next parameter
           const currentPath = location.pathname + location.search;
           navigate(`/onboarding/organization?next=${encodeURIComponent(currentPath)}`);
