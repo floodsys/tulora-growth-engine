@@ -24,22 +24,16 @@ export function useAdminSession() {
     try {
       setLoading(true);
       
-      // Call the validate API endpoint with credentials
-        const session = await supabase.auth.getSession();
-        const response = await fetch('/api/admin/validate', {
-          method: 'GET',
-          credentials: 'include', // Critical: include cookies
-          headers: {
-            'Authorization': `Bearer ${session.data.session?.access_token}`,
-            'Content-Type': 'application/json'
-          }
-        });
+      // Call the admin validation edge function
+      const { data, error } = await supabase.functions.invoke('admin-validate', {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
 
-      if (!response.ok) {
-        throw new Error(`Validation failed: ${response.status} ${response.statusText}`);
+      if (error) {
+        throw new Error(error.message || 'Validation failed');
       }
-
-      const data = await response.json();
 
       
       // Add validation metadata (handle both age_minutes and age_sec for backward compatibility)
@@ -48,7 +42,7 @@ export function useAdminSession() {
         age_minutes: data.age_sec ? Math.floor(data.age_sec / 60) : data.age_minutes,
         ttl_minutes: data.ttl_sec ? Math.floor(data.ttl_sec / 60) : data.ttl_minutes,
         last_validate_time: new Date().toISOString(),
-        validate_endpoint: '/api/admin/validate',
+        validate_endpoint: 'admin-validate',
         cookie_present: data.cookie_present || data.valid // Use explicit flag or infer from validity
       };
       
@@ -59,7 +53,7 @@ export function useAdminSession() {
         valid: false, 
         reason: 'Check failed',
         last_validate_time: new Date().toISOString(),
-        validate_endpoint: '/api/admin/validate',
+        validate_endpoint: 'admin-validate',
         cookie_present: false
       });
     } finally {
@@ -71,22 +65,16 @@ export function useAdminSession() {
     try {
       setVerifying(true);
       
-      // Use same-origin API call with credentials instead of Supabase function
-      const response = await fetch('/api/admin/step-up/test', {
-        method: 'POST',
-        credentials: 'include', // Critical: include cookies
+      // Call the admin step-up edge function
+      const { data, error } = await supabase.functions.invoke('admin-step-up-test', {
         headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
           'Content-Type': 'application/json'
         }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Step-up failed: ${response.status}`);
+      if (error) {
+        throw new Error(error.message || 'Step-up failed');
       }
-
-      const data = await response.json();
 
       toast({
         title: "Admin session elevated",
@@ -194,20 +182,15 @@ export function useAdminSession() {
 
   const testStepUp = async () => {
     try {
-      const response = await fetch('/api/admin/step-up/test', {
-        method: 'POST',
-        credentials: 'include', // Critical: include cookies for domain detection
+      const { data, error } = await supabase.functions.invoke('admin-step-up-test', {
         headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
           'Content-Type': 'application/json'
         }
       });
 
-      if (!response.ok) {
-        throw new Error(`Test failed: ${response.status} ${response.statusText}`);
+      if (error) {
+        throw new Error(error.message || 'Test failed');
       }
-
-      const data = await response.json();
       
       toast({
         title: "Test step-up successful", 
