@@ -587,23 +587,11 @@ const Auth = () => {
                     value={formData.email}
                     onChange={handleInputChange}
                     className={formErrors.email ? "border-destructive" : ""}
-                  />
-                  {formErrors.email && (
-                    <p className="text-xs text-destructive">{formErrors.email}</p>
-                  )}
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowForgotPassword(true);
-                        setForgotPasswordEmail(formData.email);
-                      }}
-                      className="text-sm text-primary hover:underline"
-                    >
-                      Forgot your password?
-                    </button>
-                  </div>
-                </div>
+                   />
+                   {formErrors.email && (
+                     <p className="text-xs text-destructive">{formErrors.email}</p>
+                   )}
+                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
@@ -618,20 +606,32 @@ const Auth = () => {
                   {formErrors.password && (
                     <p className="text-xs text-destructive">{formErrors.password}</p>
                   )}
-                </div>
+                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="stayLoggedIn"
-                    checked={formData.stayLoggedIn}
-                    onCheckedChange={(checked) => 
-                      setFormData(prev => ({ ...prev, stayLoggedIn: !!checked }))
-                    }
-                  />
-                  <Label htmlFor="stayLoggedIn" className="text-sm font-normal">
-                    Keep me signed in for 30 days
-                  </Label>
-                </div>
+                 <div className="flex items-center justify-between">
+                   <div className="flex items-center space-x-2">
+                     <Checkbox
+                       id="stayLoggedIn"
+                       checked={formData.stayLoggedIn}
+                       onCheckedChange={(checked) => 
+                         setFormData(prev => ({ ...prev, stayLoggedIn: !!checked }))
+                       }
+                     />
+                     <Label htmlFor="stayLoggedIn" className="text-sm font-normal">
+                       Keep me signed in for 30 days
+                     </Label>
+                   </div>
+                   <button
+                     type="button"
+                     onClick={() => {
+                       setShowForgotPassword(true);
+                       setForgotPasswordEmail(formData.email);
+                     }}
+                     className="text-sm text-primary hover:underline"
+                   >
+                     Forgot your password?
+                   </button>
+                 </div>
 
                 <Button
                   type="submit"
