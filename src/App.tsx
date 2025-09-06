@@ -28,12 +28,10 @@ import SettingsOrganization from "@/pages/SettingsOrganization";
 import ActivityLogs from "@/pages/ActivityLogs";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AdminSetup from "@/pages/AdminSetup";
-import AdminInviteTests from "@/pages/AdminInviteTests";
+
 import AdminOrgLogs from "@/pages/AdminOrgLogs";
 import AdminAccessDenied from "@/pages/AdminAccessDenied";
-import SecureDiagnostic from "@/pages/SecureDiagnostic";
 import AdminMFADiag from "@/pages/AdminMFADiag";
-import AdminDiagnostic from "@/pages/AdminDiagnostic";
 import AdminStripeConfig from "@/pages/AdminStripeConfig";
 import AdminBillingVerification from "@/pages/AdminBillingVerification";
 import AdminAgents from "@/pages/admin/agents";
@@ -73,12 +71,9 @@ function App() {
               <Route path="/demos/voice" element={<VoiceDemo />} />
               <Route path="/activity-logs" element={<ActivityLogs />} />
               <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/_diag" element={<AdminDiagnostic />} />
-              <Route path="/admin/_mfa_diag" element={<AdminMFADiag />} />
               <Route path="/admin/access-denied" element={<AdminAccessDenied />} />
               <Route path="/admin-setup" element={<AdminSetup />} />
               <Route path="/admin/logs/org/:orgId" element={<AdminOrgLogs />} />
-              <Route path="/admin/tests/invites" element={<AdminInviteTests />} />
               <Route path="/admin/agents" element={<AdminGuard><AdminAgents /></AdminGuard>} />
               <Route path="/admin/calls" element={<AdminGuard><AdminCalls /></AdminGuard>} />
               <Route path="/admin/stripe-config" element={<AdminGuard><AdminStripeConfig /></AdminGuard>} />

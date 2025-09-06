@@ -16,7 +16,13 @@ import {
   Activity,
   TestTube,
   Globe,
-  FileText
+  FileText,
+  Lock,
+  AlertTriangle,
+  UserPlus,
+  Pause,
+  RefreshCw,
+  Eye
 } from "lucide-react";
 import { OrgSwitcherTests } from "./OrgSwitcherTests"
 import { ProfileUpdateTests } from "./ProfileUpdateTests"
@@ -34,6 +40,17 @@ import { FeatureFlags } from "@/components/admin/FeatureFlags";
 import { EmailIntegrations } from "@/components/admin/EmailIntegrations";
 import { AdminTestRunner } from "@/components/admin/AdminTestRunner";
 import { AdminSessionPanel } from "@/components/admin/AdminSessionPanel";
+import SuperadminTestHarness from "@/components/admin/SuperadminTestHarness";
+import GuardTests from "@/components/admin/GuardTests";
+import { StepUpAuthTest } from "@/components/admin/StepUpAuthTest";
+import { InviteAcceptanceTests } from "@/components/admin/InviteAcceptanceTests";
+import { OrgStatusGuardTest } from "@/components/admin/OrgStatusGuardTest";
+import { RateLimitTest } from "@/components/admin/RateLimitTest";
+import { SuspensionSystemTest } from "@/components/admin/SuspensionSystemTest";
+import { AdminBackfill } from "@/components/admin/AdminBackfill";
+import { TelemetryDashboard } from "@/components/admin/TelemetryDashboard";
+import { AdminLogsViewer } from "@/components/admin/AdminLogsViewer";
+import { InviteSystemTests } from "@/components/InviteSystemTests";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function TestDashboard() {
@@ -47,11 +64,12 @@ export function TestDashboard() {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="system">System</TabsTrigger>
           <TabsTrigger value="management">Management</TabsTrigger>
           <TabsTrigger value="tests">Tests</TabsTrigger>
+          <TabsTrigger value="diagnostics">Diagnostics</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="space-y-6">
@@ -233,16 +251,119 @@ export function TestDashboard() {
         </TabsContent>
 
         <TabsContent value="tests" className="space-y-6">
-          {/* Admin Tests */}
+          {/* Comprehensive Admin Tests */}
           <Card>
             <CardHeader>
-              <CardTitle>Admin Test Runner</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <TestTube className="h-5 w-5" />
+                Admin Test Runner
+              </CardTitle>
               <CardDescription>
                 Run comprehensive system tests and diagnostics
               </CardDescription>
             </CardHeader>
             <CardContent>
               <AdminTestRunner />
+            </CardContent>
+          </Card>
+
+          {/* Superadmin Tests */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Superadmin Test Harness
+              </CardTitle>
+              <CardDescription>
+                Test superadmin authorization and access controls
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SuperadminTestHarness />
+            </CardContent>
+          </Card>
+
+          {/* Security Tests */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5" />
+                Security & Auth Tests
+              </CardTitle>
+              <CardDescription>
+                Authentication, authorization, and security tests
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="border rounded-lg p-4">
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Guard Tests
+                </h4>
+                <GuardTests />
+              </div>
+              
+              <div className="border rounded-lg p-4">
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <Lock className="h-4 w-4" />
+                  Step-Up Authentication
+                </h4>
+                <StepUpAuthTest />
+              </div>
+              
+              <div className="border rounded-lg p-4">
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Rate Limiting
+                </h4>
+                <RateLimitTest />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Organization & User Tests */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Organization & User Tests
+              </CardTitle>
+              <CardDescription>
+                Test organization management, user roles, and permissions
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="border rounded-lg p-4">
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <UserPlus className="h-4 w-4" />
+                  Invite System Tests
+                </h4>
+                <InviteSystemTests />
+              </div>
+              
+              <div className="border rounded-lg p-4">
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <UserCheck className="h-4 w-4" />
+                  Invite Acceptance Tests
+                </h4>
+                <InviteAcceptanceTests />
+              </div>
+              
+              <div className="border rounded-lg p-4">
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <Pause className="h-4 w-4" />
+                  Organization Status Tests
+                </h4>
+                <OrgStatusGuardTest />
+              </div>
+              
+              <div className="border rounded-lg p-4">
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <Pause className="h-4 w-4" />
+                  Suspension System Tests
+                </h4>
+                <SuspensionSystemTest />
+              </div>
             </CardContent>
           </Card>
 
@@ -263,6 +384,72 @@ export function TestDashboard() {
                 <ProfileUpdateTests />
                 <DemoArtifactLinter />
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="diagnostics" className="space-y-6">
+          {/* Admin Session & Diagnostics */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                Admin Session Status
+              </CardTitle>
+              <CardDescription>
+                Current admin session and authentication status
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AdminSessionPanel />
+            </CardContent>
+          </Card>
+
+          {/* Data Management */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <RefreshCw className="h-5 w-5" />
+                Data Management & Backfill
+              </CardTitle>
+              <CardDescription>
+                Database maintenance and data backfill operations
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AdminBackfill />
+            </CardContent>
+          </Card>
+
+          {/* Telemetry Dashboard */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Telemetry Dashboard
+              </CardTitle>
+              <CardDescription>
+                System telemetry and monitoring data
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TelemetryDashboard />
+            </CardContent>
+          </Card>
+
+          {/* Admin Logs */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Admin Logs Viewer
+              </CardTitle>
+              <CardDescription>
+                View and analyze admin activity logs
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AdminLogsViewer />
             </CardContent>
           </Card>
         </TabsContent>
