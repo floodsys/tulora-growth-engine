@@ -6,10 +6,12 @@ import { Check, Star, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AdminChecklistBanner } from "@/components/admin/AdminChecklistBanner";
+import { AcssInvoiceButton } from "@/components/AcssInvoiceButton";
 
 const PricingTable = () => {
   const [activeTab, setActiveTab] = useState("leadgen");
   const [currentOrgPlan, setCurrentOrgPlan] = useState<string | null>(null);
+  const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -29,6 +31,7 @@ const PricingTable = () => {
 
         if (orgs && orgs.length > 0) {
           setCurrentOrgPlan(orgs[0].plan_key);
+          setCurrentOrgId(orgs[0].id);
         }
       } catch (error) {
         console.error('Error checking current plan:', error);
@@ -305,14 +308,22 @@ const PricingTable = () => {
             Manage in portal
           </Button>
         ) : plan.isEnterprise ? (
-          <Button 
-            className="w-full" 
-            variant="outline"
-            onClick={() => window.location.href = `/contact/sales?product=${activeTab}`}
-          >
-            Contact sales
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
+          <div className="space-y-3">
+            <Button 
+              className="w-full" 
+              variant="outline"
+              onClick={() => window.location.href = `/contact/sales?product=${activeTab}`}
+            >
+              Contact sales
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+            <AcssInvoiceButton
+              planKey={plan.planKey}
+              planName={plan.name}
+              organizationId={currentOrgId || undefined}
+              isEnterprise={plan.isEnterprise}
+            />
+          </div>
         ) : (
           <Button 
             className="w-full" 

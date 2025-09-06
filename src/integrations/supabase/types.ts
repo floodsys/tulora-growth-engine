@@ -1201,6 +1201,68 @@ export type Database = {
         }
         Relationships: []
       }
+      sales_invoices: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string | null
+          customer_email: string
+          customer_name: string | null
+          id: string
+          invoice_url: string | null
+          notes: string | null
+          organization_id: string | null
+          payment_method: string | null
+          plan_key: string
+          status: string | null
+          stripe_invoice_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string | null
+          customer_email: string
+          customer_name?: string | null
+          id?: string
+          invoice_url?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          payment_method?: string | null
+          plan_key: string
+          status?: string | null
+          stripe_invoice_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string | null
+          customer_email?: string
+          customer_name?: string | null
+          id?: string
+          invoice_url?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          payment_method?: string | null
+          plan_key?: string
+          status?: string | null
+          stripe_invoice_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_invoices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       step_up_sessions: {
         Row: {
           created_at: string
