@@ -1,10 +1,7 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Shield, ShieldX, Clock } from 'lucide-react';
 
 interface AdminGuardProps {
   children: ReactNode;
@@ -40,6 +37,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
     return <Navigate to="/dashboard" replace state={{ from: location }} />;
   }
 
-  // Render protected content for superadmins
+  // TEMPORARY: Bypass MFA for development - TODO: Re-enable for production
+  // For production, add MFA/step-up authentication here before rendering children
   return <>{children}</>;
 }
