@@ -90,7 +90,7 @@ export function useAdminSession() {
 
       // Force refresh any cached state by clearing irrelevant localStorage (but keep our step-up time!)
       const keysToRemove = Object.keys(localStorage).filter(key => 
-        (key.includes('admin') && key !== 'admin_step_up_time') || key.includes('step_up') || key.includes('issued_at')
+        key !== 'admin_step_up_time' && (key.includes('admin') || key.includes('step_up') || key.includes('issued_at'))
       );
       console.log('Keys to remove from localStorage:', keysToRemove);
       keysToRemove.forEach(key => localStorage.removeItem(key));
