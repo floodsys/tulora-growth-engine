@@ -36,6 +36,7 @@ import AdminMFADiag from "@/pages/AdminMFADiag";
 import AdminDiagnostic from "@/pages/AdminDiagnostic";
 import AdminAgents from "@/pages/admin/agents";
 import AdminCalls from "@/pages/admin/calls";
+import ContactSales from "@/pages/ContactSales";
 
 import { AdminGuard } from "@/components/guards/AdminGuard";
 
@@ -78,7 +79,7 @@ function App() {
               <Route path="/admin/tests/invites" element={<AdminInviteTests />} />
               <Route path="/admin/agents" element={<AdminGuard><AdminAgents /></AdminGuard>} />
               <Route path="/admin/calls" element={<AdminGuard><AdminCalls /></AdminGuard>} />
-              
+              <Route path="/contact/sales" element={<ContactSales />} />
               <Route path="*" element={<NotFound />} />
               </Routes>
             </ProgressiveProfilingGuard>
