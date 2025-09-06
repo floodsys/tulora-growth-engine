@@ -70,7 +70,7 @@ serve(async (req) => {
     // Environment-aware domain detection
     const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1');
     const isProd = host.includes('tulora.io');
-    const isPreview = host.includes('lovable.app');
+    const isPreview = host.includes('lovable.app') || host.includes('sandbox.lovable.dev');
     
     let domain;
     if (isLocalhost) {
@@ -78,7 +78,7 @@ serve(async (req) => {
     } else if (isProd) {
       domain = '.tulora.io';
     } else if (isPreview) {
-      domain = '.lovable.app';
+      domain = undefined; // Use host-only for sandbox domains
     } else {
       domain = undefined; // Fallback to host-only
     }
