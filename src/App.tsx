@@ -34,6 +34,7 @@ import AdminAccessDenied from "@/pages/AdminAccessDenied";
 import SecureDiagnostic from "@/pages/SecureDiagnostic";
 import AdminMFADiag from "@/pages/AdminMFADiag";
 import AdminDiagnostic from "@/pages/AdminDiagnostic";
+import AdminStripeConfig from "@/pages/AdminStripeConfig";
 import AdminAgents from "@/pages/admin/agents";
 import AdminCalls from "@/pages/admin/calls";
 import ContactSales from "@/pages/ContactSales";
@@ -79,6 +80,7 @@ function App() {
               <Route path="/admin/tests/invites" element={<AdminInviteTests />} />
               <Route path="/admin/agents" element={<AdminGuard><AdminAgents /></AdminGuard>} />
               <Route path="/admin/calls" element={<AdminGuard><AdminCalls /></AdminGuard>} />
+              <Route path="/admin/stripe-config" element={<AdminGuard><AdminStripeConfig /></AdminGuard>} />
               <Route path="/contact/sales" element={<ContactSales />} />
               <Route path="*" element={<NotFound />} />
               </Routes>
