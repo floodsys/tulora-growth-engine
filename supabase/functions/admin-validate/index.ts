@@ -82,20 +82,28 @@ serve(async (req) => {
     const cookieHeader = req.headers.get('Cookie');
     const cookies = new Map();
     
+    console.log('Received cookie header:', cookieHeader);
+    
     if (cookieHeader) {
       cookieHeader.split(';').forEach(cookie => {
         const [name, value] = cookie.trim().split('=');
-        if (name && value) cookies.set(name, value);
+        if (name && value) {
+          cookies.set(name, value);
+          console.log('Parsed cookie:', name, '=', value);
+        }
       });
     }
 
     const saIssued = cookies.get('sa_issued');
+    console.log('Looking for sa_issued cookie, found:', saIssued);
     
     if (!saIssued) {
+      console.log('No sa_issued cookie found, available cookies:', Array.from(cookies.keys()));
       return new Response(JSON.stringify({
         valid: false,
         reason: 'No elevated session cookie found',
-        cookie_present: false
+        cookie_present: false,
+        debug_cookies: Array.from(cookies.keys())
       }), {
         headers: {
           ...corsHeaders,

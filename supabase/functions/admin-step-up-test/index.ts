@@ -99,13 +99,19 @@ serve(async (req) => {
       'Cache-Control': 'no-store',
     };
 
+    console.log('Setting cookie with value:', cookieValue);
+    console.log('Cookie options:', cookieOptions);
+    console.log('Full Set-Cookie header:', `sa_issued=${cookieValue}; ${cookieOptions}`);
+
     return new Response(JSON.stringify({
       success: true,
       issued_at: issuedAt,
       expires_at: new Date(Date.now() + maxAge * 1000).toISOString(),
       cookie_set: true,
       environment: isProd ? 'production' : (isPreview ? 'preview' : 'localhost'),
-      user_id: user.id
+      user_id: user.id,
+      debug_cookie: cookieValue,
+      debug_options: cookieOptions
     }), {
       headers,
       status: 200,
