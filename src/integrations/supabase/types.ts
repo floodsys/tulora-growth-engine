@@ -672,43 +672,52 @@ export type Database = {
           company: string | null
           created_at: string | null
           email: string | null
+          expected_volume: string | null
           id: string
           metadata: Json | null
           name: string
           notes: string | null
-          organization_id: string
+          organization_id: string | null
           phone: string | null
+          product_line: string | null
           source: string | null
           status: string
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
           company?: string | null
           created_at?: string | null
           email?: string | null
+          expected_volume?: string | null
           id?: string
           metadata?: Json | null
           name: string
           notes?: string | null
-          organization_id: string
+          organization_id?: string | null
           phone?: string | null
+          product_line?: string | null
           source?: string | null
           status?: string
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
           company?: string | null
           created_at?: string | null
           email?: string | null
+          expected_volume?: string | null
           id?: string
           metadata?: Json | null
           name?: string
           notes?: string | null
-          organization_id?: string
+          organization_id?: string | null
           phone?: string | null
+          product_line?: string | null
           source?: string | null
           status?: string
           updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
