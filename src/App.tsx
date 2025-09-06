@@ -40,7 +40,7 @@ import AdminAgents from "@/pages/admin/agents";
 import AdminCalls from "@/pages/admin/calls";
 import ContactSales from "@/pages/ContactSales";
 
-import { AdminGuard } from "@/components/guards/AdminGuard";
+import { AdminGuard } from "@/components/admin/AdminGuard";
 
 function App() {
   return (
