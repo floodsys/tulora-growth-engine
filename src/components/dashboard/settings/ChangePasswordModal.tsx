@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Lock, Shield } from "lucide-react"
@@ -165,10 +166,9 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
           <div className="space-y-2">
             <Label htmlFor="currentPassword">Current password *</Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
+              <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
+              <PasswordInput
                 id="currentPassword"
-                type="password"
                 value={currentPassword}
                 onChange={(e) => {
                   setCurrentPassword(e.target.value)
@@ -176,9 +176,10 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
                     setPasswordErrors(prev => ({ ...prev, current: undefined }))
                   }
                 }}
-                className={`pl-10 ${passwordErrors.current ? "border-destructive" : ""}`}
+                className={passwordErrors.current ? "border-destructive pl-10" : "pl-10"}
                 placeholder="Enter current password"
                 autoComplete="current-password"
+                showIcon={true}
               />
             </div>
             {passwordErrors.current && (
@@ -189,10 +190,9 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
           <div className="space-y-2">
             <Label htmlFor="newPassword">New password *</Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
+              <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
+              <PasswordInput
                 id="newPassword"
-                type="password"
                 value={newPassword}
                 onChange={(e) => {
                   setNewPassword(e.target.value)
@@ -200,9 +200,10 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
                     setPasswordErrors(prev => ({ ...prev, new: undefined }))
                   }
                 }}
-                className={`pl-10 ${passwordErrors.new ? "border-destructive" : ""}`}
+                className={passwordErrors.new ? "border-destructive pl-10" : "pl-10"}
                 placeholder="Enter new password"
                 autoComplete="new-password"
+                showIcon={true}
               />
             </div>
             {passwordErrors.new && (
@@ -229,10 +230,9 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirm new password *</Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
+              <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
+              <PasswordInput
                 id="confirmPassword"
-                type="password"
                 value={confirmPassword}
                 onChange={(e) => {
                   setConfirmPassword(e.target.value)
@@ -240,9 +240,10 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
                     setPasswordErrors(prev => ({ ...prev, confirm: undefined }))
                   }
                 }}
-                className={`pl-10 ${passwordErrors.confirm ? "border-destructive" : ""}`}
+                className={passwordErrors.confirm ? "border-destructive pl-10" : "pl-10"}
                 placeholder="Confirm new password"
                 autoComplete="new-password"
+                showIcon={true}
               />
             </div>
             {passwordErrors.confirm && (

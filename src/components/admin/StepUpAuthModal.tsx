@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Shield, Clock, Smartphone, Key } from 'lucide-react';
 import { useStepUpAuth } from '@/hooks/useStepUpAuth';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { PasswordInput } from '@/components/ui/password-input';
 
 interface StepUpAuthModalProps {
   isOpen: boolean;
@@ -157,9 +158,8 @@ export function StepUpAuthModal({
           <TabsContent value="password" className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password">Re-enter your password:</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"

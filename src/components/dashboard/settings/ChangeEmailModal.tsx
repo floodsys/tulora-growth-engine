@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Mail, Lock } from "lucide-react"
@@ -246,10 +247,9 @@ export function ChangeEmailModal({ open, onOpenChange }: ChangeEmailModalProps) 
               <div className="space-y-2">
                 <Label htmlFor="emailChangePassword">Current password *</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
+                  <PasswordInput
                     id="emailChangePassword"
-                    type="password"
                     value={emailChangePassword}
                     onChange={(e) => {
                       setEmailChangePassword(e.target.value)
@@ -257,8 +257,9 @@ export function ChangeEmailModal({ open, onOpenChange }: ChangeEmailModalProps) 
                         setEmailErrors(prev => ({ ...prev, password: undefined }))
                       }
                     }}
-                    className={`pl-10 ${emailErrors.password ? "border-destructive" : ""}`}
+                    className={emailErrors.password ? "border-destructive pl-10" : "pl-10"}
                     placeholder="Enter current password"
+                    showIcon={true}
                   />
                 </div>
                 {emailErrors.password && (
