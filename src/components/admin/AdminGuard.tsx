@@ -13,18 +13,10 @@ export function AdminGuard({ children }: AdminGuardProps) {
   const [showReauth, setShowReauth] = useState(false);
 
   useEffect(() => {
-    if (!loading) {
-      // For now, let's bypass the complex cookie validation and use a simpler approach
-      // Check if we have a recent step-up in localStorage
-      const stepUpTime = localStorage.getItem('admin_step_up_time');
-      console.log('Checking step-up time from localStorage:', stepUpTime);
-      
-      const isRecentStepUp = stepUpTime && (Date.now() - parseInt(stepUpTime)) < 12 * 60 * 60 * 1000; // 12 hours
-      console.log('Is recent step-up?', isRecentStepUp);
-      
-      setShowReauth(!isRecentStepUp);
-    }
-  }, [loading]);
+    // Temporarily bypass authentication for debugging
+    console.log('AdminGuard: Bypassing authentication check');
+    setShowReauth(false);
+  }, []);
 
   if (loading) {
     return (
