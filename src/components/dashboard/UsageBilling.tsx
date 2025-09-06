@@ -29,6 +29,7 @@ import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { BillingTestPanel } from "./BillingTestPanel"
+import { AdminChecklistBanner } from "@/components/admin/AdminChecklistBanner"
 
 interface UsageData {
   minutesUsed: number
@@ -318,6 +319,9 @@ export function UsageBilling() {
 
   return (
     <div className="space-y-6">
+      {/* Admin Checklist Banner */}
+      <AdminChecklistBanner />
+      
       {/* Test Panel for Development */}
       <BillingTestPanel 
         currentOrgId={organizationId}

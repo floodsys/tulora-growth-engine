@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, Star, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { AdminChecklistBanner } from "@/components/admin/AdminChecklistBanner";
 
 const PricingTable = () => {
   const [activeTab, setActiveTab] = useState("leadgen");
@@ -328,6 +329,9 @@ const PricingTable = () => {
   return (
     <section id="pricing" className="py-20 bg-gradient-subtle">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Admin Checklist Banner */}
+        <AdminChecklistBanner />
+        
         {/* Header */}
         <div className="text-center mb-16">
           <h2 className="text-3xl font-bold text-foreground mb-4 lg:text-4xl">
