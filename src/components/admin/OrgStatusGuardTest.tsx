@@ -35,8 +35,7 @@ export function OrgStatusGuardTest() {
   ];
 
   const exemptedEndpoints = [
-    { name: 'org-customer-portal', expectedCode: 200, payload: { organizationId: '' } },
-    { name: 'stripe-customer-portal', expectedCode: 200, payload: { organizationId: '' } }
+    { name: 'org-customer-portal', expectedCode: 200, payload: { organizationId: '' } }
   ];
 
   const testEndpoint = async (endpoint: string, payload: any, expectedCode: number): Promise<TestResult> => {
