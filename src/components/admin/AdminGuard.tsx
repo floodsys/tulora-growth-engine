@@ -77,7 +77,12 @@ export function AdminGuard({ children }: AdminGuardProps) {
                 console.log('Step-up result:', success);
                 if (success) {
                   console.log('Setting showReauth to false');
-                  setShowReauth(false);
+                  // Force a re-check of localStorage after step-up
+                  const stepUpTime = localStorage.getItem('admin_step_up_time');
+                  console.log('After step-up, localStorage value:', stepUpTime);
+                  const isRecentStepUp = stepUpTime && (Date.now() - parseInt(stepUpTime)) < 12 * 60 * 60 * 1000;
+                  console.log('Is recent step-up after manual check?', isRecentStepUp);
+                  setShowReauth(!isRecentStepUp);
                 }
               }}
               disabled={verifying}

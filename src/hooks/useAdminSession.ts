@@ -92,13 +92,13 @@ export function useAdminSession() {
       const keysToRemove = Object.keys(localStorage).filter(key => 
         (key.includes('admin') && key !== 'admin_step_up_time') || key.includes('step_up') || key.includes('issued_at')
       );
+      console.log('Keys to remove from localStorage:', keysToRemove);
       keysToRemove.forEach(key => localStorage.removeItem(key));
       
       // Small delay to ensure cookie is set before checking
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Refresh session status after successful step-up
-      await checkSession();
+      // Don't call checkSession() as it interferes with our localStorage approach
       
       return true;
     } catch (error) {
