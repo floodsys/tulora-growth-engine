@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { saveOrganization, type OrganizationData } from "@/lib/profile/saveOrganization";
@@ -19,7 +20,9 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [signupStep, setSignupStep] = useState(1); // 1 = Account, 2 = Organization
   const [showEmailSent, setShowEmailSent] = useState(false);
-  
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [passwordResetSent, setPasswordResetSent] = useState(false);
   // Step 1 form data
   const [formData, setFormData] = useState({
     email: "",
@@ -112,6 +115,8 @@ const Auth = () => {
   const handleBackToStep1 = () => {
     setSignupStep(1);
     setFormErrors({});
+    setShowForgotPassword(false);
+    setPasswordResetSent(false);
   };
 
   const handleOrganizationSubmit = async (values: OrganizationStepValues) => {
@@ -287,6 +292,34 @@ const Auth = () => {
       toast({
         title: "Error",
         description: "Failed to resend verification email. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
+        redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+      });
+
+      if (error) throw error;
+
+      setPasswordResetSent(true);
+      toast({
+        title: "Password reset email sent",
+        description: "Check your email for a link to reset your password.",
+      });
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send password reset email.",
         variant: "destructive",
       });
     } finally {
@@ -558,6 +591,18 @@ const Auth = () => {
                   {formErrors.email && (
                     <p className="text-xs text-destructive">{formErrors.email}</p>
                   )}
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowForgotPassword(true);
+                        setForgotPasswordEmail(formData.email);
+                      }}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Forgot your password?
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -627,6 +672,72 @@ const Auth = () => {
           className="w-full h-full object-contain"
         />
       </div>
+
+      {/* Forgot Password Modal */}
+      <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset your password</DialogTitle>
+            <DialogDescription>
+              Enter your email address and we'll send you a link to reset your password.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {!passwordResetSent ? (
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="forgotEmail">Email address</Label>
+                <Input
+                  id="forgotEmail"
+                  type="email"
+                  placeholder="name@email.com"
+                  value={forgotPasswordEmail}
+                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowForgotPassword(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isLoading || !forgotPasswordEmail}
+                  className="flex-1"
+                >
+                  {isLoading ? "Sending..." : "Send reset link"}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="space-y-4">
+              <div className="text-center py-4">
+                <CheckCircle2 className="mx-auto h-12 w-12 text-green-500 mb-3" />
+                <p className="text-sm text-muted-foreground">
+                  We've sent a password reset link to <strong>{forgotPasswordEmail}</strong>
+                </p>
+              </div>
+              
+              <Button
+                onClick={() => {
+                  setShowForgotPassword(false);
+                  setPasswordResetSent(false);
+                  setForgotPasswordEmail("");
+                }}
+                className="w-full"
+              >
+                Done
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
