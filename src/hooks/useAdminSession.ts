@@ -81,6 +81,9 @@ export function useAdminSession() {
         description: "Step-up authentication successful",
       });
 
+      // Store the step-up time in localStorage as a simpler approach
+      localStorage.setItem('admin_step_up_time', Date.now().toString());
+
       // Force refresh any cached state by clearing relevant localStorage
       const keysToRemove = Object.keys(localStorage).filter(key => 
         key.includes('admin') || key.includes('step_up') || key.includes('issued_at')
