@@ -72,7 +72,7 @@ function App() {
               <Route path="/demo" element={<Demo />} />
               <Route path="/demos/voice" element={<VoiceDemo />} />
               <Route path="/activity-logs" element={<ActivityLogs />} />
-              <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
+              <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/_diag" element={<AdminDiagnostic />} />
               <Route path="/admin/_mfa_diag" element={<AdminMFADiag />} />
               <Route path="/admin/access-denied" element={<AdminAccessDenied />} />
