@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { clearExtendedSession } from '@/lib/extended-auth';
 
 interface AuthContextType {
   user: User | null;
@@ -53,6 +54,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     setLoading(true);
+    
+    // Clear extended session data
+    clearExtendedSession();
     
     // Sign out and clear all sessions
     await supabase.auth.signOut({ scope: 'global' });

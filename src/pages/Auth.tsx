@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { handleExtendedAuth } from "@/lib/extended-auth";
 import { saveOrganization, type OrganizationData } from "@/lib/profile/saveOrganization";
 import { OrganizationStep, type OrganizationStepValues } from "@/components/onboarding/OrganizationStep";
 import { telemetry } from "@/lib/telemetry";
@@ -200,10 +201,11 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      });
+      const { data, error } = await handleExtendedAuth(
+        formData.email,
+        formData.password,
+        formData.stayLoggedIn
+      );
 
       if (error) throw error;
 
