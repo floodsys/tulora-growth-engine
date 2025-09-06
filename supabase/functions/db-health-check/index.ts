@@ -157,8 +157,8 @@ serve(async (req) => {
       isCorrect: canonicalExists
     };
 
-    // 5. Check if org_subscriptions is accessible (indicating it exists as view or table)
-    logStep("Checking org_subscriptions view");
+    // 5. Check if org_subscriptions legacy table exists (should be deprecated)
+    logStep("Checking org_subscriptions legacy table");
     const { data: orgSubsCheck } = await supabaseClient
       .from('org_subscriptions')
       .select('id')

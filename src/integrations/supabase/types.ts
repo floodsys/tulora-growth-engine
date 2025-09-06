@@ -1922,6 +1922,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      safe_timestamp_from_epoch: {
+        Args: { epoch_value: number }
+        Returns: string
+      }
       seed_default_alert_rules: {
         Args: { p_org_id: string }
         Returns: undefined

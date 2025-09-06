@@ -182,15 +182,20 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
       ...priceMetadata // Include any other metadata fields
     }
 
+    // Build subscription data with timestamp guards
     const subscriptionData = {
       stripe_subscription_id: subscription.id,
       subscription_item_id: subscriptionItem.id,
       price_id: subscriptionItem.price.id,
       status: subscription.status,
       quantity: subscriptionItem.quantity || 1,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      trial_end: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
+      plan_key: planKey,
+      current_period_start: subscription.current_period_start ? 
+        new Date(subscription.current_period_start * 1000).toISOString() : null,
+      current_period_end: subscription.current_period_end ? 
+        new Date(subscription.current_period_end * 1000).toISOString() : null,
+      trial_end: subscription.trial_end ? 
+        new Date(subscription.trial_end * 1000).toISOString() : null,
       cancel_at_period_end: subscription.cancel_at_period_end || false,
       updated_at: new Date().toISOString()
     }
@@ -203,27 +208,47 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
       priceId: subscriptionData.price_id
     })
 
-    // Upsert to org_subscriptions with idempotency (stripe_subscription_id is unique)
-    const { error: subUpsertError } = await supabase
-      .from('org_subscriptions')
-      .upsert({
-        org_id: orgId,
-        ...subscriptionData
-      }, {
-        onConflict: 'stripe_subscription_id'  // Ensures idempotency
-      })
+    // Handle subscription deletion 
+    if (subscription.status === 'canceled') {
+      logStep('Subscription canceled, removing from database', { subscriptionId: subscription.id })
+      
+      const { error: deleteError } = await supabase
+        .from('org_stripe_subscriptions')
+        .delete()
+        .eq('stripe_subscription_id', subscription.id)
+      
+      if (deleteError) {
+        logStep('ERROR deleting canceled subscription', { 
+          error: deleteError,
+          subscriptionId: subscription.id 
+        })
+        throw deleteError
+      }
+    } else {
+      // Upsert to org_stripe_subscriptions with idempotency 
+      const { error: subUpsertError } = await supabase
+        .from('org_stripe_subscriptions')
+        .upsert({
+          organization_id: orgId,
+          stripe_customer_id: subscription.customer,
+          ...subscriptionData
+        }, {
+          onConflict: 'stripe_subscription_id'  // Ensures idempotency
+        })
 
-    if (subUpsertError) {
-      logStep('ERROR upserting to org_subscriptions', { 
-        error: subUpsertError,
-        subscriptionId: subscription.id 
-      })
-      throw subUpsertError
+      if (subUpsertError) {
+        logStep('ERROR upserting to org_stripe_subscriptions', { 
+          error: subUpsertError,
+          subscriptionId: subscription.id 
+        })
+        throw subUpsertError
+      }
     }
 
     // Mirror key fields to organizations table for UI caching, including entitlements
     const organizationUpdates = {
       billing_status: subscription.status,
+      plan_key: planKey,
       current_period_end: subscriptionData.current_period_end,
       cancel_at_period_end: subscriptionData.cancel_at_period_end,
       entitlements: entitlements,

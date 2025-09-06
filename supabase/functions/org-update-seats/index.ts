@@ -72,9 +72,9 @@ serve(async (req) => {
 
     // Get the org's active subscription
     const { data: subscription } = await supabase
-      .from('org_subscriptions')
+      .from('org_stripe_subscriptions')
       .select('*')
-      .eq('org_id', orgId)
+      .eq('organization_id', orgId)
       .in('status', ['active', 'trialing'])
       .single()
 
@@ -128,7 +128,7 @@ serve(async (req) => {
 
     // Update the quantity in our database
     const { error: updateError } = await supabase
-      .from('org_subscriptions')
+      .from('org_stripe_subscriptions')
       .update({ 
         quantity: seatCount,
         updated_at: new Date().toISOString()
