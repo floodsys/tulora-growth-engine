@@ -37,11 +37,15 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
+    
+    // Use service role to verify the JWT token
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) {
+    
+    if (userError || !userData.user) {
+      console.log('Auth error details:', userError);
       return new Response(JSON.stringify({
         valid: false,
-        reason: 'Authentication error'
+        reason: `Authentication error: ${userError?.message || 'User not found'}`
       }), {
         headers: {
           ...corsHeaders,
@@ -55,21 +59,6 @@ serve(async (req) => {
     }
 
     const user = userData.user;
-    if (!user) {
-      return new Response(JSON.stringify({
-        valid: false,
-        reason: 'User not authenticated'
-      }), {
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-          "Pragma": "no-cache",
-          "Vary": "Cookie, Authorization"
-        },
-        status: 200,
-      });
-    }
 
     // Check if user is superadmin
     const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin', { user_id: user.id });
