@@ -1026,8 +1026,10 @@ export type Database = {
           plan_key: string
           price_monthly: number | null
           price_yearly: number | null
+          product_line: string | null
           stripe_price_id_monthly: string | null
           stripe_price_id_yearly: string | null
+          stripe_setup_price_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1040,8 +1042,10 @@ export type Database = {
           plan_key: string
           price_monthly?: number | null
           price_yearly?: number | null
+          product_line?: string | null
           stripe_price_id_monthly?: string | null
           stripe_price_id_yearly?: string | null
+          stripe_setup_price_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1054,8 +1058,10 @@ export type Database = {
           plan_key?: string
           price_monthly?: number | null
           price_yearly?: number | null
+          product_line?: string | null
           stripe_price_id_monthly?: string | null
           stripe_price_id_yearly?: string | null
+          stripe_setup_price_id?: string | null
           updated_at?: string
         }
         Relationships: []
