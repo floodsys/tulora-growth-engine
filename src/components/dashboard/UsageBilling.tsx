@@ -205,7 +205,7 @@ export function UsageBilling() {
     
     switch (billingStatus.billing_status) {
       case 'active':
-        return <Badge className="bg-green-500 text-white">Pro Plan</Badge>
+        return <Badge className="bg-green-500 text-white">{billingStatus.billing_tier || 'Active Plan'}</Badge>
       case 'trialing':
         return <Badge className="bg-blue-500 text-white">Trial</Badge>
       case 'past_due':
@@ -221,14 +221,19 @@ export function UsageBilling() {
     return !billingStatus || !['active', 'trialing'].includes(billingStatus.billing_status)
   }
 
-  const handleUpgrade = async (interval: 'month' | 'year' = 'month') => {
+  const handleUpgrade = async (planKey?: string) => {
     try {
       setIsUpgrading(true)
+      
+      // Use plan_configs as authoritative source - no more env variable fallbacks
+      // If no planKey provided, default to a starter plan based on current plan or fallback
+      const defaultPlanKey = planKey || (billingStatus?.plan_key?.startsWith('support') ? 'support_business' : 'leadgen_business')
       
       const { data, error } = await supabase.functions.invoke('create-org-checkout', {
         body: { 
           orgId: organizationId,
-          interval: interval,
+          planKey: defaultPlanKey,
+          interval: 'monthly',
           seats: billingStatus?.quantity || 1
         }
       })
@@ -355,7 +360,7 @@ export function UsageBilling() {
                   {isOpeningPortal ? 'Opening...' : 'Manage Subscription'}
                 </Button>
               ) : (
-                <Button onClick={() => handleUpgrade('month')} disabled={isUpgrading}>
+                <Button onClick={() => handleUpgrade()} disabled={isUpgrading}>
                   <Crown className="h-4 w-4 mr-2" />
                   {isUpgrading ? 'Processing...' : 'Upgrade Now'}
                 </Button>
@@ -404,17 +409,17 @@ export function UsageBilling() {
               <div className="flex gap-2">
                 <Button 
                   variant="outline" 
-                  onClick={() => handleUpgrade('month')}
+                  onClick={() => handleUpgrade('leadgen_starter')}
                   disabled={isUpgrading}
                 >
-                  Monthly Plan
+                  Lead Gen Plans
                 </Button>
                 <Button 
-                  onClick={() => handleUpgrade('year')}
+                  onClick={() => handleUpgrade('support_starter')}
                   disabled={isUpgrading}
                   className="bg-yellow-600 hover:bg-yellow-700"
                 >
-                  Yearly Plan (Save 20%)
+                  Support Plans
                 </Button>
               </div>
             </div>
@@ -510,7 +515,11 @@ export function UsageBilling() {
                   Add more seats or upgrade to Enterprise for unlimited calls, advanced AI features, and priority support.
                 </p>
               </div>
-              <Button variant="secondary" className="bg-white text-primary hover:bg-white/90">
+              <Button 
+                variant="secondary" 
+                className="bg-white text-primary hover:bg-white/90"
+                onClick={() => handleUpgrade()}
+              >
                 <Crown className="h-4 w-4 mr-2" />
                 Scale Up
               </Button>
