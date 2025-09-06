@@ -17,7 +17,11 @@ export function AdminGuard({ children }: AdminGuardProps) {
       // For now, let's bypass the complex cookie validation and use a simpler approach
       // Check if we have a recent step-up in localStorage
       const stepUpTime = localStorage.getItem('admin_step_up_time');
+      console.log('Checking step-up time from localStorage:', stepUpTime);
+      
       const isRecentStepUp = stepUpTime && (Date.now() - parseInt(stepUpTime)) < 12 * 60 * 60 * 1000; // 12 hours
+      console.log('Is recent step-up?', isRecentStepUp);
+      
       setShowReauth(!isRecentStepUp);
     }
   }, [loading]);
@@ -68,8 +72,11 @@ export function AdminGuard({ children }: AdminGuardProps) {
             
             <Button
               onClick={async () => {
+                console.log('Step-up button clicked');
                 const success = await verifyStepUp();
+                console.log('Step-up result:', success);
                 if (success) {
+                  console.log('Setting showReauth to false');
                   setShowReauth(false);
                 }
               }}

@@ -76,6 +76,8 @@ export function useAdminSession() {
         throw new Error(error.message || 'Step-up failed');
       }
 
+      console.log('Step-up successful, storing timestamp:', Date.now());
+      
       toast({
         title: "Admin session elevated",
         description: "Step-up authentication successful",
@@ -83,10 +85,12 @@ export function useAdminSession() {
 
       // Store the step-up time in localStorage as a simpler approach
       localStorage.setItem('admin_step_up_time', Date.now().toString());
+      
+      console.log('Stored admin_step_up_time:', localStorage.getItem('admin_step_up_time'));
 
-      // Force refresh any cached state by clearing relevant localStorage
+      // Force refresh any cached state by clearing irrelevant localStorage (but keep our step-up time!)
       const keysToRemove = Object.keys(localStorage).filter(key => 
-        key.includes('admin') || key.includes('step_up') || key.includes('issued_at')
+        (key.includes('admin') && key !== 'admin_step_up_time') || key.includes('step_up') || key.includes('issued_at')
       );
       keysToRemove.forEach(key => localStorage.removeItem(key));
       
