@@ -19,112 +19,104 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Only allow in preview environment
-    const host = req.headers.get('host') || '';
-    if (!host.includes('lovable.app')) {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
       return new Response(JSON.stringify({
-        error: 'Test endpoint only available in preview environment'
+        success: false,
+        error: 'Authentication required'
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+    
+    if (userError || !userData.user) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid authentication'
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
+
+    const user = userData.user;
+
+    // Check if user is superadmin
+    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin', { user_id: user.id });
+    
+    if (superadminError || !isSuperadmin) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Superadmin access required'
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 403,
       });
     }
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    const user = userData.user;
-    if (!user) throw new Error("User not authenticated");
-
-    // Check if user is superadmin
-    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin', { user_id: user.id });
-    if (superadminError || !isSuperadmin) {
-      throw new Error("Unauthorized: Superadmin access required");
-    }
-
-    // Rate limiting check (simple in-memory for test endpoint)
-    const rateLimitKey = `test_step_up_${user.id}`;
-    
-    // Set elevated admin session cookie (same as real step-up)
+    // Set elevated admin session cookie
     const issuedAt = new Date().toISOString();
-    const maxAge = 43200; // 12 hours
+    const maxAge = 43200; // 12 hours in seconds
     const cookieValue = `${issuedAt}:${user.id}`;
     
-    // Environment-aware domain
-    const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1');
-    const domain = isLocalhost ? undefined : '.lovable.app';
+    // Get the request URL to determine domain
+    const url = new URL(req.url);
+    const host = url.hostname;
     
-    // Clear any old cookies first
-    const clearOldCookies = [
-      `sa_issued=; Max-Age=0; Path=/admin; ${domain ? `Domain=${domain}; ` : ''}HttpOnly`,
-      `sa_issued=; Max-Age=0; Path=/; ${domain ? `Domain=${domain}; ` : ''}HttpOnly`,
-      `sa_issued=; Max-Age=0; Path=/; HttpOnly`,
-      `sa_issued=; Max-Age=0; Path=/admin; HttpOnly`
-    ];
+    // Environment-aware domain detection
+    const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1');
+    const isProd = host.includes('tulora.io');
+    const isPreview = host.includes('lovable.app');
+    
+    let domain;
+    if (isLocalhost) {
+      domain = undefined; // Host-only for localhost
+    } else if (isProd) {
+      domain = '.tulora.io';
+    } else if (isPreview) {
+      domain = '.lovable.app';
+    } else {
+      domain = undefined; // Fallback to host-only
+    }
     
     const cookieOptions = [
       `Max-Age=${maxAge}`,
       'HttpOnly',
-      isLocalhost ? undefined : 'Secure',
+      !isLocalhost ? 'Secure' : undefined,
       'SameSite=Lax',
       'Path=/',
       domain ? `Domain=${domain}` : undefined
     ].filter(Boolean).join('; ');
 
-    // Log usage
-    await supabaseClient
-      .from('audit_log')
-      .insert({
-        organization_id: '00000000-0000-0000-0000-000000000000',
-        actor_user_id: user.id,
-        actor_role_snapshot: 'superadmin',
-        action: 'admin.test_step_up',
-        target_type: 'test_endpoint',
-        target_id: 'admin-step-up-test',
-        status: 'success',
-        channel: 'audit',
-        metadata: {
-          test_mode: true,
-          environment: 'preview',
-          host: host,
-          cookie_domain: domain || 'host-only',
-          timestamp: new Date().toISOString()
-        }
-      });
+    const headers = {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+      'Set-Cookie': `sa_issued=${cookieValue}; ${cookieOptions}`,
+      'Cache-Control': 'no-store',
+    };
 
     return new Response(JSON.stringify({
-      ok: true,
-      test_mode: true,
+      success: true,
       issued_at: issuedAt,
       expires_at: new Date(Date.now() + maxAge * 1000).toISOString(),
-      cookie_attributes: {
-        domain: domain || 'host-only',
-        path: '/',
-        sameSite: 'Lax',
-        secure: !isLocalhost,
-        httpOnly: true,
-        environment: 'preview'
-      }
+      cookie_set: true,
+      environment: isProd ? 'production' : (isPreview ? 'preview' : 'localhost'),
+      user_id: user.id
     }), {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-        "Pragma": "no-cache",
-        "Set-Cookie": [
-          ...clearOldCookies,
-          `sa_issued=${cookieValue}; ${cookieOptions}`
-        ].join(', ')
-      },
+      headers,
       status: 200,
     });
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    console.error('Step-up test error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
