@@ -8,10 +8,10 @@ const corsHeaders = {
 }
 
 interface CheckoutRequest {
-  planKey: 'pro' | 'business'
-  interval: 'month' | 'year'
+  planKey: string
+  interval: 'monthly'
   orgId: string
-  seats: number
+  seats?: number
 }
 
 const logStep = (step: string, details?: any) => {
@@ -44,7 +44,8 @@ serve(async (req) => {
     if (userError || !userData.user) throw new Error('User not authenticated')
 
     const { planKey, interval, orgId, seats }: CheckoutRequest = await req.json()
-    logStep('Request data', { planKey, interval, orgId, seats })
+    const finalSeats = seats || 1
+    logStep('Request data', { planKey, interval, orgId, seats: finalSeats })
 
     // Verify user has admin access to this org
     const { data: membership } = await supabase
@@ -67,6 +68,36 @@ serve(async (req) => {
 
     if (!org) throw new Error('Organization not found')
 
+    // Get plan configuration
+    const { data: planConfig, error: planError } = await supabase
+      .from('plan_configs')
+      .select('*')
+      .eq('plan_key', planKey)
+      .eq('is_active', true)
+      .single()
+
+    if (planError || !planConfig) {
+      throw new Error(`Plan ${planKey} not found or inactive`)
+    }
+
+    logStep('Found plan config', { 
+      planKey, 
+      productLine: planConfig.product_line,
+      hasSetupFee: !!planConfig.stripe_setup_price_id 
+    })
+
+    // Validate interval and get price ID
+    if (interval !== 'monthly') {
+      throw new Error('Only monthly interval is currently supported')
+    }
+
+    const priceId = planConfig.stripe_price_id_monthly
+    if (!priceId) {
+      throw new Error(`No monthly Stripe price ID configured for plan ${planKey}`)
+    }
+
+    logStep('Using subscription price ID', { planKey, priceId })
+
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
 
     // Create or get Stripe customer
@@ -87,39 +118,20 @@ serve(async (req) => {
       logStep('Created new Stripe customer', { customerId })
     }
 
-    // Get plan configuration and determine price ID
-    const { data: planConfig, error: planError } = await supabase
-      .from('plan_configs')
-      .select('*')
-      .eq('plan_key', planKey)
-      .eq('is_active', true)
-      .single()
+    // Prepare line items for checkout
+    const lineItems = [{
+      price: priceId,
+      quantity: finalSeats,
+    }]
 
-    if (planError || !planConfig) {
-      throw new Error(`Plan ${planKey} not found or inactive`)
+    // Add setup fee as one-time item if configured
+    if (planConfig.stripe_setup_price_id) {
+      lineItems.push({
+        price: planConfig.stripe_setup_price_id,
+        quantity: 1,
+      })
+      logStep('Adding setup fee', { setupPriceId: planConfig.stripe_setup_price_id })
     }
-
-    const priceIdField = interval === 'month' ? 'stripe_price_id_monthly' : 'stripe_price_id_yearly'
-    let priceId = planConfig[priceIdField]
-
-    // Fallback to environment variables for price IDs
-    if (!priceId) {
-      if (planKey === 'pro') {
-        priceId = interval === 'month' 
-          ? Deno.env.get('PRICE_ID_PRO_MONTHLY')
-          : Deno.env.get('PRICE_ID_PRO_YEARLY')
-      } else if (planKey === 'business') {
-        priceId = interval === 'month'
-          ? Deno.env.get('PRICE_ID_BUSINESS_MONTHLY')
-          : Deno.env.get('PRICE_ID_BUSINESS_YEARLY')
-      }
-    }
-
-    if (!priceId) {
-      throw new Error(`No Stripe price ID configured for ${planKey} ${interval}ly`)
-    }
-
-    logStep('Using price ID', { planKey, interval, priceId })
 
     // Create checkout session
     const origin = req.headers.get('origin') || 'http://localhost:3000'
@@ -128,22 +140,22 @@ serve(async (req) => {
       client_reference_id: orgId, // For reliable org mapping
       mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [{
-        price: priceId,
-        quantity: seats,
-      }],
+      line_items: lineItems,
       success_url: `${origin}/dashboard?checkout_success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/dashboard?checkout_canceled=true`,
       metadata: {
         organization_id: orgId,
         plan_key: planKey,
-        seats: seats.toString(),
+        product_line: planConfig.product_line,
+        seats: finalSeats.toString(),
         interval: interval
       },
       subscription_data: {
         metadata: {
           organization_id: orgId,
-          plan_key: planKey
+          plan_key: planKey,
+          product_line: planConfig.product_line,
+          seats: finalSeats.toString()
         }
       }
     })
