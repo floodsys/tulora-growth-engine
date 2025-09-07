@@ -38,7 +38,8 @@ export function useSuperadmin(): UseSuperadminReturn {
 
     try {
       // Only use DB RPC call - no env fallbacks for authorization
-      const { data, error } = await supabase.rpc('is_superadmin');
+      // Pass user ID explicitly to avoid auth context issues
+      const { data, error } = await supabase.rpc('is_superadmin', { user_id: user.id });
       
       console.log('useSuperadmin: RPC result - data:', data, 'error:', error);
       
