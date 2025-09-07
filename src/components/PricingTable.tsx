@@ -272,6 +272,11 @@ const PricingTable = () => {
             <div className="text-sm text-muted-foreground">Setup: {plan.setupFee}</div>
             <div className="text-3xl font-bold text-foreground">{plan.monthlyPrice}</div>
             {!plan.isEnterprise && <div className="text-sm text-muted-foreground">per month</div>}
+            {!plan.isEnterprise && (
+              <div className="text-xs text-muted-foreground/80 mt-1">
+                Setup fee invoiced separately.
+              </div>
+            )}
           </div>
         </div>
 
