@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -52,8 +53,48 @@ import { TelemetryDashboard } from "@/components/admin/TelemetryDashboard";
 import { AdminLogsViewer } from "@/components/admin/AdminLogsViewer";
 import { InviteSystemTests } from "@/components/InviteSystemTests";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSuperadmin } from "@/hooks/useSuperadmin";
+import { useToast } from "@/hooks/use-toast";
 
 export function TestDashboard() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { isSuperadmin } = useSuperadmin();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  
+  // Determine if tests should be shown
+  const showTests = isSuperadmin && (
+    import.meta.env.MODE !== "production" || 
+    import.meta.env.VITE_ADMIN_TESTS_ENABLED === "true"
+  );
+  
+  // Available tabs
+  const availableTabs = ["overview", "system", "management", ...(showTests ? ["tests"] : []), "diagnostics"];
+  
+  // Get current tab from URL or default to overview
+  const currentTab = searchParams.get("tab") || "overview";
+  
+  // Handle tab changes and URL sync
+  const handleTabChange = (newTab: string) => {
+    const newSearchParams = new URLSearchParams(searchParams);
+    newSearchParams.set("tab", newTab);
+    setSearchParams(newSearchParams);
+  };
+  
+  // Handle case where tests tab is requested but disabled
+  useEffect(() => {
+    if (currentTab === "tests" && !showTests) {
+      toast({
+        title: "Tests Disabled",
+        description: "Tests are disabled in this environment.",
+        variant: "destructive",
+      });
+      handleTabChange("overview");
+    }
+  }, [currentTab, showTests, toast]);
+  
+  // Ensure current tab is valid
+  const validTab = availableTabs.includes(currentTab) ? currentTab : "overview";
   return (
     <div className="space-y-6">
       <div>
@@ -63,12 +104,12 @@ export function TestDashboard() {
         </p>
       </div>
 
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+      <Tabs value={validTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className={`grid w-full ${showTests ? 'grid-cols-5' : 'grid-cols-4'}`}>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="system">System</TabsTrigger>
           <TabsTrigger value="management">Management</TabsTrigger>
-          <TabsTrigger value="tests">Tests</TabsTrigger>
+          {showTests && <TabsTrigger value="tests">Tests</TabsTrigger>}
           <TabsTrigger value="diagnostics">Diagnostics</TabsTrigger>
         </TabsList>
         
@@ -250,143 +291,145 @@ export function TestDashboard() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="tests" className="space-y-6">
-          {/* Comprehensive Admin Tests */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TestTube className="h-5 w-5" />
-                Admin Test Runner
-              </CardTitle>
-              <CardDescription>
-                Run comprehensive system tests and diagnostics
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <AdminTestRunner />
-            </CardContent>
-          </Card>
+        {showTests && (
+          <TabsContent value="tests" className="space-y-6">
+            {/* Comprehensive Admin Tests */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TestTube className="h-5 w-5" />
+                  Admin Test Runner
+                </CardTitle>
+                <CardDescription>
+                  Run comprehensive system tests and diagnostics
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AdminTestRunner />
+              </CardContent>
+            </Card>
 
-          {/* Superadmin Tests */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Superadmin Test Harness
-              </CardTitle>
-              <CardDescription>
-                Test superadmin authorization and access controls
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <SuperadminTestHarness />
-            </CardContent>
-          </Card>
+            {/* Superadmin Tests */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Superadmin Test Harness
+                </CardTitle>
+                <CardDescription>
+                  Test superadmin authorization and access controls
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SuperadminTestHarness />
+              </CardContent>
+            </Card>
 
-          {/* Security Tests */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lock className="h-5 w-5" />
-                Security & Auth Tests
-              </CardTitle>
-              <CardDescription>
-                Authentication, authorization, and security tests
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="border rounded-lg p-4">
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  Guard Tests
-                </h4>
-                <GuardTests />
-              </div>
-              
-              <div className="border rounded-lg p-4">
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <Lock className="h-4 w-4" />
-                  Step-Up Authentication
-                </h4>
-                <StepUpAuthTest />
-              </div>
-              
-              <div className="border rounded-lg p-4">
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  Rate Limiting
-                </h4>
-                <RateLimitTest />
-              </div>
-            </CardContent>
-          </Card>
+            {/* Security Tests */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="h-5 w-5" />
+                  Security & Auth Tests
+                </CardTitle>
+                <CardDescription>
+                  Authentication, authorization, and security tests
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    Guard Tests
+                  </h4>
+                  <GuardTests />
+                </div>
+                
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <Lock className="h-4 w-4" />
+                    Step-Up Authentication
+                  </h4>
+                  <StepUpAuthTest />
+                </div>
+                
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Rate Limiting
+                  </h4>
+                  <RateLimitTest />
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Organization & User Tests */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Organization & User Tests
-              </CardTitle>
-              <CardDescription>
-                Test organization management, user roles, and permissions
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="border rounded-lg p-4">
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <UserPlus className="h-4 w-4" />
-                  Invite System Tests
-                </h4>
-                <InviteSystemTests />
-              </div>
-              
-              <div className="border rounded-lg p-4">
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <UserCheck className="h-4 w-4" />
-                  Invite Acceptance Tests
-                </h4>
-                <InviteAcceptanceTests />
-              </div>
-              
-              <div className="border rounded-lg p-4">
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <Pause className="h-4 w-4" />
-                  Organization Status Tests
-                </h4>
-                <OrgStatusGuardTest />
-              </div>
-              
-              <div className="border rounded-lg p-4">
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <Pause className="h-4 w-4" />
-                  Suspension System Tests
-                </h4>
-                <SuspensionSystemTest />
-              </div>
-            </CardContent>
-          </Card>
+            {/* Organization & User Tests */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Organization & User Tests
+                </CardTitle>
+                <CardDescription>
+                  Test organization management, user roles, and permissions
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    Invite System Tests
+                  </h4>
+                  <InviteSystemTests />
+                </div>
+                
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <UserCheck className="h-4 w-4" />
+                    Invite Acceptance Tests
+                  </h4>
+                  <InviteAcceptanceTests />
+                </div>
+                
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <Pause className="h-4 w-4" />
+                    Organization Status Tests
+                  </h4>
+                  <OrgStatusGuardTest />
+                </div>
+                
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <Pause className="h-4 w-4" />
+                    Suspension System Tests
+                  </h4>
+                  <SuspensionSystemTest />
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* System Tests */}
-          <Card>
-            <CardHeader>
-              <CardTitle>System Tests</CardTitle>
-              <CardDescription>
-                Organization system testing, routing, RBAC, and integrity checks
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-6">
-                <OrganizationProfileTests />
-                <TeamsConsolidationTests />
-                <HiddenTestsRunner />
-                <OrgSwitcherTests />
-                <ProfileUpdateTests />
-                <DemoArtifactLinter />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            {/* System Tests */}
+            <Card>
+              <CardHeader>
+                <CardTitle>System Tests</CardTitle>
+                <CardDescription>
+                  Organization system testing, routing, RBAC, and integrity checks
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6">
+                  <OrganizationProfileTests />
+                  <TeamsConsolidationTests />
+                  <HiddenTestsRunner />
+                  <OrgSwitcherTests />
+                  <ProfileUpdateTests />
+                  <DemoArtifactLinter />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         <TabsContent value="diagnostics" className="space-y-6">
           {/* Admin Session & Diagnostics */}
