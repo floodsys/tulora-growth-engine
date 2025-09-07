@@ -37,11 +37,17 @@ serve(async (req) => {
     if (req.method === 'GET') {
       console.log('[admin-stripe-config] Processing GET request');
       
-      // Get plan configs and check status
+      // Get plan configs - only show the four paid plans plus enterprise
+      const allowedPlans = [
+        'leadgen_starter', 'leadgen_business', 'leadgen_enterprise',
+        'support_starter', 'support_business', 'support_enterprise'
+      ];
+      
       const { data: plans, error: plansError } = await supabaseClient
         .from('plan_configs')
         .select('plan_key, display_name, stripe_price_id_monthly, stripe_setup_price_id, product_line')
         .eq('is_active', true)
+        .in('plan_key', allowedPlans)
         .order('product_line, plan_key');
 
       if (plansError) {
@@ -139,8 +145,11 @@ serve(async (req) => {
         console.log("[admin-stripe-config] Webhook check failed:", e.message);
       }
 
-      // Check readiness for Live mode
-      const paidPlans = plans?.filter(p => p.plan_key.includes('_starter') || p.plan_key.includes('_business')) || [];
+      // Check readiness for Live mode - only count non-enterprise paid plans
+      const paidPlans = plans?.filter(p => 
+        (p.plan_key.includes('_starter') || p.plan_key.includes('_business')) &&
+        !p.plan_key.includes('enterprise')
+      ) || [];
       const allPaidPlansConfigured = paidPlans.every(plan => 
         plan.stripe_price_id_monthly && plan.stripe_setup_price_id
       );

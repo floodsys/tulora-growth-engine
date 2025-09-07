@@ -16,6 +16,7 @@ interface PlanConfig {
   display_name: string;
   stripe_price_id_monthly: string | null;
   stripe_setup_price_id: string | null;
+  product_line?: string;
 }
 
 interface Status {
@@ -118,12 +119,20 @@ export default function AdminStripeConfig() {
     ));
   };
 
-  // Group plans by product line, hide legacy "Core" plans
-  const groupedPlans = plans.reduce((acc, plan) => {
+  // Filter to show only the four paid plans plus enterprise plans
+  const allowedPlans = [
+    'leadgen_starter', 'leadgen_business', 'leadgen_enterprise',
+    'support_starter', 'support_business', 'support_enterprise'
+  ];
+  
+  const filteredPlans = plans.filter(plan => allowedPlans.includes(plan.plan_key));
+  
+  // Group plans by product line
+  const groupedPlans = filteredPlans.reduce((acc, plan) => {
     let category = '';
-    if (plan.plan_key.includes('leadgen')) category = 'Lead Generation';
-    else if (plan.plan_key.includes('support')) category = 'Phone Support';
-    else return acc; // Skip legacy/core plans
+    if (plan.plan_key.includes('leadgen')) category = 'AI Lead Generation';
+    else if (plan.plan_key.includes('support')) category = 'AI Phone Support';
+    else return acc;
     
     if (!acc[category]) acc[category] = [];
     acc[category].push(plan);

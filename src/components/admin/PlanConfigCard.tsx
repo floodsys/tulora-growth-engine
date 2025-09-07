@@ -43,6 +43,7 @@ export function PlanConfigCard({ plan, onUpdate, onSave, saving }: PlanConfigCar
   const [setupError, setSetupError] = useState<string | null>(null);
   const { toast } = useToast();
   
+  const isEnterprise = plan.plan_key.includes('enterprise');
   const hasMonthlyPrice = !!plan.stripe_price_id_monthly;
   const hasSetupPrice = !!plan.stripe_setup_price_id;
   const isConfigured = hasMonthlyPrice && hasSetupPrice;
@@ -125,18 +126,50 @@ export function PlanConfigCard({ plan, onUpdate, onSave, saving }: PlanConfigCar
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{plan.display_name}</CardTitle>
+          <div className="space-y-1">
+            <CardTitle className="text-lg">{plan.display_name}</CardTitle>
+            {plan.product_line && (
+              <div className="flex items-center space-x-2">
+                <Badge variant="outline" className="text-xs font-mono">
+                  {plan.product_line}
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  {plan.plan_key}
+                </Badge>
+              </div>
+            )}
+          </div>
           <div className="flex items-center space-x-2">
-            <Badge variant={isConfigured ? "default" : "secondary"}>
-              {isConfigured ? "Configured" : "Not Configured"}
-            </Badge>
-            <Badge variant="outline" className="text-xs">
-              {plan.plan_key}
-            </Badge>
+            {isEnterprise ? (
+              <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                Contact Sales
+              </Badge>
+            ) : (
+              <Badge variant={isConfigured ? "default" : "secondary"}>
+                {isConfigured ? "Configured" : "Not Configured"}
+              </Badge>
+            )}
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {isEnterprise ? (
+          <div className="text-center py-8 space-y-3">
+            <div className="text-purple-600 font-semibold text-lg">Enterprise Plan</div>
+            <p className="text-muted-foreground text-sm">
+              Custom pricing and features. Contact our sales team for more information.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open('/contact/sales?product=' + (plan.plan_key.includes('leadgen') ? 'leadgen' : 'support'), '_blank')}
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Contact Sales
+            </Button>
+          </div>
+        ) : (
+          <>
         <div className="space-y-6">
           <div className="space-y-4">
             <Label htmlFor={`monthly-${plan.plan_key}`} className="flex items-center space-x-2">
@@ -270,6 +303,8 @@ export function PlanConfigCard({ plan, onUpdate, onSave, saving }: PlanConfigCar
             Save Configuration
           </Button>
         </div>
+        </>
+        )}
       </CardContent>
     </Card>
   );
