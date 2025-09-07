@@ -28,7 +28,7 @@ const AIWorkforceHero = () => {
         <img src="https://71bed9839f6b63de0d12cd02f4fd4947.cdn.bubble.io/f1754095693611x295787058622864830/who_its_for.svg" alt="Who's it for" className="w-48 h-28 mx-auto mb-5 absolute -top-4 left-1/2 transform -translate-x-1/2" />
         
         {/* Main Heading */}
-        <h1 className="text-5xl md:text-6xl font-montserrat font-extrabold text-foreground leading-tight mb-8 lg:text-7xl">
+        <h1 className="text-5xl md:text-6xl font-montserrat font-extrabold text-foreground leading-tight mb-8 lg:text-7xl mt-20">
           No technical background required.{' '}
           <span className="bg-gradient-to-r from-[#6056FF] to-[#FE7587] bg-clip-text text-transparent">
             Scale excellence
