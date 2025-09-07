@@ -30,6 +30,80 @@ export function StripeSetupInstructions() {
           <div>
             <h4 className="font-semibold mb-2 flex items-center">
               <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">1</span>
+              Create Stripe Products & Prices
+            </h4>
+            <p className="text-sm text-muted-foreground mb-3">
+              Set up products and prices for your AI Lead Generation and AI Phone Support plans:
+            </p>
+            <div className="space-y-3">
+              <div className="bg-muted rounded-lg p-3 space-y-2">
+                <div className="font-medium text-sm">AI Lead Generation Plans</div>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div>• Lead Gen Starter: Monthly subscription + Setup fee</div>
+                  <div>• Lead Gen Business: Monthly subscription + Setup fee</div>
+                  <div>• Lead Gen Enterprise: Contact sales (no price IDs needed)</div>
+                </div>
+              </div>
+              <div className="bg-muted rounded-lg p-3 space-y-2">
+                <div className="font-medium text-sm">AI Phone Support Plans</div>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div>• Support Starter: Monthly subscription + Setup fee</div>
+                  <div>• Support Business: Monthly subscription + Setup fee</div>
+                  <div>• Support Enterprise: Contact sales (no price IDs needed)</div>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 mt-3">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => window.open('https://dashboard.stripe.com/products', '_blank')}
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Create Products
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => window.open('https://dashboard.stripe.com/prices', '_blank')}
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Create Prices
+              </Button>
+            </div>
+          </div>
+          
+          <div>
+            <h4 className="font-semibold mb-2 flex items-center">
+              <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">2</span>
+              Configure Price IDs
+            </h4>
+            <p className="text-sm text-muted-foreground mb-3">
+              For each paid plan, you need two price IDs:
+            </p>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2 text-sm">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <strong>Monthly Price ID:</strong>
+                <span className="text-muted-foreground">Recurring subscription (price_...)</span>
+              </div>
+              <div className="flex items-center space-x-2 text-sm">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <strong>Setup Price ID:</strong>
+                <span className="text-muted-foreground">One-time setup fee (price_...)</span>
+              </div>
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded p-3 mt-3">
+              <div className="text-sm font-medium mb-1">💡 Pro Tip</div>
+              <div className="text-xs text-muted-foreground">
+                Enterprise plans don't need price IDs - they're configured as "Contact Sales" automatically.
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-semibold mb-2 flex items-center">
+              <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">3</span>
               Configure Stripe Webhook
             </h4>
             <p className="text-sm text-muted-foreground mb-3">
@@ -59,7 +133,7 @@ export function StripeSetupInstructions() {
           
           <div>
             <h4 className="font-semibold mb-2 flex items-center">
-              <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">2</span>
+              <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">4</span>
               Required Webhook Events
             </h4>
             <p className="text-sm text-muted-foreground mb-3">
@@ -82,7 +156,7 @@ export function StripeSetupInstructions() {
           
           <div>
             <h4 className="font-semibold mb-2 flex items-center">
-              <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">3</span>
+              <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">5</span>
               Configure Secret Keys
             </h4>
             <p className="text-sm text-muted-foreground mb-3">

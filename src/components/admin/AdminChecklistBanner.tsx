@@ -39,7 +39,7 @@ export function AdminChecklistBanner() {
     },
     {
       id: 'plan_prices',
-      label: 'Plan Price IDs',
+      label: 'AI Plan Price IDs',
       status: 'checking',
     },
     {
@@ -186,7 +186,7 @@ export function AdminChecklistBanner() {
 
       if (missingPrices.length === 0) {
         item.status = 'success';
-        item.message = 'All paid plans have price IDs configured';
+        item.message = 'All AI Lead Gen & Support paid plans have price IDs configured';
       } else {
         item.status = 'error';
         item.message = `Missing price IDs for: ${missingPrices.map(p => p.plan_key).join(', ')}`;
@@ -194,7 +194,7 @@ export function AdminChecklistBanner() {
           label: 'Update Plan Configs',
           onClick: () => toast({
             title: "Update Required",
-            description: "Add missing Stripe price IDs to plan_configs table",
+            description: "Add missing Stripe price IDs for AI Lead Generation and Support plans",
           })
         };
       }

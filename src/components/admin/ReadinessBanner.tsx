@@ -28,9 +28,9 @@ export function ReadinessBanner({ status }: ReadinessBannerProps) {
       description: "Required events are subscribed"
     },
     {
-      label: "Paid Plans Configured",
+      label: "AI Plan Configuration",
       status: allPaidPlansConfigured,
-      description: "All four paid plans have Live price IDs"
+      description: "All four paid plans (Lead Gen & Support Starter/Business) have Live price IDs"
     }
   ];
   

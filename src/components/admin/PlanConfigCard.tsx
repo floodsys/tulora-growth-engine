@@ -223,7 +223,7 @@ export function PlanConfigCard({ plan, onUpdate, onSave, saving }: PlanConfigCar
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              Recurring monthly subscription price from Stripe
+              Recurring monthly subscription price for AI Lead Generation or AI Phone Support
             </p>
           </div>
           
@@ -278,7 +278,7 @@ export function PlanConfigCard({ plan, onUpdate, onSave, saving }: PlanConfigCar
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              One-time setup fee
+              One-time setup fee for plan activation
             </p>
           </div>
         </div>
