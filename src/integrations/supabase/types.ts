@@ -1041,6 +1041,7 @@ export type Database = {
       }
       plan_configs: {
         Row: {
+          bill_setup_fee_in_stripe: boolean
           created_at: string
           display_name: string
           features: string[] | null
@@ -1057,6 +1058,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bill_setup_fee_in_stripe?: boolean
           created_at?: string
           display_name: string
           features?: string[] | null
@@ -1073,6 +1075,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bill_setup_fee_in_stripe?: boolean
           created_at?: string
           display_name?: string
           features?: string[] | null

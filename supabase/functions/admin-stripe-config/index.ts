@@ -45,7 +45,7 @@ serve(async (req) => {
       
       const { data: plans, error: plansError } = await supabaseClient
         .from('plan_configs')
-        .select('plan_key, display_name, stripe_price_id_monthly, stripe_setup_price_id, product_line')
+        .select('plan_key, display_name, stripe_price_id_monthly, stripe_setup_price_id, product_line, bill_setup_fee_in_stripe')
         .eq('is_active', true)
         .in('product_line', ['leadgen', 'support']) // GUARDRAIL: Enforce allowed product lines
         .in('plan_key', allowedPlans)
@@ -168,13 +168,17 @@ serve(async (req) => {
       
       const isLiveReady = portalEnabled && webhookReachable && allPaidPlansConfigured;
 
+      // Check if setup fee billing is enabled for any plans
+      const setupFeeBillingEnabled = plans?.some(p => p.bill_setup_fee_in_stripe) || false;
+
       return new Response(JSON.stringify({
         plans,
         status: {
           portalEnabled,
           webhookReachable,
           allPaidPlansConfigured,
-          isLiveReady
+          isLiveReady,
+          setupFeeBillingEnabled
         },
         healthCheck: {
           coreWarning: corePlans && corePlans.length > 0 ? {
@@ -248,7 +252,7 @@ serve(async (req) => {
         }
       } else {
         // Save plan configuration
-        const { plan_key, stripe_price_id_monthly, stripe_setup_price_id } = body;
+        const { plan_key, stripe_price_id_monthly, stripe_setup_price_id, bill_setup_fee_in_stripe } = body;
 
         // GUARDRAIL: Verify this is an allowed plan before saving
         const allowedPlans = [
@@ -260,14 +264,21 @@ serve(async (req) => {
           throw new Error(`Plan ${plan_key} is not allowed - only leadgen and support plans are permitted`);
         }
 
+        const updateData: any = {
+          plan_key,
+          stripe_price_id_monthly,
+          stripe_setup_price_id,
+          updated_at: new Date().toISOString()
+        };
+
+        // Only include bill_setup_fee_in_stripe if it's provided
+        if (bill_setup_fee_in_stripe !== undefined) {
+          updateData.bill_setup_fee_in_stripe = bill_setup_fee_in_stripe;
+        }
+
         const { error } = await supabaseClient
           .from('plan_configs')
-          .upsert({
-            plan_key,
-            stripe_price_id_monthly,
-            stripe_setup_price_id,
-            updated_at: new Date().toISOString()
-          }, {
+          .upsert(updateData, {
             onConflict: 'plan_key'
           });
 

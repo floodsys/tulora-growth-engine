@@ -7,6 +7,7 @@ interface Status {
   webhookReachable: boolean;
   allPaidPlansConfigured: boolean;
   isLiveReady: boolean;
+  setupFeeBillingEnabled?: boolean;
 }
 
 interface ReadinessBannerProps {
@@ -14,7 +15,7 @@ interface ReadinessBannerProps {
 }
 
 export function ReadinessBanner({ status }: ReadinessBannerProps) {
-  const { portalEnabled, webhookReachable, allPaidPlansConfigured, isLiveReady } = status;
+  const { portalEnabled, webhookReachable, allPaidPlansConfigured, isLiveReady, setupFeeBillingEnabled } = status;
   
   const checks = [
     {
@@ -57,7 +58,7 @@ export function ReadinessBanner({ status }: ReadinessBannerProps) {
               </h3>
               <p className="text-sm text-muted-foreground">
                 {isLiveReady 
-                  ? "All systems ready for Live Stripe integration" 
+                  ? `All systems ready for Live Stripe integration${setupFeeBillingEnabled ? ' (Setup fees enabled)' : ' (Setup fees disabled)'}` 
                   : "Complete the checklist below to enable Live mode"
                 }
               </p>

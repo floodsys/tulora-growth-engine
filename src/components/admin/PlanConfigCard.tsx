@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Loader2, Save, ExternalLink, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { SUPABASE_URL, SUPABASE_ANON } from '@/config/publicConfig';
@@ -15,6 +16,7 @@ interface PlanConfig {
   stripe_price_id_monthly: string | null;
   stripe_setup_price_id: string | null;
   product_line?: string;
+  bill_setup_fee_in_stripe?: boolean;
 }
 
 interface ValidationResult {
@@ -254,9 +256,29 @@ export function PlanConfigCard({ plan, onUpdate, onSave, saving }: PlanConfigCar
                 {setupError}
               </div>
             )}
-            <p className="text-xs text-muted-foreground">
-              Setup fee is currently billed off-platform; leave blank to disable.
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                One-time setup fee for this plan.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label htmlFor={`setup-toggle-${plan.plan_key}`} className="text-sm font-medium">
+                  Bill setup fee in Stripe
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  When enabled, setup fees are added to the first invoice. When disabled, setup fees are collected off-platform.
+                </p>
+              </div>
+              <Switch
+                id={`setup-toggle-${plan.plan_key}`}
+                checked={plan.bill_setup_fee_in_stripe || false}
+                onCheckedChange={(checked) => onUpdate(plan.plan_key, 'bill_setup_fee_in_stripe', checked.toString())}
+              />
+            </div>
           </div>
         </div>
         

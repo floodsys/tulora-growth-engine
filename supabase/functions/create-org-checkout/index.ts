@@ -110,11 +110,22 @@ serve(async (req) => {
       logStep('Created new Stripe customer', { customerId })
     }
 
-    // Prepare line items - subscription only
+    // Prepare line items - subscription + optional setup fee
     const lineItems = [{
       price: priceId,
       quantity: 1, // Default to 1 seat, can be adjusted later via Stripe portal
-    }]
+    }];
+
+    // Add setup fee if enabled and configured
+    if (planConfig.bill_setup_fee_in_stripe && planConfig.stripe_setup_price_id) {
+      logStep('Adding setup fee to checkout', { setupPriceId: planConfig.stripe_setup_price_id });
+      lineItems.push({
+        price: planConfig.stripe_setup_price_id,
+        quantity: 1
+      });
+    } else if (planConfig.bill_setup_fee_in_stripe && !planConfig.stripe_setup_price_id) {
+      logStep('Setup fee billing enabled but no setup price ID configured', { planKey });
+    }
 
     // Get APP_ORIGIN for success/cancel URLs
     const appOrigin = Deno.env.get('APP_ORIGIN') || req.headers.get('origin') || 'http://localhost:3000'

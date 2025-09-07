@@ -19,6 +19,7 @@ interface PlanConfig {
   stripe_price_id_monthly: string | null;
   stripe_setup_price_id: string | null;
   product_line?: string;
+  bill_setup_fee_in_stripe?: boolean;
 }
 
 interface Status {
@@ -26,6 +27,7 @@ interface Status {
   webhookReachable: boolean;
   allPaidPlansConfigured: boolean;
   isLiveReady: boolean;
+  setupFeeBillingEnabled?: boolean;
 }
 
 interface HealthCheck {
@@ -101,7 +103,8 @@ export default function AdminStripeConfig() {
         body: {
           plan_key: plan.plan_key,
           stripe_price_id_monthly: plan.stripe_price_id_monthly,
-          stripe_setup_price_id: plan.stripe_setup_price_id
+          stripe_setup_price_id: plan.stripe_setup_price_id,
+          bill_setup_fee_in_stripe: plan.bill_setup_fee_in_stripe
         }
       });
 
@@ -109,7 +112,7 @@ export default function AdminStripeConfig() {
 
       toast({
         title: "Success",
-        description: `Updated ${plan.display_name} pricing configuration`
+        description: `Updated ${plan.display_name} configuration`
       });
     } catch (error) {
       console.error('Error saving plan:', error);
@@ -126,7 +129,7 @@ export default function AdminStripeConfig() {
   const updatePlan = (planKey: string, field: string, value: string) => {
     setPlans(prev => prev.map(plan => 
       plan.plan_key === planKey 
-        ? { ...plan, [field]: value }
+        ? { ...plan, [field]: field === 'bill_setup_fee_in_stripe' ? value === 'true' : value }
         : plan
     ));
   };
