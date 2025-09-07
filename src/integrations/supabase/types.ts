@@ -970,6 +970,8 @@ export type Database = {
           owner_user_id: string | null
           plan_key: string | null
           retention_config: Json | null
+          setup_fee_notes: string | null
+          setup_fee_status: string | null
           size_band: string | null
           status: string | null
           stripe_customer_id: string | null
@@ -995,6 +997,8 @@ export type Database = {
           owner_user_id?: string | null
           plan_key?: string | null
           retention_config?: Json | null
+          setup_fee_notes?: string | null
+          setup_fee_status?: string | null
           size_band?: string | null
           status?: string | null
           stripe_customer_id?: string | null
@@ -1020,6 +1024,8 @@ export type Database = {
           owner_user_id?: string | null
           plan_key?: string | null
           retention_config?: Json | null
+          setup_fee_notes?: string | null
+          setup_fee_status?: string | null
           size_band?: string | null
           status?: string | null
           stripe_customer_id?: string | null

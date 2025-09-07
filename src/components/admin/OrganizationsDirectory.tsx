@@ -37,6 +37,7 @@ import { getOrgStatusMessage } from '@/lib/error-codes';
 import { TransferOwnershipDialog } from './TransferOwnershipDialog';
 import { ViewActivityDialog } from './ViewActivityDialog';
 import { SuspensionDialog } from './SuspensionDialog';
+import { SetupFeeTracker } from './SetupFeeTracker';
 
 interface Organization {
   id: string;
@@ -54,6 +55,8 @@ interface Organization {
   last_activity?: string;
   mrr?: number;
   trial_ends_at?: string;
+  setup_fee_status?: string;
+  setup_fee_notes?: string;
 }
 
 export function OrganizationsDirectory() {
@@ -74,6 +77,7 @@ export function OrganizationsDirectory() {
   const [suspensionAction, setSuspensionAction] = useState<'suspend' | 'reinstate' | 'cancel' | undefined>(undefined);
   const [transferOrgId, setTransferOrgId] = useState<string | null>(null);
   const [viewActivityOrgId, setViewActivityOrgId] = useState<string | null>(null);
+  const [setupFeeOrgId, setSetupFeeOrgId] = useState<string | null>(null);
 
   useEffect(() => {
     loadOrganizations();
@@ -93,7 +97,9 @@ export function OrganizationsDirectory() {
           status,
           suspension_reason,
           created_at,
-          trial_ends_at
+          trial_ends_at,
+          setup_fee_status,
+          setup_fee_notes
         `);
 
       if (orgsError) throw orgsError;
@@ -257,6 +263,18 @@ export function OrganizationsDirectory() {
         {plan}
       </Badge>
     );
+  };
+
+  const getSetupFeeBadge = (status: string) => {
+    switch (status) {
+      case 'collected_off_platform':
+        return <Badge variant="default" className="bg-green-500 hover:bg-green-600 text-white">Collected</Badge>;
+      case 'waived':
+        return <Badge variant="outline" className="text-blue-600 border-blue-300">Waived</Badge>;
+      case 'pending':
+      default:
+        return <Badge variant="secondary" className="text-orange-600 bg-orange-100">Pending</Badge>;
+    }
   };
 
   if (loading) {
@@ -453,6 +471,7 @@ export function OrganizationsDirectory() {
                 <TableHead>Plan</TableHead>
                 <TableHead>Seats</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Setup Fee</TableHead>
                 <TableHead>MRR</TableHead>
                 <TableHead>Last Activity</TableHead>
                 <TableHead className="w-12"></TableHead>
@@ -478,6 +497,9 @@ export function OrganizationsDirectory() {
                   </TableCell>
                   <TableCell>
                      {getStatusBadge(org.status || 'active', org.billing_status)}
+                  </TableCell>
+                  <TableCell>
+                    {getSetupFeeBadge(org.setup_fee_status || 'pending')}
                   </TableCell>
                   <TableCell>${org.mrr || 0}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
@@ -559,6 +581,10 @@ export function OrganizationsDirectory() {
                             <CreditCard className="h-4 w-4 mr-2" />
                             View in Stripe
                           </a>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setSetupFeeOrgId(org.id)}>
+                          <FileText className="h-4 w-4 mr-2" />
+                          Setup Fee Tracking
                         </DropdownMenuItem>
                         
                         {/* Side Panel Trigger */}
@@ -750,6 +776,39 @@ export function OrganizationsDirectory() {
         open={!!viewActivityOrgId}
         onOpenChange={(open) => !open && setViewActivityOrgId(null)}
       />
+
+      {/* Setup Fee Tracking Dialog */}
+      {setupFeeOrgId && (
+        <Sheet open={!!setupFeeOrgId} onOpenChange={(open) => !open && setSetupFeeOrgId(null)}>
+          <SheetContent className="w-[500px] sm:w-[540px]">
+            <SheetHeader>
+              <SheetTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Setup Fee Tracking
+              </SheetTitle>
+            </SheetHeader>
+            <div className="mt-6">
+              {(() => {
+                const org = organizations.find(o => o.id === setupFeeOrgId);
+                return org ? (
+                  <SetupFeeTracker
+                    organizationId={org.id}
+                    organizationName={org.name}
+                    currentStatus={org.setup_fee_status || 'pending'}
+                    currentNotes={org.setup_fee_notes || ''}
+                    onUpdate={() => {
+                      loadOrganizations();
+                      setSetupFeeOrgId(null);
+                    }}
+                  />
+                ) : (
+                  <p>Organization not found</p>
+                );
+              })()}
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }
