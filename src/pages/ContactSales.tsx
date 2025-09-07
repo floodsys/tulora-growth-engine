@@ -147,8 +147,7 @@ export default function ContactSales() {
               Contact Enterprise Sales
             </h1>
             <p className="text-muted-foreground">
-              Get in touch for enterprise pricing and custom solutions for{" "}
-              <span className="font-semibold">{getProductLineDisplay(formData.product_line)}</span>
+              Get in touch for enterprise pricing and custom solutions for your business
             </p>
           </div>
 
