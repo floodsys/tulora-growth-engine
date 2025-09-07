@@ -114,9 +114,13 @@ export function AdminChecklistBanner() {
       
       if (error) throw error;
       
-      const portalCheck = data.tests?.find((t: any) => t.test_name === 'billing_portal_config');
+      // Look for the correct test name from the smoke test response
+      const portalCheck = data.results?.find((t: any) => 
+        t.test_name === 'Billing Portal Configuration' || 
+        t.test_name === 'Billing Portal Session Creation'
+      );
       
-      if (portalCheck?.status === 'success') {
+      if (portalCheck?.status === 'pass') {
         item.status = 'success';
         item.message = 'Customer portal is configured and accessible';
       } else {
@@ -141,9 +145,13 @@ export function AdminChecklistBanner() {
       
       if (error) throw error;
       
-      const webhookCheck = data.tests?.find((t: any) => t.test_name === 'webhook_endpoints');
+      // Look for the correct test name from the smoke test response
+      const webhookCheck = data.results?.find((t: any) => 
+        t.test_name === 'Webhook Endpoints' || 
+        t.test_name === 'Webhook Events Access'
+      );
       
-      if (webhookCheck?.status === 'success') {
+      if (webhookCheck?.status === 'pass') {
         // Check if required events are configured
         const requiredEvents = [
           'checkout.session.completed',
