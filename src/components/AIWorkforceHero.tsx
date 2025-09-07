@@ -1,5 +1,5 @@
 const AIWorkforceHero = () => {
-  return <section className="relative py-1 bg-background overflow-hidden min-h-[50px] flex items-center justify-center">
+  return <section className="relative py-0 bg-background overflow-hidden min-h-0 flex items-center justify-center -mt-4">
       {/* Floating Shapes */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute w-20 h-20 rounded-full opacity-60 animate-float" style={{
