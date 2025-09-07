@@ -503,55 +503,75 @@ export function OrganizationsDirectory() {
                   </TableCell>
                   <TableCell>${org.mrr || 0}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {org.last_activity ? new Date(org.last_activity).toLocaleDateString() : 'Never'}
+                    {org.last_activity ? 
+                      new Date(org.last_activity).toLocaleDateString() : 
+                      'No activity'
+                    }
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Open menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuItem onClick={() => window.open(`/dashboard?org=${org.id}`, '_blank')}>
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          Open Dashboard
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        
-                        {/* Suspension Actions */}
-                        {org.status === 'suspended' || org.status === 'canceled' ? (
-                          <DropdownMenuItem
+                      <DropdownMenuContent align="end" className="w-80">
+                        {/* Status Actions */}
+                        {org.status === 'suspended' ? (
+                          <>
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                setSelectedOrg(org);
+                                setSuspensionAction('reinstate');
+                                setSuspensionDialogOpen(true);
+                              }}
+                            >
+                              <Play className="h-4 w-4 mr-2" />
+                              Reinstate Service
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                setSelectedOrg(org);
+                                setSuspensionAction('cancel');
+                                setSuspensionDialogOpen(true);
+                              }}
+                            >
+                              <Ban className="h-4 w-4 mr-2" />
+                              Cancel Service
+                            </DropdownMenuItem>
+                          </>
+                        ) : org.status === 'canceled' ? (
+                          <DropdownMenuItem 
                             onClick={() => {
                               setSelectedOrg(org);
                               setSuspensionAction('reinstate');
                               setSuspensionDialogOpen(true);
                             }}
                           >
-                            <Play className="h-4 w-4 mr-2 text-green-500" />
+                            <Play className="h-4 w-4 mr-2" />
                             Reinstate Service
                           </DropdownMenuItem>
                         ) : (
                           <>
-                            <DropdownMenuItem
+                            <DropdownMenuItem 
                               onClick={() => {
                                 setSelectedOrg(org);
                                 setSuspensionAction('suspend');
                                 setSuspensionDialogOpen(true);
                               }}
                             >
-                              <Pause className="h-4 w-4 mr-2 text-yellow-500" />
+                              <Pause className="h-4 w-4 mr-2" />
                               Suspend Service
                             </DropdownMenuItem>
-                            <DropdownMenuItem
+                            <DropdownMenuItem 
                               onClick={() => {
                                 setSelectedOrg(org);
                                 setSuspensionAction('cancel');
                                 setSuspensionDialogOpen(true);
                               }}
-                              className="text-destructive focus:text-destructive"
                             >
-                              <XCircle className="h-4 w-4 mr-2" />
+                              <Ban className="h-4 w-4 mr-2" />
                               Cancel Service
                             </DropdownMenuItem>
                           </>
@@ -669,10 +689,10 @@ export function OrganizationsDirectory() {
                                 ) : (
                                   <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                                     <p className="text-sm text-green-800 mb-2">
-                                      <strong>All Services Active</strong>
+                                      <strong>Service Active (HTTP 200)</strong>
                                     </p>
                                     <p className="text-xs text-green-700">
-                                      Organization has full access to all platform features.
+                                      All services operational.
                                     </p>
                                   </div>
                                 )}
@@ -684,21 +704,6 @@ export function OrganizationsDirectory() {
                               <div>
                                 <h3 className="font-medium mb-3">Quick Actions</h3>
                                 <div className="space-y-2">
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="w-full justify-start"
-                                    asChild
-                                  >
-                                    <a 
-                                      href={`/dashboard?org=${org.id}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                    >
-                                      <ExternalLink className="h-4 w-4 mr-2" />
-                                      Open Dashboard
-                                    </a>
-                                  </Button>
                                   <Button 
                                     variant="outline" 
                                     size="sm" 
@@ -735,28 +740,19 @@ export function OrganizationsDirectory() {
               ))}
             </TableBody>
           </Table>
-
-          {filteredOrganizations.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              No organizations found matching your criteria
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      {/* Dialogs */}
-      {selectedOrg && (
+      {/* Suspension Dialog */}
+      {suspensionDialogOpen && selectedOrg && (
         <SuspensionDialog
           isOpen={suspensionDialogOpen}
-          onClose={() => {
-            setSuspensionDialogOpen(false);
-            setSelectedOrg(null);
-            setSuspensionAction(undefined);
-          }}
+          onClose={() => setSuspensionDialogOpen(false)}
           organization={selectedOrg}
           action={suspensionAction}
           onSuccess={() => {
             loadOrganizations();
+            setSuspensionDialogOpen(false);
           }}
         />
       )}
