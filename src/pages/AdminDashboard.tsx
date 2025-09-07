@@ -1,5 +1,6 @@
 import { AdminGuard } from '@/components/admin/AdminGuard';
 import { TestDashboard } from '@/components/tests/TestDashboard';
+import { AdminSelfCheck } from '@/components/AdminSelfCheck';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -51,16 +52,20 @@ export default function AdminDashboard() {
     <AdminGuard>
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8">
-          <div className="mb-6">
-            <button
-              onClick={handleSuperadminDebug}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              🔐 Debug Superadmin Status
-            </button>
-            <p className="text-sm text-muted-foreground mt-2">
-              Check console for detailed debug output including environment info and SQL statements
-            </p>
+          <div className="mb-8 space-y-6">
+            <AdminSelfCheck />
+            
+            <div>
+              <button
+                onClick={handleSuperadminDebug}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                🔐 Debug Superadmin Status
+              </button>
+              <p className="text-sm text-muted-foreground mt-2">
+                Check console for detailed debug output including environment info and SQL statements
+              </p>
+            </div>
           </div>
           <TestDashboard />
         </div>
