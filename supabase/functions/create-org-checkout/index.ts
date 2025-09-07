@@ -79,8 +79,7 @@ serve(async (req) => {
 
     logStep('Found plan config', { 
       planKey, 
-      productLine: planConfig.product_line,
-      hasSetupFee: !!planConfig.stripe_setup_price_id 
+      productLine: planConfig.product_line
     })
 
     // Use monthly subscription price
@@ -111,27 +110,11 @@ serve(async (req) => {
       logStep('Created new Stripe customer', { customerId })
     }
 
-    // Prepare line items - subscription only (setup fee handled via invoice_creation)
+    // Prepare line items - subscription only
     const lineItems = [{
       price: priceId,
       quantity: 1, // Default to 1 seat, can be adjusted later via Stripe portal
     }]
-
-    // Prepare invoice creation for setup fee if configured
-    let invoiceCreation = undefined
-    if (planConfig.stripe_setup_price_id) {
-      invoiceCreation = {
-        enabled: true,
-        invoice_data: {
-          metadata: {
-            setup_fee: 'true',
-            organization_id: orgId,
-            plan_key: planKey
-          }
-        }
-      }
-      logStep('Setup fee will be added to first invoice', { setupPriceId: planConfig.stripe_setup_price_id })
-    }
 
     // Get APP_ORIGIN for success/cancel URLs
     const appOrigin = Deno.env.get('APP_ORIGIN') || req.headers.get('origin') || 'http://localhost:3000'
@@ -143,7 +126,6 @@ serve(async (req) => {
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: lineItems,
-      invoice_creation: invoiceCreation,
       success_url: `${appOrigin}/dashboard?checkout_success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appOrigin}/dashboard?checkout_canceled=true`,
       metadata: {
@@ -159,20 +141,6 @@ serve(async (req) => {
         }
       }
     })
-
-    // If there's a setup fee, add it to the first invoice
-    if (planConfig.stripe_setup_price_id && session.invoice) {
-      await stripe.invoiceItems.create({
-        customer: customerId,
-        invoice: session.invoice as string,
-        price: planConfig.stripe_setup_price_id,
-        quantity: 1
-      })
-      logStep('Added setup fee to first invoice', { 
-        invoiceId: session.invoice,
-        setupPriceId: planConfig.stripe_setup_price_id 
-      })
-    }
 
     logStep('Checkout session created', { sessionId: session.id, url: session.url })
 
