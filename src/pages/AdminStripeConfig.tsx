@@ -26,9 +26,17 @@ interface Status {
   isLiveReady: boolean;
 }
 
+interface HealthCheck {
+  coreWarning?: {
+    message: string;
+    corePlans: Array<{ plan_key: string; display_name: string }>;
+  } | null;
+}
+
 export default function AdminStripeConfig() {
   const [plans, setPlans] = useState<PlanConfig[]>([]);
   const [status, setStatus] = useState<Status>({ portalEnabled: false, webhookReachable: false, allPaidPlansConfigured: false, isLiveReady: false });
+  const [healthCheck, setHealthCheck] = useState<HealthCheck>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
@@ -53,6 +61,7 @@ export default function AdminStripeConfig() {
       const data = await response.json();
       setPlans(data.plans || []);
       setStatus(data.status || { portalEnabled: false, webhookReachable: false, allPaidPlansConfigured: false, isLiveReady: false });
+      setHealthCheck(data.healthCheck || {});
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -171,6 +180,24 @@ export default function AdminStripeConfig() {
             Setup Guide
           </Button>
         </div>
+
+        {/* Health Check Warning */}
+        {healthCheck.coreWarning && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+            <div className="flex items-start space-x-3">
+              <div className="bg-destructive/20 p-1 rounded">
+                <HelpCircle className="h-4 w-4 text-destructive" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-destructive mb-1">Configuration Issue Detected</h3>
+                <p className="text-sm text-destructive/80 mb-2">{healthCheck.coreWarning.message}</p>
+                <div className="text-xs text-destructive/60">
+                  Core plans found: {healthCheck.coreWarning.corePlans.map(p => p.plan_key).join(', ')}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Live Mode Readiness Banner */}
         <ReadinessBanner status={status} />

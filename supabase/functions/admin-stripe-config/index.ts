@@ -37,7 +37,7 @@ serve(async (req) => {
     if (req.method === 'GET') {
       console.log('[admin-stripe-config] Processing GET request');
       
-      // Get plan configs - only show the four paid plans plus enterprise
+      // GUARDRAIL: Enforce product line filtering - only leadgen and support
       const allowedPlans = [
         'leadgen_starter', 'leadgen_business', 'leadgen_enterprise',
         'support_starter', 'support_business', 'support_enterprise'
@@ -47,8 +47,20 @@ serve(async (req) => {
         .from('plan_configs')
         .select('plan_key, display_name, stripe_price_id_monthly, stripe_setup_price_id, product_line')
         .eq('is_active', true)
+        .in('product_line', ['leadgen', 'support']) // GUARDRAIL: Enforce allowed product lines
         .in('plan_key', allowedPlans)
         .order('product_line, plan_key');
+
+      // HEALTH CHECK: Detect any active Core plans that shouldn't exist
+      const { data: corePlans, error: corePlansError } = await supabaseClient
+        .from('plan_configs')
+        .select('plan_key, display_name')
+        .eq('is_active', true)
+        .eq('product_line', 'core');
+
+      if (corePlansError) {
+        console.error('[admin-stripe-config] Core plans check error:', corePlansError);
+      }
 
       if (plansError) {
         console.error('[admin-stripe-config] Plans error:', plansError);
@@ -163,6 +175,12 @@ serve(async (req) => {
           webhookReachable,
           allPaidPlansConfigured,
           isLiveReady
+        },
+        healthCheck: {
+          coreWarning: corePlans && corePlans.length > 0 ? {
+            message: `WARNING: ${corePlans.length} Core plan(s) are active and should be disabled`,
+            corePlans: corePlans.map(p => ({ plan_key: p.plan_key, display_name: p.display_name }))
+          } : null
         }
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -231,6 +249,16 @@ serve(async (req) => {
       } else {
         // Save plan configuration
         const { plan_key, stripe_price_id_monthly, stripe_setup_price_id } = body;
+
+        // GUARDRAIL: Verify this is an allowed plan before saving
+        const allowedPlans = [
+          'leadgen_starter', 'leadgen_business', 'leadgen_enterprise',
+          'support_starter', 'support_business', 'support_enterprise'
+        ];
+        
+        if (!allowedPlans.includes(plan_key)) {
+          throw new Error(`Plan ${plan_key} is not allowed - only leadgen and support plans are permitted`);
+        }
 
         const { error } = await supabaseClient
           .from('plan_configs')
