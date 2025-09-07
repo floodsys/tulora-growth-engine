@@ -359,29 +359,7 @@ serve(async (req) => {
       <p><strong>Lead ID:</strong> ${savedLead.id}</p>
     `;
 
-    // Send notification to sales team
-    const emailOptions: any = {
-      from: notificationsFrom,
-      to: [recipient],
-      subject: emailSubject,
-      html: emailHtml,
-      reply_to: leadData.email
-    }
-    
-    if (ccRecipients.length > 0) {
-      emailOptions.cc = ccRecipients
-    }
-
-    const { error: emailError } = await resend.emails.send(emailOptions)
-
-    if (emailError) {
-      logStep('Email notification failed', savedLead.id)
-      console.error('Failed to send notification email:', emailError)
-    } else {
-      logStep('Email notification sent', savedLead.id)
-    }
-
-    // Send confirmation email to prospect
+    // Prepare confirmation email content
     const confirmationHtml = `
       <h2>Thank you for contacting Tulora</h2>
       <p>Hi ${leadData.full_name},</p>
@@ -397,24 +375,97 @@ serve(async (req) => {
       <p>Best regards,<br>The Tulora Team</p>
     `
 
-    const { error: confirmationError } = await resend.emails.send({
-      from: notificationsFrom,
-      to: [leadData.email],
-      subject: `Thank you for contacting Tulora`,
-      html: confirmationHtml
-    })
+    // Initialize email message IDs array and delivery status
+    const emailMessageIds: string[] = []
+    let deliveryStatus = 'pending'
 
-    if (confirmationError) {
-      logStep('Confirmation email failed', savedLead.id)
-      console.error('Failed to send confirmation email:', confirmationError)
-    } else {
-      logStep('Confirmation email sent', savedLead.id)
+    // Send notification to sales team (don't block on failure)
+    try {
+      const emailOptions: any = {
+        from: notificationsFrom,
+        to: [recipient],
+        subject: emailSubject,
+        html: emailHtml,
+        reply_to: leadData.email
+      }
+      
+      if (ccRecipients.length > 0) {
+        emailOptions.cc = ccRecipients
+      }
+
+      const { data: emailData, error: emailError } = await resend.emails.send(emailOptions)
+
+      if (emailError) {
+        logStep('Sales notification email failed', savedLead.id, 'error')
+        console.error('Failed to send sales notification email:', emailError)
+        deliveryStatus = 'failed'
+      } else {
+        logStep('Sales notification email sent', savedLead.id, 'success')
+        if (emailData?.id) {
+          emailMessageIds.push(emailData.id)
+        }
+      }
+    } catch (error) {
+      logStep('Sales notification email error', savedLead.id, 'error')
+      console.error('Sales notification email error:', error)
+      deliveryStatus = 'failed'
+    }
+
+    // Send confirmation email to prospect (don't block on failure)
+    try {
+      const { data: confirmationData, error: confirmationError } = await resend.emails.send({
+        from: notificationsFrom,
+        to: [leadData.email],
+        subject: `Thank you for contacting Tulora`,
+        html: confirmationHtml
+      })
+
+      if (confirmationError) {
+        logStep('Confirmation email failed', savedLead.id, 'error')
+        console.error('Failed to send confirmation email:', confirmationError)
+        if (deliveryStatus !== 'failed') {
+          deliveryStatus = 'partial'
+        }
+      } else {
+        logStep('Confirmation email sent', savedLead.id, 'success')
+        if (confirmationData?.id) {
+          emailMessageIds.push(confirmationData.id)
+        }
+        if (deliveryStatus === 'pending') {
+          deliveryStatus = 'sent'
+        }
+      }
+    } catch (error) {
+      logStep('Confirmation email error', savedLead.id, 'error')
+      console.error('Confirmation email error:', error)
+      if (deliveryStatus !== 'failed') {
+        deliveryStatus = 'partial'
+      }
+    }
+
+    // Update lead with delivery status and message IDs (don't fail if this fails)
+    try {
+      await supabase
+        .from('leads')
+        .update({
+          delivery_status: deliveryStatus,
+          email_message_ids: emailMessageIds
+        })
+        .eq('id', savedLead.id)
+      
+      logStep('Lead delivery status updated', savedLead.id, deliveryStatus)
+    } catch (error) {
+      logStep('Failed to update delivery status', savedLead.id, 'error')
+      console.error('Failed to update lead delivery status:', error)
+      // Don't fail the whole request if status update fails
     }
 
     return new Response(JSON.stringify({ 
       success: true, 
       leadId: savedLead.id,
       inquiry_type: savedLead.inquiry_type,
+      delivery_status: deliveryStatus,
+      emails_sent: emailMessageIds.length,
       message: 'Submission received successfully'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

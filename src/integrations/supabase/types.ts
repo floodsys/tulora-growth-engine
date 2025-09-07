@@ -679,7 +679,9 @@ export type Database = {
           crm_synced_at: string | null
           crm_system: string | null
           crm_url: string | null
+          delivery_status: string | null
           email: string
+          email_message_ids: Json | null
           expected_volume_label: string | null
           expected_volume_value: string | null
           full_name: string | null
@@ -719,7 +721,9 @@ export type Database = {
           crm_synced_at?: string | null
           crm_system?: string | null
           crm_url?: string | null
+          delivery_status?: string | null
           email: string
+          email_message_ids?: Json | null
           expected_volume_label?: string | null
           expected_volume_value?: string | null
           full_name?: string | null
@@ -759,7 +763,9 @@ export type Database = {
           crm_synced_at?: string | null
           crm_system?: string | null
           crm_url?: string | null
+          delivery_status?: string | null
           email?: string
+          email_message_ids?: Json | null
           expected_volume_label?: string | null
           expected_volume_value?: string | null
           full_name?: string | null
