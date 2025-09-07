@@ -56,7 +56,7 @@ interface AnalyticsData {
   bookedMeetings: number
   conversionRate: number
   
-  // Phone Support metrics
+  // AI Customer Service metrics
   supportCalls: number
   avgHandleTime: number
   firstCallResolution: number
