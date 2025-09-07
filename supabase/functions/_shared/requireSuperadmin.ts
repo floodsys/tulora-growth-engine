@@ -21,18 +21,17 @@ export async function requireSuperadmin(req: Request, endpoint?: string): Promis
   const endpointName = endpoint || requestUrl.pathname.split('/').pop() || 'unknown';
   
   try {
-    // Create Supabase client for admin operations
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
-
-    // Check for authorization header
+    // Create user Supabase client for authorization checks (NOT service role)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      // Log unauthenticated attempt
-      await logDenialAttempt(supabaseClient, {
+      // Log unauthenticated attempt with service role client for logging
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        { auth: { persistSession: false } }
+      );
+      
+      await logDenialAttempt(serviceClient, {
         endpoint: endpointName,
         user_id: null,
         reason: 'unauthenticated',
@@ -54,13 +53,30 @@ export async function requireSuperadmin(req: Request, endpoint?: string): Promis
       };
     }
 
+    // Create user client for authorization check (preserves user context)
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      {
+        global: {
+          headers: { Authorization: authHeader },
+        },
+      }
+    );
+
     // Extract token and get user
     const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+    const { data: userData, error: userError } = await userClient.auth.getUser(token);
     
     if (userError || !userData.user) {
-      // Log unauthenticated attempt (invalid token)
-      await logDenialAttempt(supabaseClient, {
+      // Log unauthenticated attempt (invalid token) with service client
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        { auth: { persistSession: false } }
+      );
+      
+      await logDenialAttempt(serviceClient, {
         endpoint: endpointName,
         user_id: null,
         reason: 'unauthenticated',
@@ -84,14 +100,20 @@ export async function requireSuperadmin(req: Request, endpoint?: string): Promis
 
     const user = userData.user;
 
-    // Check if user is superadmin
-    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin', { user_id: user.id });
+    // Check if user is superadmin using USER context (not service role)
+    const { data: isSuperadmin, error: superadminError } = await userClient.rpc('is_superadmin', { user_id: user.id });
     
     if (superadminError || !isSuperadmin) {
       console.error('Superadmin check failed:', { error: superadminError, isSuperadmin, userId: user.id });
       
-      // Log non-superadmin attempt
-      await logDenialAttempt(supabaseClient, {
+      // Log non-superadmin attempt with service client
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        { auth: { persistSession: false } }
+      );
+      
+      await logDenialAttempt(serviceClient, {
         endpoint: endpointName,
         user_id: user.id,
         reason: 'not_superadmin',
