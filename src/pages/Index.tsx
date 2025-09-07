@@ -29,8 +29,10 @@ const Index = () => {
         {/* 3. AI Workforce Hero */}
         <AIWorkforceHero />
         
-        {/* 3. Info Section */}
-        <InfoSection />
+        {/* 3. Info Section - with matching spacing */}
+        <div className="pt-24">
+          <InfoSection />
+        </div>
         
         {/* 3. Outcome-First Features - with extra spacing */}
         <div className="pt-24">
