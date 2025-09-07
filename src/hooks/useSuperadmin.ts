@@ -6,11 +6,22 @@ interface UseSuperadminReturn {
   isSuperadmin: boolean;
   isLoading: boolean;
   error: string | null;
-  checkSuperadmin: () => Promise<boolean>;
-  invalidate: () => void;
+  refresh: () => Promise<void>;
   bootstrapSuperadmin: (token: string) => Promise<{ success: boolean; error?: string }>;
   addSuperadmin: (email: string) => Promise<{ success: boolean; error?: string }>;
   removeSuperadmin: (email: string) => Promise<{ success: boolean; error?: string }>;
+}
+
+/**
+ * Normalize RPC return value to boolean
+ * Handles various Postgres boolean representations
+ */
+function normalizeBooleanResult(data: any): boolean {
+  if (data === true || data === 't' || data === 'true') return true;
+  if (data === false || data === 'f' || data === 'false') return false;
+  if (data?.is_superadmin === true) return true;
+  if (Array.isArray(data) && data[0]?.is_superadmin === true) return true;
+  return false;
 }
 
 export function useSuperadmin(): UseSuperadminReturn {
@@ -19,64 +30,75 @@ export function useSuperadmin(): UseSuperadminReturn {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const checkSuperadmin = useCallback(async (): Promise<boolean> => {
+  const checkSuperadmin = useCallback(async (): Promise<void> => {
     if (!user) {
-      console.log('useSuperadmin: No user found');
       setIsSuperadmin(false);
       setIsLoading(false);
       setError(null);
-      return false;
+      return;
     }
 
-    console.log('useSuperadmin: Checking superadmin status for user:', user.email, user.id);
     setIsLoading(true);
     setError(null);
 
     try {
-      // Only use DB RPC call - no env fallbacks for authorization
-      // Pass user ID explicitly to avoid auth context issues
-      const { data, error } = await supabase.rpc('is_superadmin', { user_id: user.id });
+      const { data, error: rpcError } = await supabase.rpc('is_superadmin', { 
+        user_id: user.id 
+      });
       
+      if (rpcError) {
+        console.error('RPC error checking superadmin status:', rpcError);
+        setError(rpcError.message);
+        setIsSuperadmin(false);
+        return;
+      }
+
+      const result = normalizeBooleanResult(data);
+      setIsSuperadmin(result);
+
       // Structured observability log (minimal, no PII beyond ID)
       const logData = {
         where: "UI",
         user_id: user.id,
-        isSuperadmin: Boolean(data),
+        isSuperadmin: result,
+        raw_data: data,
         ts: new Date().toISOString()
       };
       console.log('🔐 Superadmin Check:', JSON.stringify(logData));
       
-      if (error) {
-        console.error('Error checking superadmin status:', error);
-        setError(error.message);
-        setIsSuperadmin(false);
-      } else {
-        setIsSuperadmin(Boolean(data));
-      }
-      
-      setIsLoading(false);
-      return Boolean(data);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error checking superadmin status:', error);
       setError(errorMessage);
       setIsSuperadmin(false);
+    } finally {
       setIsLoading(false);
-      return false;
     }
   }, [user]);
 
-  const invalidate = useCallback(() => {
-    if (user) {
-      checkSuperadmin();
-    }
-  }, [checkSuperadmin, user]);
+  // Expose refresh function
+  const refresh = useCallback(async () => {
+    await checkSuperadmin();
+  }, [checkSuperadmin]);
 
-  // Set up auth state monitoring and window focus refetch
+  // Set up auth state monitoring
   useEffect(() => {
     checkSuperadmin();
 
-    // Optional: Refetch on window focus
+    // Listen to auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        checkSuperadmin();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [checkSuperadmin]);
+
+  // Optional: Refetch on window focus
+  useEffect(() => {
     const handleFocus = () => {
       if (user && !isLoading) {
         checkSuperadmin();
@@ -164,8 +186,7 @@ export function useSuperadmin(): UseSuperadminReturn {
     isSuperadmin,
     isLoading,
     error,
-    checkSuperadmin,
-    invalidate,
+    refresh,
     bootstrapSuperadmin,
     addSuperadmin,
     removeSuperadmin,

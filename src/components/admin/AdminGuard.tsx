@@ -8,7 +8,7 @@ interface AdminGuardProps {
 }
 
 export function AdminGuard({ children }: AdminGuardProps) {
-  const { isSuperadmin, isLoading, error, invalidate } = useSuperadmin();
+  const { isSuperadmin, isLoading, error, refresh } = useSuperadmin();
   const { toast } = useToast();
   const location = useLocation();
 
@@ -51,7 +51,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
             <p className="text-sm text-muted-foreground">Unable to verify admin permissions</p>
           </div>
           <button 
-            onClick={invalidate}
+            onClick={refresh}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
           >
             Retry

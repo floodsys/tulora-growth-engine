@@ -53,6 +53,15 @@ export default function AdminDashboard() {
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8">
           <div className="mb-8 space-y-6">
+            <div className="flex items-center gap-4">
+              <a 
+                href="/admin/self-check"
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+              >
+                🔧 Admin Self-Check
+              </a>
+            </div>
+            
             <AdminSelfCheck />
             
             <div>
