@@ -66,13 +66,11 @@ const PricingTable = () => {
         return;
       }
 
-      // Call create-org-checkout
+      // Call create-org-checkout with new simplified interface
       const { data } = await supabase.functions.invoke('create-org-checkout', {
         body: {
           orgId: orgs[0].id,
-          planKey,
-          interval: 'monthly',
-          seats: 1
+          planKey
         }
       });
 
@@ -160,17 +158,20 @@ const PricingTable = () => {
       popular: true
     },
     {
-      planKey: "leadgen_enterprise_performance",
-      name: "Enterprise Performance",
+      planKey: "leadgen_enterprise",
+      name: "Enterprise",
       subtitle: "Pay mostly for outcomes",
       setupFee: "Custom",
-      monthlyPrice: "Low retainer (TBD)",
+      monthlyPrice: "Contact Sales",
       includedUsage: ["Outcome-based pricing"],
       modelMix: "Qualified leads $75–$300, Booked appointments $200–$500, Revenue share 3–10%",
       features: [
         "Outcome pricing",
         "SOW-governed qualification",
-        "Verification and caps"
+        "Verification and caps",
+        "Custom integrations",
+        "Dedicated support",
+        "SLA guarantee"
       ],
       isEnterprise: true
     }
@@ -216,7 +217,7 @@ const PricingTable = () => {
       name: "Enterprise",
       subtitle: "Regulated / high scale",
       setupFee: "Custom",
-      monthlyPrice: "$10,000+/mo",
+      monthlyPrice: "Contact Sales",
       includedUsage: ["Platform retainer"],
       modelMix: "HIPAA/PCI options, custom voice tuning",
       features: [
@@ -224,7 +225,9 @@ const PricingTable = () => {
         "Custom voice tuning",
         "IVR trees by department",
         "Data residency",
-        "Dedicated account manager"
+        "Dedicated account manager",
+        "White label options",
+        "Custom integrations"
       ],
       isEnterprise: true
     }
@@ -308,22 +311,14 @@ const PricingTable = () => {
             Manage in portal
           </Button>
         ) : plan.isEnterprise ? (
-          <div className="space-y-3">
-            <Button 
-              className="w-full" 
-              variant="outline"
-              onClick={() => window.location.href = `/contact/sales?product=${activeTab}`}
-            >
-              Contact sales
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-            <AcssInvoiceButton
-              planKey={plan.planKey}
-              planName={plan.name}
-              organizationId={currentOrgId || undefined}
-              isEnterprise={plan.isEnterprise}
-            />
-          </div>
+          <Button 
+            className="w-full" 
+            variant="outline"
+            onClick={() => window.location.href = `/contact/sales?product=${activeTab === 'leadgen' ? 'leadgen' : 'support'}`}
+          >
+            Contact sales
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
         ) : (
           <Button 
             className="w-full" 
@@ -357,7 +352,7 @@ const PricingTable = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="max-w-6xl mx-auto">
           <TabsList className="grid w-full grid-cols-2 mb-12 max-w-md mx-auto">
             <TabsTrigger value="leadgen">AI Lead Gen</TabsTrigger>
-            <TabsTrigger value="support">AI Customer Service</TabsTrigger>
+            <TabsTrigger value="support">AI Phone Support</TabsTrigger>
           </TabsList>
 
           <TabsContent value="leadgen" className="space-y-8">

@@ -38,6 +38,7 @@ import AdminAgents from "@/pages/admin/agents";
 import AdminCalls from "@/pages/admin/calls";
 import ContactSales from "@/pages/ContactSales";
 import AdminSelfCheck from "@/pages/AdminSelfCheck";
+import Pricing from "@/pages/Pricing";
 
 import { AdminGuard } from "@/components/admin/AdminGuard";
 
@@ -80,8 +81,9 @@ function App() {
               <Route path="/admin/stripe-config" element={<AdminGuard><AdminStripeConfig /></AdminGuard>} />
                <Route path="/admin/billing-verification" element={<AdminGuard><AdminBillingVerification /></AdminGuard>} />
                <Route path="/admin/self-check" element={<AdminSelfCheck />} />
+               <Route path="/pricing" element={<Pricing />} />
                <Route path="/contact/sales" element={<ContactSales />} />
-              <Route path="*" element={<NotFound />} />
+               <Route path="*" element={<NotFound />} />
               </Routes>
             </ProgressiveProfilingGuard>
             <Toaster />

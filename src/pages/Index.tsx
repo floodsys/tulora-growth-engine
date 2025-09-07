@@ -6,7 +6,7 @@ import AIWorkforceHero from "@/components/AIWorkforceHero";
 import FeatureCards from "@/components/FeatureCards";
 import LiveDemo from "@/components/LiveDemo";
 import IntegrationsGrid from "@/components/IntegrationsGrid";
-
+import PricingTable from "@/components/PricingTable";
 import Security from "@/components/Security";
 import FAQ from "@/components/FAQ";
 import FinalCTA from "@/components/FinalCTA";
@@ -39,13 +39,16 @@ const Index = () => {
         {/* 5. Integrations */}
         <IntegrationsGrid />
         
-        {/* 6. Security */}
+        {/* 6. Pricing */}
+        <PricingTable />
+        
+        {/* 7. Security */}
         <Security />
 
-        {/* 7. FAQ */}
+        {/* 8. FAQ */}
         <FAQ />
         
-        {/* 8. Final CTA */}
+        {/* 9. Final CTA */}
         <FinalCTA />
       </main>
       
