@@ -1,6 +1,8 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { Resend } from 'npm:resend@2.0.0'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
+import { createSuiteCRMService } from './_lib/suitecrm-service.ts'
+import { previewSuiteCRMPayload } from './_lib/suitecrm-mapping.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -296,6 +298,65 @@ serve(async (req) => {
 
     logStep('Lead saved', savedLead.id, 'success')
 
+    // Sync to SuiteCRM if configured (don't block on failure)
+    let crmSyncResult = null
+    try {
+      const suiteCRMService = createSuiteCRMService()
+      if (suiteCRMService) {
+        logStep('Starting CRM sync', savedLead.id)
+        
+        // Preview the payload for debugging
+        const preview = previewSuiteCRMPayload(leadData)
+        console.log('SuiteCRM Payload Preview:', preview.summary)
+        
+        crmSyncResult = await suiteCRMService.syncLead(leadData)
+        
+        if (crmSyncResult.success) {
+          logStep('CRM sync successful', savedLead.id, 'success')
+          
+          // Update lead with CRM sync status
+          await supabase
+            .from('leads')
+            .update({
+              crm_sync_status: 'synced',
+              crm_id: crmSyncResult.leadId,
+              crm_synced_at: new Date().toISOString()
+            })
+            .eq('id', savedLead.id)
+        } else {
+          logStep('CRM sync failed', savedLead.id, 'error')
+          console.error('CRM sync error:', crmSyncResult.message, crmSyncResult.errors)
+          
+          // Update lead with error status
+          await supabase
+            .from('leads')
+            .update({
+              crm_sync_status: 'failed',
+              crm_sync_error: crmSyncResult.message
+            })
+            .eq('id', savedLead.id)
+        }
+      } else {
+        logStep('CRM sync skipped - not configured', savedLead.id)
+      }
+    } catch (error) {
+      logStep('CRM sync error', savedLead.id, 'error')
+      console.error('CRM sync unexpected error:', error)
+      
+      // Update lead with error status
+      try {
+        await supabase
+          .from('leads')
+          .update({
+            crm_sync_status: 'failed',
+            crm_sync_error: error instanceof Error ? error.message : 'Unknown CRM sync error'
+          })
+          .eq('id', savedLead.id)
+      } catch (updateError) {
+        console.error('Failed to update CRM sync error status:', updateError)
+      }
+    }
+
     // Send notifications via email (no Slack integration)
     const resend = new Resend(resendKey)
     
@@ -466,6 +527,12 @@ serve(async (req) => {
       inquiry_type: savedLead.inquiry_type,
       delivery_status: deliveryStatus,
       emails_sent: emailMessageIds.length,
+      crm_sync: crmSyncResult ? {
+        success: crmSyncResult.success,
+        leadId: crmSyncResult.leadId,
+        message: crmSyncResult.message,
+        fieldsCreated: crmSyncResult.fieldsCreated?.length || 0
+      } : { skipped: true },
       message: 'Submission received successfully'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
