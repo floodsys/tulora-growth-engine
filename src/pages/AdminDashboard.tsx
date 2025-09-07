@@ -1,11 +1,34 @@
 import { AdminGuard } from '@/components/admin/AdminGuard';
 import { TestDashboard } from '@/components/tests/TestDashboard';
 import { AdminSelfCheck } from '@/components/AdminSelfCheck';
+import { ProductLineGatingDemo } from '@/components/ProductLineGatingDemo';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from 'react';
 
 export default function AdminDashboard() {
   const { toast } = useToast();
+  const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
+
+  // Get current user's org for testing
+  useEffect(() => {
+    const getCurrentOrg = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: orgs } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('owner_user_id', user.id)
+        .limit(1);
+
+      if (orgs && orgs.length > 0) {
+        setCurrentOrgId(orgs[0].id);
+      }
+    };
+
+    getCurrentOrg();
+  }, []);
 
   const handleSuperadminDebug = async () => {
     try {
@@ -75,6 +98,9 @@ export default function AdminDashboard() {
                 Check console for detailed debug output including environment info and SQL statements
               </p>
             </div>
+            
+            {/* Product Line Gating Demo */}
+            <ProductLineGatingDemo orgId={currentOrgId} />
           </div>
           <TestDashboard />
         </div>

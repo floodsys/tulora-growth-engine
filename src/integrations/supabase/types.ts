@@ -1763,6 +1763,14 @@ export type Database = {
         Args: { org_id: string }
         Returns: Json
       }
+      get_org_entitlements: {
+        Args: { p_org_id: string }
+        Returns: Json
+      }
+      get_product_limits: {
+        Args: { p_org_id: string; p_product_line: string }
+        Returns: Json
+      }
       get_schema_health: {
         Args: Record<PropertyKey, never>
         Returns: Json
@@ -1797,6 +1805,10 @@ export type Database = {
       }
       has_org_role: {
         Args: { org_id: string; required_role: string }
+        Returns: boolean
+      }
+      has_product_feature: {
+        Args: { p_feature: string; p_org_id: string; p_product_line: string }
         Returns: boolean
       }
       hash_ip: {
@@ -1863,6 +1875,10 @@ export type Database = {
       }
       is_organization_owner: {
         Args: { p_org_id: string; p_user_id?: string }
+        Returns: boolean
+      }
+      is_subscribed_to_product: {
+        Args: { p_org_id: string; p_product_line: string }
         Returns: boolean
       }
       is_superadmin: {
