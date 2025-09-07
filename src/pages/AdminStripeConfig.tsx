@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { SUPABASE_URL, SUPABASE_ANON } from '@/config/publicConfig';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,9 +31,21 @@ export default function AdminStripeConfig() {
 
   const fetchData = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('admin-stripe-config');
-      if (error) throw error;
-      
+      // Use fetch for GET request since supabase.functions.invoke defaults to POST
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/admin-stripe-config`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          'apikey': SUPABASE_ANON,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
       setPlans(data.plans || []);
       setStatus(data.status || { portalEnabled: false, webhookReachable: false });
     } catch (error) {
