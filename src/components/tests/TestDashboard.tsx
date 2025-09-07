@@ -62,11 +62,8 @@ export function TestDashboard() {
   const { toast } = useToast();
   const navigate = useNavigate();
   
-  // Determine if tests should be shown
-  const showTests = isSuperadmin && (
-    import.meta.env.MODE !== "production" || 
-    import.meta.env.VITE_ADMIN_TESTS_ENABLED === "true"
-  );
+  // Tests tab is always visible to superadmins
+  const showTests = isSuperadmin;
   
   // Available tabs
   const availableTabs = ["overview", "system", "management", ...(showTests ? ["tests"] : []), "diagnostics"];
