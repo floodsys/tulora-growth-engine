@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
+import { requireSuperadmin } from '../_shared/requireSuperadmin.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,6 +14,12 @@ interface SmokeTestRequest {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Enforce superadmin access
+  const guardResult = await requireSuperadmin(req);
+  if (!guardResult.ok) {
+    return guardResult.response!;
   }
 
   try {
