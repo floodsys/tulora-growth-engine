@@ -52,7 +52,7 @@ serve(async (req) => {
         
         if (session.mode === 'subscription' && session.subscription) {
           const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
-          await handleSubscriptionUpdate(supabase, stripe, subscription)
+          await handleSubscriptionUpdate(supabase, stripe, subscription, event.id)
         }
         break
       }
@@ -66,7 +66,7 @@ serve(async (req) => {
           subscriptionId: subscription.id,
           status: subscription.status 
         })
-        await handleSubscriptionUpdate(supabase, stripe, subscription)
+        await handleSubscriptionUpdate(supabase, stripe, subscription, event.id)
         break
       }
 
@@ -81,7 +81,7 @@ serve(async (req) => {
         
         if (invoice.subscription) {
           const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string)
-          await handleSubscriptionUpdate(supabase, stripe, subscription)
+          await handleSubscriptionUpdate(supabase, stripe, subscription, event.id)
         }
         break
       }
@@ -105,12 +105,25 @@ serve(async (req) => {
   }
 })
 
-async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscription: Stripe.Subscription) {
+async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscription: Stripe.Subscription, eventId: string) {
   try {
     logStep('Handling subscription update', { 
       subscriptionId: subscription.id,
-      status: subscription.status 
+      status: subscription.status,
+      eventId 
     })
+
+    // Check if this event has already been processed (idempotency)
+    const { data: existingEvent } = await supabase
+      .from('processed_webhook_events')
+      .select('id')
+      .eq('stripe_event_id', eventId)
+      .single()
+
+    if (existingEvent) {
+      logStep('Event already processed, skipping', { eventId })
+      return
+    }
 
     // Primary: Resolve org via subscription.metadata.organization_id
     let orgId = subscription.metadata.organization_id || subscription.metadata.org_id
@@ -158,45 +171,30 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
       metadata: priceMetadata 
     })
 
-    // Build entitlements from price metadata
-    // If no price metadata, derive plan from price ID
-    let planKey = priceMetadata.plan_key || 'free'
-    let limitAgents = parseInt(priceMetadata.limit_agents || '0') || null
-    let limitSeats = parseInt(priceMetadata.limit_seats || '1') || 1
-    let features = priceMetadata.features ? JSON.parse(priceMetadata.features) : []
+    // Extract plan_key and product_line from metadata or subscription metadata
+    const planKey = priceMetadata.plan_key || subscription.metadata.plan_key || 'trial'
+    const productLine = priceMetadata.product_line || subscription.metadata.product_line || 'core'
     
-    // Fallback: if price metadata is empty, use the environment price IDs to determine plan
-    if (!priceMetadata.plan_key && (price.id === Deno.env.get('PRICE_ID_PRO_MONTHLY') || price.id === Deno.env.get('PRICE_ID_PRO_YEARLY'))) {
-      planKey = price.id === Deno.env.get('PRICE_ID_PRO_MONTHLY') ? 'pro_monthly' : 'pro_yearly'
-      limitAgents = null // unlimited
-      limitSeats = 5
-      features = ['advanced_analytics', 'priority_support']
-      logStep('Using fallback pro plan entitlements', { priceId: price.id, planKey })
-    }
-    
-    const entitlements = {
-      plan_key: planKey,
-      limit_agents: limitAgents,
-      limit_seats: limitSeats,
-      features: features,
-      ...priceMetadata // Include any other metadata fields
-    }
+    logStep('Extracted plan info', { planKey, productLine })
 
-    // Build subscription data with timestamp guards
+    // Build subscription data with safe timestamp conversion and new fields
     const subscriptionData = {
+      organization_id: orgId,
+      stripe_customer_id: subscription.customer,
       stripe_subscription_id: subscription.id,
-      subscription_item_id: subscriptionItem.id,
-      price_id: subscriptionItem.price.id,
+      plan_key: planKey,
+      product_line: productLine,
       status: subscription.status,
       quantity: subscriptionItem.quantity || 1,
-      plan_key: planKey,
       current_period_start: subscription.current_period_start ? 
-        new Date(subscription.current_period_start * 1000).toISOString() : null,
+        (await supabase.rpc('safe_stripe_timestamp', { stripe_timestamp: subscription.current_period_start })).data : null,
       current_period_end: subscription.current_period_end ? 
-        new Date(subscription.current_period_end * 1000).toISOString() : null,
+        (await supabase.rpc('safe_stripe_timestamp', { stripe_timestamp: subscription.current_period_end })).data : null,
       trial_end: subscription.trial_end ? 
-        new Date(subscription.trial_end * 1000).toISOString() : null,
+        (await supabase.rpc('safe_stripe_timestamp', { stripe_timestamp: subscription.trial_end })).data : null,
       cancel_at_period_end: subscription.cancel_at_period_end || false,
+      last_event_id: eventId,
+      event_processed_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
 
@@ -205,12 +203,13 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
       subscriptionId: subscription.id,
       status: subscription.status,
       quantity: subscriptionData.quantity,
-      priceId: subscriptionData.price_id
+      planKey,
+      productLine
     })
 
-    // Handle subscription deletion 
-    if (subscription.status === 'canceled') {
-      logStep('Subscription canceled, removing from database', { subscriptionId: subscription.id })
+    // Handle subscription deletion or cancellation
+    if (subscription.status === 'canceled' || subscription.status === 'incomplete_expired') {
+      logStep('Subscription canceled/expired, removing from database', { subscriptionId: subscription.id, status: subscription.status })
       
       const { error: deleteError } = await supabase
         .from('org_stripe_subscriptions')
@@ -228,53 +227,41 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
       // Upsert to org_stripe_subscriptions with idempotency 
       const { error: subUpsertError } = await supabase
         .from('org_stripe_subscriptions')
-        .upsert({
-          organization_id: orgId,
-          stripe_customer_id: subscription.customer,
-          ...subscriptionData
-        }, {
-          onConflict: 'stripe_subscription_id'  // Ensures idempotency
+        .upsert(subscriptionData, {
+          onConflict: 'stripe_subscription_id'
         })
 
       if (subUpsertError) {
         logStep('ERROR upserting to org_stripe_subscriptions', { 
           error: subUpsertError,
-          subscriptionId: subscription.id 
+          subscriptionId: subscription.id,
+          subscriptionData 
         })
         throw subUpsertError
       }
     }
 
-    // Mirror key fields to organizations table for UI caching, including entitlements
-    const organizationUpdates = {
-      billing_status: subscription.status,
-      plan_key: planKey,
-      current_period_end: subscriptionData.current_period_end,
-      cancel_at_period_end: subscriptionData.cancel_at_period_end,
-      entitlements: entitlements,
-      billing_tier: entitlements.plan_key || 'free',
-      updated_at: new Date().toISOString()
-    }
-
-    const { error: orgUpdateError } = await supabase
-      .from('organizations')
-      .update(organizationUpdates)
-      .eq('id', orgId)
-
-    if (orgUpdateError) {
-      logStep('ERROR updating organizations table', { 
-        error: orgUpdateError,
-        orgId 
+    // Record event as processed for idempotency
+    await supabase
+      .from('processed_webhook_events')
+      .insert({
+        stripe_event_id: eventId,
+        event_type: 'subscription_update',
+        organization_id: orgId,
+        subscription_id: subscription.id
       })
-      throw orgUpdateError
-    }
+
+    // Refresh organization billing summary using computed entitlements
+    await supabase.rpc('refresh_organization_billing_summary', { p_org_id: orgId })
 
     logStep('Successfully processed subscription update', { 
       orgId,
       subscriptionId: subscription.id,
       status: subscription.status,
       quantity: subscriptionData.quantity,
-      priceId: subscriptionData.price_id
+      planKey,
+      productLine,
+      eventId
     })
 
   } catch (error) {
