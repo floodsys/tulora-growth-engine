@@ -155,21 +155,33 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
       return
     }
 
-    // Get subscription item details
+    // Get subscription item details - handle empty items gracefully
     const subscriptionItem = subscription.items.data[0]
-    if (!subscriptionItem) {
-      logStep('ERROR: No subscription items found', { subscriptionId: subscription.id })
-      return
+    if (!subscriptionItem || !subscription.items.data.length) {
+      logStep('WARNING: No subscription items found, using subscription-level defaults', { 
+        subscriptionId: subscription.id,
+        itemCount: subscription.items.data.length
+      })
     }
 
-    // Fetch price metadata from Stripe for entitlements
-    const price = await stripe.prices.retrieve(subscriptionItem.price.id)
-    const priceMetadata = price.metadata || {}
-    
-    logStep('Price metadata retrieved', { 
-      priceId: price.id, 
-      metadata: priceMetadata 
-    })
+    // Fetch price metadata from Stripe for entitlements (if subscription item exists)
+    let priceMetadata = {}
+    if (subscriptionItem?.price?.id) {
+      try {
+        const price = await stripe.prices.retrieve(subscriptionItem.price.id)
+        priceMetadata = price.metadata || {}
+        
+        logStep('Price metadata retrieved', { 
+          priceId: price.id, 
+          metadata: priceMetadata 
+        })
+      } catch (error) {
+        logStep('WARNING: Could not retrieve price metadata', { 
+          priceId: subscriptionItem.price.id,
+          error: error instanceof Error ? error.message : String(error)
+        })
+      }
+    }
 
     // Extract plan_key and product_line from metadata or subscription metadata
     const planKey = priceMetadata.plan_key || subscription.metadata.plan_key || 'trial'
@@ -185,7 +197,7 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
       plan_key: planKey,
       product_line: productLine,
       status: subscription.status,
-      quantity: subscriptionItem.quantity || 1,
+      quantity: subscriptionItem?.quantity || 1,
       current_period_start: subscription.current_period_start ? 
         (await supabase.rpc('safe_stripe_timestamp', { stripe_timestamp: subscription.current_period_start })).data : null,
       current_period_end: subscription.current_period_end ? 
