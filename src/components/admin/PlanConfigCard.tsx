@@ -46,7 +46,7 @@ export function PlanConfigCard({ plan, onUpdate, onSave, saving }: PlanConfigCar
   const isEnterprise = plan.plan_key.includes('enterprise');
   const hasMonthlyPrice = !!plan.stripe_price_id_monthly;
   const hasSetupPrice = !!plan.stripe_setup_price_id;
-  const isConfigured = hasMonthlyPrice && hasSetupPrice;
+  const isConfigured = hasMonthlyPrice; // Only monthly price is required
 
   const validatePrice = async (priceId: string, type: 'monthly' | 'setup') => {
     if (!priceId) return;
@@ -255,7 +255,7 @@ export function PlanConfigCard({ plan, onUpdate, onSave, saving }: PlanConfigCar
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              One-time setup fee for plan activation
+              Setup fee is currently billed off-platform; leave blank to disable.
             </p>
           </div>
         </div>

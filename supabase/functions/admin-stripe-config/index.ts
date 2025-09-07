@@ -163,7 +163,7 @@ serve(async (req) => {
         !p.plan_key.includes('enterprise')
       ) || [];
       const allPaidPlansConfigured = paidPlans.every(plan => 
-        plan.stripe_price_id_monthly && plan.stripe_setup_price_id
+        plan.stripe_price_id_monthly // Only require monthly price ID, setup fee is optional
       );
       
       const isLiveReady = portalEnabled && webhookReachable && allPaidPlansConfigured;
