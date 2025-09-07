@@ -19,7 +19,10 @@ export function useMFAVerification(isSuperadmin: boolean) {
   });
 
   useEffect(() => {
-    if (!isSuperadmin) {
+    // Development bypass: Skip MFA in development mode
+    const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
+    
+    if (!isSuperadmin || isDev) {
       setMfaStatus({
         isEnrolled: true,
         isVerified: true,
