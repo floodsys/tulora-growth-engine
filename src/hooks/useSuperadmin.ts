@@ -28,19 +28,25 @@ export function useSuperadmin(): UseSuperadminReturn {
   // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.
   const checkSuperadmin = async (): Promise<boolean> => {
     if (!user) {
+      console.log('useSuperadmin: No user found');
       setIsSuperadmin(false);
       setIsLoading(false);
       return false;
     }
 
+    console.log('useSuperadmin: Checking superadmin status for user:', user.email, user.id);
+
     try {
       // Only use DB RPC call - no env fallbacks for authorization
       const { data, error } = await supabase.rpc('is_superadmin');
+      
+      console.log('useSuperadmin: RPC result - data:', data, 'error:', error);
       
       if (error) {
         console.error('Error checking superadmin status:', error);
         setIsSuperadmin(false);
       } else {
+        console.log('useSuperadmin: Setting isSuperadmin to:', Boolean(data));
         setIsSuperadmin(Boolean(data));
       }
       

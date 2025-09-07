@@ -12,6 +12,8 @@ export function AdminGuard({ children }: AdminGuardProps) {
   const { toast } = useToast();
   const location = useLocation();
 
+  console.log('AdminGuard - isSuperadmin:', isSuperadmin, 'isLoading:', isLoading);
+
   useEffect(() => {
     // Only show toast if we've finished loading and user is not a superadmin
     if (!isLoading && !isSuperadmin) {
