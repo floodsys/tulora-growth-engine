@@ -131,10 +131,10 @@ export default function AdminStripeConfig() {
     ));
   };
 
-  // Filter to show only the four paid plans plus enterprise plans
+  // Filter to show only the four paid plans (exclude enterprise plans from admin view)
   const allowedPlans = [
-    'leadgen_starter', 'leadgen_business', 'leadgen_enterprise',
-    'support_starter', 'support_business', 'support_enterprise'
+    'leadgen_starter', 'leadgen_business',
+    'support_starter', 'support_business'
   ];
   
   const filteredPlans = plans.filter(plan => allowedPlans.includes(plan.plan_key));

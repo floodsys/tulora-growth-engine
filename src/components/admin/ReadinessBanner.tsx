@@ -30,7 +30,7 @@ export function ReadinessBanner({ status }: ReadinessBannerProps) {
     {
       label: "AI Plan Configuration",
       status: allPaidPlansConfigured,
-      description: "All four paid plans (Lead Gen & Support Starter/Business) have Live price IDs"
+      description: "All four paid plans (Lead Gen & Customer Service Starter/Business) have Live price IDs"
     }
   ];
   
