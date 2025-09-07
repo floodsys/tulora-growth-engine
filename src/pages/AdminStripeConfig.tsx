@@ -4,11 +4,12 @@ import { SUPABASE_URL, SUPABASE_ANON } from '@/config/publicConfig';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { AdminGuard } from '@/components/guards/AdminGuard';
-import { Loader2, Settings, HelpCircle } from 'lucide-react';
+import { Loader2, Settings, HelpCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { StripeStatusCard } from '@/components/admin/StripeStatusCard';
 import { PlanConfigCard } from '@/components/admin/PlanConfigCard';
 import { StripeSetupInstructions } from '@/components/admin/StripeSetupInstructions';
 import { ReadinessBanner } from '@/components/admin/ReadinessBanner';
+import { CorePlanMigration } from '@/components/admin/CorePlanMigration';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface PlanConfig {
@@ -41,6 +42,7 @@ export default function AdminStripeConfig() {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -172,13 +174,22 @@ export default function AdminStripeConfig() {
               <p className="text-muted-foreground">Manage pricing plans and billing integration</p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={() => setShowInstructions(!showInstructions)}
-          >
-            <HelpCircle className="w-4 h-4 mr-2" />
-            Setup Guide
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowAdvanced(!showAdvanced)}
+            >
+              {showAdvanced ? <ChevronDown className="w-4 h-4 mr-2" /> : <ChevronRight className="w-4 h-4 mr-2" />}
+              Advanced
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowInstructions(!showInstructions)}
+            >
+              <HelpCircle className="w-4 h-4 mr-2" />
+              Setup Guide
+            </Button>
+          </div>
         </div>
 
         {/* Health Check Warning */}
@@ -208,6 +219,21 @@ export default function AdminStripeConfig() {
           onRefresh={handleRefresh}
           refreshing={refreshing}
         />
+
+        {/* Advanced Features */}
+        <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+          <CollapsibleContent>
+            <div className="space-y-4">
+              <div className="border-b pb-2">
+                <h2 className="text-xl font-semibold">Advanced Migration Tools</h2>
+                <p className="text-sm text-muted-foreground">
+                  One-time migration utilities for transitioning from legacy plan structures
+                </p>
+              </div>
+              <CorePlanMigration />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Setup Instructions */}
         <Collapsible open={showInstructions} onOpenChange={setShowInstructions}>
