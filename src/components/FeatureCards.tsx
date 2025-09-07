@@ -126,7 +126,7 @@ const FeatureCards = () => {
               <div className="flex flex-col gap-2">
                 <div className="mb-2">
                   <h3 className="text-2xl font-bold text-foreground font-heading">
-                    AI <span className="text-primary">{agent.title}</span>
+                    AI Customer Service <span className="text-primary">{agent.title}</span>
                   </h3>
                 </div>
                 
