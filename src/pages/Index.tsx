@@ -32,8 +32,10 @@ const Index = () => {
         {/* 3. Info Section */}
         <InfoSection />
         
-        {/* 3. Outcome-First Features */}
-        <FeatureCards />
+        {/* 3. Outcome-First Features - with extra spacing */}
+        <div className="pt-16">
+          <FeatureCards />
+        </div>
         
         
         {/* 5. Integrations */}

@@ -41,17 +41,15 @@ const InfoSection = () => {
     <section className="py-8 px-4 sm:px-6 lg:px-8 bg-background">
       <div className="max-w-7xl mx-auto">
         {/* Features Image */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-6">
           <img 
             src="https://71bed9839f6b63de0d12cd02f4fd4947.cdn.bubble.io/f1754097164349x913319392506058100/features.svg" 
             alt="AI automation features and data flows illustration" 
             className="w-48 h-28 mx-auto" 
           />
-        </div>
-
-        {/* Typewriter Header */}
-        <div className="text-center mb-8">
-          <h2 className="text-3xl lg:text-5xl font-bold text-foreground mb-4">
+          
+          {/* Typewriter Header - moved closer to image */}
+          <h2 className="text-3xl lg:text-5xl font-bold text-foreground mt-4 mb-4">
             <TypewriterHero />
           </h2>
         </div>
