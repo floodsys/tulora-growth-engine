@@ -30,7 +30,19 @@ export function useSuperadmin(): UseSuperadminReturn {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
+  // Development bypass: Skip all superadmin checks in development mode
+  const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
+
   const checkSuperadmin = useCallback(async (): Promise<void> => {
+    // Development bypass
+    if (isDev) {
+      setIsSuperadmin(true);
+      setIsLoading(false);
+      setError(null);
+      console.log('[useSuperadmin] Development mode - bypassing superadmin checks');
+      return;
+    }
+
     if (!user) {
       setIsSuperadmin(false);
       setIsLoading(false);
@@ -74,7 +86,7 @@ export function useSuperadmin(): UseSuperadminReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, isDev]);
 
   // Expose refresh function
   const refresh = useCallback(async () => {
