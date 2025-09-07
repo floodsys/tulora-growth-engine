@@ -182,13 +182,14 @@ export default function ContactSales() {
                 </div>
 
                 <div>
-                  <Label htmlFor="company">Company Name</Label>
+                  <Label htmlFor="company">Company Name *</Label>
                   <Input
                     id="company"
                     type="text"
                     value={formData.company}
                     onChange={(e) => handleInputChange('company', e.target.value)}
                     placeholder="Your organization name"
+                    required
                   />
                 </div>
 
@@ -222,13 +223,14 @@ export default function ContactSales() {
                 </div>
 
                 <div>
-                  <Label htmlFor="notes">Additional Requirements</Label>
+                  <Label htmlFor="notes">Additional Requirements *</Label>
                   <Textarea
                     id="notes"
                     value={formData.notes}
                     onChange={(e) => handleInputChange('notes', e.target.value)}
                     placeholder="Tell us about your specific needs, compliance requirements, integration needs, or any other details..."
                     rows={4}
+                    required
                   />
                 </div>
 
@@ -244,7 +246,7 @@ export default function ContactSales() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={isSubmitting || !formData.name || !formData.email}
+                    disabled={isSubmitting || !formData.name || !formData.email || !formData.company || !formData.notes}
                     className="flex-1"
                   >
                     <Send className="h-4 w-4 mr-2" />
