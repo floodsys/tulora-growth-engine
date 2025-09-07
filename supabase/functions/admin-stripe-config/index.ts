@@ -78,14 +78,30 @@ serve(async (req) => {
       }
 
       try {
-        // Simple webhook health check
-        const webhookUrl = Deno.env.get("WEBHOOK_URL");
-        if (webhookUrl) {
-          const response = await fetch(webhookUrl, { method: 'HEAD' });
+        // Check if webhook is properly configured by testing the org-billing-webhook endpoint
+        const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+        
+        if (supabaseUrl && webhookSecret) {
+          const webhookUrl = `${supabaseUrl}/functions/v1/org-billing-webhook`;
+          console.log('[admin-stripe-config] Testing webhook URL:', webhookUrl);
+          
+          // Test if webhook endpoint is reachable
+          const response = await fetch(webhookUrl, { 
+            method: 'HEAD',
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
+          
+          // Webhook is considered reachable if it responds (even with 400/401 is fine since we're not sending proper data)
           webhookReachable = response.status < 500;
+          console.log('[admin-stripe-config] Webhook test response:', response.status, webhookReachable);
+        } else {
+          console.log('[admin-stripe-config] Missing webhook configuration - URL or secret not set');
         }
       } catch (e) {
-        console.log("Webhook check failed:", e.message);
+        console.log("[admin-stripe-config] Webhook check failed:", e.message);
       }
 
       return new Response(JSON.stringify({
