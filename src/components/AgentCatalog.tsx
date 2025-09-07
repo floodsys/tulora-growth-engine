@@ -78,7 +78,7 @@ const AGENT_TYPES = {
     }
   },
   ai_phone_support: {
-    name: 'AI Phone Support',
+    name: 'AI Customer Service',
     icon: Phone,
     description: 'AI agents for customer support and service',
     color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',

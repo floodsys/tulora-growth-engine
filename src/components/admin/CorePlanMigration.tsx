@@ -35,9 +35,9 @@ export function CorePlanMigration() {
     { value: 'leadgen_starter', label: 'Lead Generation Starter', category: 'leadgen' },
     { value: 'leadgen_business', label: 'Lead Generation Business', category: 'leadgen' },
     { value: 'leadgen_enterprise', label: 'Lead Generation Enterprise', category: 'leadgen' },
-    { value: 'support_starter', label: 'Phone Support Starter', category: 'support' },
-    { value: 'support_business', label: 'Phone Support Business', category: 'support' },
-    { value: 'support_enterprise', label: 'Phone Support Enterprise', category: 'support' },
+    { value: 'support_starter', label: 'Customer Service Starter', category: 'support' },
+    { value: 'support_business', label: 'Customer Service Business', category: 'support' },
+    { value: 'support_enterprise', label: 'Customer Service Enterprise', category: 'support' },
     { value: 'contact_sales', label: 'Contact Sales (Manual Setup)', category: 'special' },
     { value: 'trial', label: 'Convert to Trial', category: 'special' }
   ];

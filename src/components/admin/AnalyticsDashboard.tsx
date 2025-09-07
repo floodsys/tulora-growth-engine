@@ -320,7 +320,7 @@ export function AnalyticsDashboard() {
       <Tabs defaultValue="leadgen" className="space-y-4">
         <TabsList>
           <TabsTrigger value="leadgen">AI Lead Generation</TabsTrigger>
-          <TabsTrigger value="support">AI Phone Support</TabsTrigger>
+          <TabsTrigger value="support">AI Customer Service</TabsTrigger>
           <TabsTrigger value="health">System Health</TabsTrigger>
         </TabsList>
 

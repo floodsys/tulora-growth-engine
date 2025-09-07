@@ -143,7 +143,7 @@ export default function AdminStripeConfig() {
   const groupedPlans = filteredPlans.reduce((acc, plan) => {
     let category = '';
     if (plan.plan_key.includes('leadgen')) category = 'AI Lead Generation';
-    else if (plan.plan_key.includes('support')) category = 'AI Phone Support';
+    else if (plan.plan_key.includes('support')) category = 'AI Customer Service';
     else return acc;
     
     if (!acc[category]) acc[category] = [];

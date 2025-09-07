@@ -223,7 +223,7 @@ export function PlanConfigCard({ plan, onUpdate, onSave, saving }: PlanConfigCar
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              Recurring monthly subscription price for AI Lead Generation or AI Phone Support
+              Recurring monthly subscription price for AI Lead Generation or AI Customer Service
             </p>
           </div>
           

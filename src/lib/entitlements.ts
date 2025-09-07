@@ -87,7 +87,7 @@ function getFreePlanLimits(): OrgLimits {
 function getPlanDisplayName(planKey?: string): string {
   // Only handle leadgen and support plans now
   if (planKey?.includes('leadgen')) return 'Lead Generation';
-  if (planKey?.includes('support')) return 'Phone Support';
+  if (planKey?.includes('support')) return 'Customer Service';
   if (planKey?.includes('enterprise')) return 'Enterprise';
   return 'Free';
 }

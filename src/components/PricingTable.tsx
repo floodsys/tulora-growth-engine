@@ -352,7 +352,7 @@ const PricingTable = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="max-w-6xl mx-auto">
           <TabsList className="grid w-full grid-cols-2 mb-12 max-w-md mx-auto">
             <TabsTrigger value="leadgen">AI Lead Gen</TabsTrigger>
-            <TabsTrigger value="support">AI Phone Support</TabsTrigger>
+            <TabsTrigger value="support">AI Customer Service</TabsTrigger>
           </TabsList>
 
           <TabsContent value="leadgen" className="space-y-8">

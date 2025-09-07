@@ -120,7 +120,7 @@ export const ProductLineGatingDemo = ({ orgId }: ProductLineGatingDemoProps) => 
           <div className="border rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold flex items-center gap-2">
-                AI Phone Support
+                AI Customer Service
                 {supportSubscribed ? (
                   <CheckCircle className="h-4 w-4 text-green-500" />
                 ) : (
@@ -157,7 +157,7 @@ export const ProductLineGatingDemo = ({ orgId }: ProductLineGatingDemoProps) => 
                 </div>
               </div>
             ) : (
-              <p className="text-muted-foreground text-sm">Not subscribed to Phone Support</p>
+              <p className="text-muted-foreground text-sm">Not subscribed to Customer Service</p>
             )}
           </div>
 

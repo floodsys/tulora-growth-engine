@@ -7,10 +7,10 @@ const Pricing = () => {
   return (
     <>
       <Helmet>
-        <title>Pricing - AI Lead Gen & Phone Support Solutions</title>
+        <title>Pricing - AI Lead Gen & Customer Service Solutions</title>
         <meta 
           name="description" 
-          content="Choose from our AI Lead Gen and Phone Support plans. Starter plans from $1,500/mo, Business plans from $3,500/mo, or Contact Sales for Enterprise solutions." 
+          content="Choose from our AI Lead Gen and Customer Service plans. Starter plans from $1,500/mo, Business plans from $3,500/mo, or Contact Sales for Enterprise solutions." 
         />
       </Helmet>
       <div className="min-h-screen bg-background">

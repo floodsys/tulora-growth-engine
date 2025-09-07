@@ -33,7 +33,7 @@ export function StripeSetupInstructions() {
               Create Stripe Products & Prices
             </h4>
             <p className="text-sm text-muted-foreground mb-3">
-              Set up products and prices for your AI Lead Generation and AI Phone Support plans:
+              Set up products and prices for your AI Lead Generation and AI Customer Service plans:
             </p>
             <div className="space-y-3">
               <div className="bg-muted rounded-lg p-3 space-y-2">
@@ -45,7 +45,7 @@ export function StripeSetupInstructions() {
                 </div>
               </div>
               <div className="bg-muted rounded-lg p-3 space-y-2">
-                <div className="font-medium text-sm">AI Phone Support Plans</div>
+                <div className="font-medium text-sm">AI Customer Service Plans</div>
                 <div className="text-xs text-muted-foreground space-y-1">
                   <div>• Support Starter: Monthly subscription + Setup fee</div>
                   <div>• Support Business: Monthly subscription + Setup fee</div>
