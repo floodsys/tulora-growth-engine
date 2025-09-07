@@ -34,7 +34,7 @@ export function useSuperadmin(): UseSuperadminReturn {
       return false;
     }
 
-    console.log('useSuperadmin: Checking superadmin status for user:', user.email, user.id);
+    console.log('useSuperadmin: Checking superadmin status for user:', user.email, user.id, 'timestamp:', Date.now());
 
     try {
       // Only use DB RPC call - no env fallbacks for authorization
