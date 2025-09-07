@@ -173,7 +173,7 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
 
     // Extract plan_key and product_line from metadata or subscription metadata
     const planKey = priceMetadata.plan_key || subscription.metadata.plan_key || 'trial'
-    const productLine = priceMetadata.product_line || subscription.metadata.product_line || 'core'
+    const productLine = priceMetadata.product_line || subscription.metadata.product_line || 'leadgen'
     
     logStep('Extracted plan info', { planKey, productLine })
 

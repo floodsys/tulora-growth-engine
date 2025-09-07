@@ -127,20 +127,11 @@ serve(async (req) => {
           const price = await stripe.prices.retrieve(subscriptionItem.price.id)
           
           // Build fresh entitlements from price metadata
-          // If no price metadata, derive plan from price ID
-          let planKey = price.metadata?.plan_key || 'free'
+          // All plans should now have proper metadata
+          let planKey = price.metadata?.plan_key || 'trial'
           let limitAgents = parseInt(price.metadata?.limit_agents || '0') || null
           let limitSeats = parseInt(price.metadata?.limit_seats || '1') || 1
           let features = price.metadata?.features ? JSON.parse(price.metadata.features) : []
-          
-          // Fallback: if price metadata is empty, use the environment price IDs to determine plan
-          if (!price.metadata?.plan_key && (price.id === Deno.env.get('PRICE_ID_PRO_MONTHLY') || price.id === Deno.env.get('PRICE_ID_PRO_YEARLY'))) {
-            planKey = price.id === Deno.env.get('PRICE_ID_PRO_MONTHLY') ? 'pro_monthly' : 'pro_yearly'
-            limitAgents = null // unlimited
-            limitSeats = 5
-            features = ['advanced_analytics', 'priority_support']
-            logStep('Using fallback pro plan entitlements', { priceId: price.id, planKey })
-          }
           
           const entitlements = {
             plan_key: planKey,

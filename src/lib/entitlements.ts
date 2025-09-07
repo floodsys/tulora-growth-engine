@@ -85,15 +85,11 @@ function getFreePlanLimits(): OrgLimits {
 }
 
 function getPlanDisplayName(planKey?: string): string {
-  switch (planKey) {
-    case 'pro_monthly':
-    case 'pro_yearly':
-      return 'Pro'
-    case 'enterprise':
-      return 'Enterprise'
-    default:
-      return 'Free'
-  }
+  // Only handle leadgen and support plans now
+  if (planKey?.includes('leadgen')) return 'Lead Generation';
+  if (planKey?.includes('support')) return 'Phone Support';
+  if (planKey?.includes('enterprise')) return 'Enterprise';
+  return 'Free';
 }
 
 async function getCurrentAgentCount(orgId: string): Promise<number> {
