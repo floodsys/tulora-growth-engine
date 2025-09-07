@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { isProfileComplete } from "@/lib/profile/isProfileComplete";
 import { Loader2 } from "lucide-react";
@@ -78,7 +78,9 @@ const AuthCallback = () => {
       <div className="text-center space-y-6 p-8">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <img src={logo} alt="Tulora" className="h-12 w-auto" />
+          <Link to="/">
+            <img src={logo} alt="Tulora" className="h-12 w-auto" />
+          </Link>
         </div>
 
         {/* Loading spinner */}

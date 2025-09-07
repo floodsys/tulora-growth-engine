@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -147,7 +147,9 @@ const OnboardingOrganization = () => {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center mb-8">
-            <img src={logo} alt="Tulora" className="h-8 w-auto" />
+            <Link to="/">
+              <img src={logo} alt="Tulora" className="h-8 w-auto" />
+            </Link>
           </div>
           
           <h1 className="text-3xl font-bold text-foreground mb-2">

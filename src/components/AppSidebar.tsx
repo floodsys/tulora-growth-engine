@@ -32,6 +32,7 @@ import { ProfileAvatar } from "@/components/ProfileAvatar"
 import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { Link } from "react-router-dom"
 import logo from "@/assets/logo.svg"
 import iconLogo from "@/assets/logo_icon_v2.svg"
 
@@ -80,7 +81,9 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <img src={logo} alt="Your Logo" className="h-8 w-auto max-w-[120px] object-contain" />
+                  <Link to="/">
+                    <img src={logo} alt="Your Logo" className="h-8 w-auto max-w-[120px] object-contain" />
+                  </Link>
                 </div>
               )}
             </SidebarGroupLabel>

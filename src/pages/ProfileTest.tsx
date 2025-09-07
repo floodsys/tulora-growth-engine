@@ -105,7 +105,9 @@ const ProfileTest = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <img src={logo} alt="Logo" className="h-8 w-auto" />
+              <Link to="/">
+                <img src={logo} alt="Logo" className="h-8 w-auto" />
+              </Link>
               <div>
                 <h1 className="text-xl font-bold">Profile Test Page</h1>
                 <p className="text-sm text-muted-foreground">End-to-end profile verification</p>

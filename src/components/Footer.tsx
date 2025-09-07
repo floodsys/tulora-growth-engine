@@ -1,4 +1,5 @@
 import { X, Linkedin, Youtube, Instagram } from "lucide-react";
+import { Link } from "react-router-dom";
 import iconLogo from "@/assets/icon_logo.svg";
 const Footer = () => {
   const footerSections = [{
@@ -47,7 +48,9 @@ const Footer = () => {
           {/* Brand Column */}
           <div className="col-span-2">
             <div className="mb-6">
-              <img src={iconLogo} alt="Tulora" className="h-8 w-auto" />
+              <Link to="/">
+                <img src={iconLogo} alt="Tulora" className="h-8 w-auto" />
+              </Link>
             </div>
             <p className="text-muted-foreground mb-6 max-w-sm">Tulora — Always present. Always by your side</p>
             

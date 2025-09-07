@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -164,7 +164,9 @@ const CompleteProfile = () => {
       <div className="flex-1 flex flex-col justify-center px-8 lg:px-16 max-w-md lg:max-w-lg mx-auto lg:mx-0">
         {/* Header */}
         <div className="mb-8">
-          <img src={logo} alt="Tulora" className="h-8 w-auto mb-8" />
+          <Link to="/">
+            <img src={logo} alt="Tulora" className="h-8 w-auto mb-8" />
+          </Link>
           
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Complete your profile

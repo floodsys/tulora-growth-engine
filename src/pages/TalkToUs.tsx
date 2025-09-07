@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -63,7 +64,9 @@ const TalkToUs = () => {
       <header className="py-6 px-4 sm:px-6 lg:px-8 border-b border-border/20">
         <div className="container mx-auto">
           <div className="flex items-center justify-between">
-            <img src={logoSvg} alt="Tulora" className="h-8" />
+            <Link to="/">
+              <img src={logoSvg} alt="Tulora" className="h-8" />
+            </Link>
             <Button variant="ghost" onClick={() => window.history.back()}>
               ← Back
             </Button>
