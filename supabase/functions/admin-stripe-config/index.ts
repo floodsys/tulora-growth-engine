@@ -7,6 +7,8 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log(`[admin-stripe-config] ${req.method} request received`);
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -33,6 +35,8 @@ serve(async (req) => {
     }
 
     if (req.method === 'GET') {
+      console.log('[admin-stripe-config] Processing GET request');
+      
       // Get plan configs and check status
       const { data: plans, error: plansError } = await supabaseClient
         .from('plan_configs')
@@ -40,7 +44,12 @@ serve(async (req) => {
         .eq('is_active', true)
         .order('plan_key');
 
-      if (plansError) throw plansError;
+      if (plansError) {
+        console.error('[admin-stripe-config] Plans error:', plansError);
+        throw plansError;
+      }
+      
+      console.log('[admin-stripe-config] Retrieved plans:', plans?.length);
 
       // Check portal and webhook status
       let portalEnabled = false;
@@ -49,7 +58,10 @@ serve(async (req) => {
       try {
         // Try to create a test portal session to check if configured
         const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+        console.log('[admin-stripe-config] Stripe key present:', !!stripeKey);
+        
         if (stripeKey) {
+          console.log('[admin-stripe-config] Testing Stripe portal configuration...');
           const testResponse = await fetch("https://api.stripe.com/v1/billing_portal/configurations", {
             headers: {
               "Authorization": `Bearer ${stripeKey}`,
@@ -57,9 +69,12 @@ serve(async (req) => {
             }
           });
           portalEnabled = testResponse.ok;
+          console.log('[admin-stripe-config] Portal test response:', testResponse.status, testResponse.ok);
+        } else {
+          console.log('[admin-stripe-config] No Stripe key found');
         }
       } catch (e) {
-        console.log("Portal check failed:", e.message);
+        console.log("[admin-stripe-config] Portal check failed:", e.message);
       }
 
       try {
