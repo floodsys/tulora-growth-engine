@@ -206,8 +206,8 @@ export default function ContactSales() {
                 </div>
 
                 <div>
-                  <Label htmlFor="expected_volume">Expected Volume</Label>
-                  <Select value={formData.expected_volume} onValueChange={(value) => handleInputChange('expected_volume', value)}>
+                  <Label htmlFor="expected_volume">Expected Volume *</Label>
+                  <Select value={formData.expected_volume} onValueChange={(value) => handleInputChange('expected_volume', value)} required>
                     <SelectTrigger>
                       <SelectValue placeholder="Select expected usage volume" />
                     </SelectTrigger>
@@ -245,7 +245,7 @@ export default function ContactSales() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={isSubmitting || !formData.name || !formData.email || !formData.company || !formData.notes}
+                    disabled={isSubmitting || !formData.name || !formData.email || !formData.company || !formData.expected_volume || !formData.notes}
                     className="flex-1"
                   >
                     <Send className="h-4 w-4 mr-2" />
