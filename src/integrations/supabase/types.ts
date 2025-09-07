@@ -817,9 +817,12 @@ export type Database = {
           created_at: string
           current_period_end: string | null
           current_period_start: string | null
+          event_processed_at: string | null
           id: string
+          last_event_id: string | null
           organization_id: string
           plan_key: string | null
+          product_line: string | null
           quantity: number | null
           status: string
           stripe_customer_id: string | null
@@ -832,9 +835,12 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          event_processed_at?: string | null
           id?: string
+          last_event_id?: string | null
           organization_id: string
           plan_key?: string | null
+          product_line?: string | null
           quantity?: number | null
           status: string
           stripe_customer_id?: string | null
@@ -847,9 +853,12 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          event_processed_at?: string | null
           id?: string
+          last_event_id?: string | null
           organization_id?: string
           plan_key?: string | null
+          product_line?: string | null
           quantity?: number | null
           status?: string
           stripe_customer_id?: string | null
@@ -1074,6 +1083,41 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      processed_webhook_events: {
+        Row: {
+          event_type: string
+          id: string
+          organization_id: string | null
+          processed_at: string
+          stripe_event_id: string
+          subscription_id: string | null
+        }
+        Insert: {
+          event_type: string
+          id?: string
+          organization_id?: string | null
+          processed_at?: string
+          stripe_event_id: string
+          subscription_id?: string | null
+        }
+        Update: {
+          event_type?: string
+          id?: string
+          organization_id?: string | null
+          processed_at?: string
+          stripe_event_id?: string
+          subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processed_webhook_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -1665,6 +1709,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      compute_org_entitlements: {
+        Args: { p_org_id: string }
+        Returns: Json
+      }
       create_invite: {
         Args:
           | {
@@ -1983,6 +2031,10 @@ export type Database = {
         Args: { input_role: string }
         Returns: string
       }
+      refresh_organization_billing_summary: {
+        Args: { p_org_id: string }
+        Returns: undefined
+      }
       reinstate_organization: {
         Args: { p_org_id: string; p_reason: string; p_reinstated_by?: string }
         Returns: Json
@@ -1998,6 +2050,10 @@ export type Database = {
       run_rls_acceptance_tests: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      safe_stripe_timestamp: {
+        Args: { stripe_timestamp: number }
+        Returns: string
       }
       safe_timestamp_from_epoch: {
         Args: { epoch_value: number }
