@@ -69,7 +69,7 @@ function getFixSuggestions(diagnostics: AccessDiagnostics): Array<{
     description: 'Use the admin diagnostic tools to investigate and test your permissions.',
     action: {
       text: 'Open Diagnostic Tools',
-      href: '/admin/_diag'
+      href: '/admin?tab=diagnostics'
     }
   });
 

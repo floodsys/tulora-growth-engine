@@ -289,7 +289,7 @@ export default function SettingsOrganization() {
                 </span>
               </div>
               <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                💡 All updates target this exact org_id. Use this ID in /admin/_diag for testing.
+                💡 All updates target this exact org_id. Use this ID in /admin?tab=diagnostics for testing.
               </p>
             </div>
           </div>

@@ -83,7 +83,7 @@ export default function SuperadminTestHarness() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         return {
-          endpoint: '/admin/_diag',
+          endpoint: '/admin?tab=diagnostics',
           method: 'GET',
           expectedStatus,
           actualStatus: 401,
@@ -97,7 +97,7 @@ export default function SuperadminTestHarness() {
       const actualStatus = isSuperadmin ? 200 : 403;
 
       return {
-        endpoint: '/admin/_diag',
+        endpoint: '/admin?tab=diagnostics',
         method: 'GET',
         expectedStatus,
         actualStatus,
@@ -105,7 +105,7 @@ export default function SuperadminTestHarness() {
       };
     } catch (err) {
       return {
-        endpoint: '/admin/_diag',
+        endpoint: '/admin?tab=diagnostics',
         method: 'GET',
         expectedStatus,
         actualStatus: 500,

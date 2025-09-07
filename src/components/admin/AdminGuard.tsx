@@ -8,25 +8,16 @@ interface AdminGuardProps {
 }
 
 export function AdminGuard({ children }: AdminGuardProps) {
-  // TEMPORARY: Complete bypass for debugging - TODO: Restore proper auth for production
-  console.log('AdminGuard: BYPASSING ALL CHECKS FOR DEBUGGING');
-  return <>{children}</>;
-  
-  /* 
-  TODO: Restore this for production:
-  
   const { isSuperadmin, isLoading } = useSuperadmin();
   const { toast } = useToast();
   const location = useLocation();
-
-  console.log('AdminGuard - isSuperadmin:', isSuperadmin, 'isLoading:', isLoading);
 
   useEffect(() => {
     // Only show toast if we've finished loading and user is not a superadmin
     if (!isLoading && !isSuperadmin) {
       toast({
         title: "Access Denied",
-        description: "You don't have permission to access the admin area.",
+        description: "Admin access restricted. Superadmin privileges required.",
         variant: "destructive",
       });
     }
@@ -46,8 +37,6 @@ export function AdminGuard({ children }: AdminGuardProps) {
     return <Navigate to="/dashboard" replace state={{ from: location }} />;
   }
 
-  // TEMPORARY: Bypass MFA for development - TODO: Re-enable for production
-  // For production, add MFA/step-up authentication here before rendering children
-  return <>{children}</>;
-  */
+  // Allow access for superadmins
+  return <>{children}</>
 }
