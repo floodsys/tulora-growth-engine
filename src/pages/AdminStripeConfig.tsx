@@ -10,6 +10,7 @@ import { PlanConfigCard } from '@/components/admin/PlanConfigCard';
 import { StripeSetupInstructions } from '@/components/admin/StripeSetupInstructions';
 import { ReadinessBanner } from '@/components/admin/ReadinessBanner';
 import { CorePlanMigration } from '@/components/admin/CorePlanMigration';
+import { CoreRemovalVerification } from '@/components/admin/CoreRemovalVerification';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface PlanConfig {
@@ -191,6 +192,9 @@ export default function AdminStripeConfig() {
             </Button>
           </div>
         </div>
+
+        {/* Core Removal Verification */}
+        <CoreRemovalVerification />
 
         {/* Health Check Warning */}
         {healthCheck.coreWarning && (
