@@ -13,7 +13,9 @@ const Navigation = () => {
           {/* Logo */}
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <img src={logo} alt="Your Logo" className="h-8 w-auto object-contain" />
+              <Link to="/">
+                <img src={logo} alt="Your Logo" className="h-8 w-auto object-contain" />
+              </Link>
             </div>
           </div>
 
