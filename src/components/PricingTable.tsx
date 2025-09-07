@@ -126,7 +126,6 @@ const PricingTable = () => {
       planKey: "leadgen_starter",
       name: "Starter",
       subtitle: "Single-location growth",
-      setupFee: "$10,000",
       monthlyPrice: "$2,500",
       includedUsage: ["500 minutes", "10,000 AI messages / mo"],
       modelMix: "Non-Realtime (voice engine + reasoning-optimized LLM)",
@@ -143,7 +142,6 @@ const PricingTable = () => {
       planKey: "leadgen_business",
       name: "Business",
       subtitle: "Multi-location or higher volume",
-      setupFee: "$10,000",
       monthlyPrice: "$3,500",
       includedUsage: ["2,000 minutes", "50,000 messages / mo"],
       modelMix: "Non-Realtime",
@@ -182,7 +180,6 @@ const PricingTable = () => {
       planKey: "support_starter",
       name: "Starter",
       subtitle: "Single-location / business hours",
-      setupFee: "$8,000",
       monthlyPrice: "$1,500",
       includedUsage: ["1,000 minutes", "10,000 messages / mo"],
       modelMix: "Non-Realtime",
@@ -198,7 +195,6 @@ const PricingTable = () => {
       planKey: "support_business",
       name: "Business",
       subtitle: "Multi-location or 24/7",
-      setupFee: "$10,000",
       monthlyPrice: "$3,500",
       includedUsage: ["4,000 minutes", "50,000 messages / mo"],
       modelMix: "Non-Realtime",
@@ -269,10 +265,10 @@ const PricingTable = () => {
           <p className="text-sm text-muted-foreground mb-4">{plan.subtitle}</p>
           
           <div className="mb-4">
-            <div className="text-sm text-muted-foreground">Setup: {plan.setupFee}</div>
+            {plan.setupFee && <div className="text-sm text-muted-foreground">Setup: {plan.setupFee}</div>}
             <div className="text-3xl font-bold text-foreground">{plan.monthlyPrice}</div>
             {!plan.isEnterprise && <div className="text-sm text-muted-foreground">per month</div>}
-            {!plan.isEnterprise && (
+            {plan.setupFee && !plan.isEnterprise && (
               <div className="text-xs text-muted-foreground/80 mt-1">
                 Setup fee invoiced separately.
               </div>
