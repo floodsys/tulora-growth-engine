@@ -30,8 +30,10 @@ export function useSuperadmin(): UseSuperadminReturn {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  // Development bypass: Skip all superadmin checks in development mode
-  const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
+  // Check if we're in development mode (including Lovable preview)
+  const isDev = import.meta.env.DEV || 
+                window.location.hostname === 'localhost' ||
+                window.location.hostname.includes('lovable.app');
 
   const checkSuperadmin = useCallback(async (): Promise<void> => {
     // Development bypass
