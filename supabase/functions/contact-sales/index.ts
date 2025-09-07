@@ -16,6 +16,32 @@ interface ContactSalesRequest {
   notes?: string
 }
 
+interface LeadData {
+  inquiry_type: 'enterprise';
+  full_name: string;
+  email: string;
+  company: string;
+  product_interest: string;
+  product_line: string;
+  additional_requirements: string;
+  expected_volume_label: string;
+  expected_volume_value?: string; // Will be auto-derived by trigger
+  accept_privacy: boolean;
+  marketing_opt_in: boolean;
+  page_url?: string;
+  referrer?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
+  ip_country?: string;
+  // Legacy fields for backward compatibility
+  name?: string;
+  notes?: string;
+  legacy_expected_volume?: string;
+}
+
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CONTACT-SALES] ${step}${detailsStr}`);
@@ -32,6 +58,7 @@ serve(async (req) => {
     const resendKey = Deno.env.get('RESEND_API_KEY')
     if (!resendKey) throw new Error('RESEND_API_KEY is not set')
 
+    // Use service role client to bypass RLS for inserts
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -39,8 +66,18 @@ serve(async (req) => {
     )
 
     // Get request data
-    const { name, email, company, product_line, expected_volume, notes }: ContactSalesRequest = await req.json()
-    logStep('Request data received', { name, email, company, product_line })
+    const requestData: ContactSalesRequest = await req.json()
+    logStep('Request data received', { 
+      name: requestData.name, 
+      email: requestData.email, 
+      company: requestData.company, 
+      product_line: requestData.product_line 
+    })
+
+    // Validate required fields
+    if (!requestData.name || !requestData.email) {
+      throw new Error('Missing required fields: name and email are required')
+    }
 
     // Get user if authenticated
     let userId: string | null = null
@@ -56,20 +93,53 @@ serve(async (req) => {
       }
     }
 
-    // Insert lead into database
-    const { data: leadData, error: leadError } = await supabase
+    // Normalize product_line mapping for new schema
+    const productInterestMap: Record<string, string> = {
+      'leadgen': 'AI Lead Generation',
+      'support': 'AI Customer Service'
+    };
+
+    const productInterest = productInterestMap[requestData.product_line] || 'AI Lead Generation';
+
+    // Prepare normalized lead data according to new schema
+    const leadData: LeadData = {
+      inquiry_type: 'enterprise',
+      full_name: requestData.name.trim(),
+      email: requestData.email.trim().toLowerCase(),
+      company: requestData.company?.trim() || '',
+      product_interest: productInterest,
+      product_line: requestData.product_line,
+      additional_requirements: requestData.notes?.trim() || '',
+      expected_volume_label: requestData.expected_volume?.trim() || '',
+      accept_privacy: true, // Implied consent for enterprise inquiries
+      marketing_opt_in: false, // Default to false, user can opt-in separately
+      
+      // Extract tracking data from request
+      page_url: req.headers.get('referer') || undefined,
+      referrer: req.headers.get('referer') || undefined,
+      utm_source: new URL(req.url).searchParams.get('utm_source') || undefined,
+      utm_medium: new URL(req.url).searchParams.get('utm_medium') || undefined,
+      utm_campaign: new URL(req.url).searchParams.get('utm_campaign') || undefined,
+      utm_term: new URL(req.url).searchParams.get('utm_term') || undefined,
+      utm_content: new URL(req.url).searchParams.get('utm_content') || undefined,
+      
+      // Keep legacy fields for backward compatibility during transition
+      name: requestData.name,
+      notes: requestData.notes,
+      legacy_expected_volume: requestData.expected_volume,
+    };
+
+    logStep('Inserting lead data with new schema', { 
+      inquiry_type: leadData.inquiry_type,
+      email: leadData.email,
+      company: leadData.company,
+      product_interest: leadData.product_interest
+    })
+
+    // Insert lead into database using service role (bypasses RLS)
+    const { data: savedLead, error: leadError } = await supabase
       .from('leads')
-      .insert({
-        user_id: userId,
-        name,
-        email,
-        company,
-        product_line,
-        expected_volume,
-        notes,
-        source: 'contact_sales',
-        status: 'new'
-      })
+      .insert(leadData)
       .select()
       .single()
 
@@ -78,12 +148,10 @@ serve(async (req) => {
       throw new Error(`Failed to save lead: ${leadError.message}`)
     }
 
-    logStep('Lead saved to database', { leadId: leadData.id })
+    logStep('Lead saved to database', { leadId: savedLead.id })
 
     // Send email to sales team
     const resend = new Resend(resendKey)
-    
-    const productLineLabel = product_line === 'leadgen' ? 'AI Lead Generation' : 'AI Customer Service'
     
     const emailHtml = `
       <h2>New Enterprise Sales Inquiry</h2>
@@ -91,25 +159,36 @@ serve(async (req) => {
       
       <h3>Contact Information</h3>
       <ul>
-        <li><strong>Name:</strong> ${name}</li>
-        <li><strong>Email:</strong> ${email}</li>
-        <li><strong>Company:</strong> ${company || 'Not provided'}</li>
+        <li><strong>Name:</strong> ${leadData.full_name}</li>
+        <li><strong>Email:</strong> ${leadData.email}</li>
+        <li><strong>Company:</strong> ${leadData.company || 'Not provided'}</li>
       </ul>
       
       <h3>Interest Details</h3>
       <ul>
-        <li><strong>Product Line:</strong> ${productLineLabel}</li>
-        <li><strong>Expected Volume:</strong> ${expected_volume || 'Not provided'}</li>
+        <li><strong>Product Line:</strong> ${leadData.product_interest}</li>
+        <li><strong>Expected Volume:</strong> ${leadData.expected_volume_label || 'Not provided'}</li>
+        <li><strong>Normalized Volume:</strong> ${savedLead.expected_volume_value || 'Not derived'}</li>
       </ul>
       
-      ${notes ? `
-        <h3>Additional Notes</h3>
-        <p>${notes}</p>
+      ${leadData.additional_requirements ? `
+        <h3>Additional Requirements</h3>
+        <p>${leadData.additional_requirements}</p>
       ` : ''}
+      
+      <h3>Tracking Information</h3>
+      <ul>
+        <li><strong>Page URL:</strong> ${leadData.page_url || 'Not available'}</li>
+        <li><strong>Referrer:</strong> ${leadData.referrer || 'Direct'}</li>
+        ${leadData.utm_source ? `<li><strong>UTM Source:</strong> ${leadData.utm_source}</li>` : ''}
+        ${leadData.utm_medium ? `<li><strong>UTM Medium:</strong> ${leadData.utm_medium}</li>` : ''}
+        ${leadData.utm_campaign ? `<li><strong>UTM Campaign:</strong> ${leadData.utm_campaign}</li>` : ''}
+      </ul>
       
       <h3>Lead Details</h3>
       <ul>
-        <li><strong>Lead ID:</strong> ${leadData.id}</li>
+        <li><strong>Lead ID:</strong> ${savedLead.id}</li>
+        <li><strong>Inquiry Type:</strong> ${savedLead.inquiry_type}</li>
         <li><strong>Submission Time:</strong> ${new Date().toISOString()}</li>
         <li><strong>User ID:</strong> ${userId || 'Anonymous'}</li>
       </ul>
@@ -120,9 +199,9 @@ serve(async (req) => {
     const { data: emailResponse, error: emailError } = await resend.emails.send({
       from: 'AI Platform <noreply@tulora.io>',
       to: ['sales@tulora.io'],
-      subject: `New Enterprise Lead: ${productLineLabel} - ${company || name}`,
+      subject: `New Enterprise Lead: ${leadData.product_interest} - ${leadData.company || leadData.full_name}`,
       html: emailHtml,
-      reply_to: email
+      reply_to: leadData.email
     })
 
     if (emailError) {
@@ -135,10 +214,17 @@ serve(async (req) => {
 
     // Send confirmation email to prospect
     const confirmationHtml = `
-      <h2>Thank you for your interest in ${productLineLabel}!</h2>
-      <p>Hi ${name},</p>
+      <h2>Thank you for your interest in ${leadData.product_interest}!</h2>
+      <p>Hi ${leadData.full_name},</p>
       
-      <p>Thank you for reaching out about our ${productLineLabel} enterprise solution. We've received your inquiry and our sales team will be in touch within 24 hours.</p>
+      <p>Thank you for reaching out about our ${leadData.product_interest} enterprise solution. We've received your inquiry and our sales team will be in touch within 24 hours.</p>
+      
+      <h3>Your Inquiry Details</h3>
+      <ul>
+        <li><strong>Company:</strong> ${leadData.company}</li>
+        <li><strong>Product Interest:</strong> ${leadData.product_interest}</li>
+        <li><strong>Expected Volume:</strong> ${leadData.expected_volume_label || 'Not specified'}</li>
+      </ul>
       
       <h3>What's Next?</h3>
       <ul>
@@ -152,13 +238,13 @@ serve(async (req) => {
       <p>Best regards,<br>
       The Tulora AI Team</p>
       
-      <p><small>Reference ID: ${leadData.id}</small></p>
+      <p><small>Reference ID: ${savedLead.id}</small></p>
     `
 
     const { error: confirmationError } = await resend.emails.send({
       from: 'Tulora AI <hello@tulora.io>',
-      to: [email],
-      subject: `Thank you for your interest in ${productLineLabel}`,
+      to: [leadData.email],
+      subject: `Thank you for your interest in ${leadData.product_interest}`,
       html: confirmationHtml
     })
 
@@ -170,7 +256,8 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       success: true, 
-      leadId: leadData.id,
+      leadId: savedLead.id,
+      inquiry_type: savedLead.inquiry_type,
       message: 'Contact request submitted successfully'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

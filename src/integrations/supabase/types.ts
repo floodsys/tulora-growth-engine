@@ -669,55 +669,124 @@ export type Database = {
       }
       leads: {
         Row: {
+          accept_privacy: boolean | null
+          additional_requirements: string | null
           company: string | null
           created_at: string | null
-          email: string | null
-          expected_volume: string | null
+          crm_id: string | null
+          crm_sync_error: string | null
+          crm_sync_status: string | null
+          crm_synced_at: string | null
+          crm_system: string | null
+          crm_url: string | null
+          email: string
+          expected_volume_label: string | null
+          expected_volume_value: string | null
+          full_name: string | null
           id: string
+          inquiry_type: string | null
+          ip_country: string | null
+          legacy_expected_volume: string | null
+          marketing_opt_in: boolean | null
+          message: string | null
           metadata: Json | null
           name: string
           notes: string | null
           organization_id: string | null
+          page_url: string | null
           phone: string | null
+          product_interest: string | null
           product_line: string | null
+          referrer: string | null
           source: string | null
           status: string
           updated_at: string | null
           user_id: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
         }
         Insert: {
+          accept_privacy?: boolean | null
+          additional_requirements?: string | null
           company?: string | null
           created_at?: string | null
-          email?: string | null
-          expected_volume?: string | null
+          crm_id?: string | null
+          crm_sync_error?: string | null
+          crm_sync_status?: string | null
+          crm_synced_at?: string | null
+          crm_system?: string | null
+          crm_url?: string | null
+          email: string
+          expected_volume_label?: string | null
+          expected_volume_value?: string | null
+          full_name?: string | null
           id?: string
+          inquiry_type?: string | null
+          ip_country?: string | null
+          legacy_expected_volume?: string | null
+          marketing_opt_in?: boolean | null
+          message?: string | null
           metadata?: Json | null
           name: string
           notes?: string | null
           organization_id?: string | null
+          page_url?: string | null
           phone?: string | null
+          product_interest?: string | null
           product_line?: string | null
+          referrer?: string | null
           source?: string | null
           status?: string
           updated_at?: string | null
           user_id?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
         }
         Update: {
+          accept_privacy?: boolean | null
+          additional_requirements?: string | null
           company?: string | null
           created_at?: string | null
-          email?: string | null
-          expected_volume?: string | null
+          crm_id?: string | null
+          crm_sync_error?: string | null
+          crm_sync_status?: string | null
+          crm_synced_at?: string | null
+          crm_system?: string | null
+          crm_url?: string | null
+          email?: string
+          expected_volume_label?: string | null
+          expected_volume_value?: string | null
+          full_name?: string | null
           id?: string
+          inquiry_type?: string | null
+          ip_country?: string | null
+          legacy_expected_volume?: string | null
+          marketing_opt_in?: boolean | null
+          message?: string | null
           metadata?: Json | null
           name?: string
           notes?: string | null
           organization_id?: string | null
+          page_url?: string | null
           phone?: string | null
+          product_interest?: string | null
           product_line?: string | null
+          referrer?: string | null
           source?: string | null
           status?: string
           updated_at?: string | null
           user_id?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
         }
         Relationships: [
           {
