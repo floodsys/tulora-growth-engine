@@ -102,6 +102,16 @@ export async function requireSuperadmin(req: Request, endpoint?: string): Promis
 
     // Check if user is superadmin using USER context (not service role)
     const { data: isSuperadmin, error: superadminError } = await userClient.rpc('is_superadmin', { user_id: user.id });
+
+    // Structured observability log (minimal, no PII beyond ID)
+    const logData = {
+      where: "EDGE",
+      endpoint: endpointName,
+      user_id: user.id,
+      isSuperadmin: Boolean(isSuperadmin),
+      ts: new Date().toISOString()
+    };
+    console.log('🔐 Edge Superadmin Check:', JSON.stringify(logData));
     
     if (superadminError || !isSuperadmin) {
       console.error('Superadmin check failed:', { error: superadminError, isSuperadmin, userId: user.id });

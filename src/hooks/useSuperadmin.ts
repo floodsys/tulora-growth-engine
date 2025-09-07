@@ -37,14 +37,20 @@ export function useSuperadmin(): UseSuperadminReturn {
       // Pass user ID explicitly to avoid auth context issues
       const { data, error } = await supabase.rpc('is_superadmin', { user_id: user.id });
       
-      console.log('useSuperadmin: RPC result - data:', data, 'error:', error);
+      // Structured observability log (minimal, no PII beyond ID)
+      const logData = {
+        where: "UI",
+        user_id: user.id,
+        isSuperadmin: Boolean(data),
+        ts: new Date().toISOString()
+      };
+      console.log('🔐 Superadmin Check:', JSON.stringify(logData));
       
       if (error) {
         console.error('Error checking superadmin status:', error);
         setError(error.message);
         setIsSuperadmin(false);
       } else {
-        console.log('useSuperadmin: Setting isSuperadmin to:', Boolean(data));
         setIsSuperadmin(Boolean(data));
       }
       
