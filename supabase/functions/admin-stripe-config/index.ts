@@ -40,9 +40,9 @@ serve(async (req) => {
       // Get plan configs and check status
       const { data: plans, error: plansError } = await supabaseClient
         .from('plan_configs')
-        .select('plan_key, display_name, stripe_price_id_monthly, stripe_setup_price_id')
+        .select('plan_key, display_name, stripe_price_id_monthly, stripe_setup_price_id, product_line')
         .eq('is_active', true)
-        .order('plan_key');
+        .order('product_line, plan_key');
 
       if (plansError) {
         console.error('[admin-stripe-config] Plans error:', plansError);
@@ -78,11 +78,12 @@ serve(async (req) => {
       }
 
       try {
-        // Check if webhook is properly configured by testing the org-billing-webhook endpoint
+        // Check if webhook is properly configured and has required events
         const supabaseUrl = Deno.env.get("SUPABASE_URL");
         const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+        const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
         
-        if (supabaseUrl && webhookSecret) {
+        if (supabaseUrl && webhookSecret && stripeKey) {
           const webhookUrl = `${supabaseUrl}/functions/v1/org-billing-webhook`;
           console.log('[admin-stripe-config] Testing webhook URL:', webhookUrl);
           
@@ -97,18 +98,62 @@ serve(async (req) => {
           // Webhook is considered reachable if it responds (even with 400/401 is fine since we're not sending proper data)
           webhookReachable = response.status < 500;
           console.log('[admin-stripe-config] Webhook test response:', response.status, webhookReachable);
+          
+          // Also check if webhook events are properly configured
+          try {
+            const webhookEndpointsResponse = await fetch("https://api.stripe.com/v1/webhook_endpoints", {
+              headers: {
+                "Authorization": `Bearer ${stripeKey}`,
+                "Content-Type": "application/x-www-form-urlencoded"
+              }
+            });
+            
+            if (webhookEndpointsResponse.ok) {
+              const webhookData = await webhookEndpointsResponse.json();
+              const requiredEvents = [
+                'checkout.session.completed',
+                'customer.subscription.created',
+                'customer.subscription.updated',
+                'customer.subscription.deleted',
+                'invoice.payment_succeeded',
+                'invoice.payment_failed'
+              ];
+              
+              const hasRequiredWebhook = webhookData.data.some((endpoint: any) => 
+                endpoint.url === webhookUrl && 
+                requiredEvents.every((event: string) => endpoint.enabled_events.includes(event))
+              );
+              
+              if (!hasRequiredWebhook) {
+                webhookReachable = false;
+                console.log('[admin-stripe-config] Webhook missing required events');
+              }
+            }
+          } catch (e) {
+            console.log("[admin-stripe-config] Webhook events check failed:", e.message);
+          }
         } else {
-          console.log('[admin-stripe-config] Missing webhook configuration - URL or secret not set');
+          console.log('[admin-stripe-config] Missing webhook configuration - URL, secret, or Stripe key not set');
         }
       } catch (e) {
         console.log("[admin-stripe-config] Webhook check failed:", e.message);
       }
 
+      // Check readiness for Live mode
+      const paidPlans = plans?.filter(p => p.plan_key.includes('_starter') || p.plan_key.includes('_business')) || [];
+      const allPaidPlansConfigured = paidPlans.every(plan => 
+        plan.stripe_price_id_monthly && plan.stripe_setup_price_id
+      );
+      
+      const isLiveReady = portalEnabled && webhookReachable && allPaidPlansConfigured;
+
       return new Response(JSON.stringify({
         plans,
         status: {
           portalEnabled,
-          webhookReachable
+          webhookReachable,
+          allPaidPlansConfigured,
+          isLiveReady
         }
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -116,24 +161,85 @@ serve(async (req) => {
     }
 
     if (req.method === 'POST') {
-      const { plan_key, stripe_price_id_monthly, stripe_setup_price_id } = await req.json();
+      const body = await req.json();
+      
+      if (body.action === 'validate_price') {
+        // Validate price ID via Stripe API
+        const { priceId } = body;
+        const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+        
+        if (!stripeKey) {
+          throw new Error("Stripe secret key not configured");
+        }
+        
+        try {
+          const response = await fetch(`https://api.stripe.com/v1/prices/${priceId}`, {
+            headers: {
+              "Authorization": `Bearer ${stripeKey}`,
+              "Content-Type": "application/x-www-form-urlencoded"
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error("Invalid price ID or not found");
+          }
+          
+          const priceData = await response.json();
+          const productResponse = await fetch(`https://api.stripe.com/v1/products/${priceData.product}`, {
+            headers: {
+              "Authorization": `Bearer ${stripeKey}`,
+              "Content-Type": "application/x-www-form-urlencoded"
+            }
+          });
+          
+          const productData = await productResponse.json();
+          
+          // Check if this is test mode
+          const isTestMode = priceId.startsWith('price_test_') || !stripeKey.startsWith('sk_live_');
+          
+          return new Response(JSON.stringify({
+            success: true,
+            validation: {
+              productName: productData.name,
+              amount: priceData.unit_amount,
+              currency: priceData.currency,
+              recurring: !!priceData.recurring,
+              interval: priceData.recurring?.interval,
+              isTestMode,
+              livemode: priceData.livemode
+            }
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: error.message
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+      } else {
+        // Save plan configuration
+        const { plan_key, stripe_price_id_monthly, stripe_setup_price_id } = body;
 
-      const { error } = await supabaseClient
-        .from('plan_configs')
-        .upsert({
-          plan_key,
-          stripe_price_id_monthly,
-          stripe_setup_price_id,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'plan_key'
+        const { error } = await supabaseClient
+          .from('plan_configs')
+          .upsert({
+            plan_key,
+            stripe_price_id_monthly,
+            stripe_setup_price_id,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'plan_key'
+          });
+
+        if (error) throw error;
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
-
-      if (error) throw error;
-
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
+      }
     }
 
     throw new Error("Method not allowed");

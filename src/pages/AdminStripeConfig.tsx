@@ -8,6 +8,7 @@ import { Loader2, Settings, HelpCircle } from 'lucide-react';
 import { StripeStatusCard } from '@/components/admin/StripeStatusCard';
 import { PlanConfigCard } from '@/components/admin/PlanConfigCard';
 import { StripeSetupInstructions } from '@/components/admin/StripeSetupInstructions';
+import { ReadinessBanner } from '@/components/admin/ReadinessBanner';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface PlanConfig {
@@ -20,11 +21,13 @@ interface PlanConfig {
 interface Status {
   portalEnabled: boolean;
   webhookReachable: boolean;
+  allPaidPlansConfigured: boolean;
+  isLiveReady: boolean;
 }
 
 export default function AdminStripeConfig() {
   const [plans, setPlans] = useState<PlanConfig[]>([]);
-  const [status, setStatus] = useState<Status>({ portalEnabled: false, webhookReachable: false });
+  const [status, setStatus] = useState<Status>({ portalEnabled: false, webhookReachable: false, allPaidPlansConfigured: false, isLiveReady: false });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
@@ -48,7 +51,7 @@ export default function AdminStripeConfig() {
 
       const data = await response.json();
       setPlans(data.plans || []);
-      setStatus(data.status || { portalEnabled: false, webhookReachable: false });
+      setStatus(data.status || { portalEnabled: false, webhookReachable: false, allPaidPlansConfigured: false, isLiveReady: false });
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -115,12 +118,12 @@ export default function AdminStripeConfig() {
     ));
   };
 
-  // Group plans by product line for better organization
+  // Group plans by product line, hide legacy "Core" plans
   const groupedPlans = plans.reduce((acc, plan) => {
-    let category = 'Core Plans';
+    let category = '';
     if (plan.plan_key.includes('leadgen')) category = 'Lead Generation';
-    else if (plan.plan_key.includes('support')) category = 'Customer Support';
-    else if (plan.plan_key === 'trial') category = 'Trial & Testing';
+    else if (plan.plan_key.includes('support')) category = 'Phone Support';
+    else return acc; // Skip legacy/core plans
     
     if (!acc[category]) acc[category] = [];
     acc[category].push(plan);
@@ -159,6 +162,9 @@ export default function AdminStripeConfig() {
             Setup Guide
           </Button>
         </div>
+
+        {/* Live Mode Readiness Banner */}
+        <ReadinessBanner status={status} />
 
         {/* Status Overview */}
         <StripeStatusCard 
