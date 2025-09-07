@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface UseSuperadminReturn {
   isSuperadmin: boolean;
   isLoading: boolean;
+  error: string | null;
   checkSuperadmin: () => Promise<boolean>;
+  invalidate: () => void;
   bootstrapSuperadmin: (token: string) => Promise<{ success: boolean; error?: string }>;
   addSuperadmin: (email: string) => Promise<{ success: boolean; error?: string }>;
   removeSuperadmin: (email: string) => Promise<{ success: boolean; error?: string }>;
@@ -14,27 +16,21 @@ interface UseSuperadminReturn {
 export function useSuperadmin(): UseSuperadminReturn {
   const [isSuperadmin, setIsSuperadmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  useEffect(() => {
-    if (user) {
-      checkSuperadmin();
-    } else {
-      setIsSuperadmin(false);
-      setIsLoading(false);
-    }
-  }, [user]);
-
-  // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.
-  const checkSuperadmin = async (): Promise<boolean> => {
+  const checkSuperadmin = useCallback(async (): Promise<boolean> => {
     if (!user) {
       console.log('useSuperadmin: No user found');
       setIsSuperadmin(false);
       setIsLoading(false);
+      setError(null);
       return false;
     }
 
     console.log('useSuperadmin: Checking superadmin status for user:', user.email, user.id);
+    setIsLoading(true);
+    setError(null);
 
     try {
       // Only use DB RPC call - no env fallbacks for authorization
@@ -45,6 +41,7 @@ export function useSuperadmin(): UseSuperadminReturn {
       
       if (error) {
         console.error('Error checking superadmin status:', error);
+        setError(error.message);
         setIsSuperadmin(false);
       } else {
         console.log('useSuperadmin: Setting isSuperadmin to:', Boolean(data));
@@ -54,12 +51,35 @@ export function useSuperadmin(): UseSuperadminReturn {
       setIsLoading(false);
       return Boolean(data);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error checking superadmin status:', error);
+      setError(errorMessage);
       setIsSuperadmin(false);
       setIsLoading(false);
       return false;
     }
-  };
+  }, [user]);
+
+  const invalidate = useCallback(() => {
+    if (user) {
+      checkSuperadmin();
+    }
+  }, [checkSuperadmin, user]);
+
+  // Set up auth state monitoring and window focus refetch
+  useEffect(() => {
+    checkSuperadmin();
+
+    // Optional: Refetch on window focus
+    const handleFocus = () => {
+      if (user && !isLoading) {
+        checkSuperadmin();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [checkSuperadmin, user, isLoading]);
 
   const bootstrapSuperadmin = async (token: string): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -137,7 +157,9 @@ export function useSuperadmin(): UseSuperadminReturn {
   return {
     isSuperadmin,
     isLoading,
+    error,
     checkSuperadmin,
+    invalidate,
     bootstrapSuperadmin,
     addSuperadmin,
     removeSuperadmin,
