@@ -296,15 +296,30 @@ serve(async (req) => {
 
     logStep('Lead saved', savedLead.id, 'success')
 
-    // Send notifications via email
+    // Send notifications via email (no Slack integration)
     const resend = new Resend(resendKey)
     
-    const isEnterprise = inquiryType === 'enterprise';
-    const emailSubject = isEnterprise 
-      ? `New Enterprise Lead: ${productInterest} - ${leadData.company}`
-      : `New Contact Inquiry from ${leadData.company}`;
+    // Get configurable email addresses
+    const salesInbox = Deno.env.get('SALES_INBOX') || 'sales@tulora.io'
+    const helloInbox = Deno.env.get('HELLO_INBOX') || 'hello@tulora.io'
+    const enterpriseInbox = Deno.env.get('ENTERPRISE_INBOX') || 'sales@tulora.io'
+    const notificationsFrom = Deno.env.get('NOTIFICATIONS_FROM') || 'notifications@tulora.io'
+    
+    // Determine recipient based on inquiry type and product line
+    let recipient = inquiryType === 'contact' ? helloInbox : enterpriseInbox
+    const ccRecipients: string[] = []
+    
+    // CC sales for leadgen products
+    if (leadData.product_line === 'leadgen' && recipient !== salesInbox) {
+      ccRecipients.push(salesInbox)
+    }
+    
+    // Subject pattern: [Tulora Lead] ${inquiry_type} • ${product_line} • ${company || '(no company)'}
+    const companyText = leadData.company || '(no company)'
+    const productLineText = leadData.product_line || inquiryType
+    const emailSubject = `[Tulora Lead] ${inquiryType} • ${productLineText} • ${companyText}`
 
-    const emailHtml = isEnterprise ? `
+    const emailHtml = inquiryType === 'enterprise' ? `
       <h2>New Enterprise Sales Inquiry</h2>
       <p>A new enterprise prospect has submitted a contact request:</p>
       
@@ -345,19 +360,55 @@ serve(async (req) => {
     `;
 
     // Send notification to sales team
-    const { error: emailError } = await resend.emails.send({
-      from: 'AI Platform <noreply@tulora.io>',
-      to: ['sales@tulora.io'],
+    const emailOptions: any = {
+      from: notificationsFrom,
+      to: [recipient],
       subject: emailSubject,
       html: emailHtml,
       reply_to: leadData.email
-    })
+    }
+    
+    if (ccRecipients.length > 0) {
+      emailOptions.cc = ccRecipients
+    }
+
+    const { error: emailError } = await resend.emails.send(emailOptions)
 
     if (emailError) {
       logStep('Email notification failed', savedLead.id)
       console.error('Failed to send notification email:', emailError)
     } else {
       logStep('Email notification sent', savedLead.id)
+    }
+
+    // Send confirmation email to prospect
+    const confirmationHtml = `
+      <h2>Thank you for contacting Tulora</h2>
+      <p>Hi ${leadData.full_name},</p>
+      
+      <p>Thank you for your interest in Tulora's AI solutions. We've received your ${inquiryType} inquiry and will respond within 24 hours.</p>
+      
+      <p>In the meantime, you can:</p>
+      <ul>
+        <li><a href="https://tulora.io/pricing">View our pricing</a></li>
+        <li><a href="https://docs.tulora.io">Browse our documentation</a></li>
+      </ul>
+      
+      <p>Best regards,<br>The Tulora Team</p>
+    `
+
+    const { error: confirmationError } = await resend.emails.send({
+      from: notificationsFrom,
+      to: [leadData.email],
+      subject: `Thank you for contacting Tulora`,
+      html: confirmationHtml
+    })
+
+    if (confirmationError) {
+      logStep('Confirmation email failed', savedLead.id)
+      console.error('Failed to send confirmation email:', confirmationError)
+    } else {
+      logStep('Confirmation email sent', savedLead.id)
     }
 
     return new Response(JSON.stringify({ 
