@@ -50,6 +50,7 @@ export function PlaygroundVoiceDemo() {
   const envCheck = checkDevEnv();
   const [activeTab, setActiveTab] = useState("use-case");
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+  const [testCallAgent, setTestCallAgent] = useState<string | null>(null);
 
   const handleAgentSelect = (slug: string) => {
     setSelectedAgent(slug);
@@ -64,6 +65,12 @@ export function PlaygroundVoiceDemo() {
   const handleViewKnowledgeBase = () => {
     setActiveTab("knowledge-base");
     // Scroll to the voice-demo section
+    document.getElementById("voice-demo")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleTestCall = (agentSlug: string) => {
+    setTestCallAgent(agentSlug);
+    setActiveTab("test-calls");
     document.getElementById("voice-demo")?.scrollIntoView({ behavior: "smooth" });
   };
 
@@ -167,7 +174,7 @@ export function PlaygroundVoiceDemo() {
                 (() => {
                   const agent = voiceAgents.find(a => a.slug === selectedAgent);
                   return agent ? (
-                    <ActionsView agent={agent} />
+                    <ActionsView agent={agent} onTestCall={handleTestCall} />
                   ) : (
                     <p className="text-muted-foreground text-center py-12">Agent not found</p>
                   );
@@ -178,7 +185,7 @@ export function PlaygroundVoiceDemo() {
             </TabsContent>
 
             <TabsContent value="test-calls" className="mt-8">
-              <TestCallsTab />
+              <TestCallsTab selectedAgent={testCallAgent} />
             </TabsContent>
           </Tabs>
         </div>

@@ -12,9 +12,10 @@ interface ActionsViewProps {
     description: string;
     tags: string[];
   };
+  onTestCall?: (agentSlug: string) => void;
 }
 
-export const ActionsView = ({ agent }: ActionsViewProps) => {
+export const ActionsView = ({ agent, onTestCall }: ActionsViewProps) => {
   const actions = [
     {
       id: "real-time-scheduling",
@@ -107,7 +108,11 @@ export const ActionsView = ({ agent }: ActionsViewProps) => {
 
       {/* Test Call Button */}
       <div className="text-center pt-4">
-        <Button size="lg" className="px-8">
+        <Button 
+          size="lg" 
+          className="px-8"
+          onClick={() => onTestCall?.(agent.slug)}
+        >
           Try it in a test call
         </Button>
       </div>

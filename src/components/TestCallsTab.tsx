@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,8 +40,13 @@ const voiceAgents = [{
   subtitle: "Healthcare Receptionist",
   phoneNumber: JESSICA_PHONE
 }];
-export function TestCallsTab() {
-  const [selectedAgent, setSelectedAgent] = useState("");
+
+interface TestCallsTabProps {
+  selectedAgent?: string | null;
+}
+
+export function TestCallsTab({ selectedAgent: initialAgent }: TestCallsTabProps = {}) {
+  const [selectedAgent, setSelectedAgent] = useState(initialAgent || "");
   const [phoneNumber, setPhoneNumber] = useState("+1");
   const [isCallingPhone, setIsCallingPhone] = useState(false);
   const [isTryingBrowser, setIsTryingBrowser] = useState(false);
@@ -56,9 +61,14 @@ export function TestCallsTab() {
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const [lastErrorStatus, setLastErrorStatus] = useState<number | null>(null);
   const [lastPayload, setLastPayload] = useState<any>(null);
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
+
+  // Update selected agent when prop changes
+  useEffect(() => {
+    if (initialAgent && initialAgent !== selectedAgent) {
+      setSelectedAgent(initialAgent);
+    }
+  }, [initialAgent, selectedAgent]);
   const validatePhoneNumber = (phone: string) => {
     // E.164 validation: starts with +, followed by digits, 7-15 digits total
     const e164Regex = /^\+[1-9]\d{6,14}$/;
