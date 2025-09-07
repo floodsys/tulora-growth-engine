@@ -5,8 +5,8 @@ export default function SecureDiagnosticPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Redirect to main admin dashboard which now contains all diagnostic tools
-    navigate('/admin', { replace: true });
+    // Redirect to main admin dashboard diagnostics tab
+    navigate('/admin?tab=diagnostics', { replace: true });
   }, [navigate]);
 
   return (
