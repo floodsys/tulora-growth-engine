@@ -43,8 +43,8 @@ serve(async (req) => {
       }
     );
 
-    // Check if user is superadmin - this will use the user's auth context
-    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin');
+    // Check if user is superadmin using USER context (not service role)
+    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin', { user_id: userData.user.id });
     if (superadminError || !isSuperadmin) {
       logStep("Superadmin check failed", { error: superadminError, isSuperadmin });
       return new Response(JSON.stringify({ error: "forbidden" }), {
