@@ -14,12 +14,31 @@ const corsHeaders = {
 /**
  * Validates if the requesting user is a superadmin.
  * Returns authentication and authorization errors with proper CORS headers.
+ * Logs denial attempts to audit sink when available.
  */
-export async function requireSuperadmin(req: Request): Promise<SuperadminGuardResult> {
+export async function requireSuperadmin(req: Request, endpoint?: string): Promise<SuperadminGuardResult> {
+  const requestUrl = new URL(req.url);
+  const endpointName = endpoint || requestUrl.pathname.split('/').pop() || 'unknown';
+  
   try {
+    // Create Supabase client for admin operations
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
     // Check for authorization header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
+      // Log unauthenticated attempt
+      await logDenialAttempt(supabaseClient, {
+        endpoint: endpointName,
+        user_id: null,
+        reason: 'unauthenticated',
+        ts: new Date().toISOString()
+      });
+
       return {
         ok: false,
         response: new Response(JSON.stringify({
@@ -35,22 +54,23 @@ export async function requireSuperadmin(req: Request): Promise<SuperadminGuardRe
       };
     }
 
-    // Create Supabase client with service role key for admin operations
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
-
     // Extract token and get user
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     
     if (userError || !userData.user) {
+      // Log unauthenticated attempt (invalid token)
+      await logDenialAttempt(supabaseClient, {
+        endpoint: endpointName,
+        user_id: null,
+        reason: 'unauthenticated',
+        ts: new Date().toISOString()
+      });
+
       return {
         ok: false,
         response: new Response(JSON.stringify({
-          error: 'Invalid authentication'
+          error: 'Authentication required'
         }), {
           headers: { 
             ...corsHeaders, 
@@ -70,6 +90,14 @@ export async function requireSuperadmin(req: Request): Promise<SuperadminGuardRe
     if (superadminError || !isSuperadmin) {
       console.error('Superadmin check failed:', { error: superadminError, isSuperadmin, userId: user.id });
       
+      // Log non-superadmin attempt
+      await logDenialAttempt(supabaseClient, {
+        endpoint: endpointName,
+        user_id: user.id,
+        reason: 'not_superadmin',
+        ts: new Date().toISOString()
+      });
+
       return {
         ok: false,
         response: new Response(JSON.stringify({
@@ -98,5 +126,42 @@ export async function requireSuperadmin(req: Request): Promise<SuperadminGuardRe
         status: 500,
       })
     };
+  }
+}
+
+/**
+ * Logs denial attempts to audit sink for security monitoring
+ */
+async function logDenialAttempt(
+  supabase: any,
+  details: {
+    endpoint: string;
+    user_id: string | null;
+    reason: string;
+    ts: string;
+  }
+) {
+  try {
+    // Insert into audit_log table if it exists
+    await supabase.from('audit_log').insert({
+      organization_id: '00000000-0000-0000-0000-000000000000', // System-level event
+      actor_user_id: details.user_id,
+      actor_role_snapshot: 'unknown',
+      action: 'admin.access_denied',
+      target_type: 'endpoint',
+      target_id: details.endpoint,
+      status: 'error',
+      error_code: details.reason,
+      channel: 'security',
+      metadata: {
+        endpoint: details.endpoint,
+        denial_reason: details.reason,
+        timestamp: details.ts,
+        security_event: true
+      }
+    });
+  } catch (error) {
+    // Don't fail the main operation if audit logging fails
+    console.warn('Failed to log denial attempt:', error);
   }
 }

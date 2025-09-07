@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
   }
 
   // Enforce superadmin access
-  const guardResult = await requireSuperadmin(req);
+  const guardResult = await requireSuperadmin(req, 'smoke-tests');
   if (!guardResult.ok) {
     return guardResult.response!;
   }
