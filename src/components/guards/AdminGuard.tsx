@@ -14,6 +14,14 @@ export function AdminGuard({ children }: AdminGuardProps) {
   const { toast } = useToast();
   const location = useLocation();
 
+  // Development bypass: Skip admin check in development mode
+  const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
+  
+  if (isDev) {
+    console.log('[AdminGuard] Development mode - bypassing admin checks');
+    return <>{children}</>;
+  }
+
   useEffect(() => {
     // Only show toast if we've finished loading and user is not a superadmin
     if (!isLoading && !isSuperadmin && !error) {
