@@ -11,7 +11,9 @@ import { supabase } from "@/integrations/supabase/client";
 import contactUsImage from "@/assets/contact-us.svg";
 import talkToUsGraphic from "@/assets/talk-to-us-graphic.png";
 import logoSvg from "@/assets/logo.svg";
-import { TURNSTILE_SITE_KEY } from "@/config/turnstile";
+
+// Cloudflare Turnstile site key - replace with your actual site key
+const TURNSTILE_SITE_KEY = '0x4AAAAAAA5JnmJ9Z7sOFIhf';
 
 // Declare Turnstile on window object
 declare global {
