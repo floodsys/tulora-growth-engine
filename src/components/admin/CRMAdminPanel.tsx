@@ -54,8 +54,11 @@ export function CRMAdminPanel({ organizationId }: CRMAdminPanelProps) {
   const fetchSyncData = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('crm-admin', {
-        method: 'GET',
-        body: { organization_id: organizationId }
+        body: { 
+          action: 'get_status',
+          organization_id: organizationId,
+          limit: 50
+        }
       })
 
       if (error) throw error
@@ -89,7 +92,10 @@ export function CRMAdminPanel({ organizationId }: CRMAdminPanelProps) {
     
     try {
       const { data, error } = await supabase.functions.invoke('crm-admin', {
-        body: leadId ? { lead_id: leadId } : { organization_id: organizationId }
+        body: { 
+          action: 'retry',
+          ...(leadId ? { lead_id: leadId } : { organization_id: organizationId })
+        }
       })
 
       if (error) throw error
