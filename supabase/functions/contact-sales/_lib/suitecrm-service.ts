@@ -10,8 +10,9 @@ import {
 
 export interface SuiteCRMConfig {
   baseUrl: string
-  username: string
-  password: string
+  authMode?: string
+  username?: string
+  password?: string
   clientId?: string
   clientSecret?: string
 }
@@ -55,19 +56,28 @@ export class SuiteCRMService {
    */
   async authenticate(): Promise<void> {
     try {
+      const authMode = this.config.authMode || 'v8_client_credentials'
+      
+      let authPayload: any = {
+        client_id: this.config.clientId || 'suitecrm_client',
+        client_secret: this.config.clientSecret || '',
+        scope: 'openid profile email'
+      }
+
+      if (authMode === 'v8_client_credentials') {
+        authPayload.grant_type = 'client_credentials'
+      } else {
+        authPayload.grant_type = 'password'
+        authPayload.username = this.config.username
+        authPayload.password = this.config.password
+      }
+
       const response = await fetch(`${this.config.baseUrl}/Api/access_token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          grant_type: 'password',
-          client_id: this.config.clientId || 'suitecrm_client',
-          client_secret: this.config.clientSecret || '',
-          username: this.config.username,
-          password: this.config.password,
-          scope: 'openid profile email'
-        })
+        body: JSON.stringify(authPayload)
       })
 
       if (!response.ok) {
@@ -310,19 +320,26 @@ export class SuiteCRMService {
  */
 export function createSuiteCRMService(): SuiteCRMService | null {
   const baseUrl = Deno.env.get('SUITECRM_BASE_URL')
+  const clientId = Deno.env.get('SUITECRM_CLIENT_ID')
+  const clientSecret = Deno.env.get('SUITECRM_CLIENT_SECRET')
   const username = Deno.env.get('SUITECRM_USERNAME')
   const password = Deno.env.get('SUITECRM_PASSWORD')
   
-  if (!baseUrl || !username || !password) {
-    console.log('SuiteCRM credentials not configured, skipping CRM sync')
+  // For client credentials mode, only require base URL, client ID, and client secret
+  if (!baseUrl || !clientId || !clientSecret) {
+    console.log('SuiteCRM credentials not configured (missing base URL, client ID, or client secret), skipping CRM sync')
     return null
   }
   
+  // Determine auth mode based on available credentials
+  const authMode = (username && password) ? 'v8_password' : 'v8_client_credentials'
+  
   return new SuiteCRMService({
     baseUrl: baseUrl.replace(/\/$/, ''), // Remove trailing slash
+    authMode,
     username,
     password,
-    clientId: Deno.env.get('SUITECRM_CLIENT_ID'),
-    clientSecret: Deno.env.get('SUITECRM_CLIENT_SECRET')
+    clientId,
+    clientSecret
   })
 }
