@@ -9,6 +9,12 @@ const corsHeaders = {
 
 interface TestEmailRequest {
   to: string;
+  template?: string;
+  metadata?: {
+    sent_by: string;
+    organization_id: string;
+    test_type: string;
+  };
 }
 
 serve(async (req) => {
@@ -68,7 +74,7 @@ serve(async (req) => {
       });
     }
 
-    const { to }: TestEmailRequest = await req.json();
+    const { to, template, metadata }: TestEmailRequest = await req.json();
 
     if (!to) {
       return new Response(JSON.stringify({ error: "Email address is required" }), {
@@ -159,7 +165,7 @@ serve(async (req) => {
     console.error('Test email error:', error);
     return new Response(JSON.stringify({
       ok: false,
-      error: `Failed to send test email: ${error.message}`
+      error: `Failed to send email: ${error?.message || 'Unknown error'}`
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
