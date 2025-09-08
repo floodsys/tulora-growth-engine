@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import contactUsImage from "@/assets/contact-us.svg";
 import talkToUsGraphic from "@/assets/talk-to-us-graphic.png";
 import logoSvg from "@/assets/logo.svg";
-import { TURNSTILE_SITE_KEY } from "@/config/turnstile";
+import { useTurnstile } from "@/hooks/useTurnstile";
 
 // Declare Turnstile on window object
 declare global {
@@ -32,8 +32,6 @@ const TalkToUs = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState<string>("");
-  const [turnstileLoaded, setTurnstileLoaded] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -44,45 +42,8 @@ const TalkToUs = () => {
     website: ""
   });
 
-  // Load Cloudflare Turnstile script
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
-    script.async = true;
-    script.defer = true;
-    script.onload = () => setTurnstileLoaded(true);
-    document.head.appendChild(script);
-
-    return () => {
-      // Cleanup script if component unmounts
-      if (document.head.contains(script)) {
-        document.head.removeChild(script);
-      }
-    };
-  }, []);
-
-  // Initialize Turnstile widget when script loads
-  useEffect(() => {
-    if (turnstileLoaded && window.turnstile) {
-      window.turnstile.render('#turnstile-widget', {
-        sitekey: TURNSTILE_SITE_KEY,
-        callback: (token: string) => {
-          setTurnstileToken(token);
-        },
-        'error-callback': () => {
-          setTurnstileToken('');
-          toast({
-            title: "Verification failed",
-            description: "Please try the verification again",
-            variant: "destructive"
-          });
-        },
-        'expired-callback': () => {
-          setTurnstileToken('');
-        }
-      });
-    }
-  }, [turnstileLoaded, toast]);
+  // Initialize Turnstile
+  const { token: turnstileToken, isReady: turnstileReady } = useTurnstile('turnstile-widget');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -152,7 +113,7 @@ const TalkToUs = () => {
           project: "",
           website: ""
         });
-        setTurnstileToken("");
+        // Form reset handled by hook
       } else {
         throw new Error(data?.error || 'Failed to submit form');
       }
