@@ -32,6 +32,7 @@ interface ContactFormRequest {
   additional_requirements?: string // new field name
   accept_privacy?: boolean
   marketing_opt_in?: boolean
+  turnstile_token?: string // Cloudflare Turnstile token
 }
 
 interface ValidationError {
@@ -116,6 +117,35 @@ const normalizeFullName = (name: string): string => {
 const validateEmail = (email: string): boolean => {
   const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
   return emailRegex.test(email);
+}
+
+const verifyTurnstileToken = async (token: string, remoteIP?: string): Promise<boolean> => {
+  const secretKey = Deno.env.get('CLOUDFLARE_TURNSTILE_SECRET_KEY');
+  
+  if (!secretKey) {
+    console.warn('Turnstile secret key not configured');
+    return false;
+  }
+
+  try {
+    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        secret: secretKey,
+        response: token,
+        ...(remoteIP && { remoteip: remoteIP })
+      }),
+    });
+
+    const result = await response.json();
+    return result.success === true;
+  } catch (error) {
+    console.error('Turnstile verification error:', error);
+    return false;
+  }
 }
 
 const mapProductInterestToLine = (productInterest: string): string => {
@@ -301,6 +331,35 @@ serve(async (req) => {
         success: true,
         message: 'Thank you for your submission'
       }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Verify Turnstile token
+    if (requestData.turnstile_token) {
+      const clientIP = req.headers.get('CF-Connecting-IP') || req.headers.get('X-Forwarded-For') || 'unknown';
+      const turnstileValid = await verifyTurnstileToken(requestData.turnstile_token, clientIP);
+      
+      if (!turnstileValid) {
+        logStep('Turnstile verification failed', undefined, 'blocked');
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Security verification failed. Please try again.'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
+      logStep('Turnstile verification passed', undefined, 'verified');
+    } else {
+      // If no Turnstile token provided, return error
+      logStep('No Turnstile token provided', undefined, 'blocked');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Security verification required. Please complete the verification.'
+      }), {
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }

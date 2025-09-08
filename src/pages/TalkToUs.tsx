@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,12 +11,29 @@ import { supabase } from "@/integrations/supabase/client";
 import contactUsImage from "@/assets/contact-us.svg";
 import talkToUsGraphic from "@/assets/talk-to-us-graphic.png";
 import logoSvg from "@/assets/logo.svg";
+import { TURNSTILE_SITE_KEY } from "@/config/turnstile";
+
+// Declare Turnstile on window object
+declare global {
+  interface Window {
+    turnstile: {
+      render: (element: string | HTMLElement, options: {
+        sitekey: string;
+        callback: (token: string) => void;
+        'error-callback'?: () => void;
+        'expired-callback'?: () => void;
+      }) => string;
+      reset: (widgetId?: string) => void;
+    };
+  }
+}
 
 const TalkToUs = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [submitDelay, setSubmitDelay] = useState(0);
+  const [turnstileToken, setTurnstileToken] = useState<string>("");
+  const [turnstileLoaded, setTurnstileLoaded] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -26,6 +43,46 @@ const TalkToUs = () => {
     // Honeypot field - should remain empty
     website: ""
   });
+
+  // Load Cloudflare Turnstile script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => setTurnstileLoaded(true);
+    document.head.appendChild(script);
+
+    return () => {
+      // Cleanup script if component unmounts
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
+    };
+  }, []);
+
+  // Initialize Turnstile widget when script loads
+  useEffect(() => {
+    if (turnstileLoaded && window.turnstile) {
+      window.turnstile.render('#turnstile-widget', {
+        sitekey: TURNSTILE_SITE_KEY,
+        callback: (token: string) => {
+          setTurnstileToken(token);
+        },
+        'error-callback': () => {
+          setTurnstileToken('');
+          toast({
+            title: "Verification failed",
+            description: "Please try the verification again",
+            variant: "destructive"
+          });
+        },
+        'expired-callback': () => {
+          setTurnstileToken('');
+        }
+      });
+    }
+  }, [turnstileLoaded, toast]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -44,11 +101,11 @@ const TalkToUs = () => {
       return;
     }
 
-    // Anti-spam: Check submit delay (3 second minimum)
-    if (submitDelay < 3) {
+    // Check Turnstile verification
+    if (!turnstileToken) {
       toast({
-        title: "Please wait",
-        description: "Please take a moment to review your information",
+        title: "Please complete verification",
+        description: "Please complete the security check to continue",
         variant: "destructive"
       });
       return;
@@ -75,7 +132,8 @@ const TalkToUs = () => {
           company: formData.company,
           message: formData.project,
           accept_privacy: true,
-          marketing_opt_in: false
+          marketing_opt_in: false,
+          turnstile_token: turnstileToken
         }
       });
 
@@ -94,7 +152,7 @@ const TalkToUs = () => {
           project: "",
           website: ""
         });
-        setSubmitDelay(0);
+        setTurnstileToken("");
       } else {
         throw new Error(data?.error || 'Failed to submit form');
       }
@@ -284,29 +342,18 @@ const TalkToUs = () => {
                         autoComplete="off"
                       />
 
+                       {/* Turnstile Widget */}
+                      <div id="turnstile-widget" className="flex justify-center"></div>
+
                        {/* Submit Button */}
                       <Button 
                         type="submit" 
                         size="lg" 
                         className="w-full h-12 text-lg font-semibold"
                         variant="brand"
-                        disabled={isSubmitting || submitDelay < 3}
-                        onMouseEnter={() => {
-                          if (submitDelay === 0) {
-                            const startTime = Date.now();
-                            const timer = setInterval(() => {
-                              const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                              setSubmitDelay(elapsed);
-                              if (elapsed >= 3) {
-                                clearInterval(timer);
-                              }
-                            }, 100);
-                          }
-                        }}
+                        disabled={isSubmitting || !turnstileToken}
                       >
-                        {isSubmitting ? "Sending..." : 
-                         submitDelay < 3 ? `Please wait ${3 - submitDelay}s...` : 
-                         "Send message"}
+                        {isSubmitting ? "Sending..." : "Send message"}
                       </Button>
                     </form>
                   )}
