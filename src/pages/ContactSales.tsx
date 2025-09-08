@@ -101,20 +101,15 @@ export default function ContactSales() {
               <CardContent className="p-8">
                 <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
                 <h1 className="text-2xl font-bold text-green-900 mb-4">
-                  Thank You!
+                  Thanks!
                 </h1>
                 <p className="text-green-700 mb-6">
-                  We've received your enterprise inquiry for <strong>{getProductLineDisplay(formData.product_line)}</strong>.
-                  Our sales team will review your requirements and contact you within 24 hours.
+                  An enterprise specialist will contact you shortly to discuss your {getProductLineDisplay(formData.product_line)} requirements and pricing.
                 </p>
                 <div className="space-y-4">
                   <div className="text-sm text-green-600 bg-green-100 p-4 rounded-lg">
-                    <p><strong>What happens next:</strong></p>
-                    <ul className="text-left mt-2 space-y-1">
-                      <li>• Sales team reviews your requirements</li>
-                      <li>• Custom demo scheduled based on your needs</li>
-                      <li>• Tailored pricing and implementation plan</li>
-                    </ul>
+                    <p><strong>We've sent you a confirmation email with next steps.</strong></p>
+                    <p className="mt-2">Our enterprise team will follow up shortly to discuss requirements and pricing for your {getProductLineDisplay(formData.product_line)} solution.</p>
                   </div>
                   <div className="flex gap-4 justify-center">
                     <Button onClick={() => navigate('/')} variant="outline">

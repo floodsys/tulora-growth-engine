@@ -1,13 +1,20 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { Resend } from 'npm:resend@2.0.0'
+import { Resend } from 'npm:resend@4.0.0'
+import { renderAsync } from 'npm:@react-email/components@0.0.22'
+import React from 'npm:react@18.3.1'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 import { createSuiteCRMService } from './_lib/suitecrm-service.ts'
 import { previewSuiteCRMPayload } from './_lib/suitecrm-mapping.ts'
+import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
+import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+// Initialize Resend
+const resend = new Resend(Deno.env.get('RESEND_API_KEY'))
 
 interface ContactFormRequest {
   inquiry_type: 'contact' | 'enterprise'

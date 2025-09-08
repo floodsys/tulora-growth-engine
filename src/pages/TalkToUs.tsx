@@ -5,13 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import contactUsImage from "@/assets/contact-us.svg";
 import talkToUsGraphic from "@/assets/talk-to-us-graphic.png";
 import logoSvg from "@/assets/logo.svg";
 
 const TalkToUs = () => {
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -28,7 +32,7 @@ const TalkToUs = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Basic validation
@@ -40,22 +44,49 @@ const TalkToUs = () => {
       return;
     }
 
-    // Here you would typically send the data to your backend
-    console.log("Form submitted:", formData);
-    
-    toast({
-      title: "Thank you for reaching out!",
-      description: "We'll be in touch soon to schedule your personalized demo."
-    });
+    setIsSubmitting(true);
 
-    // Reset form
-    setFormData({
-      fullName: "",
-      email: "",
-      phone: "",
-      company: "",
-      project: ""
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('contact-sales', {
+        body: {
+          inquiry_type: 'contact',
+          full_name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          company: formData.company,
+          message: formData.project,
+          accept_privacy: true,
+          marketing_opt_in: false
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data?.success) {
+        setIsSubmitted(true);
+        // Reset form
+        setFormData({
+          fullName: "",
+          email: "",
+          phone: "",
+          company: "",
+          project: ""
+        });
+      } else {
+        throw new Error(data?.error || 'Failed to submit form');
+      }
+    } catch (error: any) {
+      console.error('Contact form error:', error);
+      toast({
+        title: "Failed to send message",
+        description: error.message || "Please try again later",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -100,105 +131,139 @@ const TalkToUs = () => {
               </div>
             </div>
 
-            {/* Right Side - Form */}
+            {/* Right Side - Form or Success State */}
             <div className="w-full">
               <Card className="card-glass">
                 <CardContent className="p-8">
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Full Name */}
-                    <div className="space-y-2">
-                      <Label htmlFor="fullName" className="text-foreground font-medium">
-                        Full Name *
-                      </Label>
-                      <Input
-                        id="fullName"
-                        name="fullName"
-                        type="text"
-                        placeholder="Your name"
-                        value={formData.fullName}
-                        onChange={handleInputChange}
-                        required
-                        className="h-12"
-                      />
+                  {isSubmitted ? (
+                    // Success State
+                    <div className="text-center space-y-6">
+                      <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
+                      <div className="space-y-2">
+                        <h2 className="text-2xl font-bold text-foreground">
+                          Thanks!
+                        </h2>
+                        <p className="text-lg text-muted-foreground">
+                          We'll reach out to schedule your demo.
+                        </p>
+                      </div>
+                      <div className="bg-muted/50 p-4 rounded-lg">
+                        <p className="text-sm text-muted-foreground">
+                          Look for a confirmation email in your inbox. We'll email you soon to schedule a personalized demo of our AI lead generation platform.
+                        </p>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setIsSubmitted(false)}
+                        className="w-full"
+                      >
+                        Submit Another Request
+                      </Button>
                     </div>
+                  ) : (
+                    // Form
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                      {/* Full Name */}
+                      <div className="space-y-2">
+                        <Label htmlFor="fullName" className="text-foreground font-medium">
+                          Full Name *
+                        </Label>
+                        <Input
+                          id="fullName"
+                          name="fullName"
+                          type="text"
+                          placeholder="Your name"
+                          value={formData.fullName}
+                          onChange={handleInputChange}
+                          required
+                          className="h-12"
+                          disabled={isSubmitting}
+                        />
+                      </div>
 
-                    {/* Email */}
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="text-foreground font-medium">
-                        Email *
-                      </Label>
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        placeholder="name@example.com"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        required
-                        className="h-12"
-                      />
-                    </div>
+                      {/* Email */}
+                      <div className="space-y-2">
+                        <Label htmlFor="email" className="text-foreground font-medium">
+                          Email *
+                        </Label>
+                        <Input
+                          id="email"
+                          name="email"
+                          type="email"
+                          placeholder="name@example.com"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          required
+                          className="h-12"
+                          disabled={isSubmitting}
+                        />
+                      </div>
 
-                    {/* Phone Number */}
-                    <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-foreground font-medium">
-                        Phone Number *
-                      </Label>
-                      <Input
-                        id="phone"
-                        name="phone"
-                        type="tel"
-                        placeholder="605-500-0123"
-                        value={formData.phone}
-                        onChange={handleInputChange}
-                        required
-                        className="h-12"
-                      />
-                    </div>
+                      {/* Phone Number */}
+                      <div className="space-y-2">
+                        <Label htmlFor="phone" className="text-foreground font-medium">
+                          Phone Number *
+                        </Label>
+                        <Input
+                          id="phone"
+                          name="phone"
+                          type="tel"
+                          placeholder="605-500-0123"
+                          value={formData.phone}
+                          onChange={handleInputChange}
+                          required
+                          className="h-12"
+                          disabled={isSubmitting}
+                        />
+                      </div>
 
-                    {/* Company */}
-                    <div className="space-y-2">
-                      <Label htmlFor="company" className="text-foreground font-medium">
-                        Company *
-                      </Label>
-                      <Input
-                        id="company"
-                        name="company"
-                        type="text"
-                        placeholder="Company name"
-                        value={formData.company}
-                        onChange={handleInputChange}
-                        required
-                        className="h-12"
-                      />
-                    </div>
+                      {/* Company */}
+                      <div className="space-y-2">
+                        <Label htmlFor="company" className="text-foreground font-medium">
+                          Company *
+                        </Label>
+                        <Input
+                          id="company"
+                          name="company"
+                          type="text"
+                          placeholder="Company name"
+                          value={formData.company}
+                          onChange={handleInputChange}
+                          required
+                          className="h-12"
+                          disabled={isSubmitting}
+                        />
+                      </div>
 
-                    {/* Project Description */}
-                    <div className="space-y-2">
-                      <Label htmlFor="project" className="text-foreground font-medium">
-                        What would you like to build in Tulora? *
-                      </Label>
-                      <Textarea
-                        id="project"
-                        name="project"
-                        placeholder="We'll use this to show relevant examples and templates during the demo"
-                        value={formData.project}
-                        onChange={handleInputChange}
-                        required
-                        className="min-h-[120px] resize-none"
-                      />
-                    </div>
+                      {/* Project Description */}
+                      <div className="space-y-2">
+                        <Label htmlFor="project" className="text-foreground font-medium">
+                          What would you like to build in Tulora? *
+                        </Label>
+                        <Textarea
+                          id="project"
+                          name="project"
+                          placeholder="We'll use this to show relevant examples and templates during the demo"
+                          value={formData.project}
+                          onChange={handleInputChange}
+                          required
+                          className="min-h-[120px] resize-none"
+                          disabled={isSubmitting}
+                        />
+                      </div>
 
-                    {/* Submit Button */}
-                    <Button 
-                      type="submit" 
-                      size="lg" 
-                      className="w-full h-12 text-lg font-semibold"
-                      variant="brand"
-                    >
-                      Send message
-                    </Button>
-                  </form>
+                      {/* Submit Button */}
+                      <Button 
+                        type="submit" 
+                        size="lg" 
+                        className="w-full h-12 text-lg font-semibold"
+                        variant="brand"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? "Sending..." : "Send message"}
+                      </Button>
+                    </form>
+                  )}
                 </CardContent>
               </Card>
             </div>
