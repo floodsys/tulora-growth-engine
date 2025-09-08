@@ -23,7 +23,8 @@ import {
   UserPlus,
   Pause,
   RefreshCw,
-  Eye
+  Eye,
+  Bell
 } from "lucide-react";
 import { OrgSwitcherTests } from "./OrgSwitcherTests"
 import { ProfileUpdateTests } from "./ProfileUpdateTests"
@@ -227,6 +228,19 @@ export function TestDashboard() {
                     <div className="text-sm text-muted-foreground">Email configuration</div>
                   </div>
                 </Button>
+
+                <Link to="/admin/notifications">
+                  <Button 
+                    variant="outline" 
+                    className="h-auto p-4 justify-start w-full"
+                  >
+                    <Bell className="h-5 w-5 mr-3" />
+                    <div className="text-left">
+                      <div className="font-medium">Notifications & CRM</div>
+                      <div className="text-sm text-muted-foreground">Email & CRM testing</div>
+                    </div>
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>
