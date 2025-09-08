@@ -195,7 +195,7 @@ export function TestDashboard() {
                 <Button 
                   variant="outline" 
                   className="h-auto p-4 justify-start"
-                  onClick={() => toast({ description: "Data Fixes feature coming soon" })}
+                  onClick={() => document.getElementById('data-fixes')?.scrollIntoView({ behavior: 'smooth' })}
                 >
                   <Database className="h-5 w-5 mr-3" />
                   <div className="text-left">
@@ -207,7 +207,7 @@ export function TestDashboard() {
                 <Button 
                   variant="outline" 
                   className="h-auto p-4 justify-start"
-                  onClick={() => toast({ description: "Feature Flags feature coming soon" })}
+                  onClick={() => document.getElementById('feature-flags')?.scrollIntoView({ behavior: 'smooth' })}
                 >
                   <Flag className="h-5 w-5 mr-3" />
                   <div className="text-left">
@@ -219,7 +219,7 @@ export function TestDashboard() {
                 <Button 
                   variant="outline" 
                   className="h-auto p-4 justify-start"
-                  onClick={() => toast({ description: "Email Integration feature coming soon" })}
+                  onClick={() => document.getElementById('email-integrations')?.scrollIntoView({ behavior: 'smooth' })}
                 >
                   <Mail className="h-5 w-5 mr-3" />
                   <div className="text-left">
@@ -228,25 +228,23 @@ export function TestDashboard() {
                   </div>
                 </Button>
               </div>
-              
-              <div className="mt-6 space-y-4">
-                <div className="border rounded-lg p-4">
-                  <h4 className="font-medium mb-3">Data Fixes</h4>
-                  <DataFixes />
-                </div>
-                
-                <div className="border rounded-lg p-4">
-                  <h4 className="font-medium mb-3">Feature Flags</h4>
-                  <FeatureFlags />
-                </div>
-                
-                <div className="border rounded-lg p-4">
-                  <h4 className="font-medium mb-3">Email Integrations</h4>
-                  <EmailIntegrations />
-                </div>
-              </div>
             </CardContent>
           </Card>
+
+          {/* Data Fixes Component */}
+          <div id="data-fixes">
+            <DataFixes />
+          </div>
+
+          {/* Feature Flags Component */}
+          <div id="feature-flags">
+            <FeatureFlags />
+          </div>
+
+          {/* Email Integrations Component */}
+          <div id="email-integrations">
+            <EmailIntegrations />
+          </div>
         </TabsContent>
 
         <TabsContent value="management" className="space-y-6">
