@@ -179,8 +179,13 @@ class SuiteCRMService {
       
       let authPayload: any = {
         client_id: this.config.clientId || 'suitecrm_client',
-        client_secret: this.config.clientSecret || '',
-        scope: 'openid profile email'
+        client_secret: this.config.clientSecret || ''
+      }
+
+      // Only add scope if SUITECRM_SCOPE environment variable is set and non-empty
+      const scopeValue = Deno.env.get('SUITECRM_SCOPE')
+      if (scopeValue && scopeValue.trim() !== '') {
+        authPayload.scope = scopeValue.trim()
       }
 
       if (authMode === 'v8_client_credentials') {

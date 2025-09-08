@@ -359,6 +359,11 @@ export default function AdminNotifications() {
                     </div>
                   </div>
                 </div>
+
+                <div className="text-sm text-muted-foreground p-3 bg-muted rounded-lg">
+                  <strong>v8 Client Credentials Mode:</strong> Only requires Base URL, Client ID, and Client Secret. 
+                  Username/password authentication is not used in this mode.
+                </div>
                 
                 <div className="flex items-center space-x-2">
                   <Switch

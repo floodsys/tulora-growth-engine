@@ -40,9 +40,14 @@ async function testSuiteCRMConnection(config: TestConnectionRequest) {
       client_secret
     }
 
-    // Add scope for client credentials
+    // Only add scope if SUITECRM_SCOPE environment variable is set and non-empty
+    const scopeValue = Deno.env.get('SUITECRM_SCOPE')
+    if (scopeValue && scopeValue.trim() !== '') {
+      authPayload.scope = scopeValue.trim()
+    }
+
     if (auth_mode === 'v8_client_credentials') {
-      authPayload.scope = 'openid profile email'
+      // Client credentials mode - only send grant_type, client_id, client_secret (and scope if configured)
     } else {
       // For password grant, add username and password
       if (!username || !password) {
@@ -50,7 +55,6 @@ async function testSuiteCRMConnection(config: TestConnectionRequest) {
       }
       authPayload.username = username
       authPayload.password = password
-      authPayload.scope = 'openid profile email'
     }
 
     console.log(`Testing SuiteCRM connection with ${auth_mode} mode to ${cleanBaseUrl}`)
