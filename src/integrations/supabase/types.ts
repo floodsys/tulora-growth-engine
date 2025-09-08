@@ -539,6 +539,53 @@ export type Database = {
           },
         ]
       }
+      crm_outbox: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          crm_system: string
+          id: string
+          last_error: string | null
+          lead_id: string
+          next_attempt_at: string
+          organization_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          crm_system?: string
+          id?: string
+          last_error?: string | null
+          lead_id: string
+          next_attempt_at?: string
+          organization_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          crm_system?: string
+          id?: string
+          last_error?: string | null
+          lead_id?: string
+          next_attempt_at?: string
+          organization_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_outbox_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       demo_sessions: {
         Row: {
           actions_performed: Json | null
@@ -1728,6 +1775,10 @@ export type Database = {
         Args: { p_bootstrap_token: string }
         Returns: Json
       }
+      calculate_next_retry: {
+        Args: { attempt_count: number }
+        Returns: unknown
+      }
       can_access_membership: {
         Args: { p_org_id: string; p_user_id: string }
         Returns: boolean
@@ -1818,6 +1869,10 @@ export type Database = {
       create_token_fingerprint: {
         Args: { issuer?: string; token_value: string }
         Returns: string
+      }
+      enqueue_crm_sync: {
+        Args: { p_lead_id: string; p_organization_id: string }
+        Returns: undefined
       }
       export_logs_before_purge: {
         Args: { p_channel?: string; p_org_id: string }

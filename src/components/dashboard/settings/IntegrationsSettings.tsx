@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Eye, EyeOff, Key, Phone, Calendar, Webhook, Bot, Database } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
+import { CRMAdminPanel } from "@/components/admin/CRMAdminPanel"
 
 const integrations = [
   {
@@ -308,6 +309,11 @@ export function IntegrationsSettings() {
           </Card>
         ))}
       </div>
+
+      {/* SuiteCRM Admin Panel for organization owners */}
+      {formData.suitecrm?.base_url && validateSuiteCRMFields() && (
+        <CRMAdminPanel organizationId="current-org-id" />
+      )}
     </div>
   )
 }
