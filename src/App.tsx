@@ -38,6 +38,7 @@ import AdminAgents from "@/pages/admin/agents";
 import AdminCalls from "@/pages/admin/calls";
 import ContactSales from "@/pages/ContactSales";
 import AdminSelfCheck from "@/pages/AdminSelfCheck";
+import AdminContactSettings from "@/pages/AdminContactSettings";
 import Pricing from "@/pages/Pricing";
 
 import { AdminGuard } from "@/components/admin/AdminGuard";
@@ -78,6 +79,7 @@ function App() {
               <Route path="/admin/logs/org/:orgId" element={<AdminOrgLogs />} />
               <Route path="/admin/agents" element={<AdminGuard><AdminAgents /></AdminGuard>} />
               <Route path="/admin/calls" element={<AdminGuard><AdminCalls /></AdminGuard>} />
+              <Route path="/admin/contact-settings" element={<AdminGuard><AdminContactSettings /></AdminGuard>} />
               <Route path="/admin/stripe-config" element={<AdminGuard><AdminStripeConfig /></AdminGuard>} />
                <Route path="/admin/billing-verification" element={<AdminGuard><AdminBillingVerification /></AdminGuard>} />
                <Route path="/admin/self-check" element={<AdminSelfCheck />} />

@@ -67,11 +67,38 @@ interface LeadData {
   legacy_expected_volume?: string
 }
 
-const logStep = (step: string, leadId?: string, status?: string) => {
-  // Only log IDs and status, no PII
+const logStep = (step: string, leadId?: string, status?: string, metadata?: any) => {
+  // SECURITY: Only log IDs and status, no PII
   const details = leadId ? `leadId: ${leadId}` : '';
   const statusInfo = status ? `, status: ${status}` : '';
-  console.log(`[CONTACT-SUBMIT] ${step}${details}${statusInfo}`);
+  
+  // Redact any sensitive information from metadata
+  const safeMetadata = metadata ? sanitizeLogMetadata(metadata) : '';
+  
+  console.log(`[CONTACT-SUBMIT] ${step}${details}${statusInfo}${safeMetadata ? `, meta: ${JSON.stringify(safeMetadata)}` : ''}`);
+}
+
+const sanitizeLogMetadata = (metadata: any): any => {
+  if (!metadata || typeof metadata !== 'object') return {};
+  
+  const sanitized: any = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    // Never log email, names, messages, or other PII
+    if (['email', 'full_name', 'name', 'message', 'notes', 'additional_requirements', 'phone', 'company'].includes(key)) {
+      continue;
+    }
+    
+    // Redact tokens and secrets
+    if (typeof value === 'string' && (value.includes('token') || value.includes('key') || value.includes('secret'))) {
+      sanitized[key] = '[REDACTED]';
+    } else if (key.toLowerCase().includes('token') || key.toLowerCase().includes('key') || key.toLowerCase().includes('secret')) {
+      sanitized[key] = '[REDACTED]';
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  
+  return sanitized;
 }
 
 const trimField = (value: any): string => {
@@ -194,13 +221,63 @@ const extractTrackingData = (req: Request): Partial<LeadData> => {
   };
 }
 
+const checkRateLimit = async (clientIP: string): Promise<boolean> => {
+  // Check if IP is rate limited (simple in-memory rate limiting)
+  // In production, you'd use a proper rate limiting service
+  const key = `rate_limit_${clientIP}`;
+  const now = Date.now();
+  const windowMs = 60000; // 1 minute window
+  const maxRequests = 5; // 5 requests per minute per IP
+  
+  // This is a simplified rate limiter - in production use Redis or similar
+  if (!globalThis.rateLimitMap) {
+    globalThis.rateLimitMap = new Map();
+  }
+  
+  const requests = globalThis.rateLimitMap.get(key) || [];
+  const recentRequests = requests.filter((time: number) => now - time < windowMs);
+  
+  if (recentRequests.length >= maxRequests) {
+    return false; // Rate limited
+  }
+  
+  recentRequests.push(now);
+  globalThis.rateLimitMap.set(key, recentRequests);
+  
+  return true; // Not rate limited
+};
+
+const checkHoneypot = (data: any): boolean => {
+  // Check honeypot field - should be empty for legitimate submissions
+  return !data.website;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    logStep('Contact submission started')
+    const clientIP = req.headers.get('CF-Connecting-IP') || 
+                     req.headers.get('X-Forwarded-For') || 
+                     req.headers.get('X-Real-IP') || 
+                     'unknown';
+    
+    logStep('Contact submission started', undefined, undefined, { ip: clientIP === 'unknown' ? 'unknown' : '[IP_REDACTED]' });
+
+    // Rate limiting check
+    const isAllowed = await checkRateLimit(clientIP);
+    if (!isAllowed) {
+      logStep('Rate limit exceeded', undefined, 'blocked', { ip: '[IP_REDACTED]' });
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Too many requests. Please wait before submitting again.',
+        retry_after: 60
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 429,
+      });
+    }
 
     const resendKey = Deno.env.get('RESEND_API_KEY')
     if (!resendKey) throw new Error('RESEND_API_KEY is not set')
@@ -215,6 +292,18 @@ serve(async (req) => {
     // Parse and validate request data
     const requestData: ContactFormRequest = await req.json()
     logStep('Request received', undefined, 'parsing')
+
+    // Anti-spam: Check honeypot field
+    if (!checkHoneypot(requestData)) {
+      logStep('Honeypot triggered', undefined, 'blocked');
+      // Silent fail for bot submissions - return success to avoid revealing the honeypot
+      return new Response(JSON.stringify({ 
+        success: true,
+        message: 'Thank you for your submission'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     // Validate payload
     const validationErrors = validatePayload(requestData)
@@ -312,9 +401,13 @@ serve(async (req) => {
       if (suiteCRMService) {
         logStep('Starting CRM sync', savedLead.id)
         
-        // Preview the payload for debugging
+        // Preview the payload for debugging (no PII in logs)
         const preview = previewSuiteCRMPayload(leadData)
-        console.log('SuiteCRM Payload Preview:', preview.summary)
+        logStep('CRM payload prepared', savedLead.id, 'ready', { 
+          fields_count: Object.keys(preview.payload || {}).length,
+          has_email: !!leadData.email,
+          has_company: !!leadData.company 
+        })
         
         crmSyncResult = await suiteCRMService.syncLead(leadData)
         

@@ -16,12 +16,15 @@ const TalkToUs = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitDelay, setSubmitDelay] = useState(0);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     phone: "",
     company: "",
-    project: ""
+    project: "",
+    // Honeypot field - should remain empty
+    website: ""
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -34,6 +37,22 @@ const TalkToUs = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Anti-spam: Check honeypot field
+    if (formData.website) {
+      // Silent fail for bot submissions
+      return;
+    }
+
+    // Anti-spam: Check submit delay (3 second minimum)
+    if (submitDelay < 3) {
+      toast({
+        title: "Please wait",
+        description: "Please take a moment to review your information",
+        variant: "destructive"
+      });
+      return;
+    }
     
     // Basic validation
     if (!formData.fullName || !formData.email || !formData.phone || !formData.company || !formData.project) {
@@ -72,8 +91,10 @@ const TalkToUs = () => {
           email: "",
           phone: "",
           company: "",
-          project: ""
+          project: "",
+          website: ""
         });
+        setSubmitDelay(0);
       } else {
         throw new Error(data?.error || 'Failed to submit form');
       }
@@ -252,15 +273,40 @@ const TalkToUs = () => {
                         />
                       </div>
 
-                      {/* Submit Button */}
+                       {/* Honeypot field - hidden from users */}
+                      <input
+                        type="text"
+                        name="website"
+                        value={formData.website}
+                        onChange={handleInputChange}
+                        style={{ display: 'none' }}
+                        tabIndex={-1}
+                        autoComplete="off"
+                      />
+
+                       {/* Submit Button */}
                       <Button 
                         type="submit" 
                         size="lg" 
                         className="w-full h-12 text-lg font-semibold"
                         variant="brand"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || submitDelay < 3}
+                        onMouseEnter={() => {
+                          if (submitDelay === 0) {
+                            const startTime = Date.now();
+                            const timer = setInterval(() => {
+                              const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                              setSubmitDelay(elapsed);
+                              if (elapsed >= 3) {
+                                clearInterval(timer);
+                              }
+                            }, 100);
+                          }
+                        }}
                       >
-                        {isSubmitting ? "Sending..." : "Send message"}
+                        {isSubmitting ? "Sending..." : 
+                         submitDelay < 3 ? `Please wait ${3 - submitDelay}s...` : 
+                         "Send message"}
                       </Button>
                     </form>
                   )}

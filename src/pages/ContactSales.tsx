@@ -19,13 +19,16 @@ export default function ContactSales() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitDelay, setSubmitDelay] = useState(0);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     company: "",
     product_line: searchParams.get("product") || "leadgen",
     expected_volume: "",
-    notes: ""
+    notes: "",
+    // Honeypot field - should remain empty
+    website: ""
   });
 
   useEffect(() => {
@@ -50,6 +53,23 @@ export default function ContactSales() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Anti-spam: Check honeypot field
+    if (formData.website) {
+      // Silent fail for bot submissions
+      return;
+    }
+
+    // Anti-spam: Check submit delay (3 second minimum)
+    if (submitDelay < 3) {
+      toast({
+        title: "Please wait",
+        description: "Please take a moment to review your information",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
 
     try {
@@ -228,6 +248,17 @@ export default function ContactSales() {
                   />
                 </div>
 
+                {/* Honeypot field - hidden from users */}
+                <input
+                  type="text"
+                  name="website"
+                  value={formData.website}
+                  onChange={(e) => handleInputChange('website', e.target.value)}
+                  style={{ display: 'none' }}
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
+
                 <div className="flex gap-4">
                   <Button
                     type="button"
@@ -240,11 +271,25 @@ export default function ContactSales() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={isSubmitting || !formData.name || !formData.email || !formData.company || !formData.expected_volume || !formData.notes}
+                    disabled={isSubmitting || submitDelay < 3 || !formData.name || !formData.email || !formData.company || !formData.expected_volume || !formData.notes}
                     className="flex-1"
+                    onMouseEnter={() => {
+                      if (submitDelay === 0) {
+                        const startTime = Date.now();
+                        const timer = setInterval(() => {
+                          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                          setSubmitDelay(elapsed);
+                          if (elapsed >= 3) {
+                            clearInterval(timer);
+                          }
+                        }, 100);
+                      }
+                    }}
                   >
                     <Send className="h-4 w-4 mr-2" />
-                    {isSubmitting ? 'Submitting...' : 'Submit Request'}
+                    {isSubmitting ? 'Submitting...' : 
+                     submitDelay < 3 ? `Please wait ${3 - submitDelay}s...` : 
+                     'Submit Request'}
                   </Button>
                 </div>
               </form>
