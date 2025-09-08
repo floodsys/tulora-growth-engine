@@ -13,20 +13,6 @@ import talkToUsGraphic from "@/assets/talk-to-us-graphic.png";
 import logoSvg from "@/assets/logo.svg";
 import { useTurnstile } from "@/hooks/useTurnstile";
 
-// Declare Turnstile on window object
-declare global {
-  interface Window {
-    turnstile: {
-      render: (element: string | HTMLElement, options: {
-        sitekey: string;
-        callback: (token: string) => void;
-        'error-callback'?: () => void;
-        'expired-callback'?: () => void;
-      }) => string;
-      reset: (widgetId?: string) => void;
-    };
-  }
-}
 
 const TalkToUs = () => {
   const { toast } = useToast();
@@ -43,7 +29,7 @@ const TalkToUs = () => {
   });
 
   // Initialize Turnstile
-  const { token: turnstileToken, isReady: turnstileReady } = useTurnstile('turnstile-widget');
+  const { token: turnstileToken, isReady: turnstileReady } = useTurnstile('turnstile-widget', { theme: 'light' });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;

@@ -32,7 +32,7 @@ export default function ContactSales() {
   });
 
   // Initialize Turnstile
-  const { token: turnstileToken, isReady: turnstileReady } = useTurnstile('turnstile-widget-contact');
+  const { token: turnstileToken, isReady: turnstileReady } = useTurnstile('turnstile-widget-contact', { theme: 'light' });
 
   useEffect(() => {
     // Pre-fill user data if authenticated

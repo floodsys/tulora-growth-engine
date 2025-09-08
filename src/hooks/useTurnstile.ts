@@ -6,6 +6,7 @@ interface TurnstileOptions {
   onSuccess?: (token: string) => void;
   onError?: () => void;
   onExpired?: () => void;
+  theme?: 'light' | 'dark' | 'auto';
 }
 
 export const useTurnstile = (containerId: string, options: TurnstileOptions = {}) => {
@@ -61,6 +62,7 @@ export const useTurnstile = (containerId: string, options: TurnstileOptions = {}
     try {
       const id = window.turnstile.render(`#${containerId}`, {
         sitekey: TURNSTILE_SITE_KEY,
+        theme: options.theme || 'light',
         callback: (token: string) => {
           setToken(token);
           options.onSuccess?.(token);
@@ -117,6 +119,7 @@ declare global {
     turnstile: {
       render: (element: string | HTMLElement, options: {
         sitekey: string;
+        theme?: 'light' | 'dark' | 'auto';
         callback: (token: string) => void;
         'error-callback'?: () => void;
         'expired-callback'?: () => void;
