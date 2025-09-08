@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import { TURNSTILE_SITE_KEY } from "@/config/turnstile";
 
 export default function ContactSales() {
   const [searchParams] = useSearchParams();
@@ -19,7 +20,8 @@ export default function ContactSales() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [submitDelay, setSubmitDelay] = useState(0);
+  const [turnstileToken, setTurnstileToken] = useState<string>("");
+  const [turnstileLoaded, setTurnstileLoaded] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -30,6 +32,46 @@ export default function ContactSales() {
     // Honeypot field - should remain empty
     website: ""
   });
+
+  // Load Cloudflare Turnstile script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => setTurnstileLoaded(true);
+    document.head.appendChild(script);
+
+    return () => {
+      // Cleanup script if component unmounts
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
+    };
+  }, []);
+
+  // Initialize Turnstile widget when script loads
+  useEffect(() => {
+    if (turnstileLoaded && window.turnstile) {
+      window.turnstile.render('#turnstile-widget', {
+        sitekey: TURNSTILE_SITE_KEY,
+        callback: (token: string) => {
+          setTurnstileToken(token);
+        },
+        'error-callback': () => {
+          setTurnstileToken('');
+          toast({
+            title: "Verification failed",
+            description: "Please try the verification again",
+            variant: "destructive"
+          });
+        },
+        'expired-callback': () => {
+          setTurnstileToken('');
+        }
+      });
+    }
+  }, [turnstileLoaded, toast]);
 
   useEffect(() => {
     // Pre-fill user data if authenticated
@@ -60,11 +102,11 @@ export default function ContactSales() {
       return;
     }
 
-    // Anti-spam: Check submit delay (3 second minimum)
-    if (submitDelay < 3) {
+    // Check Turnstile verification
+    if (!turnstileToken) {
       toast({
-        title: "Please wait",
-        description: "Please take a moment to review your information",
+        title: "Please complete verification",
+        description: "Please complete the security check to continue",
         variant: "destructive"
       });
       return;
@@ -76,7 +118,11 @@ export default function ContactSales() {
       const { data: { session } } = await supabase.auth.getSession();
       
       const { data, error } = await supabase.functions.invoke('contact-sales', {
-        body: formData,
+        body: {
+          ...formData,
+          inquiry_type: 'enterprise',
+          turnstile_token: turnstileToken
+        },
         headers: session?.access_token ? {
           Authorization: `Bearer ${session.access_token}`
         } : undefined
@@ -259,6 +305,9 @@ export default function ContactSales() {
                   autoComplete="off"
                 />
 
+                {/* Turnstile Widget */}
+                <div id="turnstile-widget" className="flex justify-center"></div>
+
                 <div className="flex gap-4">
                   <Button
                     type="button"
@@ -271,25 +320,11 @@ export default function ContactSales() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={isSubmitting || submitDelay < 3 || !formData.name || !formData.email || !formData.company || !formData.expected_volume || !formData.notes}
+                    disabled={isSubmitting || !turnstileToken || !formData.name || !formData.email || !formData.company || !formData.expected_volume || !formData.notes}
                     className="flex-1"
-                    onMouseEnter={() => {
-                      if (submitDelay === 0) {
-                        const startTime = Date.now();
-                        const timer = setInterval(() => {
-                          const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                          setSubmitDelay(elapsed);
-                          if (elapsed >= 3) {
-                            clearInterval(timer);
-                          }
-                        }, 100);
-                      }
-                    }}
                   >
                     <Send className="h-4 w-4 mr-2" />
-                    {isSubmitting ? 'Submitting...' : 
-                     submitDelay < 3 ? `Please wait ${3 - submitDelay}s...` : 
-                     'Submit Request'}
+                    {isSubmitting ? 'Submitting...' : 'Submit Request'}
                   </Button>
                 </div>
               </form>
