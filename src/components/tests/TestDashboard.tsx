@@ -192,7 +192,11 @@ export function TestDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Button variant="outline" className="h-auto p-4 justify-start">
+                <Button 
+                  variant="outline" 
+                  className="h-auto p-4 justify-start"
+                  onClick={() => toast({ description: "Data Fixes feature coming soon" })}
+                >
                   <Database className="h-5 w-5 mr-3" />
                   <div className="text-left">
                     <div className="font-medium">Data Fixes</div>
@@ -200,7 +204,11 @@ export function TestDashboard() {
                   </div>
                 </Button>
 
-                <Button variant="outline" className="h-auto p-4 justify-start">
+                <Button 
+                  variant="outline" 
+                  className="h-auto p-4 justify-start"
+                  onClick={() => toast({ description: "Feature Flags feature coming soon" })}
+                >
                   <Flag className="h-5 w-5 mr-3" />
                   <div className="text-left">
                     <div className="font-medium">Feature Flags</div>
@@ -208,7 +216,11 @@ export function TestDashboard() {
                   </div>
                 </Button>
 
-                <Button variant="outline" className="h-auto p-4 justify-start">
+                <Button 
+                  variant="outline" 
+                  className="h-auto p-4 justify-start"
+                  onClick={() => toast({ description: "Email Integration feature coming soon" })}
+                >
                   <Mail className="h-5 w-5 mr-3" />
                   <div className="text-left">
                     <div className="font-medium">Email Integration</div>
