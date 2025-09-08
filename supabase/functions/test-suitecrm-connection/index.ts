@@ -63,10 +63,29 @@ async function testSuiteCRMConnection(config: TestConnectionRequest) {
       body: JSON.stringify(authPayload)
     })
 
+    console.log(`Response status: ${response.status} ${response.statusText}`)
+
     if (!response.ok) {
       const errorText = await response.text()
       console.error(`SuiteCRM auth failed: ${response.status} ${response.statusText} - ${errorText}`)
-      throw new Error(`Authentication failed: ${response.status} ${response.statusText}`)
+      
+      // Provide more detailed error information
+      let errorMessage = `Authentication failed: ${response.status} ${response.statusText}`
+      if (errorText) {
+        try {
+          const errorJson = JSON.parse(errorText)
+          if (errorJson.error_description) {
+            errorMessage += ` - ${errorJson.error_description}`
+          } else if (errorJson.error) {
+            errorMessage += ` - ${errorJson.error}`
+          }
+        } catch {
+          // If not JSON, include the raw error text (truncated)
+          errorMessage += ` - ${errorText.substring(0, 200)}`
+        }
+      }
+      
+      throw new Error(errorMessage)
     }
 
     const authData: SuiteCRMAuthResponse = await response.json()
@@ -151,6 +170,34 @@ serve(async (req) => {
         JSON.stringify({ 
           success: false, 
           error: 'Base URL, Client ID, and Client Secret are required' 
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    // Validate base URL format
+    if (!base_url.startsWith('http://') && !base_url.startsWith('https://')) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Base URL must start with http:// or https://' 
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    // Check for incomplete URLs
+    if (base_url === 'https://' || base_url === 'http://') {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Base URL is incomplete. Please provide the full SuiteCRM URL (e.g., https://your-suitecrm.com)' 
         }),
         { 
           status: 400, 
