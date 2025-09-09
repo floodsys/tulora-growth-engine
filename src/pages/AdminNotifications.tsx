@@ -58,6 +58,7 @@ export default function AdminNotifications() {
   })
   const [testing, setTesting] = useState<Record<string, boolean>>({})
   const [e2eTesting, setE2eTesting] = useState(false)
+  const [testError, setTestError] = useState<any>(null)
   const [e2eResults, setE2eResults] = useState<{
     connection: { status: 'pending' | 'success' | 'error', message?: string, oauth_user?: string, env_present?: Record<string, boolean> },
     lead: { status: 'pending' | 'success' | 'error', message?: string, crm_reference?: string },
@@ -274,29 +275,22 @@ export default function AdminNotifications() {
 
   const handleSendTestLead = async () => {
     setTesting(prev => ({ ...prev, crm_lead: true }))
+    setTestError(null)
 
     try {
       // Check authentication and get token
       const token = await checkAuthentication()
       if (!token) return
 
-      if (!validateCrmConfig()) {
-        throw new Error("Please configure and test CRM connection first")
-      }
-
-      // Create test lead data
-      const testLead = {
-        name: "Test Lead",
+      // Build canonical payload using shared builder for enterprise
+      const payload = buildContactPayload('enterprise', {
+        name: "Test Lead", // maps to full_name
         email: "test@example.com",
-        company: "Test Company",
-        phone: "+1234567890",
-        message: "This is a test lead created from Admin Notifications panel",
-        source: "admin_test",
-        metadata: {
-          test_lead: true,
-          created_by: "admin_panel"
-        }
-      }
+        company: "Test Company", 
+        notes: "This is a test lead created from Admin Notifications panel" // maps to message
+      });
+
+      console.log('Sending admin test lead payload:', payload);
 
       // Call the function with proper JWT authentication
       const response = await fetch(`${SUPABASE_URL}/functions/v1/contact-sales`, {
@@ -305,26 +299,31 @@ export default function AdminNotifications() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(testLead)
+        body: JSON.stringify(payload)
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`)
+        setTestError({
+          status: response.status,
+          message: data.error || 'Test lead failed',
+          details: data.details,
+          endpoint: data.endpoint,
+          function: data.function,
+          version: data.version
+        });
+        return;
       }
 
       toast({
         title: "Test Lead Sent",
-        description: "Test lead sent to CRM successfully",
+        description: `Test lead sent to CRM successfully. Version: ${data.version || 'unknown'}, Method: ${data.method_used || 'POST'}`,
         variant: "default"
       })
     } catch (error) {
-      toast({
-        title: "Test Lead Failed",
-        description: error instanceof Error ? error.message : "Unknown error occurred",
-        variant: "destructive"
-      })
+      console.error('Admin test lead error:', error);
+      setTestError(error);
     } finally {
       setTesting(prev => ({ ...prev, crm_lead: false }))
     }
@@ -404,14 +403,15 @@ export default function AdminNotifications() {
       }
       if (connectionResult.status === 'success') {
         try {
-          // Build canonical payload using shared builder
+          // Build canonical payload using shared builder for enterprise with full data
           const payload = buildContactPayload('enterprise', {
-            name: "Test User", // maps to full_name
-            email: "test@example.com",
-            message: "CRM E2E test"
+            name: "E2E Test User", // maps to full_name
+            email: "e2e-test@example.com",
+            company: "E2E Test Company",
+            notes: "CRM E2E integration test from admin panel" // maps to message
           });
 
-          console.log('Sending test lead payload:', payload);
+          console.log('Sending E2E test lead payload:', payload);
           const response = await fetch(`${SUPABASE_URL}/functions/v1/contact-sales`, {
             method: 'POST',
             headers: {
@@ -648,6 +648,12 @@ export default function AdminNotifications() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {testError && (
+                <ApiErrorPanel 
+                  error={testError} 
+                  onDismiss={() => setTestError(null)}
+                />
+              )}
               <div className="grid gap-4">
                 <div>
                   <Label htmlFor="suitecrm_base_url">

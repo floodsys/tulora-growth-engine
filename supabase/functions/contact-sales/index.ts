@@ -8,7 +8,7 @@ import { previewSuiteCRMPayload } from './_lib/suitecrm-mapping.ts'
 import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
-const VERSION = "2025-09-09-5" // Track version for deployments
+const VERSION = "2025-09-09-6" // Prompt D - All forms use buildContactPayload
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
