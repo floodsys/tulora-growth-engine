@@ -38,6 +38,16 @@ export function useSuperadmin(): UseSuperadminReturn {
   console.log('🔍 Dev check:', { isDev, hostname: window.location.hostname, env: import.meta.env.DEV });
   console.log('🔍 useSuperadmin hook initialized');
 
+  // In development mode, immediately set superadmin to true
+  useEffect(() => {
+    if (isDev) {
+      console.log('🔍 Development mode - granting superadmin access');
+      setIsSuperadmin(true);
+      setIsLoading(false);
+      setError(null);
+    }
+  }, [isDev]);
+
   const checkSuperadmin = useCallback(async (): Promise<void> => {
     console.log('🔍 checkSuperadmin called, isDev:', isDev);
     
