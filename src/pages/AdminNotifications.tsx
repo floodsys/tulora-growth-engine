@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Eye, EyeOff, Mail, Database, Send, TestTube2, Link } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
+import { buildContactPayload, validateContactPayload } from "@/lib/contact-payload"
 import { SUPABASE_URL } from "@/config/publicConfig"
 import { AdminGuard } from "@/components/admin/AdminGuard"
 
@@ -368,20 +369,21 @@ export default function AdminNotifications() {
       }
       if (connectionResult.status === 'success') {
         try {
-          const testLead = {
-            inquiry_type: "enterprise",
-            full_name: "Test User",
+          // Build canonical payload using shared builder
+          const payload = buildContactPayload('enterprise', {
+            name: "Test User", // maps to full_name
             email: "test@example.com",
             message: "CRM E2E test"
-          }
+          });
 
+          console.log('Sending test lead payload:', payload);
           const response = await fetch(`${SUPABASE_URL}/functions/v1/contact-sales`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify(testLead)
+            body: JSON.stringify(payload)
           })
 
           const data = await response.json()

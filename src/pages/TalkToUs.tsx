@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { buildContactPayload, validateContactPayload } from "@/lib/contact-payload";
 import contactUsImage from "@/assets/contact-us.svg";
 import talkToUsGraphic from "@/assets/talk-to-us-graphic.png";
 import logoSvg from "@/assets/logo.svg";
@@ -72,15 +73,22 @@ const TalkToUs = () => {
     setIsSubmitting(true);
 
     try {
+      // Build canonical payload
+      const payload = buildContactPayload('contact', formData);
+      
+      // Validate payload
+      const validationErrors = validateContactPayload(payload);
+      if (validationErrors.length > 0) {
+        toast({
+          title: "Please fix the following errors:",
+          description: validationErrors.join(', '),
+          variant: "destructive"
+        });
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('contact-sales', {
-        body: {
-          inquiry_type: 'contact',
-          full_name: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          company: formData.company,
-          message: formData.project
-        }
+        body: payload
       });
 
       if (error) {

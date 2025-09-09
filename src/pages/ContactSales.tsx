@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CheckCircle, ArrowLeft, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { buildContactPayload, validateContactPayload } from "@/lib/contact-payload";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 // import { useTurnstile } from "@/hooks/useTurnstile";
@@ -80,14 +81,27 @@ export default function ContactSales() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
+      // Build canonical payload  
+      const payload = buildContactPayload('enterprise', {
+        name: formData.name, // maps to full_name
+        email: formData.email,
+        company: formData.company,
+        notes: formData.notes // maps to message
+      });
+      
+      // Validate payload
+      const validationErrors = validateContactPayload(payload);
+      if (validationErrors.length > 0) {
+        toast({
+          title: "Please fix the following errors:",
+          description: validationErrors.join(', '),
+          variant: "destructive"
+        });
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('contact-sales', {
-        body: {
-          inquiry_type: 'enterprise',
-          full_name: formData.name,
-          email: formData.email,
-          company: formData.company,
-          message: formData.notes
-        },
+        body: payload,
         headers: session?.access_token ? {
           Authorization: `Bearer ${session.access_token}`
         } : undefined
