@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronRight, Code2, Database, Eye } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { supabase } from '@/integrations/supabase/client';
-import { SUPABASE_URL, SUPABASE_ANON } from '@/config/publicConfig';
+import { callEdge } from "@/lib/callEdge";
 
 interface VerificationCheck {
   id: string;
@@ -55,20 +54,11 @@ export function CoreRemovalVerification() {
     setLoading(true);
     
     try {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/admin-core-verification`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-          'apikey': SUPABASE_ANON,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const { data, error } = await callEdge('admin-core-verification');
+      
+      if (error) {
+        throw new Error(error.message || 'Verification failed');
       }
-
-      const data = await response.json();
       
       setChecks(prev => prev.map(check => {
         const result = data.checks.find((c: any) => c.id === check.id);

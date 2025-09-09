@@ -50,20 +50,11 @@ export default function AdminStripeConfig() {
 
   const fetchData = async () => {
     try {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/admin-stripe-config`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-          'apikey': SUPABASE_ANON,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const { data, error } = await callEdge('admin-stripe-config');
+      
+      if (error) {
+        throw new Error(error.message || 'Failed to fetch data');
       }
-
-      const data = await response.json();
       setPlans(data.plans || []);
       setStatus(data.status || { portalEnabled: false, webhookReachable: false, allPaidPlansConfigured: false, isLiveReady: false });
       setHealthCheck(data.healthCheck || {});

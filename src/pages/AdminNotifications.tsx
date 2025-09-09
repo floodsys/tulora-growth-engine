@@ -9,8 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Eye, EyeOff, Mail, Database, Send, TestTube2, Link } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { supabase } from "@/integrations/supabase/client"
-import { SUPABASE_URL } from "@/config/publicConfig"
+import { callEdge } from "@/lib/callEdge"
 import { AdminGuard } from "@/components/admin/AdminGuard"
 
 export default function AdminNotifications() {
@@ -32,7 +31,8 @@ export default function AdminNotifications() {
   const navigate = useNavigate()
 
   const checkAuthentication = async () => {
-    const { data } = await supabase.auth.getSession()
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data } = await supabase.auth.getSession();
     if (!data.session?.access_token) {
       toast({
         title: "Authentication Required",
