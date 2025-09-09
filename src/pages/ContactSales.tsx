@@ -106,7 +106,7 @@ export default function ContactSales() {
       const payload = buildContactPayload('enterprise', {
         name: formData.name, // maps to full_name
         email: formData.email,
-        additional_requirements: formData.additional_requirements, // maps to message
+        message: formData.additional_requirements, // map additional_requirements to message
         // Optional fields
         company: formData.company,
         product_interest: formData.product_interest.join(', '),
