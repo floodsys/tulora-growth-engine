@@ -15,7 +15,9 @@ export function AdminGuard({ children }: AdminGuardProps) {
   const location = useLocation();
 
   // Development bypass: Skip admin check in development mode
-  const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
+  const isDev = import.meta.env.DEV || 
+                window.location.hostname === 'localhost' ||
+                window.location.hostname.includes('lovable.app');
   
   if (isDev) {
     console.log('[AdminGuard] Development mode - bypassing admin checks');
