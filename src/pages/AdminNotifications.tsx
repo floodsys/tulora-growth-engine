@@ -225,43 +225,14 @@ export default function AdminNotifications() {
       let response: Response
       let methodUsed = 'POST'
 
-      // Try POST first (new deployment) - no credentials needed, uses server env vars
-      try {
-        response = await fetch(`${SUPABASE_URL}/functions/v1/test-suitecrm-connection`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-          // No body - uses server-side environment variables only
-        })
+      // Use supabase.functions.invoke instead of raw fetch
+      const { data, error } = await supabase.functions.invoke('test-suitecrm-connection', {
+        body: {}
+      })
 
-        // If we get 405 Method Not Allowed, retry with GET
-        if (response.status === 405) {
-          console.log('POST method not allowed, retrying with GET')
-          methodUsed = 'GET'
-          
-          response = await fetch(`${SUPABASE_URL}/functions/v1/test-suitecrm-connection`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          })
-        }
-      } catch (error) {
-        // If POST fails completely, try GET as fallback
-        console.log('POST request failed, retrying with GET:', error)
-        methodUsed = 'GET'
-        
-        response = await fetch(`${SUPABASE_URL}/functions/v1/test-suitecrm-connection`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
+      if (error) {
+        throw new Error(error.message)
       }
-
-      const data = await response.json()
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${data.error || JSON.stringify(data)}`)
@@ -466,34 +437,31 @@ export default function AdminNotifications() {
         env_present: {} 
       }
       try {
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/test-suitecrm-connection`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
+        const { data, error } = await supabase.functions.invoke('test-suitecrm-connection', {
+          body: {}
         })
 
-        const data = await response.json()
+        if (error) {
+          throw new Error(error.message)
+        }
         
-        if (response.ok && data.success) {
+        if (data && data.success) {
           connectionResult = {
             status: 'success',
-            message: `Status ${response.status}: Method: ${data.method_used || 'POST'} | Version: ${data.version || 'unknown'}`,
+            message: `Method: ${data.method_used || 'POST'} | Version: ${data.version || 'unknown'}`,
             oauth_user: data.oauth_user || 'unknown',
             env_present: data.env_present || {}
           }
         } else {
-          // Surface HTTP status clearly for debugging
-          const statusInfo = `Status ${response.status}`
-          const errorMsg = data.error || 'Connection failed'
-          const endpoint = data.endpoint ? ` (${data.endpoint})` : ''
+          // Surface error clearly for debugging
+          const errorMsg = data?.error || 'Connection failed'
+          const endpoint = data?.endpoint ? ` (${data.endpoint})` : ''
           
           connectionResult = {
             status: 'error',
-            message: `${statusInfo}: ${errorMsg}${endpoint}`,
+            message: `${errorMsg}${endpoint}`,
             oauth_user: '',
-            env_present: data.env_present || {}
+            env_present: data?.env_present || {}
           }
         }
       } catch (error) {

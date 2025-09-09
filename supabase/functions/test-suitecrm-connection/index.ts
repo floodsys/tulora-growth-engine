@@ -1,71 +1,76 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-// CORS Configuration with Origin Validation
-const getAllowedOrigins = (): string[] => {
-  const allowedOrigins = Deno.env.get('ALLOWED_ORIGINS');
-  if (!allowedOrigins) {
-    // Fallback origins if env var not set
-    return [
-      'https://id-preview--82f60040-b989-4e09-8aaf-a5888522b1a2.lovable.app',
-      'https://tulora.io',
-      'https://www.tulora.io'
-    ];
-  }
-  return allowedOrigins.split(',').map(origin => origin.trim());
+const VERSION = "2025-09-09-8"
+
+// CORS Configuration - identical to contact-sales
+const getAllowedOrigins = () => {
+  const envOrigins = Deno.env.get('ALLOWED_ORIGINS') || '';
+  const fallbackOrigins = [
+    'https://lovable.dev',
+    'https://preview--tulora-growth-engine.lovable.app',
+    'https://tulora-growth-engine.lovable.app',
+    'https://82f60040-b989-4e09-8aaf-a5888522b1a2.lovableproject.com',
+    'https://id-preview--82f60040-b989-4e09-8aaf-a5888522b1a2.lovable.app',
+    'http://localhost:8080'
+  ];
+  
+  return envOrigins ? envOrigins.split(',').map(origin => origin.trim()) : fallbackOrigins;
 };
 
 const getOriginSpecificHeaders = (requestOrigin: string | null) => {
-  // Debug wildcard override
-  if (Deno.env.get('CORS_DEBUG_WILDCARD') === 'true') {
+  const allowedOrigins = getAllowedOrigins();
+  const corsDebugWildcard = Deno.env.get('CORS_DEBUG_WILDCARD') === 'true';
+  
+  // If debug wildcard is enabled, use wildcard
+  if (corsDebugWildcard) {
     return {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status',
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-      'X-Function': 'test-suitecrm-connection',
-      'X-Version': VERSION,
-      'Vary': 'Origin'
+      'Vary': 'Origin',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey',
+      'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status'
     };
   }
   
-  const allowedOrigins = getAllowedOrigins();
-  const originAllowed = requestOrigin && allowedOrigins.includes(requestOrigin);
+  // Check if the origin is allowed
+  const allowedOrigin = requestOrigin && allowedOrigins.includes(requestOrigin) 
+    ? requestOrigin 
+    : allowedOrigins[0]; // fallback to first allowed origin
   
   return {
-    'Access-Control-Allow-Origin': originAllowed ? requestOrigin : allowedOrigins[0],
-    'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status',
-    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0',
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Vary': 'Origin',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey',
+    'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status'
+  };
+};
+
+const preflightHeaders = (requestOrigin: string | null) => {
+  return {
+    ...getOriginSpecificHeaders(requestOrigin),
+    'Content-Length': '0'
+  };
+};
+
+const createResponse = (data: any, status: number = 200, requestOrigin: string | null = null, crmStatus?: string) => {
+  const headers = {
+    'Content-Type': 'application/json',
     'X-Function': 'test-suitecrm-connection',
     'X-Version': VERSION,
-    'Vary': 'Origin'
+    ...getOriginSpecificHeaders(requestOrigin)
   };
-};
-
-const preflightHeaders = {
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'content-type, authorization, x-client-info, x-profile',
-  'Access-Control-Max-Age': '600',
-  'Vary': 'Origin'
-};
-
-// Helper function to create response with consistent headers
-const createResponse = (data: any, status = 200, requestOrigin: string | null = null) => {
-  const headers = { 
-    ...getOriginSpecificHeaders(requestOrigin), 
-    'Content-Type': 'application/json' 
-  };
+  
+  if (crmStatus) {
+    headers['X-CRM-Status'] = crmStatus;
+  }
   
   return new Response(JSON.stringify(data), {
     status,
     headers
   });
 };
-
-const VERSION = "2025-09-09-4" // Updated after SUITECRM_AUTH_MODE fix
 
 interface SuiteCRMAuthResponse {
   access_token: string
@@ -274,121 +279,108 @@ async function testSuiteCRMConnection() {
   }
 }
 
-// Check if user is superadmin
-async function checkSuperadmin(authHeader: string | null): Promise<boolean> {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return false
+const checkSuperadmin = async (request: Request) => {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return { valid: false, error: 'Missing or invalid authorization header' };
   }
   
-  const token = authHeader.substring(7)
-  const supabase = createClient(
-    'https://nkjxbeypbiclvouqfjyc.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ranhiZXlwYmljbHZvdXFmanljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0Nzg2NDEsImV4cCI6MjA3MTA1NDY0MX0.iuFFcJSX97MKkiBvSYLmIao9aTMrQm7zqnf4kEDraQg',
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      },
-      global: {
-        headers: {
-          Authorization: authHeader
-        }
-      }
-    }
-  )
+  const token = authHeader.substring(7);
   
   try {
-    const { data: user, error: userError } = await supabase.auth.getUser(token)
-    if (userError || !user.user) {
-      return false
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    
+    if (userError || !user) {
+      return { valid: false, error: 'Invalid token or user not found' };
     }
     
-    // Check if user is superadmin
-    const { data, error } = await supabase.rpc('is_superadmin', { user_id: user.user.id })
-    return !error && data === true
+    const { data: isSuperadmin, error: superadminError } = await supabase
+      .rpc('is_superadmin', { user_id: user.id });
+    
+    if (superadminError) {
+      return { valid: false, error: `Superadmin check failed: ${superadminError.message}` };
+    }
+    
+    if (!isSuperadmin) {
+      return { valid: false, error: 'User is not a superadmin' };
+    }
+    
+    return { valid: true, user };
   } catch (error) {
-    console.error('Superadmin check failed:', error)
-    return false
+    return { valid: false, error: `Authentication error: ${error.message}` };
   }
-}
+};
 
 serve(async (req) => {
-  const method = req.method
-  const clientIP = getClientIP(req)
   const requestOrigin = req.headers.get('origin');
   
-  // Handle CORS preflight - MUST return 204 and stop
-  if (method === 'OPTIONS') {
-    const headers = {
-      ...getOriginSpecificHeaders(requestOrigin),
-      'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-      'Access-Control-Allow-Headers': 'authorization,content-type,x-client-info,apikey',
-      'Access-Control-Max-Age': '600'
-    };
-    
-    return new Response(null, { 
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
       status: 204,
-      headers
+      headers: preflightHeaders(requestOrigin)
     });
   }
-
-  // Method guard - only allow GET and POST
-  if (method !== 'GET' && method !== 'POST') {
-    return createResponse({ 
-      error: 'Method not allowed',
-      version: VERSION,
-      method_used: method,
-      config_source: "edge_env"
-    }, 405, requestOrigin);
-  }
-
-  // Rate limiting
-  const rateLimit = checkRateLimit(clientIP)
-  if (!rateLimit.allowed) {
-    return createResponse({ 
-      error: 'Rate limit exceeded',
-      version: VERSION,
-      method_used: method,
-      config_source: "edge_env",
-      rate_limit: { remaining: 0 }
-    }, 429, requestOrigin);
-  }
-
-  // Check superadmin auth
-  const authHeader = req.headers.get('authorization')
-  const isSuperadmin = await checkSuperadmin(authHeader)
   
-  if (!isSuperadmin) {
-    return createResponse({ 
-      error: 'Superadmin authentication required',
-      version: VERSION,
-      method_used: method,
-      config_source: "edge_env",
-      rate_limit: { remaining: rateLimit.remaining }
-    }, 403, requestOrigin);
+  // Only allow POST method
+  if (req.method !== 'POST') {
+    return createResponse(
+      { success: false, error: 'Method not allowed' },
+      405,
+      requestOrigin
+    );
   }
-
+  
+  // Rate limiting
+  const clientIP = getClientIP(req);
+  if (!checkRateLimit(clientIP)) {
+    return createResponse(
+      { success: false, error: 'Rate limit exceeded' },
+      429,
+      requestOrigin
+    );
+  }
+  
+  // Check superadmin authentication
+  const authCheck = await checkSuperadmin(req);
+  if (!authCheck.valid) {
+    return createResponse(
+      { success: false, error: authCheck.error },
+      403,
+      requestOrigin
+    );
+  }
+  
   try {
-    const result = await testSuiteCRMConnection()
+    const result = await testSuiteCRMConnection();
+    const crmStatus = result.success ? 'connected' : 'failed';
     
-    // Build response with all required fields
-    return createResponse({
-      ...result,
-      version: VERSION,
-      method_used: method,
-      config_source: "edge_env",
-      rate_limit: { remaining: rateLimit.remaining }
-    }, 200, requestOrigin);
-
+    return createResponse(
+      {
+        ...result,
+        version: VERSION,
+        timestamp: new Date().toISOString()
+      },
+      200,
+      requestOrigin,
+      crmStatus
+    );
   } catch (error) {
-    console.error('Request processing error:', error)
-    return createResponse({ 
-      success: false, 
-      error: 'Internal server error',
-      version: VERSION,
-      method_used: method,
-      config_source: "edge_env",
-      rate_limit: { remaining: rateLimit.remaining }
-    }, 500, requestOrigin);
+    console.error('Unexpected error:', error);
+    return createResponse(
+      {
+        success: false,
+        error: 'Internal server error',
+        version: VERSION
+      },
+      500,
+      requestOrigin,
+      'error'
+    );
   }
 })
