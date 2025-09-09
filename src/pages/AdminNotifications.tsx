@@ -304,8 +304,10 @@ export default function AdminNotifications() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-store'
         },
+        cache: 'no-store',
         body: JSON.stringify(payload)
       })
 
@@ -349,8 +351,10 @@ export default function AdminNotifications() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Cache-Control': 'no-store'
           },
+          cache: 'no-store',
           body: JSON.stringify({
             inquiry_type: 'contact',
             full_name: 'Ping Test',
@@ -641,15 +645,26 @@ export default function AdminNotifications() {
                 <span>Hard Refresh Cache</span>
               </Button>
               
-              <Button 
-                onClick={handlePingFunctions}
-                variant="secondary"
-                disabled={testing.ping_functions}
-                className="flex items-center space-x-2"
-              >
-                <TestTube2 className="h-4 w-4" />
-                <span>{testing.ping_functions ? "Pinging..." : "Ping Functions"}</span>
-              </Button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Button 
+                  onClick={handlePingFunctions}
+                  variant="secondary"
+                  disabled={testing.ping_functions}
+                  className="flex items-center space-x-2"
+                >
+                  <TestTube2 className="h-4 w-4" />
+                  <span>{testing.ping_functions ? "Pinging..." : "Ping Functions"}</span>
+                </Button>
+                
+                <Button
+                  onClick={handleHardRefresh}
+                  variant="destructive"
+                  className="flex items-center space-x-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span>Hard Refresh Cache</span>
+                </Button>
+              </div>
             </div>
           </div>
           
