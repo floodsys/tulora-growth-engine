@@ -8,58 +8,43 @@ import { previewSuiteCRMPayload } from './_lib/suitecrm-mapping.ts'
 import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
-const VERSION = "2025-09-09-8" // Prompt 3 - Single route + version beacon
+// Version and function info
+const VERSION = "2025-09-09-8";
+const FUNCTION_NAME = "contact-sales";
 
-// CORS Configuration with Origin Validation
-const getAllowedOrigins = (): string[] => {
-  const allowedOrigins = Deno.env.get('ALLOWED_ORIGINS');
-  if (!allowedOrigins) {
-    // Fallback origins if env var not set
-    return [
-      'https://id-preview--82f60040-b989-4e09-8aaf-a5888522b1a2.lovable.app',
-      'https://tulora.io',
-      'https://www.tulora.io'
-    ];
-  }
-  return allowedOrigins.split(',').map(origin => origin.trim());
-};
+// CORS Configuration
+const ALLOWED_ORIGINS = Deno.env.get('ALLOWED_ORIGINS')?.split(',').map(o => o.trim()) || [
+  'https://lovable.dev',
+  'https://preview--tulora-growth-engine.lovable.app',
+  'https://tulora-growth-engine.lovable.app',
+  'https://82f60040-b989-4e09-8aaf-a5888522b1a2.lovableproject.com',
+  'https://id-preview--82f60040-b989-4e09-8aaf-a5888522b1a2.lovable.app',
+  'http://localhost:8080'
+];
+const CORS_DEBUG_WILDCARD = Deno.env.get('CORS_DEBUG_WILDCARD') === 'true';
 
-const getOriginSpecificHeaders = (requestOrigin: string | null) => {
-  // Debug wildcard override
-  if (Deno.env.get('CORS_DEBUG_WILDCARD') === 'true') {
-    return {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status',
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-      'X-Function': 'contact-sales',
-      'X-Version': VERSION,
-      'Vary': 'Origin'
-    };
-  }
-  
-  const allowedOrigins = getAllowedOrigins();
-  const originAllowed = requestOrigin && allowedOrigins.includes(requestOrigin);
-  
-  return {
-    'Access-Control-Allow-Origin': originAllowed ? requestOrigin : allowedOrigins[0],
-    'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status',
-    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0',
-    'X-Function': 'contact-sales',
-    'X-Version': VERSION,
-    'Vary': 'Origin'
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey',
+    'Access-Control-Max-Age': '600',
+    'Vary': 'Origin',
+    'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status'
   };
-};
 
-const preflightHeaders = {
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'content-type, authorization, x-client-info, x-profile',
-  'Access-Control-Max-Age': '600',
-  'Vary': 'Origin'
-};
+  // Force wildcard if debug mode is enabled
+  if (CORS_DEBUG_WILDCARD) {
+    headers['Access-Control-Allow-Origin'] = '*';
+    return headers;
+  }
+
+  // Check if origin is in allowed list
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+
+  return headers;
+}
 
 // Initialize Resend
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'))
@@ -67,15 +52,25 @@ const resend = new Resend(Deno.env.get('RESEND_API_KEY'))
 // Helper function to create response with consistent headers
 const createResponse = (data: any, status = 200, requestOrigin: string | null = null, crmStatus?: string) => {
   const headers = { 
-    ...getOriginSpecificHeaders(requestOrigin), 
-    'Content-Type': 'application/json' 
+    ...getCorsHeaders(requestOrigin), 
+    'Content-Type': 'application/json',
+    'X-Function': FUNCTION_NAME,
+    'X-Version': VERSION
   };
   
   if (crmStatus) {
     headers['X-CRM-Status'] = crmStatus;
   }
   
-  return new Response(JSON.stringify(data), {
+  // Add function and version info to response data
+  const responseData = {
+    ...data,
+    function: FUNCTION_NAME,
+    version: VERSION,
+    method_used: 'POST'
+  };
+  
+  return new Response(JSON.stringify(responseData), {
     status,
     headers
   });
@@ -172,6 +167,15 @@ const FORMS_NORMALIZE_KEYS = Deno.env.get('FORMS_NORMALIZE_KEYS') === 'true';
 const REQUIRE_ENTERPRISE_COMPANY = Deno.env.get('REQUIRE_ENTERPRISE_COMPANY') === 'true';
 const REQUIRE_ENTERPRISE_EXTRAS = Deno.env.get('REQUIRE_ENTERPRISE_EXTRAS') === 'true';
 
+console.log('[CONFIG] Environment flags loaded:');
+console.log(`  VERSION: ${VERSION}`);
+console.log(`  FUNCTION_NAME: ${FUNCTION_NAME}`);
+console.log(`  REQUIRE_ENTERPRISE_COMPANY: ${REQUIRE_ENTERPRISE_COMPANY}`);
+console.log(`  REQUIRE_ENTERPRISE_EXTRAS: ${REQUIRE_ENTERPRISE_EXTRAS}`);
+console.log(`  FORMS_NORMALIZE_KEYS: ${FORMS_NORMALIZE_KEYS}`);
+console.log(`  CORS_DEBUG_WILDCARD: ${CORS_DEBUG_WILDCARD}`);
+console.log(`  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS.join(', ')}`);
+
 const trimField = (value: any): string => {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -239,199 +243,6 @@ const mapVolumeToCode = (volumeLabel: string): string => {
   return mapping[volumeLabel] || '';
 }
 
-// Pre-validation normalization with feature flag
-function normalizePayload(payload: any): { payload: any; normalized: boolean } {
-  const enableNormalization = Deno.env.get('FORMS_NORMALIZE_KEYS') !== 'false'; // default true
-  
-  if (!enableNormalization) {
-    return { payload, normalized: false };
-  }
-  
-  let hasNormalized = false;
-  const normalized = { ...payload };
-  
-  // Trim whitespace on all string values and keys
-  const trimmedPayload: any = {};
-  for (const [key, value] of Object.entries(normalized)) {
-    const trimmedKey = key.trim();
-    const trimmedValue = typeof value === 'string' ? value.trim() : value;
-    
-    if (trimmedKey !== key || (typeof value === 'string' && trimmedValue !== value)) {
-      hasNormalized = true;
-    }
-    
-    trimmedPayload[trimmedKey] = trimmedValue;
-  }
-  
-  // Field synonym mapping
-  const fieldMappings = {
-    'source metadata': 'source_metadata',
-    'expected_volume_label': 'expected_volume',
-    'productInterest': 'product_interest',
-    'notes': 'additional_requirements'
-  };
-  
-  // Apply field mappings
-  for (const [oldField, newField] of Object.entries(fieldMappings)) {
-    if (trimmedPayload[oldField] && !trimmedPayload[newField]) {
-      trimmedPayload[newField] = trimmedPayload[oldField];
-      delete trimmedPayload[oldField];
-      hasNormalized = true;
-    }
-  }
-  
-  // Special handling for notes → additional_requirements (append to message if both exist)
-  if (trimmedPayload.notes && trimmedPayload.message && trimmedPayload.additional_requirements) {
-    // If we have notes, message, and additional_requirements, append notes to message
-    trimmedPayload.message = `${trimmedPayload.message}\n\nAdditional notes: ${trimmedPayload.notes}`;
-    delete trimmedPayload.notes;
-    hasNormalized = true;
-  } else if (trimmedPayload.notes && trimmedPayload.message && !trimmedPayload.additional_requirements) {
-    // If we have notes and message but no additional_requirements, move notes to additional_requirements
-    trimmedPayload.additional_requirements = trimmedPayload.notes;
-    delete trimmedPayload.notes;
-    hasNormalized = true;
-  }
-  
-  // Normalize inquiry_type with enhanced coercion
-  if (trimmedPayload.inquiry_type) {
-    const original = trimmedPayload.inquiry_type;
-    let normalized_inquiry = original.toLowerCase().trim();
-    
-    // Enhanced coercion for inquiry type
-    if (normalized_inquiry.includes('enterprise') || 
-        normalized_inquiry.includes('business') || 
-        normalized_inquiry.includes('sales') ||
-        normalized_inquiry.includes('commercial') ||
-        normalized_inquiry.includes('b2b')) {
-      normalized_inquiry = 'enterprise';
-    } else if (normalized_inquiry.includes('contact') || 
-               normalized_inquiry.includes('support') ||
-               normalized_inquiry.includes('general') ||
-               normalized_inquiry.includes('info')) {
-      normalized_inquiry = 'contact';
-    }
-    
-    if (normalized_inquiry !== original) {
-      trimmedPayload.inquiry_type = normalized_inquiry;
-      hasNormalized = true;
-    }
-  }
-  
-  // Log deprecation warning if normalization occurred (no PII, no values)
-  if (hasNormalized) {
-    console.log('[DEPRECATION] Payload normalization applied. Please update forms to send properly formatted data.');
-  }
-  
-  return { payload: trimmedPayload, normalized: hasNormalized };
-}
-
-// Enhanced validation with structured error arrays
-function validateAndNormalizePayload(payload: any): { 
-  valid: boolean; 
-  unknown_fields: string[];
-  missing_required: string[];
-  enum_errors: Array<{field: string, value: any, allowed: string[]}>;
-  normalized?: ContactFormRequest 
-} {
-  const unknown_fields: string[] = []
-  const missing_required: string[] = []
-  const enum_errors: Array<{field: string, value: any, allowed: string[]}> = []
-  const normalized = { ...payload }
-  
-  // Define allowed fields
-  const allowedFields = new Set([
-    'inquiry_type', 'full_name', 'name', 'email', 'phone', 'company', 'message',
-    'product_line', 'product_interest', 'expected_volume', 'expected_volume_label',
-    'notes', 'additional_requirements', 'accept_privacy', 'marketing_opt_in',
-    'turnstile_token', 'leads_id', 'leadid', 'website', 'utm_source', 'utm_medium',
-    'utm_campaign', 'utm_term', 'utm_content', 'source', 'source_metadata'
-  ])
-  
-  // Check for unknown fields
-  const unknownFieldsList = Object.keys(payload).filter(key => !allowedFields.has(key))
-  unknown_fields.push(...unknownFieldsList)
-  
-  // Handle leads_id / leadid field mapping
-  const acceptLegacy = Deno.env.get('FORMS_ACCEPT_LEGACY_LEADID') !== 'false' // default true
-  
-  if (payload.leads_id && payload.leadid) {
-    unknown_fields.push('leadid') // Prefer leads_id over leadid
-  } else if (payload.leadid && !payload.leads_id) {
-    if (acceptLegacy) {
-      console.log(`[DEPRECATION] Field 'leadid' is deprecated, use 'leads_id' instead.`)
-      normalized.leads_id = payload.leadid
-      delete normalized.leadid
-    } else {
-      unknown_fields.push('leadid')
-    }
-  }
-  
-  // Required field validation
-  if (!payload.email || typeof payload.email !== 'string') {
-    missing_required.push('email')
-  }
-  
-  if (!payload.inquiry_type) {
-    missing_required.push('inquiry_type')
-  } else if (!['contact', 'enterprise'].includes(payload.inquiry_type)) {
-    enum_errors.push({
-      field: 'inquiry_type',
-      value: payload.inquiry_type,
-      allowed: ['contact', 'enterprise']
-    })
-  }
-  
-  const fullName = normalized.full_name || normalized.name
-  if (!fullName || typeof fullName !== 'string') {
-    missing_required.push('full_name')
-  }
-
-  // Check for enterprise extras if required
-  if (payload.inquiry_type === 'enterprise') {
-    const requireExtras = Deno.env.get('REQUIRE_ENTERPRISE_EXTRAS') === 'true'
-    
-    if (requireExtras) {
-      if (!payload.product_interest) {
-        missing_required.push('product_interest')
-      }
-      if (!payload.expected_volume) {
-        missing_required.push('expected_volume')
-      }
-      if (!payload.additional_requirements) {
-        missing_required.push('additional_requirements')
-      }
-    }
-
-    // Validate product interest enum
-    if (payload.product_interest && !['AI Lead Generation', 'AI Customer Service', 'leadgen', 'support'].includes(payload.product_interest)) {
-      enum_errors.push({
-        field: 'product_interest',
-        value: payload.product_interest,
-        allowed: ['AI Lead Generation', 'AI Customer Service']
-      })
-    }
-
-    // Validate expected volume enum
-    const validVolumes = ['< 5,000 calls/month', '5,000-20,000 calls/month', '20,000-100,000 calls/month', '> 100,000 calls/month', 'Custom/Variable']
-    if (payload.expected_volume && !validVolumes.includes(payload.expected_volume)) {
-      enum_errors.push({
-        field: 'expected_volume',
-        value: payload.expected_volume,
-        allowed: validVolumes
-      })
-    }
-  }
-  
-  return {
-    valid: unknown_fields.length === 0 && missing_required.length === 0 && enum_errors.length === 0,
-    unknown_fields,
-    missing_required,
-    enum_errors,
-    normalized: (unknown_fields.length === 0 && missing_required.length === 0 && enum_errors.length === 0) ? normalized : undefined
-  }
-}
-
 const validatePayload = (data: ContactFormRequest): ValidationError[] => {
   const errors: ValidationError[] = [];
   
@@ -482,580 +293,396 @@ const validatePayload = (data: ContactFormRequest): ValidationError[] => {
         errors.push({ field: 'product_interest', message: 'Product interest is required for enterprise inquiries' });
       }
       if (!expectedVolumeLabel) {
-        errors.push({ field: 'expected_volume_label', message: 'Expected volume is required for enterprise inquiries' });
+        errors.push({ field: 'expected_volume', message: 'Expected volume is required for enterprise inquiries' });
       }
       if (!additionalRequirements) {
         errors.push({ field: 'additional_requirements', message: 'Additional requirements are required for enterprise inquiries' });
       }
     }
-    
-    // Validate product interest mapping
+
+    // Validate product interest enum (if provided)
     if (productInterest && !['AI Lead Generation', 'AI Customer Service', 'leadgen', 'support'].includes(productInterest)) {
-      errors.push({ field: 'product_interest', message: 'Product interest must be "AI Lead Generation" or "AI Customer Service"' });
+      errors.push({ field: 'product_interest', message: 'Product interest must be either "AI Lead Generation" or "AI Customer Service"' });
     }
-    
-    // Validate expected volume mapping
-    if (expectedVolumeLabel && !mapVolumeToCode(expectedVolumeLabel)) {
-      errors.push({ field: 'expected_volume_label', message: 'Expected volume must be one of the predefined options' });
+
+    // Validate expected volume enum (if provided)
+    const validVolumes = ['< 5,000 calls/month', '5,000-20,000 calls/month', '20,000-100,000 calls/month', '> 100,000 calls/month', 'Custom/Variable'];
+    if (expectedVolumeLabel && !validVolumes.includes(expectedVolumeLabel)) {
+      errors.push({ field: 'expected_volume', message: 'Expected volume must be one of the valid options' });
     }
   }
-
+  
   return errors;
 }
 
 const extractTrackingData = (req: Request): Partial<LeadData> => {
-  const url = new URL(req.url);
+  const trackingData: Partial<LeadData> = {};
   
-  return {
-    page_url: req.headers.get('referer') || undefined,
-    referrer: req.headers.get('referer') || undefined,
-    utm_source: url.searchParams.get('utm_source') || undefined,
-    utm_medium: url.searchParams.get('utm_medium') || undefined,
-    utm_campaign: url.searchParams.get('utm_campaign') || undefined,
-    utm_term: url.searchParams.get('utm_term') || undefined,
-    utm_content: url.searchParams.get('utm_content') || undefined,
-    // Note: ip_country would need additional service to populate
-    ip_country: undefined
-  };
+  // Parse UTM parameters from URL if present
+  const url = new URL(req.url);
+  trackingData.utm_source = url.searchParams.get('utm_source') || undefined;
+  trackingData.utm_medium = url.searchParams.get('utm_medium') || undefined;
+  trackingData.utm_campaign = url.searchParams.get('utm_campaign') || undefined;
+  trackingData.utm_term = url.searchParams.get('utm_term') || undefined;
+  trackingData.utm_content = url.searchParams.get('utm_content') || undefined;
+  
+  // Extract referrer
+  trackingData.referrer = req.headers.get('referer') || undefined;
+  
+  // Extract page URL (from referrer or construct from host)
+  trackingData.page_url = trackingData.referrer || `${url.protocol}//${url.host}`;
+  
+  return trackingData;
 }
 
-const checkRateLimit = async (clientIP: string): Promise<boolean> => {
-  // Check if IP is rate limited (simple in-memory rate limiting)
-  // In production, you'd use a proper rate limiting service
-  const key = `rate_limit_${clientIP}`;
+// Rate limiting map (in-memory, resets on function restart)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+const checkRateLimit = (ip: string): boolean => {
   const now = Date.now();
-  const windowMs = 60000; // 1 minute window
-  const maxRequests = 5; // 5 requests per minute per IP
+  const windowMs = 60 * 1000; // 1 minute
+  const maxRequests = 10; // Max 10 requests per minute per IP
   
-  // This is a simplified rate limiter - in production use Redis or similar
-  if (!globalThis.rateLimitMap) {
-    globalThis.rateLimitMap = new Map();
+  const record = rateLimitMap.get(ip);
+  
+  if (!record || now > record.resetTime) {
+    // Reset or create new record
+    rateLimitMap.set(ip, { count: 1, resetTime: now + windowMs });
+    return true;
   }
   
-  const requests = globalThis.rateLimitMap.get(key) || [];
-  const recentRequests = requests.filter((time: number) => now - time < windowMs);
-  
-  if (recentRequests.length >= maxRequests) {
-    return false; // Rate limited
+  if (record.count >= maxRequests) {
+    return false; // Rate limit exceeded
   }
   
-  recentRequests.push(now);
-  globalThis.rateLimitMap.set(key, recentRequests);
-  
-  return true; // Not rate limited
-};
+  record.count++;
+  return true;
+}
 
 const checkHoneypot = (data: any): boolean => {
-  // Check honeypot field - should be empty for legitimate submissions
-  return !data.website;
-};
+  // Check for honeypot field 'website' - should be empty for humans
+  return !data.website || data.website.trim() === '';
+}
 
 serve(async (req) => {
-  const requestOrigin = req.headers.get('origin');
-  
-  // Handle CORS preflight - MUST return 204 and stop
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    const headers = {
-      ...getOriginSpecificHeaders(requestOrigin),
-      'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-      'Access-Control-Allow-Headers': 'authorization,content-type,x-client-info,apikey',
-      'Access-Control-Max-Age': '600'
-    };
-    
     return new Response(null, { 
-      status: 204,
-      headers
+      status: 204, 
+      headers: corsHeaders 
     });
   }
 
-  try {
-    const clientIP = req.headers.get('CF-Connecting-IP') || 
-                     req.headers.get('X-Forwarded-For') || 
-                     req.headers.get('X-Real-IP') || 
-                     'unknown';
+  if (req.method !== 'POST') {
+    const responseData = { 
+      success: false, 
+      error: 'Method not allowed',
+      function: FUNCTION_NAME,
+      version: VERSION,
+      method_used: req.method
+    };
     
-    logStep('Contact submission started', undefined, undefined, { ip: clientIP === 'unknown' ? 'unknown' : '[IP_REDACTED]' });
+    return new Response(JSON.stringify(responseData), { 
+      status: 405, 
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+        'X-Function': FUNCTION_NAME,
+        'X-Version': VERSION
+      }
+    });
+  }
 
-    // Rate limiting check
-    const isAllowed = await checkRateLimit(clientIP);
-    if (!isAllowed) {
-      logStep('Rate limit exceeded', undefined, 'blocked', { ip: '[IP_REDACTED]' });
-      return createResponse({ 
-        success: false,
-        error: 'Too many requests. Please wait before submitting again.',
-        retry_after: 60,
-        function: 'contact-sales',
-        version: VERSION,
-        method_used: 'POST'
-      }, 429, requestOrigin);
-    }
+  // Get client IP for rate limiting
+  const clientIP = req.headers.get('cf-connecting-ip') || 
+                   req.headers.get('x-forwarded-for') || 
+                   req.headers.get('x-real-ip') || 
+                   'unknown';
 
-    const resendKey = Deno.env.get('RESEND_API_KEY')
-    if (!resendKey) throw new Error('RESEND_API_KEY is not set')
+  // Rate limiting
+  if (!checkRateLimit(clientIP)) {
+    logStep('rate_limit_exceeded', undefined, 'blocked', { ip: clientIP });
+    return createResponse({
+      success: false,
+      error: 'Too many requests. Please try again later.',
+      error_code: 'rate_limit_exceeded'
+    }, 429, origin);
+  }
 
-    // Use service role client to bypass RLS for inserts
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      { auth: { persistSession: false } }
-    )
+  logStep('request_start', undefined, 'processing');
 
-    // Parse and validate request data
-    let requestData: ContactFormRequest
+  try {
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Parse request body
+    let data: ContactFormRequest;
     try {
-      const rawData = await req.json()
-      
-      // Apply pre-validation normalization
-      const normalizationResult = normalizePayload(rawData)
-      requestData = normalizationResult.payload
-      
+      data = await req.json();
     } catch (error) {
-      return createResponse({ 
+      logStep('parse_error', undefined, 'failed', { error: error.message });
+      return createResponse({
         success: false,
         error: 'Invalid JSON payload',
-        function: 'contact-sales',
-        version: VERSION,
-        method_used: 'POST'
-      }, 400, requestOrigin);
+        details: error.message
+      }, 400, origin);
     }
 
-    // Validate and normalize payload with structured error arrays
-    const validation = validateAndNormalizePayload(requestData)
-    if (!validation.valid) {
-      logStep('Validation failed', undefined, 'error', { 
-        unknown_fields_count: validation.unknown_fields.length,
-        missing_required_count: validation.missing_required.length,
-        enum_errors_count: validation.enum_errors.length
-      });
+    logStep('payload_received', undefined, 'parsed', { 
+      inquiry_type: data.inquiry_type,
+      has_email: !!data.email,
+      has_name: !!(data.full_name || data.name)
+    });
 
-      return createResponse({ 
+    // Check honeypot
+    if (!checkHoneypot(data)) {
+      logStep('honeypot_triggered', undefined, 'blocked');
+      return createResponse({
         success: false,
-        error: 'Validation failed',
-        unknown_fields: validation.unknown_fields,
-        missing_required: validation.missing_required,
-        enum_errors: validation.enum_errors,
-        function: 'contact-sales',
-        version: VERSION,
-        method_used: 'POST'
-      }, 422, requestOrigin);
-    }
-    
-    requestData = validation.normalized!
-    logStep('Request received', undefined, 'parsing')
-
-    // Anti-spam: Check honeypot field
-    if (!checkHoneypot(requestData)) {
-      logStep('Honeypot triggered', undefined, 'blocked');
-      // Silent fail for bot submissions - return success to avoid revealing the honeypot
-      return createResponse({ 
-        success: true,
-        message: 'Thank you for your submission',
-        function: 'contact-sales',
-        version: VERSION,
-        method_used: 'POST'
-      }, 200, requestOrigin);
+        error: 'Spam detected'
+      }, 400, origin);
     }
 
-    // Turnstile verification temporarily disabled for testing
-    // if (requestData.turnstile_token) {
-    //   const clientIP = req.headers.get('CF-Connecting-IP') || req.headers.get('X-Forwarded-For') || 'unknown';
-    //   const turnstileValid = await verifyTurnstileToken(requestData.turnstile_token, clientIP);
-    //   
-    //   if (!turnstileValid) {
-    //     logStep('Turnstile verification failed', undefined, 'blocked');
-    //     return new Response(JSON.stringify({
-    //       success: false,
-    //       error: 'Security verification failed. Please try again.'
-    //     }), {
-    //       status: 400,
-    //       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    //     });
-    //   }
-    //   
-    //   logStep('Turnstile verification passed', undefined, 'verified');
-    // } else {
-    //   // If no Turnstile token provided, return error
-    //   logStep('No Turnstile token provided', undefined, 'blocked');
-    //   return new Response(JSON.stringify({
-    //     success: false,
-    //     error: 'Security verification required. Please complete the verification.'
-    //   }), {
-    //     status: 400,
-    //     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    //   });
-    // }
-    
-    logStep('Turnstile verification skipped for testing', undefined, 'bypass');
-
-    // Validate payload with inquiry type specific rules
-    const validationErrors = validatePayload(requestData)
+    // Validate payload
+    const validationErrors = validatePayload(data);
     if (validationErrors.length > 0) {
-      logStep('Validation failed', undefined, 'error')
-      return createResponse({ 
+      logStep('validation_failed', undefined, 'failed', { 
+        error_count: validationErrors.length,
+        error_fields: validationErrors.map(e => e.field)
+      });
+      return createResponse({
         success: false,
         error: 'Validation failed',
         details: validationErrors,
-        function: 'contact-sales',
-        version: VERSION,
-        method_used: 'POST'
-      }, 422, requestOrigin);
+        error_code: 'validation_error'
+      }, 422, origin);
     }
 
-    // Determine inquiry type
-    const inquiryType = requestData.inquiry_type || (requestData.product_interest || requestData.product_line ? 'enterprise' : 'contact');
-    
-    // Normalize and prepare data
-    const fullName = normalizeFullName(trimField(requestData.full_name || requestData.name));
-    const email = trimField(requestData.email).toLowerCase();
-    const productInterest = trimField(requestData.product_interest);
-    const expectedVolumeLabel = trimField(requestData.expected_volume_label || requestData.expected_volume);
-    
     // Extract tracking data
     const trackingData = extractTrackingData(req);
 
-    // Get user if authenticated  
-    let userId: string | null = null
-    const authHeader = req.headers.get('Authorization')
-    if (authHeader) {
-      try {
-        const token = authHeader.replace('Bearer ', '')
-        const { data: userData } = await supabase.auth.getUser(token)
-        userId = userData.user?.id || null
-        logStep('User authenticated', userId || undefined)
-      } catch (error) {
-        logStep('Authentication failed')
-      }
-    }
-
-    // Prepare normalized lead data
+    // Normalize and prepare lead data
     const leadData: LeadData = {
-      inquiry_type: inquiryType as 'contact' | 'enterprise',
-      full_name: fullName,
-      email: email,
-      phone: inquiryType === 'contact' ? trimField(requestData.phone) : undefined,
-      company: trimField(requestData.company),
-      message: inquiryType === 'contact' ? trimField(requestData.message) : undefined,
-      product_interest: inquiryType === 'enterprise' ? productInterest : undefined,
-      product_line: inquiryType === 'enterprise' ? mapProductInterestToLine(productInterest) : undefined,
-      additional_requirements: inquiryType === 'enterprise' ? trimField(requestData.additional_requirements || requestData.notes) : undefined,
-      expected_volume_label: inquiryType === 'enterprise' ? expectedVolumeLabel : undefined,
-      expected_volume_value: inquiryType === 'enterprise' ? mapVolumeToCode(expectedVolumeLabel) : undefined,
-      accept_privacy: requestData.accept_privacy ?? true,
-      marketing_opt_in: requestData.marketing_opt_in ?? false,
-      
-      // Include tracking data
+      inquiry_type: data.inquiry_type,
+      full_name: normalizeFullName(data.full_name || data.name || ''),
+      email: data.email.toLowerCase().trim(),
+      phone: data.phone?.trim() || undefined,
+      company: data.company?.trim() || undefined,
+      message: data.message?.trim() || undefined,
+      product_interest: data.product_interest?.trim() || undefined,
+      product_line: data.product_interest ? mapProductInterestToLine(data.product_interest) : undefined,
+      additional_requirements: (data.additional_requirements || data.notes)?.trim() || undefined,
+      expected_volume_label: (data.expected_volume_label || data.expected_volume)?.trim() || undefined,
+      expected_volume_value: data.expected_volume ? mapVolumeToCode(data.expected_volume) : undefined,
+      accept_privacy: data.accept_privacy ?? true,
+      marketing_opt_in: data.marketing_opt_in ?? false,
       ...trackingData,
-      
-      // Legacy compatibility fields
-      name: fullName,
-      notes: inquiryType === 'enterprise' ? trimField(requestData.additional_requirements || requestData.notes) : trimField(requestData.message),
-      legacy_expected_volume: expectedVolumeLabel,
+      ip_country: req.headers.get('cf-ipcountry') || undefined
     };
 
-    logStep('Data normalized', undefined, 'ready')
+    logStep('lead_data_prepared', undefined, 'ready', { 
+      inquiry_type: leadData.inquiry_type,
+      has_tracking: !!(leadData.utm_source || leadData.referrer)
+    });
 
-    // Insert lead into database using service role (bypasses RLS)
-    const { data: savedLead, error: leadError } = await supabase
-      .from('leads')
-      .insert(leadData)
-      .select('id, inquiry_type, email, company')
-      .single()
-
-    if (leadError) {
-      logStep('Database insert failed', undefined, 'error')
-      console.error('Lead insertion error:', leadError)
-      return createResponse({ 
-        success: false,
-        error: 'Failed to save submission',
-        details: leadError.message,
-        function: 'contact-sales',
-        version: VERSION,
-        method_used: 'POST'
-      }, 500, requestOrigin);
-    }
-
-    logStep('Lead saved', savedLead.id, 'success')
-
-    // Sync to SuiteCRM if configured (don't block on failure)
-    let crmSyncResult = null
-    try {
-      const suiteCRMService = createSuiteCRMService()
-      if (suiteCRMService) {
-        logStep('Starting CRM sync', savedLead.id)
-        
-        // Preview the payload for debugging (no PII in logs)
-        const preview = previewSuiteCRMPayload(leadData)
-        logStep('CRM payload prepared', savedLead.id, 'ready', { 
-          fields_count: Object.keys(preview.payload || {}).length,
-          has_email: !!leadData.email,
-          has_company: !!leadData.company 
-        })
-        
-        crmSyncResult = await suiteCRMService.syncLead(leadData)
-        
-        if (crmSyncResult.success) {
-          logStep('CRM sync successful', savedLead.id, 'success')
-          
-          // Update lead with CRM sync status
-          await supabase
-            .from('leads')
-            .update({
-              crm_sync_status: 'synced',
-              crm_id: crmSyncResult.leadId,
-              crm_synced_at: new Date().toISOString()
-            })
-            .eq('id', savedLead.id)
-        } else {
-          logStep('CRM sync failed', savedLead.id, 'error')
-          console.error('CRM sync error:', crmSyncResult.message, crmSyncResult.errors)
-          
-          // Update lead with error status
-          await supabase
-            .from('leads')
-            .update({
-              crm_sync_status: 'failed',
-              crm_sync_error: crmSyncResult.message
-            })
-            .eq('id', savedLead.id)
-        }
-      } else {
-        logStep('CRM sync skipped - not configured', savedLead.id)
-      }
-    } catch (error) {
-      logStep('CRM sync error', savedLead.id, 'error')
-      console.error('CRM sync unexpected error:', error)
-      
-      // Update lead with error status
+    // Authenticate user if Authorization header is provided
+    let organizationId: string | null = null;
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader) {
       try {
-        await supabase
-          .from('leads')
-          .update({
-            crm_sync_status: 'failed',
-            crm_sync_error: error instanceof Error ? error.message : 'Unknown CRM sync error'
-          })
-          .eq('id', savedLead.id)
-      } catch (updateError) {
-        console.error('Failed to update CRM sync error status:', updateError)
-      }
-    }
-
-    // Send notifications via email (no Slack integration)
-    const resend = new Resend(resendKey)
-    
-    // Get configurable email addresses
-    const salesInbox = Deno.env.get('SALES_INBOX') || 'sales@tulora.io'
-    const helloInbox = Deno.env.get('HELLO_INBOX') || 'hello@tulora.io'
-    const enterpriseInbox = Deno.env.get('ENTERPRISE_INBOX') || 'sales@tulora.io'
-    const notificationsFrom = Deno.env.get('NOTIFICATIONS_FROM') || 'notifications@tulora.io'
-    
-    // Determine recipient based on inquiry type and product line
-    let recipient = inquiryType === 'contact' ? helloInbox : enterpriseInbox
-    const ccRecipients: string[] = []
-    
-    // CC sales for leadgen products
-    if (leadData.product_line === 'leadgen' && recipient !== salesInbox) {
-      ccRecipients.push(salesInbox)
-    }
-    
-    // Subject pattern: [Tulora Lead] ${inquiry_type} • ${product_line} • ${company || '(no company)'}
-    const companyText = leadData.company || '(no company)'
-    const productLineText = leadData.product_line || inquiryType
-    const emailSubject = `[Tulora Lead] ${inquiryType} • ${productLineText} • ${companyText}`
-
-    const emailHtml = inquiryType === 'enterprise' ? `
-      <h2>New Enterprise Sales Inquiry</h2>
-      <p>A new enterprise prospect has submitted a contact request:</p>
-      
-      <h3>Contact Information</h3>
-      <ul>
-        <li><strong>Name:</strong> ${leadData.full_name}</li>
-        <li><strong>Email:</strong> ${leadData.email}</li>
-        <li><strong>Company:</strong> ${leadData.company}</li>
-      </ul>
-      
-      <h3>Interest Details</h3>
-      <ul>
-        <li><strong>Product Interest:</strong> ${leadData.product_interest}</li>
-        <li><strong>Expected Volume:</strong> ${leadData.expected_volume_label}</li>
-        <li><strong>Volume Code:</strong> ${leadData.expected_volume_value}</li>
-      </ul>
-      
-      <h3>Requirements</h3>
-      <p>${leadData.additional_requirements}</p>
-      
-      <p><strong>Lead ID:</strong> ${savedLead.id}</p>
-    ` : `
-      <h2>New Contact Inquiry</h2>
-      <p>A new contact inquiry has been submitted:</p>
-      
-      <h3>Contact Information</h3>
-      <ul>
-        <li><strong>Name:</strong> ${leadData.full_name}</li>
-        <li><strong>Email:</strong> ${leadData.email}</li>
-        <li><strong>Phone:</strong> ${leadData.phone}</li>
-        <li><strong>Company:</strong> ${leadData.company}</li>
-      </ul>
-      
-      <h3>Message</h3>
-      <p>${leadData.message}</p>
-      
-      <p><strong>Lead ID:</strong> ${savedLead.id}</p>
-    `;
-
-    // Prepare confirmation email content
-    const confirmationHtml = `
-      <h2>Thank you for contacting Tulora</h2>
-      <p>Hi ${leadData.full_name},</p>
-      
-      <p>Thank you for your interest in Tulora's AI solutions. We've received your ${inquiryType} inquiry and will respond within 24 hours.</p>
-      
-      <p>In the meantime, you can:</p>
-      <ul>
-        <li><a href="https://tulora.io/pricing">View our pricing</a></li>
-        <li><a href="https://docs.tulora.io">Browse our documentation</a></li>
-      </ul>
-      
-      <p>Best regards,<br>The Tulora Team</p>
-    `
-
-    // Initialize email message IDs array and delivery status
-    const emailMessageIds: string[] = []
-    let deliveryStatus = 'pending'
-
-    // Send notification to sales team (don't block on failure)
-    try {
-      const emailOptions: any = {
-        from: notificationsFrom,
-        to: [recipient],
-        subject: emailSubject,
-        html: emailHtml,
-        reply_to: leadData.email
-      }
-      
-      if (ccRecipients.length > 0) {
-        emailOptions.cc = ccRecipients
-      }
-
-      const { data: emailData, error: emailError } = await resend.emails.send(emailOptions)
-
-      if (emailError) {
-        logStep('Sales notification email failed', savedLead.id, 'error')
-        console.error('Failed to send sales notification email:', emailError)
-        deliveryStatus = 'failed'
-      } else {
-        logStep('Sales notification email sent', savedLead.id, 'success')
-        if (emailData?.id) {
-          emailMessageIds.push(emailData.id)
+        const { data: { user }, error } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+        if (user && !error) {
+          // Get user's organization
+          const { data: orgData } = await supabase
+            .from('organizations')
+            .select('id')
+            .eq('owner_user_id', user.id)
+            .single();
+          
+          if (orgData) {
+            organizationId = orgData.id;
+            logStep('user_authenticated', undefined, 'success', { org_id: organizationId });
+          }
         }
+      } catch (authError) {
+        console.warn('Auth header provided but user authentication failed:', authError);
       }
-    } catch (error) {
-      logStep('Sales notification email error', savedLead.id, 'error')
-      console.error('Sales notification email error:', error)
-      deliveryStatus = 'failed'
     }
 
-    // Send confirmation email to prospect (don't block on failure)
-    try {
-      const { data: confirmationData, error: confirmationError } = await resend.emails.send({
-        from: notificationsFrom,
-        to: [leadData.email],
-        subject: `Thank you for contacting Tulora`,
-        html: confirmationHtml
+    // Insert lead into database
+    const { data: leadRecord, error: insertError } = await supabase
+      .from('leads')
+      .insert({
+        ...leadData,
+        organization_id: organizationId,
+        crm_sync_status: organizationId ? 'pending' : 'not_applicable', // Only sync if org context
+        email_status: 'pending'
       })
+      .select()
+      .single();
 
-      if (confirmationError) {
-        logStep('Confirmation email failed', savedLead.id, 'error')
-        console.error('Failed to send confirmation email:', confirmationError)
-        if (deliveryStatus !== 'failed') {
-          deliveryStatus = 'partial'
-        }
-      } else {
-        logStep('Confirmation email sent', savedLead.id, 'success')
-        if (confirmationData?.id) {
-          emailMessageIds.push(confirmationData.id)
-        }
-        if (deliveryStatus === 'pending') {
-          deliveryStatus = 'sent'
-        }
-      }
-    } catch (error) {
-      logStep('Confirmation email error', savedLead.id, 'error')
-      console.error('Confirmation email error:', error)
-      if (deliveryStatus !== 'failed') {
-        deliveryStatus = 'partial'
-      }
+    if (insertError || !leadRecord) {
+      logStep('db_insert_failed', undefined, 'failed', { error: insertError?.message });
+      return createResponse({
+        success: false,
+        error: 'Failed to save lead data',
+        details: insertError?.message,
+        error_code: 'database_error'
+      }, 500, origin);
     }
 
-    // Update lead with delivery status and message IDs (don't fail if this fails)
-    try {
+    logStep('lead_inserted', leadRecord.id, 'success');
+
+    // CRM Sync (only if organization context exists)
+    let syncResult = null;
+    if (organizationId) {
+      try {
+        const crmService = createSuiteCRMService();
+        syncResult = await crmService.syncLead(leadRecord);
+        
+        if (syncResult.success) {
+          logStep('crm_sync_success', leadRecord.id, 'synced', { crm_id: syncResult.crm_id });
+        } else {
+          logStep('crm_sync_failed', leadRecord.id, 'failed', { error: syncResult.error });
+        }
+      } catch (crmError) {
+        logStep('crm_sync_error', leadRecord.id, 'error', { error: crmError.message });
+        syncResult = { success: false, error: crmError.message };
+      }
+
+      // Update lead with CRM sync status
       await supabase
         .from('leads')
         .update({
-          delivery_status: deliveryStatus,
-          email_message_ids: emailMessageIds
+          crm_sync_status: syncResult.success ? 'completed' : 'failed',
+          crm_sync_error: syncResult.success ? null : syncResult.error,
+          crm_id: syncResult.success ? syncResult.crm_id : null
         })
-        .eq('id', savedLead.id)
-      
-      logStep('Lead delivery status updated', savedLead.id, deliveryStatus)
-    } catch (error) {
-      logStep('Failed to update delivery status', savedLead.id, 'error')
-      console.error('Failed to update lead delivery status:', error)
-      // Don't fail the whole request if status update fails
+        .eq('id', leadRecord.id);
     }
 
-    // Determine final response based on CRM sync status
-    const crmSyncSuccessful = crmSyncResult?.success === true
-    
-    // If CRM is configured but sync failed, return error status
-    if (crmSyncResult && !crmSyncSuccessful) {
-      const crmError = crmSyncResult.message || 'CRM sync failed'
-      const statusCode = crmError.includes('authentication') || crmError.includes('auth') ? 502 : 424
+    // Send notification emails
+    let salesEmailResult = null;
+    let confirmationEmailResult = null;
+
+    try {
+      // Send sales notification email
+      const salesEmail = await resend.emails.send({
+        from: 'Tulora Forms <forms@tulora.io>',
+        to: ['sales@tulora.io'],
+        subject: `New ${leadData.inquiry_type} inquiry from ${leadData.full_name}`,
+        html: `
+          <h2>New ${leadData.inquiry_type} inquiry</h2>
+          <p><strong>Name:</strong> ${leadData.full_name}</p>
+          <p><strong>Email:</strong> ${leadData.email}</p>
+          ${leadData.phone ? `<p><strong>Phone:</strong> ${leadData.phone}</p>` : ''}
+          ${leadData.company ? `<p><strong>Company:</strong> ${leadData.company}</p>` : ''}
+          ${leadData.product_interest ? `<p><strong>Product Interest:</strong> ${leadData.product_interest}</p>` : ''}
+          ${leadData.expected_volume_label ? `<p><strong>Expected Volume:</strong> ${leadData.expected_volume_label}</p>` : ''}
+          <p><strong>Message:</strong></p>
+          <p>${(leadData.message || '').replace(/\n/g, '<br>')}</p>
+          ${leadData.additional_requirements ? `<p><strong>Additional Requirements:</strong></p><p>${leadData.additional_requirements.replace(/\n/g, '<br>')}</p>` : ''}
+          <hr>
+          <p><strong>Lead ID:</strong> ${leadRecord.id}</p>
+          ${syncResult ? `<p><strong>CRM Sync:</strong> ${syncResult.success ? 'Success' : `Failed: ${syncResult.error}`}</p>` : ''}
+        `
+      });
+
+      salesEmailResult = { success: !salesEmail.error, id: salesEmail.data?.id, error: salesEmail.error };
+      logStep('sales_email_sent', leadRecord.id, salesEmailResult.success ? 'sent' : 'failed');
+
+      // Send confirmation email to prospect
+      const isEnterprise = leadData.inquiry_type === 'enterprise';
+      const confirmationTemplate = isEnterprise ? EnterpriseConfirmationEmail : ContactConfirmationEmail;
       
-      return createResponse({ 
+      const confirmationHtml = await renderAsync(
+        React.createElement(confirmationTemplate, {
+          leadData,
+          leadId: leadRecord.id
+        })
+      );
+
+      const confirmationEmail = await resend.emails.send({
+        from: 'Tulora Team <hello@tulora.io>',
+        to: [leadData.email],
+        subject: isEnterprise 
+          ? 'Thank you for your enterprise inquiry - Tulora' 
+          : 'Thank you for contacting us - Tulora',
+        html: confirmationHtml
+      });
+
+      confirmationEmailResult = { 
+        success: !confirmationEmail.error, 
+        id: confirmationEmail.data?.id, 
+        error: confirmationEmail.error 
+      };
+      logStep('confirmation_email_sent', leadRecord.id, confirmationEmailResult.success ? 'sent' : 'failed');
+
+    } catch (emailError) {
+      logStep('email_error', leadRecord.id, 'failed', { error: emailError.message });
+      salesEmailResult = { success: false, error: emailError.message };
+      confirmationEmailResult = { success: false, error: emailError.message };
+    }
+
+    // Update lead with email delivery status
+    await supabase
+      .from('leads')
+      .update({
+        email_status: (salesEmailResult?.success && confirmationEmailResult?.success) ? 'sent' : 'failed',
+        email_error: (!salesEmailResult?.success || !confirmationEmailResult?.success) 
+          ? `Sales: ${salesEmailResult?.error || 'OK'}, Confirmation: ${confirmationEmailResult?.error || 'OK'}`
+          : null
+      })
+      .eq('id', leadRecord.id);
+
+    // Check if CRM sync failed and return appropriate status
+    if (syncResult && !syncResult.success) {
+      logStep('response_crm_failure', leadRecord.id, 'failed');
+      return createResponse({
         success: false,
         error: 'CRM synchronization failed',
-        endpoint: 'SuiteCRM API',
-        status_code: statusCode,
-        function: 'contact-sales',
-        version: VERSION,
-        method_used: 'POST',
-        leadId: savedLead.id,
-        details: crmError.replace(/[a-zA-Z0-9+/=]{20,}/g, '[REDACTED]'), // Sanitize any secrets
-        delivery_status: deliveryStatus,
-        emails_sent: emailMessageIds.length
-      }, statusCode, requestOrigin);
+        details: syncResult.error,
+        error_code: 'crm_sync_failed',
+        lead_id: leadRecord.id
+      }, 424, origin, 'failed');
     }
 
-    // Success response - only when CRM sync succeeds OR CRM is not configured
-    return createResponse({ 
-      success: true, 
-      function: 'contact-sales',
-      version: VERSION,
-      method_used: 'POST',
-      leadId: savedLead.id,
-      inquiry_type: savedLead.inquiry_type,
-      delivery_status: deliveryStatus,
-      emails_sent: emailMessageIds.length,
-      crm_sync: crmSyncResult ? {
-        success: crmSyncResult.success,
-        leadId: crmSyncResult.leadId,
-        message: crmSyncResult.message,
-        fieldsCreated: crmSyncResult.fieldsCreated?.length || 0
-      } : { skipped: true },
-      message: 'Submission received successfully'
-    }, 200, requestOrigin);
+    // Success response
+    const successResponse = {
+      success: true,
+      message: 'Lead submitted successfully',
+      lead_id: leadRecord.id,
+      crm_sync: syncResult,
+      email_delivery: {
+        sales_notification: salesEmailResult,
+        confirmation: confirmationEmailResult
+      }
+    };
+
+    logStep('response_success', leadRecord.id, 'completed', { 
+      crm_synced: syncResult?.success || false,
+      emails_sent: {
+        sales: salesEmailResult?.success || false,
+        confirmation: confirmationEmailResult?.success || false
+      }
+    });
+
+    return createResponse(successResponse, 200, origin, syncResult?.success ? 'success' : 'not_applicable');
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    logStep('Unexpected error', undefined, 'error')
-    console.error('Contact submission error:', errorMessage)
+    console.error('[ERROR] Contact sales submission failed:', error);
     
-    return createResponse({ 
+    const errorResponse = {
       success: false,
-      error: 'Internal server error',
-      function: 'contact-sales',
-      version: VERSION,
-      method_used: 'POST'
-    }, 500, requestOrigin);
+      error: error.message || 'Internal server error',
+      details: error instanceof Error ? error.stack : String(error)
+    };
+
+    return createResponse(errorResponse, 500, origin, 'error');
   }
-})
+});
