@@ -79,10 +79,7 @@ const TalkToUs = () => {
           email: formData.email,
           phone: formData.phone,
           company: formData.company,
-          message: formData.project,
-          accept_privacy: true,
-          marketing_opt_in: false,
-          turnstile_token: turnstileToken
+          message: formData.project
         }
       });
 
