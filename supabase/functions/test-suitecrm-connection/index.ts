@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const VERSION = "2025-09-09-3" // Increment for each deploy
+const VERSION = "2025-09-09-4" // Updated after SUITECRM_AUTH_MODE fix
 
 interface SuiteCRMAuthResponse {
   access_token: string
