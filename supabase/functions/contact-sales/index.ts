@@ -520,13 +520,47 @@ serve(async (req) => {
       }
     }
 
-    // Insert lead into database
+    // Insert lead into database with proper field mapping
     const { data: leadRecord, error: insertError } = await supabase
       .from('leads')
       .insert({
-        ...leadData,
+        // Map required NOT NULL fields
+        name: leadData.full_name, // Map full_name → name (NOT NULL)
+        email: leadData.email, // Map email → email (NOT NULL)
+        status: 'new', // Ensure NOT NULL status field
+        
+        // Map message to notes column
+        notes: leadData.message,
+        
+        // Only set product_line if it's valid (leadgen|support), otherwise leave NULL
+        product_line: (leadData.product_line === 'leadgen' || leadData.product_line === 'support') 
+          ? leadData.product_line 
+          : null,
+        
+        // Optional fields from leadData
+        phone: leadData.phone,
+        company: leadData.company,
+        inquiry_type: leadData.inquiry_type,
+        full_name: leadData.full_name, // Keep original field too
+        message: leadData.message, // Keep if column exists
+        product_interest: leadData.product_interest,
+        additional_requirements: leadData.additional_requirements,
+        expected_volume_label: leadData.expected_volume_label,
+        expected_volume_value: leadData.expected_volume_value,
+        accept_privacy: leadData.accept_privacy,
+        marketing_opt_in: leadData.marketing_opt_in,
+        page_url: leadData.page_url,
+        referrer: leadData.referrer,
+        utm_source: leadData.utm_source,
+        utm_medium: leadData.utm_medium,
+        utm_campaign: leadData.utm_campaign,
+        utm_term: leadData.utm_term,
+        utm_content: leadData.utm_content,
+        ip_country: leadData.ip_country,
+        
+        // Context fields
         organization_id: organizationId,
-        crm_sync_status: organizationId ? 'pending' : 'not_applicable', // Only sync if org context
+        crm_sync_status: organizationId ? 'pending' : 'not_applicable',
         email_status: 'pending'
       })
       .select()
