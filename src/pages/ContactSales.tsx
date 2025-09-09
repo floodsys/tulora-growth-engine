@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CheckCircle, ArrowLeft, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -27,9 +28,9 @@ export default function ContactSales() {
     name: "",
     email: "",
     company: "",
-    product_line: searchParams.get("product") || "leadgen",
+    product_interest: [] as string[], // Multi-select array
     expected_volume: "",
-    notes: "",
+    additional_requirements: "",
     // Honeypot field - should remain empty
     website: ""
   });
@@ -38,6 +39,9 @@ export default function ContactSales() {
   // const { token: turnstileToken, isReady: turnstileReady } = useTurnstile('turnstile-widget-contact', { theme: 'light' });
   const turnstileToken = "test-token"; // Mock token for testing
   const turnstileReady = true;
+
+  // Check if enterprise extras are required (default false)
+  const requireEnterpriseExtras = false; // This would typically come from an environment variable or config
 
   useEffect(() => {
     // Pre-fill user data if authenticated
@@ -57,7 +61,21 @@ export default function ContactSales() {
     };
 
     loadUserData();
-  }, []);
+
+    // Pre-fill product interest from URL params
+    const productParam = searchParams.get("product");
+    if (productParam) {
+      const productMap: Record<string, string> = {
+        'leadgen': 'AI Lead Generation',
+        'support': 'AI Customer Service'
+      };
+      const productInterest = productMap[productParam] || productParam;
+      setFormData(prev => ({
+        ...prev,
+        product_interest: [productInterest]
+      }));
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,9 +106,9 @@ export default function ContactSales() {
         name: formData.name, // maps to full_name
         email: formData.email,
         company: formData.company,
-        product_line: formData.product_line, // maps to product_interest
+        product_interest: formData.product_interest.join(', '), // Join multi-select values
         expected_volume: formData.expected_volume,
-        notes: formData.notes, // maps to message and additional_requirements
+        additional_requirements: formData.additional_requirements, // maps to message
         website: formData.website // honeypot
       });
       
@@ -142,12 +160,21 @@ export default function ContactSales() {
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const getProductLineDisplay = (productLine: string) => {
-    return productLine === 'leadgen' ? 'AI Lead Generation' : 'AI Customer Service';
+  const handleProductInterestChange = (product: string, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      product_interest: checked 
+        ? [...prev.product_interest, product]
+        : prev.product_interest.filter(p => p !== product)
+    }));
+  };
+
+  const getProductInterestDisplay = (products: string[]) => {
+    return products.length > 0 ? products.join(', ') : 'No products selected';
   };
 
   if (isSubmitted) {
@@ -164,12 +191,12 @@ export default function ContactSales() {
                   Thanks!
                 </h1>
                 <p className="text-green-700 mb-6">
-                  An enterprise specialist will contact you shortly to discuss your {getProductLineDisplay(formData.product_line)} requirements and pricing.
+                  An enterprise specialist will contact you shortly to discuss your {getProductInterestDisplay(formData.product_interest)} requirements and pricing.
                 </p>
                 <div className="space-y-4">
                   <div className="text-sm text-green-600 bg-green-100 p-4 rounded-lg">
                     <p><strong>We've sent you a confirmation email with next steps.</strong></p>
-                    <p className="mt-2">Our enterprise team will follow up shortly to discuss requirements and pricing for your {getProductLineDisplay(formData.product_line)} solution.</p>
+                    <p className="mt-2">Our enterprise team will follow up shortly to discuss requirements and pricing for your {getProductInterestDisplay(formData.product_interest)} solution.</p>
                   </div>
                   <div className="flex gap-4 justify-center">
                     <Button onClick={() => navigate('/')} variant="outline">
@@ -254,25 +281,39 @@ export default function ContactSales() {
                 </div>
 
                 <div>
-                  <Label htmlFor="product_line">Product Interest *</Label>
-                  <Select value={formData.product_line} onValueChange={(value) => handleInputChange('product_line', value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="leadgen">AI Lead Generation</SelectItem>
-                      <SelectItem value="support">AI Customer Service</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="product_interest">Product Interest {requireEnterpriseExtras ? '*' : '(Optional)'}</Label>
+                  <div className="space-y-2 mt-2">
+                    {[
+                      'AI Lead Generation',
+                      'AI Customer Service'
+                    ].map(product => (
+                      <div key={product} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`product_${product.replace(/\s+/g, '_').toLowerCase()}`}
+                          checked={formData.product_interest.includes(product)}
+                          onCheckedChange={(checked) => handleProductInterestChange(product, checked as boolean)}
+                        />
+                        <Label 
+                          htmlFor={`product_${product.replace(/\s+/g, '_').toLowerCase()}`}
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          {product}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="expected_volume">Expected Volume *</Label>
-                  <Select value={formData.expected_volume} onValueChange={(value) => handleInputChange('expected_volume', value)} required>
-                    <SelectTrigger>
+                  <Label htmlFor="expected_volume">Expected Volume {requireEnterpriseExtras ? '*' : '(Optional)'}</Label>
+                  <Select 
+                    value={formData.expected_volume} 
+                    onValueChange={(value) => handleInputChange('expected_volume', value)}
+                  >
+                    <SelectTrigger className="z-50">
                       <SelectValue placeholder="Select expected usage volume" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-50 bg-background border shadow-lg">
                       <SelectItem value="< 5,000 calls/month">&lt; 5,000 calls/month</SelectItem>
                       <SelectItem value="5,000-20,000 calls/month">5,000-20,000 calls/month</SelectItem>
                       <SelectItem value="20,000-100,000 calls/month">20,000-100,000 calls/month</SelectItem>
@@ -283,14 +324,14 @@ export default function ContactSales() {
                 </div>
 
                 <div>
-                  <Label htmlFor="notes">Additional Requirements *</Label>
+                  <Label htmlFor="additional_requirements">Additional Requirements {requireEnterpriseExtras ? '*' : '(Optional)'}</Label>
                   <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => handleInputChange('notes', e.target.value)}
+                    id="additional_requirements"
+                    value={formData.additional_requirements}
+                    onChange={(e) => handleInputChange('additional_requirements', e.target.value)}
                     placeholder="Tell us about your specific needs, compliance requirements, integration needs, or any other details..."
                     rows={4}
-                    required
+                    className="resize-none"
                   />
                 </div>
 
@@ -320,7 +361,19 @@ export default function ContactSales() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={isSubmitting || !turnstileToken || !turnstileReady || !formData.name || !formData.email || !formData.company || !formData.expected_volume || !formData.notes}
+                    disabled={
+                      isSubmitting || 
+                      !turnstileToken || 
+                      !turnstileReady || 
+                      !formData.name || 
+                      !formData.email || 
+                      !formData.company ||
+                      (requireEnterpriseExtras && (
+                        formData.product_interest.length === 0 ||
+                        !formData.expected_volume ||
+                        !formData.additional_requirements
+                      ))
+                    }
                     className="flex-1"
                   >
                     <Send className="h-4 w-4 mr-2" />

@@ -31,8 +31,10 @@ export interface RawFormData {
   project?: string; // Talk-to-Us form
   message?: string;
   notes?: string; // Enterprise form
-  product_line?: string; // Enterprise form
+  product_line?: string; // Enterprise form (legacy)
+  product_interest?: string; // Enterprise form (new)
   expected_volume?: string; // Enterprise form
+  additional_requirements?: string; // Enterprise form (new)
   website?: string; // honeypot
   [key: string]: any; // Allow other fields to be filtered out
 }
@@ -78,8 +80,10 @@ export function buildContactPayload(
 
   // Enterprise-specific fields
   if (inquiryType === 'enterprise') {
-    if (formData.product_line?.trim()) {
-      // Map product_line to product_interest
+    if (formData.product_interest?.trim()) {
+      payload.product_interest = formData.product_interest.trim();
+    } else if (formData.product_line?.trim()) {
+      // Legacy support for product_line field
       const productInterestMap: Record<string, string> = {
         'leadgen': 'AI Lead Generation',
         'support': 'AI Customer Service'
@@ -91,8 +95,11 @@ export function buildContactPayload(
       payload.expected_volume = formData.expected_volume.trim();
     }
 
-    // For enterprise forms, notes field serves dual purpose: message and additional_requirements
-    if (formData.notes?.trim()) {
+    // Handle additional_requirements field
+    if (formData.additional_requirements?.trim()) {
+      payload.additional_requirements = formData.additional_requirements.trim();
+    } else if (formData.notes?.trim()) {
+      // Legacy support: if no separate additional_requirements, use notes
       payload.additional_requirements = formData.notes.trim();
     }
   }
