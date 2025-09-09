@@ -8,7 +8,7 @@ import { previewSuiteCRMPayload } from './_lib/suitecrm-mapping.ts'
 import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
-const VERSION = "2025-09-09-3" // Track version for deployments
+const VERSION = "2025-09-09-4" // Track version for deployments
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -169,6 +169,63 @@ const mapVolumeToCode = (volumeLabel: string): string => {
     'Custom/Variable': 'custom'
   };
   return mapping[volumeLabel] || '';
+}
+
+// Pre-validation normalization with feature flag
+function normalizePayload(payload: any): { payload: any; normalized: boolean } {
+  const enableNormalization = Deno.env.get('FORMS_NORMALIZE_KEYS') !== 'false'; // default true
+  
+  if (!enableNormalization) {
+    return { payload, normalized: false };
+  }
+  
+  let hasNormalized = false;
+  const normalized = { ...payload };
+  
+  // Trim whitespace on all string values and keys
+  const trimmedPayload: any = {};
+  for (const [key, value] of Object.entries(normalized)) {
+    const trimmedKey = key.trim();
+    const trimmedValue = typeof value === 'string' ? value.trim() : value;
+    
+    if (trimmedKey !== key || (typeof value === 'string' && trimmedValue !== value)) {
+      hasNormalized = true;
+    }
+    
+    trimmedPayload[trimmedKey] = trimmedValue;
+  }
+  
+  // Map "source metadata" → source_metadata
+  if (trimmedPayload['source metadata'] && !trimmedPayload['source_metadata']) {
+    trimmedPayload['source_metadata'] = trimmedPayload['source metadata'];
+    delete trimmedPayload['source metadata'];
+    hasNormalized = true;
+  }
+  
+  // Normalize inquiry_type
+  if (trimmedPayload.inquiry_type) {
+    const original = trimmedPayload.inquiry_type;
+    let normalized_inquiry = original.toLowerCase().trim();
+    
+    // Coerce common variations
+    if (normalized_inquiry.includes('enterprise') || normalized_inquiry.includes('business') || normalized_inquiry.includes('sales')) {
+      normalized_inquiry = 'enterprise';
+    } else if (normalized_inquiry.includes('contact') || normalized_inquiry === 'support') {
+      normalized_inquiry = 'contact';
+    }
+    
+    if (normalized_inquiry !== original) {
+      trimmedPayload.inquiry_type = normalized_inquiry;
+      hasNormalized = true;
+    }
+  }
+  
+  // Log deprecation warning if normalization occurred
+  if (hasNormalized) {
+    console.log('[DEPRECATION] Payload normalization applied. Please update forms to send properly formatted data.');
+  }
+  
+  return { payload: trimmedPayload, normalized: hasNormalized };
 }
 
 // Field validation and legacy mapping
@@ -379,7 +436,12 @@ serve(async (req) => {
     // Parse and validate request data
     let requestData: ContactFormRequest
     try {
-      requestData = await req.json()
+      const rawData = await req.json()
+      
+      // Apply pre-validation normalization
+      const normalizationResult = normalizePayload(rawData)
+      requestData = normalizationResult.payload
+      
     } catch (error) {
       return new Response(JSON.stringify({ 
         success: false,
