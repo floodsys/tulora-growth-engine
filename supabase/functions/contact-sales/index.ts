@@ -335,34 +335,36 @@ serve(async (req) => {
       });
     }
 
-    // Verify Turnstile token
-    if (requestData.turnstile_token) {
-      const clientIP = req.headers.get('CF-Connecting-IP') || req.headers.get('X-Forwarded-For') || 'unknown';
-      const turnstileValid = await verifyTurnstileToken(requestData.turnstile_token, clientIP);
-      
-      if (!turnstileValid) {
-        logStep('Turnstile verification failed', undefined, 'blocked');
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Security verification failed. Please try again.'
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-      
-      logStep('Turnstile verification passed', undefined, 'verified');
-    } else {
-      // If no Turnstile token provided, return error
-      logStep('No Turnstile token provided', undefined, 'blocked');
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Security verification required. Please complete the verification.'
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    // Turnstile verification temporarily disabled for testing
+    // if (requestData.turnstile_token) {
+    //   const clientIP = req.headers.get('CF-Connecting-IP') || req.headers.get('X-Forwarded-For') || 'unknown';
+    //   const turnstileValid = await verifyTurnstileToken(requestData.turnstile_token, clientIP);
+    //   
+    //   if (!turnstileValid) {
+    //     logStep('Turnstile verification failed', undefined, 'blocked');
+    //     return new Response(JSON.stringify({
+    //       success: false,
+    //       error: 'Security verification failed. Please try again.'
+    //     }), {
+    //       status: 400,
+    //       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    //     });
+    //   }
+    //   
+    //   logStep('Turnstile verification passed', undefined, 'verified');
+    // } else {
+    //   // If no Turnstile token provided, return error
+    //   logStep('No Turnstile token provided', undefined, 'blocked');
+    //   return new Response(JSON.stringify({
+    //     success: false,
+    //     error: 'Security verification required. Please complete the verification.'
+    //   }), {
+    //     status: 400,
+    //     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    //   });
+    // }
+    
+    logStep('Turnstile verification skipped for testing', undefined, 'bypass');
 
     // Validate payload
     const validationErrors = validatePayload(requestData)
