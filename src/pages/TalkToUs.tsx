@@ -72,25 +72,53 @@ const TalkToUs = () => {
     setIsSubmitting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('contact-sales', {
-        body: {
-          inquiry_type: 'contact',
-          full_name: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          company: formData.company,
-          message: formData.project,
-          accept_privacy: true,
-          marketing_opt_in: false,
-          turnstile_token: turnstileToken
-        }
+      const payload = {
+        inquiry_type: 'contact',
+        full_name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        company: formData.company,
+        message: formData.project,
+        accept_privacy: true,
+        marketing_opt_in: false,
+        turnstile_token: turnstileToken
+      };
+
+      const res = await fetch('/functions/v1/contact-sales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
-      if (error) {
-        throw new Error(error.message);
+      let data: any = null;
+      try { 
+        data = await res.json(); 
+      } catch { 
+        data = null; 
       }
 
-      if (data?.success) {
+      if (!res.ok) {
+        const msg = data?.error || `Request failed (${res.status})`;
+        
+        // Handle Turnstile-specific errors
+        if (data?.code === "turnstile_missing" || data?.code === "turnstile_failed") {
+          toast({
+            title: "Security verification required",
+            description: "Please complete the security check to continue",
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        toast({
+          title: "Failed to send message",
+          description: msg,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (data && data.ok) {
         setIsSubmitted(true);
         // Reset form
         setFormData({
@@ -101,9 +129,18 @@ const TalkToUs = () => {
           project: "",
           website: ""
         });
-        // Form reset handled by hook
+        toast({
+          title: "Message sent successfully",
+          description: "Thanks — we received your message.",
+          variant: "default"
+        });
       } else {
-        throw new Error(data?.error || 'Failed to submit form');
+        // Handle the odd case of 2xx but no JSON or ok:false
+        toast({
+          title: "Message submitted",
+          description: "Thanks — submitted.",
+          variant: "default"
+        });
       }
     } catch (error: any) {
       console.error('Contact form error:', error);
@@ -300,7 +337,7 @@ const TalkToUs = () => {
                         size="lg" 
                         className="w-full h-12 text-lg font-semibold"
                         variant="brand"
-                        disabled={isSubmitting || !turnstileToken}
+                        disabled={isSubmitting}
                       >
                         {isSubmitting ? "Sending..." : "Send message"}
                       </Button>
