@@ -1,12 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { Resend } from 'npm:resend@4.0.0'
-import { renderAsync } from 'npm:@react-email/components@0.0.22'
-import React from 'npm:react@18.3.1'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
-import { createSuiteCRMService } from './_lib/suitecrm-service.ts'
-import { previewSuiteCRMPayload } from './_lib/suitecrm-mapping.ts'
-import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
-import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 import { requireTurnstileIfPublic } from '../_shared/turnstile.ts'
 
 const corsHeaders = {
@@ -105,6 +99,19 @@ const sanitizeLogMetadata = (metadata: any): any => {
 
 const trimField = (value: any): string => {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+const splitFullName = (fullName: string): { first_name: string; last_name: string } => {
+  const trimmed = fullName.trim()
+  const parts = trimmed.split(/\s+/)
+  
+  if (parts.length === 1) {
+    return { first_name: '', last_name: parts[0] }
+  } else {
+    const firstName = parts[0]
+    const lastName = parts.slice(1).join(' ')
+    return { first_name: firstName, last_name: lastName }
+  }
 }
 
 const normalizeFullName = (name: string): string => {
@@ -410,68 +417,59 @@ serve(async (req) => {
 
     logStep('Lead saved', savedLead.id, 'success')
 
-    // Sync to SuiteCRM if configured (don't block on failure)
-    let crmSyncResult = null
+    // Call CRM sync inline after DB insert and before email
+    const traceId = crypto.randomUUID();
+    let crm_ok = false, crm_status = 0, crm_error = null, crm_id = null;
+    
     try {
-      const suiteCRMService = createSuiteCRMService()
-      if (suiteCRMService) {
-        logStep('Starting CRM sync', savedLead.id)
-        
-        // Preview the payload for debugging (no PII in logs)
-        const preview = previewSuiteCRMPayload(leadData)
-        logStep('CRM payload prepared', savedLead.id, 'ready', { 
-          fields_count: Object.keys(preview.payload || {}).length,
-          has_email: !!leadData.email,
-          has_company: !!leadData.company 
-        })
-        
-        crmSyncResult = await suiteCRMService.syncLead(leadData)
-        
-        if (crmSyncResult.success) {
-          logStep('CRM sync successful', savedLead.id, 'success')
-          
-          // Update lead with CRM sync status
-          await supabase
-            .from('leads')
-            .update({
-              crm_sync_status: 'synced',
-              crm_id: crmSyncResult.leadId,
-              crm_synced_at: new Date().toISOString()
-            })
-            .eq('id', savedLead.id)
-        } else {
-          logStep('CRM sync failed', savedLead.id, 'error')
-          console.error('CRM sync error:', crmSyncResult.message, crmSyncResult.errors)
-          
-          // Update lead with error status
-          await supabase
-            .from('leads')
-            .update({
-              crm_sync_status: 'failed',
-              crm_sync_error: crmSyncResult.message
-            })
-            .eq('id', savedLead.id)
-        }
-      } else {
-        logStep('CRM sync skipped - not configured', savedLead.id)
+      // Prepare lead payload for SuiteCRM
+      const { first_name, last_name } = splitFullName(leadData.full_name)
+      const leadPayload = {
+        first_name,
+        last_name,
+        email1: leadData.email,
+        phone_work: leadData.phone,
+        account_name: leadData.company,
+        lead_source: leadData.inquiry_type === 'contact' ? 'Website - Contact Us' : 'Website - Enterprise Sales',
+        description: leadData.inquiry_type === 'contact' ? leadData.message : leadData.additional_requirements,
+        product_line_c: leadData.product_line,
+        product_interest_c: leadData.product_interest,
+        inquiry_type_c: leadData.inquiry_type,
+        expected_volume_c: leadData.expected_volume_label,
+        expected_volume_code_c: leadData.expected_volume_value,
+        utm_source_c: leadData.utm_source,
+        utm_medium_c: leadData.utm_medium,
+        utm_campaign_c: leadData.utm_campaign,
+        utm_term_c: leadData.utm_term,
+        utm_content_c: leadData.utm_content,
+        page_url_c: leadData.page_url,
+        referrer_c: leadData.referrer,
+        ip_country_c: leadData.ip_country,
+        marketing_opt_in_c: leadData.marketing_opt_in,
+        external_id_c: savedLead.id,
+        full_name: leadData.full_name
       }
-    } catch (error) {
-      logStep('CRM sync error', savedLead.id, 'error')
-      console.error('CRM sync unexpected error:', error)
+
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+      const res = await fetch(`${supabaseUrl}/functions/v1/suitecrm-sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(leadPayload)
+      });
       
-      // Update lead with error status
-      try {
-        await supabase
-          .from('leads')
-          .update({
-            crm_sync_status: 'failed',
-            crm_sync_error: error instanceof Error ? error.message : 'Unknown CRM sync error'
-          })
-          .eq('id', savedLead.id)
-      } catch (updateError) {
-        console.error('Failed to update CRM sync error status:', updateError)
-      }
+      crm_status = res.status;
+      const j = await res.json().catch(() => ({}));
+      crm_ok = !!j?.ok;
+      crm_error = j?.error || null;
+      crm_id = j?.result?.data?.id || j?.data?.id || null;
+      
+      logStep('CRM sync completed', savedLead.id, crm_ok ? 'success' : 'error')
+    } catch (e) {
+      crm_error = (e as Error).message || "network_error";
+      logStep('CRM sync failed', savedLead.id, 'error')
     }
+
+    console.info("lead.pipeline", { stage: "submit", crm_ok, status: crm_status });
 
     // Send notifications via email (no Slack integration)
     const resend = new Resend(resendKey)
@@ -637,20 +635,26 @@ serve(async (req) => {
       // Don't fail the whole request if status update fails
     }
 
-    return new Response(JSON.stringify({ 
-      success: true, 
+    // Prepare response with conditional admin debug info
+    const isAdminRequest = req.headers.get("x-admin-request") === "1"
+    const response: any = { 
+      ok: true,
       leadId: savedLead.id,
       inquiry_type: savedLead.inquiry_type,
       delivery_status: deliveryStatus,
       emails_sent: emailMessageIds.length,
-      crm_sync: crmSyncResult ? {
-        success: crmSyncResult.success,
-        leadId: crmSyncResult.leadId,
-        message: crmSyncResult.message,
-        fieldsCreated: crmSyncResult.fieldsCreated?.length || 0
-      } : { skipped: true },
       message: 'Submission received successfully'
-    }), {
+    }
+
+    // Add admin debug info if requested
+    if (isAdminRequest) {
+      response.crm_ok = crm_ok
+      response.crm_status = crm_status
+      response.crm_error = crm_error
+      response.crm_id = crm_id
+    }
+
+    return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
