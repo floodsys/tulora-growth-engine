@@ -13,6 +13,33 @@ import { supabase } from "@/integrations/supabase/client"
 import { SUPABASE_URL } from "@/config/publicConfig"
 import { AdminGuard } from "@/components/admin/AdminGuard"
 
+// Helper function to parse validation errors into user-friendly messages
+const parseValidationErrors = (details: string[]): string => {
+  const messages: string[] = [];
+  
+  for (const detail of details) {
+    if (detail.includes('Unknown fields:')) {
+      const fields = detail.replace('Unknown fields: ', '');
+      messages.push(`Remove unknown fields: ${fields}`);
+    } else if (detail.includes('inquiry_type is required')) {
+      messages.push('inquiry_type must be contact or enterprise');
+    } else if (detail.includes('inquiry_type') && detail.includes('must be either')) {
+      messages.push('inquiry_type must be contact or enterprise');
+    } else if (detail.includes('full_name is required')) {
+      messages.push('full_name is required');
+    } else if (detail.includes('email is required')) {
+      messages.push('email is required');  
+    } else if (detail.includes('message is required')) {
+      messages.push('message is required');
+    } else {
+      // Fallback for other validation errors
+      messages.push(detail);
+    }
+  }
+  
+  return messages.join('. ');
+};
+
 export default function AdminNotifications() {
   const [visibleSecrets, setVisibleSecrets] = useState<Record<string, boolean>>({})
   const [emailConfig, setEmailConfig] = useState({
@@ -375,10 +402,13 @@ export default function AdminNotifications() {
             // Show detailed error for validation issues (422)
             if (response.status === 422 && data.details) {
               console.error('Validation error details:', data.details)
-              const fieldErrors = Array.isArray(data.details) ? data.details.join(', ') : JSON.stringify(data.details)
+              const friendlyMessage = Array.isArray(data.details) 
+                ? parseValidationErrors(data.details)
+                : JSON.stringify(data.details);
+              
               toast({
                 title: "❌ Invalid Payload",
-                description: `${errorMsg}: ${fieldErrors}`,
+                description: friendlyMessage,
                 variant: "destructive"
               })
             } else {
@@ -669,6 +699,28 @@ export default function AdminNotifications() {
                   <TestTube2 className="h-4 w-4 mr-2" />
                   {e2eTesting ? "Running E2E..." : "Run CRM E2E"}
                 </Button>
+              </div>
+
+              {/* Payload Examples */}
+              <div className="mt-4 p-3 bg-muted rounded-lg">
+                <h4 className="font-semibold text-sm mb-2">Valid Payload Examples</h4>
+                <div className="space-y-2 text-xs font-mono">
+                  <div>
+                    <strong>Contact (minimal):</strong>
+                    <code className="block mt-1 p-2 bg-background rounded text-xs overflow-x-auto">
+                      {`{"inquiry_type":"contact","full_name":"Test User","email":"test@example.com","message":"Hello"}`}
+                    </code>
+                  </div>
+                  <div>
+                    <strong>Enterprise (minimal):</strong>
+                    <code className="block mt-1 p-2 bg-background rounded text-xs overflow-x-auto">
+                      {`{"inquiry_type":"enterprise","full_name":"Test User","email":"test@example.com","message":"Hello"}`}
+                    </code>
+                  </div>
+                  <div className="text-muted-foreground text-xs mt-2">
+                    Optional fields (snake_case): company, phone, website, leads_id, source, source_metadata, utm_*
+                  </div>
+                </div>
               </div>
 
               {/* E2E Test Results */}
