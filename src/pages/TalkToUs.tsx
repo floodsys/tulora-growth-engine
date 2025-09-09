@@ -9,6 +9,7 @@ import { CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { buildContactPayload, validateContactPayload } from "@/lib/contact-payload";
+import { ApiErrorPanel } from "@/components/ui/ApiErrorPanel";
 import contactUsImage from "@/assets/contact-us.svg";
 import talkToUsGraphic from "@/assets/talk-to-us-graphic.png";
 import logoSvg from "@/assets/logo.svg";
@@ -19,6 +20,7 @@ const TalkToUs = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<any>(null);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -73,16 +75,17 @@ const TalkToUs = () => {
     setIsSubmitting(true);
 
     try {
+      setSubmitError(null);
+      
       // Build canonical payload
       const payload = buildContactPayload('contact', formData);
       
       // Validate payload
       const validationErrors = validateContactPayload(payload);
       if (validationErrors.length > 0) {
-        toast({
-          title: "Please fix the following errors:",
-          description: validationErrors.join(', '),
-          variant: "destructive"
+        setSubmitError({
+          status: 422,
+          details: validationErrors
         });
         return;
       }
@@ -92,11 +95,13 @@ const TalkToUs = () => {
       });
 
       if (error) {
-        throw new Error(error.message);
+        setSubmitError(error);
+        return;
       }
 
       if (data?.success) {
         setIsSubmitted(true);
+        setSubmitError(null);
         // Reset form
         setFormData({
           fullName: "",
@@ -108,15 +113,14 @@ const TalkToUs = () => {
         });
         // Form reset handled by hook
       } else {
-        throw new Error(data?.error || 'Failed to submit form');
+        setSubmitError({
+          message: data?.error || 'Failed to submit form',
+          details: data?.details
+        });
       }
     } catch (error: any) {
       console.error('Contact form error:', error);
-      toast({
-        title: "Failed to send message",
-        description: error.message || "Please try again later",
-        variant: "destructive"
-      });
+      setSubmitError(error);
     } finally {
       setIsSubmitting(false);
     }
@@ -194,8 +198,15 @@ const TalkToUs = () => {
                       </Button>
                     </div>
                   ) : (
-                    // Form
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                     // Form
+                     <div>
+                       {submitError && (
+                         <ApiErrorPanel 
+                           error={submitError} 
+                           onDismiss={() => setSubmitError(null)}
+                         />
+                       )}
+                       <form onSubmit={handleSubmit} className="space-y-6">
                       {/* Full Name */}
                       <div className="space-y-2">
                         <Label htmlFor="fullName" className="text-foreground font-medium">
@@ -307,9 +318,10 @@ const TalkToUs = () => {
                         variant="brand"
                         disabled={isSubmitting || !turnstileToken}
                       >
-                        {isSubmitting ? "Sending..." : "Send message"}
-                      </Button>
-                    </form>
+                         {isSubmitting ? "Sending..." : "Send message"}
+                       </Button>
+                     </form>
+                    </div>
                   )}
                 </CardContent>
               </Card>

@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client"
 import { buildContactPayload, validateContactPayload } from "@/lib/contact-payload"
 import { SUPABASE_URL } from "@/config/publicConfig"
 import { AdminGuard } from "@/components/admin/AdminGuard"
+import { ApiErrorPanel } from "@/components/ui/ApiErrorPanel"
 
 // Helper function to parse validation errors into user-friendly messages
 const parseValidationErrors = (details: string[]): string => {
@@ -438,13 +439,17 @@ export default function AdminNotifications() {
             // Show detailed error for validation issues (422)
             if (response.status === 422 && data.details) {
               console.error('Validation error details:', data.details)
-              const friendlyMessage = Array.isArray(data.details) 
-                ? parseValidationErrors(data.details)
-                : JSON.stringify(data.details);
+              
+              // Create error object for ApiErrorPanel
+              const validationError = {
+                status: 422,
+                details: data.details,
+                message: `Status ${response.status}: ${errorMsg}${endpoint}`
+              };
               
               toast({
-                title: "❌ Invalid Payload",
-                description: friendlyMessage,
+                title: "❌ Invalid Payload (422)",
+                description: "See detailed validation errors below",
                 variant: "destructive"
               })
             } else {

@@ -10,6 +10,7 @@ import { CheckCircle, ArrowLeft, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { buildContactPayload, validateContactPayload } from "@/lib/contact-payload";
+import { ApiErrorPanel } from "@/components/ui/ApiErrorPanel";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 // import { useTurnstile } from "@/hooks/useTurnstile";
@@ -21,6 +22,7 @@ export default function ContactSales() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -196,6 +198,12 @@ export default function ContactSales() {
               <CardTitle>Enterprise Inquiry</CardTitle>
             </CardHeader>
             <CardContent>
+              {submitError && (
+                <ApiErrorPanel 
+                  error={submitError} 
+                  onDismiss={() => setSubmitError(null)}
+                />
+              )}
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
