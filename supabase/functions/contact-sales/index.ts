@@ -8,7 +8,7 @@ import { previewSuiteCRMPayload } from './_lib/suitecrm-mapping.ts'
 import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
-const VERSION = "2025-09-09-8" // Prompt 2 - Enhanced normalization
+const VERSION = "2025-09-09-9" // Prompt 5 - Single route + version consistency
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -456,7 +456,10 @@ serve(async (req) => {
       return new Response(JSON.stringify({ 
         success: false,
         error: 'Too many requests. Please wait before submitting again.',
-        retry_after: 60
+        retry_after: 60,
+        function: 'contact-sales',
+        version: VERSION,
+        method_used: 'POST'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 429,
@@ -520,7 +523,10 @@ serve(async (req) => {
       // Silent fail for bot submissions - return success to avoid revealing the honeypot
       return new Response(JSON.stringify({ 
         success: true,
-        message: 'Thank you for your submission'
+        message: 'Thank you for your submission',
+        function: 'contact-sales',
+        version: VERSION,
+        method_used: 'POST'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -640,7 +646,10 @@ serve(async (req) => {
       return new Response(JSON.stringify({ 
         success: false,
         error: 'Failed to save submission',
-        details: leadError.message
+        details: leadError.message,
+        function: 'contact-sales',
+        version: VERSION,
+        method_used: 'POST'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,

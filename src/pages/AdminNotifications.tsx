@@ -59,6 +59,13 @@ export default function AdminNotifications() {
   const [testing, setTesting] = useState<Record<string, boolean>>({})
   const [e2eTesting, setE2eTesting] = useState(false)
   const [testError, setTestError] = useState<any>(null)
+  const [functionVersions, setFunctionVersions] = useState<{
+    'contact-sales': { version?: string, status?: string },
+    'test-suitecrm-connection': { version?: string, status?: string }
+  }>({
+    'contact-sales': {},
+    'test-suitecrm-connection': {}
+  })
   const [e2eResults, setE2eResults] = useState<{
     connection: { status: 'pending' | 'success' | 'error', message?: string, oauth_user?: string, env_present?: Record<string, boolean> },
     lead: { status: 'pending' | 'success' | 'error', message?: string, crm_reference?: string },
@@ -329,6 +336,95 @@ export default function AdminNotifications() {
     }
   }
 
+  const handlePingFunctions = async () => {
+    setTesting(prev => ({ ...prev, ping_functions: true }))
+    
+    try {
+      const token = await checkAuthentication()
+      if (!token) return
+
+      // Ping contact-sales
+      try {
+        const contactResponse = await fetch(`${SUPABASE_URL}/functions/v1/contact-sales`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            inquiry_type: 'contact',
+            full_name: 'Ping Test',
+            email: 'ping@test.local',
+            company: 'Test Co',
+            message: 'Version ping test',
+            website: 'block' // Honeypot trigger for silent success
+          })
+        })
+        
+        const contactData = await contactResponse.json()
+        setFunctionVersions(prev => ({
+          ...prev,
+          'contact-sales': {
+            version: contactData.version || 'unknown',
+            status: contactResponse.ok ? 'ok' : `${contactResponse.status}`
+          }
+        }))
+      } catch (error) {
+        setFunctionVersions(prev => ({
+          ...prev,
+          'contact-sales': {
+            version: 'error',
+            status: 'unreachable'
+          }
+        }))
+      }
+
+      // Ping test-suitecrm-connection
+      try {
+        const crmResponse = await fetch(`${SUPABASE_URL}/functions/v1/test-suitecrm-connection`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        
+        const crmData = await crmResponse.json()
+        setFunctionVersions(prev => ({
+          ...prev,
+          'test-suitecrm-connection': {
+            version: crmData.version || 'unknown',
+            status: crmResponse.ok ? 'ok' : `${crmResponse.status}`
+          }
+        }))
+      } catch (error) {
+        setFunctionVersions(prev => ({
+          ...prev,
+          'test-suitecrm-connection': {
+            version: 'error',
+            status: 'unreachable'
+          }
+        }))
+      }
+
+      toast({
+        title: "Function Versions Retrieved",
+        description: "Check the Function Versions panel for details",
+        variant: "default"
+      })
+
+    } catch (error) {
+      console.error('Ping functions error:', error)
+      toast({
+        title: "Ping Functions Failed",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive"
+      })
+    } finally {
+      setTesting(prev => ({ ...prev, ping_functions: false }))
+    }
+  }
+
   const handleRunE2ETest = async () => {
     setE2eTesting(true)
     setE2eResults({
@@ -535,15 +631,71 @@ export default function AdminNotifications() {
                 Manage email notifications and CRM integration settings
               </p>
             </div>
-            <Button
-              variant="outline"
-              onClick={handleHardRefresh}
-              className="flex items-center space-x-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span>Hard Refresh Cache</span>
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleHardRefresh}
+                className="flex items-center space-x-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>Hard Refresh Cache</span>
+              </Button>
+              
+              <Button 
+                onClick={handlePingFunctions}
+                variant="secondary"
+                disabled={testing.ping_functions}
+                className="flex items-center space-x-2"
+              >
+                <TestTube2 className="h-4 w-4" />
+                <span>{testing.ping_functions ? "Pinging..." : "Ping Functions"}</span>
+              </Button>
+            </div>
           </div>
+          
+          {/* Function Versions Panel */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TestTube2 className="h-5 w-5" />
+                Function Versions
+              </CardTitle>
+              <CardDescription>
+                Check deployed function versions for consistency
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium flex items-center gap-2">
+                    contact-sales
+                    <Badge variant={functionVersions['contact-sales'].status === 'ok' ? 'default' : 'destructive'}>
+                      {functionVersions['contact-sales'].status || 'unknown'}
+                    </Badge>
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    Version: <code className="bg-muted px-1 rounded">
+                      {functionVersions['contact-sales'].version || 'not checked'}
+                    </code>
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <h4 className="font-medium flex items-center gap-2">
+                    test-suitecrm-connection
+                    <Badge variant={functionVersions['test-suitecrm-connection'].status === 'ok' ? 'default' : 'destructive'}>
+                      {functionVersions['test-suitecrm-connection'].status || 'unknown'}
+                    </Badge>
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    Version: <code className="bg-muted px-1 rounded">
+                      {functionVersions['test-suitecrm-connection'].version || 'not checked'}
+                    </code>
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Email (Resend) Section */}
           <Card>
