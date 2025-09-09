@@ -8,7 +8,9 @@ interface AdminGuardProps {
 }
 
 export function AdminGuard({ children }: AdminGuardProps) {
+  console.log('🔍 AdminGuard component mounted');
   const { isSuperadmin, isLoading, error, refresh } = useSuperadmin();
+  console.log('🔍 AdminGuard state:', { isSuperadmin, isLoading, error });
   const { toast } = useToast();
   const location = useLocation();
 
