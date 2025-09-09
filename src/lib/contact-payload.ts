@@ -12,6 +12,9 @@ export interface ContactPayloadData {
   leads_id?: string;
   source?: string;
   source_metadata?: Record<string, any>;
+  product_interest?: string;
+  expected_volume?: string;
+  additional_requirements?: string;
   utm_source?: string;
   utm_medium?: string;
   utm_campaign?: string;
@@ -28,6 +31,8 @@ export interface RawFormData {
   project?: string; // Talk-to-Us form
   message?: string;
   notes?: string; // Enterprise form
+  product_line?: string; // Enterprise form
+  expected_volume?: string; // Enterprise form
   website?: string; // honeypot
   [key: string]: any; // Allow other fields to be filtered out
 }
@@ -71,6 +76,27 @@ export function buildContactPayload(
     payload.website = formData.website.trim();
   }
 
+  // Enterprise-specific fields
+  if (inquiryType === 'enterprise') {
+    if (formData.product_line?.trim()) {
+      // Map product_line to product_interest
+      const productInterestMap: Record<string, string> = {
+        'leadgen': 'AI Lead Generation',
+        'support': 'AI Customer Service'
+      };
+      payload.product_interest = productInterestMap[formData.product_line] || formData.product_line;
+    }
+
+    if (formData.expected_volume?.trim()) {
+      payload.expected_volume = formData.expected_volume.trim();
+    }
+
+    // For enterprise forms, notes field serves dual purpose: message and additional_requirements
+    if (formData.notes?.trim()) {
+      payload.additional_requirements = formData.notes.trim();
+    }
+  }
+
   // Add options if provided
   if (options?.source?.trim()) {
     payload.source = options.source.trim();
@@ -103,6 +129,9 @@ export function buildContactPayload(
   if (options?.leads_id?.trim()) {
     payload.leads_id = options.leads_id.trim();
   }
+
+  // Log payload creation (no PII)
+  console.log(`[CONTACT-PAYLOAD] payload_built=true, inquiry_type=${payload.inquiry_type}, keys=[${Object.keys(payload).join(', ')}]`);
 
   return payload;
 }

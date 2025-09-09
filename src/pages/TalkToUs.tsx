@@ -77,8 +77,15 @@ const TalkToUs = () => {
     try {
       setSubmitError(null);
       
-      // Build canonical payload
-      const payload = buildContactPayload('contact', formData);
+      // Build canonical payload - only allowed snake_case keys
+      const payload = buildContactPayload('contact', {
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        company: formData.company,
+        project: formData.project, // maps to message
+        website: formData.website // honeypot
+      });
       
       // Validate payload
       const validationErrors = validateContactPayload(payload);
@@ -91,7 +98,10 @@ const TalkToUs = () => {
       }
 
       const { data, error } = await supabase.functions.invoke('contact-sales', {
-        body: payload
+        body: payload,
+        headers: {
+          'Cache-Control': 'no-store'
+        }
       });
 
       if (error) {

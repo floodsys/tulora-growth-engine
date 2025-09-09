@@ -83,47 +83,60 @@ export default function ContactSales() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
-      // Build canonical payload  
+      // Build canonical payload - only allowed snake_case keys  
       const payload = buildContactPayload('enterprise', {
         name: formData.name, // maps to full_name
         email: formData.email,
         company: formData.company,
-        notes: formData.notes // maps to message
+        product_line: formData.product_line, // maps to product_interest
+        expected_volume: formData.expected_volume,
+        notes: formData.notes, // maps to message and additional_requirements
+        website: formData.website // honeypot
       });
       
       // Validate payload
       const validationErrors = validateContactPayload(payload);
       if (validationErrors.length > 0) {
-        toast({
-          title: "Please fix the following errors:",
-          description: validationErrors.join(', '),
-          variant: "destructive"
+        setSubmitError({
+          status: 422,
+          details: validationErrors,
+          message: 'Please fix the following errors:'
         });
         return;
       }
 
       const { data, error } = await supabase.functions.invoke('contact-sales', {
         body: payload,
-        headers: session?.access_token ? {
-          Authorization: `Bearer ${session.access_token}`
-        } : undefined
+        headers: {
+          'Cache-Control': 'no-store',
+          ...(session?.access_token ? {
+            Authorization: `Bearer ${session.access_token}`
+          } : {})
+        }
       });
 
-      if (error) throw error;
+      if (error) {
+        setSubmitError(error);
+        return;
+      }
 
-      setIsSubmitted(true);
-      toast({
-        title: "Request Submitted",
-        description: "Thank you! Our sales team will contact you within 24 hours.",
-      });
+      if (data?.success) {
+        setIsSubmitted(true);
+        setSubmitError(null);
+        toast({
+          title: "Request Submitted",
+          description: "Thank you! Our sales team will contact you within 24 hours.",
+        });
+      } else {
+        setSubmitError({
+          message: data?.error || 'Failed to submit form',
+          details: data?.details
+        });
+      }
 
     } catch (error: any) {
       console.error('Contact sales error:', error);
-      toast({
-        title: "Submission Error",
-        description: error.message || "Failed to submit request. Please try again.",
-        variant: "destructive",
-      });
+      setSubmitError(error);
     } finally {
       setIsSubmitting(false);
     }
