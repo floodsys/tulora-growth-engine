@@ -28,6 +28,12 @@ export default function AdminNotifications() {
     sync_enabled: false
   })
   const [testing, setTesting] = useState<Record<string, boolean>>({})
+  const [e2eTesting, setE2eTesting] = useState(false)
+  const [e2eResults, setE2eResults] = useState<{
+    connection: { status: 'pending' | 'success' | 'error', message?: string, oauth_user?: string, env_present?: Record<string, boolean> },
+    lead: { status: 'pending' | 'success' | 'error', message?: string, crm_reference?: string },
+    overall: 'pending' | 'success' | 'error'
+  } | null>(null)
   const { toast } = useToast()
   const navigate = useNavigate()
 
@@ -261,6 +267,169 @@ export default function AdminNotifications() {
     }
   }
 
+  const handleRunE2ETest = async () => {
+    setE2eTesting(true)
+    setE2eResults({
+      connection: { status: 'pending' },
+      lead: { status: 'pending' },
+      overall: 'pending'
+    })
+
+    try {
+      // Check authentication and get token
+      const token = await checkAuthentication()
+      if (!token) return
+
+      // Step 1: Test SuiteCRM Connection
+      let connectionResult: { status: 'pending' | 'success' | 'error', message: string, oauth_user: string, env_present: Record<string, boolean> } = { 
+        status: 'error', 
+        message: '', 
+        oauth_user: '', 
+        env_present: {} 
+      }
+      try {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/test-suitecrm-connection`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        const data = await response.json()
+        
+        if (response.ok && data.success) {
+          connectionResult = {
+            status: 'success',
+            message: `Method: ${data.method_used || 'POST'} | Version: ${data.version || 'unknown'}`,
+            oauth_user: data.oauth_user || 'unknown',
+            env_present: data.env_present || {}
+          }
+        } else {
+          connectionResult = {
+            status: 'error',
+            message: `Status ${response.status}: ${data.error || 'Connection failed'}`,
+            oauth_user: '',
+            env_present: data.env_present || {}
+          }
+        }
+      } catch (error) {
+        connectionResult = {
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Connection test failed',
+          oauth_user: '',
+          env_present: {}
+        }
+      }
+
+      setE2eResults(prev => prev ? {
+        ...prev,
+        connection: connectionResult,
+        overall: connectionResult.status === 'success' ? 'pending' : 'error'
+      } : null)
+
+      // Step 2: Send Test Lead (only if connection succeeded)
+      let leadResult: { status: 'pending' | 'success' | 'error', message: string, crm_reference: string } = { 
+        status: 'pending', 
+        message: '', 
+        crm_reference: '' 
+      }
+      if (connectionResult.status === 'success') {
+        try {
+          const testLead = {
+            name: "E2E Test Lead",
+            email: "e2e-test@example.com",
+            company: "E2E Test Company",
+            phone: "+1234567890",
+            message: "This is an automated E2E test lead",
+            source: "admin_e2e_test",
+            leads_id: `e2e-test-${Date.now()}`,
+            metadata: {
+              test_lead: true,
+              e2e_test: true,
+              created_by: "admin_e2e_panel"
+            }
+          }
+
+          const response = await fetch(`${SUPABASE_URL}/functions/v1/contact-sales`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(testLead)
+          })
+
+          const data = await response.json()
+
+          if (response.ok && data.success !== false) {
+            leadResult = {
+              status: 'success',
+              message: 'Lead sent successfully',
+              crm_reference: data.crm_reference || data.id || 'Created'
+            }
+          } else {
+            leadResult = {
+              status: 'error',
+              message: `Status ${response.status}: ${data.error || 'Lead creation failed'}`,
+              crm_reference: ''
+            }
+          }
+        } catch (error) {
+          leadResult = {
+            status: 'error',
+            message: error instanceof Error ? error.message : 'Lead test failed',
+            crm_reference: ''
+          }
+        }
+      } else {
+        leadResult = {
+          status: 'error',
+          message: 'Skipped due to connection failure',
+          crm_reference: ''
+        }
+      }
+
+      const overallStatus = connectionResult.status === 'success' && leadResult.status === 'success' ? 'success' : 'error'
+
+      setE2eResults({
+        connection: connectionResult,
+        lead: leadResult,
+        overall: overallStatus
+      })
+
+      // Show summary toast
+      if (overallStatus === 'success') {
+        toast({
+          title: "✅ E2E Test Passed",
+          description: `All steps completed successfully. OAuth user: ${connectionResult.oauth_user}, CRM ref: ${leadResult.crm_reference}`,
+          variant: "default"
+        })
+      } else {
+        toast({
+          title: "❌ E2E Test Failed",
+          description: `Connection: ${connectionResult.status}, Lead: ${leadResult.status}`,
+          variant: "destructive"
+        })
+      }
+
+    } catch (error) {
+      setE2eResults({
+        connection: { status: 'error', message: 'E2E test failed to start' },
+        lead: { status: 'error', message: 'Not attempted' },
+        overall: 'error'
+      })
+      
+      toast({
+        title: "E2E Test Error",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive"
+      })
+    } finally {
+      setE2eTesting(false)
+    }
+  }
+
   return (
     <AdminGuard>
       <div className="min-h-screen bg-background">
@@ -471,7 +640,86 @@ export default function AdminNotifications() {
                   <TestTube2 className="h-4 w-4 mr-2" />
                   {testing.crm_lead ? "Sending..." : "Send Test Lead"}
                 </Button>
+                
+                <Button 
+                  variant="secondary"
+                  onClick={handleRunE2ETest}
+                  disabled={e2eTesting}
+                >
+                  <TestTube2 className="h-4 w-4 mr-2" />
+                  {e2eTesting ? "Running E2E..." : "Run CRM E2E"}
+                </Button>
               </div>
+
+              {/* E2E Test Results */}
+              {e2eResults && (
+                <div className="mt-6 p-4 bg-muted rounded-lg space-y-3">
+                  <h4 className="font-semibold text-sm">E2E Test Results</h4>
+                  
+                  {/* Connection Test */}
+                  <div className="flex items-center justify-between p-2 bg-background rounded border">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        e2eResults.connection.status === 'success' ? 'bg-green-500' :
+                        e2eResults.connection.status === 'error' ? 'bg-red-500' :
+                        'bg-yellow-500'
+                      }`} />
+                      <span className="text-sm font-medium">1. SuiteCRM Connection</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {e2eResults.connection.status === 'success' && e2eResults.connection.oauth_user && (
+                        <span>User: {e2eResults.connection.oauth_user}</span>
+                      )}
+                      {e2eResults.connection.status === 'error' && (
+                        <span>{e2eResults.connection.message}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Lead Test */}
+                  <div className="flex items-center justify-between p-2 bg-background rounded border">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        e2eResults.lead.status === 'success' ? 'bg-green-500' :
+                        e2eResults.lead.status === 'error' ? 'bg-red-500' :
+                        'bg-yellow-500'
+                      }`} />
+                      <span className="text-sm font-medium">2. Test Lead Creation</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {e2eResults.lead.status === 'success' && e2eResults.lead.crm_reference && (
+                        <span>CRM ID: {e2eResults.lead.crm_reference}</span>
+                      )}
+                      {e2eResults.lead.status === 'error' && (
+                        <span>{e2eResults.lead.message}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Environment Check */}
+                  {e2eResults.connection.env_present && Object.keys(e2eResults.connection.env_present).length > 0 && (
+                    <div className="p-2 bg-background rounded border">
+                      <div className="text-sm font-medium mb-2">Environment Variables</div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {Object.entries(e2eResults.connection.env_present).map(([key, present]) => (
+                          <div key={key} className="flex items-center space-x-2">
+                            <div className={`w-1.5 h-1.5 rounded-full ${present ? 'bg-green-500' : 'bg-red-500'}`} />
+                            <span className={present ? 'text-foreground' : 'text-muted-foreground'}>{key}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Overall Status */}
+                  <div className={`p-2 rounded text-center text-sm font-medium ${
+                    e2eResults.overall === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                    'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                  }`}>
+                    {e2eResults.overall === 'success' ? '✅ All tests passed' : '❌ Test failures detected'}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
