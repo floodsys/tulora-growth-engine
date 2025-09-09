@@ -7,178 +7,87 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface EmailTestResult {
-  ok: boolean;
-  provider: string;
-  status: string;
-  reason?: string;
-  details?: any;
+interface MailerConfig {
+  apiKey: string;
+  notificationsFrom: string;
 }
 
-// Note: We'll create the client with user auth in the serve function
+interface SendMailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  from?: string;
+}
 
-async function testResendConnectivity(): Promise<EmailTestResult> {
-  const apiKey = Deno.env.get('RESEND_API_KEY');
-  
-  if (!apiKey) {
-    return {
-      ok: false,
-      provider: 'resend',
-      status: 'No API Key',
-      reason: 'RESEND_API_KEY environment variable not configured'
-    };
+class MailerError extends Error {
+  public status: number;
+  public response?: any;
+
+  constructor(message: string, status: number = 500, response?: any) {
+    super(message);
+    this.name = 'MailerError';
+    this.status = status;
+    this.response = response;
+  }
+}
+
+class Mailer {
+  private resend: Resend;
+  private config: MailerConfig;
+
+  constructor(config: MailerConfig) {
+    this.config = config;
+    this.resend = new Resend(config.apiKey);
   }
 
-  try {
-    const resend = new Resend(apiKey);
-    
-    // Test API connectivity by listing domains (lightweight operation)
-    const domainsResponse = await fetch('https://api.resend.com/domains', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
+  static create(): Mailer {
+    const apiKey = Deno.env.get('RESEND_API_KEY');
+    const notificationsFrom = Deno.env.get('NOTIFICATIONS_FROM');
 
-    if (!domainsResponse.ok) {
-      const errorText = await domainsResponse.text();
-      
-      // Handle sending-only API keys (401 with restricted_api_key)
-      if (domainsResponse.status === 401 && errorText.includes('restricted_api_key')) {
-        return {
-          ok: true,
-          provider: 'resend',
-          status: 'Connected (Send-only)',
-          details: { 
-            key_type: 'sending_only',
-            note: 'API key has sending permissions but cannot list domains'
-          }
-        };
-      }
-      
-      return {
-        ok: false,
-        provider: 'resend',
-        status: 'Auth Failed',
-        reason: `API authentication failed: ${domainsResponse.status} ${errorText}`,
-        details: { status: domainsResponse.status }
-      };
+    if (!apiKey) {
+      throw new MailerError('RESEND_API_KEY environment variable is required', 500);
     }
 
-    const domains = await domainsResponse.json();
-    
-    return {
-      ok: true,
-      provider: 'resend',
-      status: 'Connected (Full Access)',
-      details: { 
-        key_type: 'full_access',
-        domains_count: domains.data?.length || 0,
-        verified_domains: domains.data?.filter((d: any) => d.status === 'verified').length || 0
-      }
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      provider: 'resend',
-      status: 'Connection Error',
-      reason: `Network or DNS error: ${error.message}`,
-      details: { error: error.message }
-    };
-  }
-}
-
-async function testSMTPConnectivity(): Promise<EmailTestResult> {
-  const host = Deno.env.get('SMTP_HOST');
-  const port = Deno.env.get('SMTP_PORT');
-  const user = Deno.env.get('SMTP_USER');
-  const pass = Deno.env.get('SMTP_PASS');
-
-  if (!host || !port || !user || !pass) {
-    return {
-      ok: false,
-      provider: 'smtp',
-      status: 'Incomplete Config',
-      reason: 'Missing SMTP configuration variables (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)'
-    };
-  }
-
-  try {
-    // Basic connectivity test - try to connect to SMTP server
-    const conn = await Deno.connect({
-      hostname: host,
-      port: parseInt(port),
-    });
-    conn.close();
-
-    return {
-      ok: true,
-      provider: 'smtp',
-      status: 'Connected',
-      details: { host, port }
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      provider: 'smtp',
-      status: 'Connection Failed',
-      reason: `Cannot connect to SMTP server: ${error.message}`,
-      details: { host, port, error: error.message }
-    };
-  }
-}
-
-async function testSendGridConnectivity(): Promise<EmailTestResult> {
-  const apiKey = Deno.env.get('SENDGRID_API_KEY');
-  
-  if (!apiKey) {
-    return {
-      ok: false,
-      provider: 'sendgrid',
-      status: 'No API Key',
-      reason: 'SENDGRID_API_KEY environment variable not configured'
-    };
-  }
-
-  try {
-    // Test API connectivity
-    const response = await fetch('https://api.sendgrid.com/v3/user/account', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return {
-        ok: false,
-        provider: 'sendgrid',
-        status: 'Auth Failed',
-        reason: `API authentication failed: ${response.status} ${errorText}`,
-        details: { status: response.status }
-      };
+    if (!notificationsFrom) {
+      throw new MailerError('NOTIFICATIONS_FROM environment variable is required', 500);
     }
 
-    const account = await response.json();
-    
-    return {
-      ok: true,
-      provider: 'sendgrid',
-      status: 'Connected',
-      details: { account_type: account.type || 'unknown' }
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      provider: 'sendgrid',
-      status: 'Connection Error',
-      reason: `Network or DNS error: ${error.message}`,
-      details: { error: error.message }
-    };
+    return new Mailer({ apiKey, notificationsFrom });
   }
+
+  async sendMail(options: SendMailOptions): Promise<{ id: string }> {
+    const { to, subject, html, from } = options;
+
+    try {
+      const emailResponse = await this.resend.emails.send({
+        from: from || this.config.notificationsFrom,
+        to: [to],
+        subject,
+        html,
+      });
+
+      if (emailResponse.error) {
+        throw new MailerError(
+          emailResponse.error.message,
+          500,
+          emailResponse.error
+        );
+      }
+
+      return { id: emailResponse.data!.id };
+    } catch (error) {
+      if (error instanceof MailerError) {
+        throw error;
+      }
+      throw new MailerError(error.message, 500, error);
+    }
+  }
+}
+
+interface TestEmailRequest {
+  to?: string;
+  subject?: string;
+  html?: string;
 }
 
 serve(async (req) => {
@@ -187,12 +96,12 @@ serve(async (req) => {
   }
 
   try {
-    // Get authorization header
+    // Verify JWT (authenticated users only)
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "forbidden" }), {
+      return new Response(JSON.stringify({ ok: false, error: "Missing authorization header" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
+        status: 401,
       });
     }
 
@@ -206,70 +115,67 @@ serve(async (req) => {
       }
     );
 
-    // Check if user is superadmin using USER context (not service role)
-    const { data: isSuperadmin, error: authError } = await supabaseClient.rpc('is_superadmin', { user_id: userData.user.id });
+    // Get user data to verify authentication
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     
-    if (authError || !isSuperadmin) {
-      console.error('Superadmin check failed:', authError);
-      return new Response(JSON.stringify({ error: "forbidden" }), {
+    if (userError || !user) {
+      return new Response(JSON.stringify({ ok: false, error: "Invalid or expired token" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
+        status: 401,
       });
     }
 
-    // Run email provider tests in parallel
-    const [resendResult, smtpResult, sendgridResult] = await Promise.all([
-      testResendConnectivity(),
-      testSMTPConnectivity(),
-      testSendGridConnectivity(),
-    ]);
+    // Parse request body
+    const body: TestEmailRequest = await req.json();
 
-    const results = [resendResult, smtpResult, sendgridResult];
-    const configuredProviders = results.filter(r => r.status !== 'No API Key' && r.status !== 'Incomplete Config');
-    const workingProviders = results.filter(r => r.ok);
+    // Default to HELLO_INBOX if 'to' is missing or empty
+    const helloInbox = Deno.env.get('HELLO_INBOX');
+    const to = (body.to && body.to.trim()) || helloInbox;
 
-    let overallStatus = 'No Providers';
-    if (configuredProviders.length === 0) {
-      overallStatus = 'No Providers';
-    } else if (workingProviders.length === 0) {
-      overallStatus = 'All Failed';
-    } else if (workingProviders.length === configuredProviders.length) {
-      overallStatus = 'All Working';
-    } else {
-      overallStatus = 'Partial';
+    if (!to) {
+      return new Response(JSON.stringify({ ok: false, error: "Missing 'to' parameter and HELLO_INBOX not configured" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
     }
 
-    return new Response(
-      JSON.stringify({
-        ok: workingProviders.length > 0,
-        status: overallStatus,
-        summary: `${workingProviders.length}/${configuredProviders.length} working`,
-        providers: results,
-        details: {
-          configured_count: configuredProviders.length,
-          working_count: workingProviders.length,
-          tested_at: new Date().toISOString(),
-        }
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    // Set defaults
+    const subject = body.subject || "Tulora — admin test";
+    const html = body.html || "<p>Test</p>";
+
+    // Create mailer and send email
+    const mailer = Mailer.create();
+    const result = await mailer.sendMail({ to, subject, html });
+
+    return new Response(JSON.stringify({
+      ok: true,
+      id: result.id
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
 
   } catch (error) {
     console.error('Email integration test error:', error);
-    return new Response(
-      JSON.stringify({
+
+    if (error instanceof MailerError) {
+      return new Response(JSON.stringify({
         ok: false,
-        status: 'Test Error',
-        reason: `Test execution failed: ${error.message}`,
-        error: error.message
-      }),
-      {
-        status: 200, // Return 200 with ok:false as requested
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+        error: error.message,
+        details: error.response || null
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: error.status,
+      });
+    }
+
+    return new Response(JSON.stringify({
+      ok: false,
+      error: error.message || 'Unknown error',
+      details: null
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    });
   }
 });

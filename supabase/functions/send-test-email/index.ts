@@ -7,14 +7,87 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface TestEmailRequest {
+interface MailerConfig {
+  apiKey: string;
+  notificationsFrom: string;
+}
+
+interface SendMailOptions {
   to: string;
-  template?: string;
-  metadata?: {
-    sent_by: string;
-    organization_id: string;
-    test_type: string;
-  };
+  subject: string;
+  html: string;
+  from?: string;
+}
+
+class MailerError extends Error {
+  public status: number;
+  public response?: any;
+
+  constructor(message: string, status: number = 500, response?: any) {
+    super(message);
+    this.name = 'MailerError';
+    this.status = status;
+    this.response = response;
+  }
+}
+
+class Mailer {
+  private resend: Resend;
+  private config: MailerConfig;
+
+  constructor(config: MailerConfig) {
+    this.config = config;
+    this.resend = new Resend(config.apiKey);
+  }
+
+  static create(): Mailer {
+    const apiKey = Deno.env.get('RESEND_API_KEY');
+    const notificationsFrom = Deno.env.get('NOTIFICATIONS_FROM');
+
+    if (!apiKey) {
+      throw new MailerError('RESEND_API_KEY environment variable is required', 500);
+    }
+
+    if (!notificationsFrom) {
+      throw new MailerError('NOTIFICATIONS_FROM environment variable is required', 500);
+    }
+
+    return new Mailer({ apiKey, notificationsFrom });
+  }
+
+  async sendMail(options: SendMailOptions): Promise<{ id: string }> {
+    const { to, subject, html, from } = options;
+
+    try {
+      const emailResponse = await this.resend.emails.send({
+        from: from || this.config.notificationsFrom,
+        to: [to],
+        subject,
+        html,
+      });
+
+      if (emailResponse.error) {
+        throw new MailerError(
+          emailResponse.error.message,
+          500,
+          emailResponse.error
+        );
+      }
+
+      return { id: emailResponse.data!.id };
+    } catch (error) {
+      if (error instanceof MailerError) {
+        throw error;
+      }
+      throw new MailerError(error.message, 500, error);
+    }
+  }
+}
+
+interface TestEmailRequest {
+  to?: string;
+  subject?: string;
+  html?: string;
 }
 
 serve(async (req) => {
@@ -23,12 +96,12 @@ serve(async (req) => {
   }
 
   try {
-    // Get authorization header
+    // Verify JWT (authenticated users only)
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "forbidden" }), {
+      return new Response(JSON.stringify({ ok: false, error: "Missing authorization header" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
+        status: 401,
       });
     }
 
@@ -42,130 +115,62 @@ serve(async (req) => {
       }
     );
 
-    // Get user data
+    // Get user data to verify authentication
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), {
+      return new Response(JSON.stringify({ ok: false, error: "Invalid or expired token" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
       });
     }
 
-    // Check if user is organization owner or admin
-    const { data: userOrg, error: orgError } = await supabaseClient
-      .from('organizations')
-      .select('id, name')
-      .eq('owner_user_id', user.id)
-      .single();
+    // Parse request body
+    const body: TestEmailRequest = await req.json();
 
-    if (orgError && orgError.code !== 'PGRST116') {
-      console.error('Error checking organization ownership:', orgError);
-      return new Response(JSON.stringify({ error: "database_error" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      });
-    }
-
-    if (!userOrg) {
-      return new Response(JSON.stringify({ error: "forbidden" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
-      });
-    }
-
-    const { to, template, metadata }: TestEmailRequest = await req.json();
-
-    if (!to) {
-      return new Response(JSON.stringify({ error: "Email address is required" }), {
+    // Validate required fields
+    if (!body.to || body.to.trim() === '') {
+      return new Response(JSON.stringify({ ok: false, error: "Missing 'to'" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400,
       });
     }
 
-    const apiKey = Deno.env.get('RESEND_API_KEY');
-    
-    if (!apiKey) {
-      return new Response(JSON.stringify({ 
-        ok: false,
-        error: "Email service not configured - RESEND_API_KEY missing" 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      });
-    }
+    // Set defaults
+    const to = body.to.trim();
+    const subject = body.subject || "Tulora — admin test";
+    const html = body.html || "<p>Test</p>";
 
-    const resend = new Resend(apiKey);
-
-    const emailResponse = await resend.emails.send({
-      from: "Tulora Test <onboarding@resend.dev>",
-      to: [to],
-      subject: "Test Email from Tulora",
-      html: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;">
-          <h1 style="color: #333; margin-bottom: 20px;">Email Configuration Test</h1>
-          <p style="color: #666; line-height: 1.6;">
-            This is a test email to verify that your Tulora email configuration is working correctly.
-          </p>
-          <p style="color: #666; line-height: 1.6;">
-            <strong>Organization:</strong> ${userOrg.name}<br>
-            <strong>Sent at:</strong> ${new Date().toISOString()}<br>
-            <strong>Sent to:</strong> ${to}
-          </p>
-          <div style="margin-top: 30px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
-            <p style="margin: 0; color: #28a745; font-weight: 500;">
-              ✅ Email configuration is working properly!
-            </p>
-          </div>
-        </div>
-      `,
-    });
-
-    if (emailResponse.error) {
-      console.error('Resend error:', emailResponse.error);
-      return new Response(JSON.stringify({ 
-        ok: false,
-        error: `Failed to send email: ${emailResponse.error.message}` 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      });
-    }
-
-    // Log the test email activity
-    await supabaseClient
-      .from('audit_log')
-      .insert({
-        organization_id: userOrg.id,
-        actor_user_id: user.id,
-        actor_role_snapshot: 'admin',
-        action: 'email.test_sent',
-        target_type: 'email',
-        target_id: to,
-        status: 'success',
-        channel: 'audit',
-        metadata: {
-          email_id: emailResponse.data?.id,
-          timestamp: new Date().toISOString(),
-          provider: 'resend'
-        }
-      });
+    // Create mailer and send email
+    const mailer = Mailer.create();
+    const result = await mailer.sendMail({ to, subject, html });
 
     return new Response(JSON.stringify({
       ok: true,
-      message: "Test email sent successfully",
-      email_id: emailResponse.data?.id,
-      sent_to: to
+      id: result.id
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
 
   } catch (error) {
-    console.error('Test email error:', error);
+    console.error('Send test email error:', error);
+
+    if (error instanceof MailerError) {
+      return new Response(JSON.stringify({
+        ok: false,
+        error: error.message,
+        details: error.response || null
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: error.status,
+      });
+    }
+
     return new Response(JSON.stringify({
       ok: false,
-      error: `Failed to send email: ${error?.message || 'Unknown error'}`
+      error: error.message || 'Unknown error',
+      details: null
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
