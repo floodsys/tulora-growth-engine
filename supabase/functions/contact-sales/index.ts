@@ -7,8 +7,9 @@ import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
 // Version and function info
-const VERSION = "2025-09-09-v8-create";
+const VERSION = "2025-09-09-v8-production";
 const FUNCTION_NAME = "contact-sales";
+const IS_PRODUCTION = Deno.env.get('ENVIRONMENT') === 'prod' || Deno.env.get('NODE_ENV') === 'production';
 
 // CORS Configuration
 const ALLOWED_ORIGINS = Deno.env.get('ALLOWED_ORIGINS')?.split(',').map(o => o.trim()) || [
@@ -321,8 +322,8 @@ async function syncLeadToSuiteCRM(lead: LeadData, config: any): Promise<SuiteCRM
       responseData = { raw: responseText }
     }
 
-    // Create debug info for non-prod environments
-    const debug = {
+    // Create debug info for non-prod environments only
+    const debug = IS_PRODUCTION ? undefined : {
       endpoint,
       method: 'POST',
       status: response.status,
@@ -338,17 +339,17 @@ async function syncLeadToSuiteCRM(lead: LeadData, config: any): Promise<SuiteCRM
         success: true,
         crm_id: leadId,
         message: `Lead synced successfully (ID: ${leadId})`,
-        debug
+        ...(debug && { debug })
       }
     } else {
       console.error(`[CRM] sync failed ${response.status}: ${responseText.substring(0, 100)}`)
       
-      // If SuiteCRM rejects, return 424 with debug info
+      // If SuiteCRM rejects, return 424 with debug info (non-prod only)
       return {
         success: false,
         message: `CRM sync failed: ${response.status} ${response.statusText}`,
         error: `SuiteCRM rejected with ${response.status}`,
-        debug
+        ...(debug && { debug })
       }
     }
 
@@ -360,13 +361,15 @@ async function syncLeadToSuiteCRM(lead: LeadData, config: any): Promise<SuiteCRM
       success: false,
       message: 'CRM sync failed',
       error: errorMsg,
-      debug: {
-        endpoint,
-        method: 'POST',
-        status: 0,
-        response_preview: `Error: ${errorMsg}`,
-        payload_keys: Object.keys(payload)
-      }
+      ...(IS_PRODUCTION ? {} : {
+        debug: {
+          endpoint,
+          method: 'POST',
+          status: 0,
+          response_preview: `Error: ${errorMsg}`,
+          payload_keys: Object.keys(payload)
+        }
+      })
     }
   }
 }
@@ -764,7 +767,7 @@ serve(async (req) => {
       }
     }
 
-    // Insert lead into database with proper field mapping
+    // Insert lead into database with proper field mapping (using regular insert, not upsert)
     const { data: leadRecord, error: insertError } = await supabase
       .from('leads')
       .insert({
@@ -946,7 +949,7 @@ serve(async (req) => {
         details: syncResult.error,
         error_code: 'crm_sync_failed',
         lead_id: leadRecord.id,
-        crm_debug: syncResult.debug || {}
+        ...(IS_PRODUCTION ? {} : { crm_debug: syncResult.debug || {} })
       }, 424, origin, crmStatus, crmBase, crmMode);
     }
 
@@ -960,7 +963,7 @@ serve(async (req) => {
         crm_id: syncResult.crm_id,
         message: syncResult.message
       } : null,
-      crm_debug: syncResult?.debug || {},
+      ...(IS_PRODUCTION ? {} : { crm_debug: syncResult?.debug || {} }),
       email_delivery: {
         sales_notification: salesEmailResult,
         confirmation: confirmationEmailResult

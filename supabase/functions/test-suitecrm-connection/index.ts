@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-const VERSION = "2025-09-09-v8-create"
+const VERSION = "2025-09-09-v8-production"
 
 // CORS Configuration - identical to contact-sales
 const getAllowedOrigins = () => {
