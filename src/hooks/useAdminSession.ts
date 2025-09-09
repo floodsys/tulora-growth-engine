@@ -24,10 +24,18 @@ export function useAdminSession() {
     try {
       setLoading(true);
       
+      // Get current session to ensure we have valid auth
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('No valid session found');
+      }
+      
       // Call the admin validation edge function
       const { data, error } = await supabase.functions.invoke('admin-validate', {
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
         }
       });
 

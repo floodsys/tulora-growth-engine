@@ -227,7 +227,10 @@ export default function AdminNotifications() {
 
       // Use supabase.functions.invoke instead of raw fetch
       const { data, error } = await supabase.functions.invoke('test-suitecrm-connection', {
-        body: {}
+        body: {},
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       })
 
       if (error) {
@@ -346,7 +349,8 @@ export default function AdminNotifications() {
             website: 'block' // Honeypot trigger for silent success
           },
           headers: {
-            'Cache-Control': 'no-store'
+            'Cache-Control': 'no-store',
+            'Authorization': `Bearer ${token}`
           }
         });
         
@@ -375,7 +379,8 @@ export default function AdminNotifications() {
         const { data: crmData, error: crmError } = await supabase.functions.invoke('test-suitecrm-connection', {
           body: {},
           headers: {
-            'Cache-Control': 'no-store'
+            'Cache-Control': 'no-store',
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
           }
         });
         const crmResponse = crmError ? { success: false, error: crmError.message } : crmData;
@@ -438,7 +443,10 @@ export default function AdminNotifications() {
       }
       try {
         const { data, error } = await supabase.functions.invoke('test-suitecrm-connection', {
-          body: {}
+          body: {},
+          headers: {
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+          }
         })
 
         if (error) {
@@ -499,7 +507,8 @@ export default function AdminNotifications() {
         const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
           body: contactPayload,
           headers: {
-            'Cache-Control': 'no-store'
+            'Cache-Control': 'no-store',
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
           }
         });
 
@@ -549,7 +558,8 @@ export default function AdminNotifications() {
         const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
           body: enterprisePayload,
           headers: {
-            'Cache-Control': 'no-store'
+            'Cache-Control': 'no-store',
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
           }
         });
 
