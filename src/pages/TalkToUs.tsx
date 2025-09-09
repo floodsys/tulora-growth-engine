@@ -84,7 +84,7 @@ const TalkToUs = () => {
         turnstile_token: turnstileToken
       };
 
-      const { data, error, status } = await callEdge('contact-sales', payload);
+      const { data, error, status } = await callEdge('contact-submit', payload);
 
       if (error || status >= 400) {
         // Handle Turnstile-specific errors
