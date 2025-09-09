@@ -67,9 +67,13 @@ class Mailer {
       });
 
       if (emailResponse.error) {
+        console.warn("resend.error", { 
+          status: 'send_failed', 
+          message: emailResponse.error.message 
+        });
         throw new MailerError(
           emailResponse.error.message,
-          500,
+          502,
           emailResponse.error
         );
       }
@@ -79,7 +83,11 @@ class Mailer {
       if (error instanceof MailerError) {
         throw error;
       }
-      throw new MailerError(error.message, 500, error);
+      console.warn("resend.error", { 
+        status: 'api_error', 
+        message: error.message || 'Unknown error' 
+      });
+      throw new MailerError(error.message || 'Email service error', 502, error);
     }
   }
 }
@@ -147,35 +155,30 @@ serve(async (req) => {
     const mailer = Mailer.create();
     const result = await mailer.sendMail({ to, subject, html });
 
-    return new Response(JSON.stringify({
-      ok: true,
-      id: result.id
-    }), {
+    return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
 
   } catch (error) {
-    console.error('Email integration test error:', error);
-
     if (error instanceof MailerError) {
       return new Response(JSON.stringify({
         ok: false,
-        error: error.message,
-        details: error.response || null
+        error: "Email send failed",
+        detail: error.message
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: error.status,
+        status: 502,
       });
     }
 
     return new Response(JSON.stringify({
       ok: false,
-      error: error.message || 'Unknown error',
-      details: null
+      error: "Email send failed",
+      detail: error.message || 'Unknown error'
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      status: 502,
     });
   }
 });
