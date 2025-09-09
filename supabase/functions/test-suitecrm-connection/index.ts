@@ -4,6 +4,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+  'X-Function': 'test-suitecrm-connection',
+  'X-Version': VERSION
 }
 
 const VERSION = "2025-09-09-4" // Updated after SUITECRM_AUTH_MODE fix

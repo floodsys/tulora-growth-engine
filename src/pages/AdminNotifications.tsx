@@ -75,6 +75,12 @@ export default function AdminNotifications() {
   } | null>(null)
   const handleHardRefresh = async () => {
     try {
+      toast({
+        title: "Hard Refresh Started",
+        description: "Clearing caches and reloading...",
+        variant: "default"
+      });
+
       // Clear all caches
       if ('caches' in window) {
         const cacheNames = await caches.keys();
@@ -304,7 +310,10 @@ export default function AdminNotifications() {
 
       // Call the function using Supabase client
       const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
-        body: payload
+        body: payload,
+        headers: {
+          'Cache-Control': 'no-store'
+        }
       });
 
       if (error) {
@@ -364,6 +373,9 @@ export default function AdminNotifications() {
             company: 'Test Co',
             message: 'Version ping test',
             website: 'block' // Honeypot trigger for silent success
+          },
+          headers: {
+            'Cache-Control': 'no-store'
           }
         });
         
@@ -390,7 +402,10 @@ export default function AdminNotifications() {
         console.log({ fn: 'test-suitecrm-connection', invoke: true, test: 'ping' });
         
         const { data: crmData, error: crmError } = await supabase.functions.invoke('test-suitecrm-connection', {
-          body: {}
+          body: {},
+          headers: {
+            'Cache-Control': 'no-store'
+          }
         });
         const crmResponse = crmError ? { success: false, error: crmError.message } : crmData;
         setFunctionVersions(prev => ({
@@ -516,7 +531,10 @@ export default function AdminNotifications() {
           console.log({ fn: CONTACT_SALES_FN, invoke: true, test: 'e2e' });
           
           const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
-            body: payload
+            body: payload,
+            headers: {
+              'Cache-Control': 'no-store'
+            }
           });
 
           // Check response data
