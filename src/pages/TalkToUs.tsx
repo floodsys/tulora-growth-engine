@@ -14,6 +14,7 @@ import { ApiErrorPanel } from "@/components/ui/ApiErrorPanel";
 import contactUsImage from "@/assets/contact-us.svg";
 import talkToUsGraphic from "@/assets/talk-to-us-graphic.png";
 import logoSvg from "@/assets/logo.svg";
+import { SUPABASE_URL, SUPABASE_ANON } from "@/config/publicConfig";
 // import { useTurnstile } from "@/hooks/useTurnstile";
 
 
@@ -47,6 +48,12 @@ const TalkToUs = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // ============= DEBUGGING INFO =============
+    console.log('🔍 Runtime env values:');
+    console.log('SUPABASE_URL:', SUPABASE_URL || 'undefined');
+    console.log('SUPABASE_ANON_KEY:', (SUPABASE_ANON || 'undefined').slice(0, 20) + '...(masked)');
+    console.log('CONTACT_SALES_FN:', CONTACT_SALES_FN);
     
     // Anti-spam: Check honeypot field
     if (formData.website) {
@@ -90,6 +97,8 @@ const TalkToUs = () => {
         website: formData.website // honeypot
       });
       
+      console.log('🔍 Built payload:', payload);
+      
       // Validate payload
       const validationErrors = validateContactPayload(payload);
       if (validationErrors.length > 0) {
@@ -101,7 +110,7 @@ const TalkToUs = () => {
         return;
       }
 
-      console.log({ fn: CONTACT_SALES_FN, invoke: true });
+      console.log('🔍 About to invoke:', { fn: CONTACT_SALES_FN, payload });
       
       const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
         body: payload,
@@ -112,6 +121,8 @@ const TalkToUs = () => {
           } : {})
         }
       });
+
+      console.log('🔍 Invoke response:', { data, error });
 
       if (error) {
         setSubmitError(error);
@@ -138,7 +149,15 @@ const TalkToUs = () => {
         });
       }
     } catch (error: any) {
-      console.error('Contact form error:', error);
+      console.error('🔍 Full error object:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        cause: error.cause,
+        response: error.response,
+        causeResponse: error.cause?.response,
+        fullError: error
+      });
       setSubmitError(error);
     } finally {
       setIsSubmitting(false);
