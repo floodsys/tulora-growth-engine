@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { buildContactPayload, validateContactPayload } from "@/lib/contact-payload"
 import { CONTACT_SALES_FN } from "@/lib/constants"
-import { SUPABASE_URL } from "@/config/publicConfig"
+import { SUPABASE_URL, SUPABASE_ANON } from "@/config/publicConfig"
 import { AdminGuard } from "@/components/admin/AdminGuard"
 import { ApiErrorPanel } from "@/components/ui/ApiErrorPanel"
 
@@ -429,13 +429,14 @@ export default function AdminNotifications() {
       const token = await checkAuthentication()
       if (!token) return
 
-      console.log('🔍 Ping test - Runtime config:');
+      console.log('🔍 Direct contact-sales test - Runtime config:');
       console.log('SUPABASE_URL:', SUPABASE_URL);
       console.log('CONTACT_SALES_FN:', CONTACT_SALES_FN);
       
       const { data: { session } } = await supabase.auth.getSession();
       console.log('🔍 Session available:', !!session?.access_token);
       
+      // Direct payload as requested
       const payload = {
         inquiry_type: 'contact',
         full_name: 'Ping',
@@ -443,63 +444,78 @@ export default function AdminNotifications() {
         message: 'ping'
       };
       
-      console.log('🔍 Ping payload:', payload);
+      console.log('🔍 Direct ping payload:', payload);
       
-      const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
-        body: payload,
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/contact-sales`, {
+        method: 'POST',
         headers: {
-          'Cache-Control': 'no-store',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON}`,
           ...(session?.access_token ? {
-            Authorization: `Bearer ${session.access_token}`
+            'Authorization': `Bearer ${session.access_token}`
           } : {})
-        }
+        },
+        body: JSON.stringify(payload)
       });
       
-      console.log('🔍 Ping response:', { data, error });
+      const responseHeaders = {
+        'X-Function': response.headers.get('X-Function') || 'not-present',
+        'X-Version': response.headers.get('X-Version') || 'not-present',
+        'X-CRM-Status': response.headers.get('X-CRM-Status') || 'not-present'
+      };
+      
+      let responseData;
+      const responseText = await response.text();
+      try {
+        responseData = JSON.parse(responseText);
+      } catch {
+        responseData = { raw: responseText };
+      }
+      
+      console.log('🔍 Direct response:', {
+        status: response.status,
+        headers: responseHeaders,
+        data: responseData
+      });
       
       const result = {
-        success: !error && !!data,
-        status: error ? 'error' : (data?.success ? 'success' : 'partial'),
-        headers: {
-          'X-Function': data?.function || 'unknown',
-          'X-Version': data?.version || 'unknown', 
-          'X-CRM-Status': data?.crm_status || 'unknown'
-        },
-        response_preview: error ? error.message?.substring(0, 200) : JSON.stringify(data)?.substring(0, 200),
-        error: error?.message,
-        data
+        success: response.ok,
+        http_status: response.status,
+        headers: responseHeaders,
+        response_preview: responseText.substring(0, 200),
+        full_response: responseData
       };
       
       setPingResult(result);
       
-      if (!error && data?.success) {
+      if (response.ok) {
         toast({
-          title: "Ping Successful",
-          description: `contact-sales responded: ${data.version || 'unknown version'}`,
+          title: "Direct Ping Successful",
+          description: `HTTP ${response.status} - ${responseHeaders['X-Version']}`,
           variant: "default"
         });
       } else {
         toast({
-          title: "Ping Failed", 
-          description: error?.message || data?.error || 'Unknown error',
+          title: "Direct Ping Failed", 
+          description: `HTTP ${response.status} - ${responseText.substring(0, 100)}`,
           variant: "destructive"
         });
       }
       
     } catch (error) {
-      console.error('🔍 Ping error:', error);
+      console.error('🔍 Direct ping error:', error);
       const result = {
         success: false,
-        status: 'error',
+        http_status: 'error',
         headers: {},
-        response_preview: `Catch error: ${error.message?.substring(0, 200)}`,
+        response_preview: `Network error: ${error.message?.substring(0, 200)}`,
         error: error.message,
-        data: null
+        full_response: null
       };
       setPingResult(result);
       
       toast({
-        title: "Ping Error",
+        title: "Direct Ping Error",
         description: error instanceof Error ? error.message : "Network error",
         variant: "destructive"
       });
