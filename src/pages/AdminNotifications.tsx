@@ -11,6 +11,7 @@ import { Eye, EyeOff, Mail, Database, Send, TestTube2, Link, RefreshCw } from "l
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { buildContactPayload, validateContactPayload } from "@/lib/contact-payload"
+import { CONTACT_SALES_FN } from "@/lib/constants"
 import { SUPABASE_URL } from "@/config/publicConfig"
 import { AdminGuard } from "@/components/admin/AdminGuard"
 import { ApiErrorPanel } from "@/components/ui/ApiErrorPanel"
@@ -299,25 +300,30 @@ export default function AdminNotifications() {
       });
 
       console.log('Sending admin test lead payload:', payload);
+      console.log({ fn: CONTACT_SALES_FN, invoke: true });
 
-      // Call the function with proper JWT authentication
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/contact-sales`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'Cache-Control': 'no-store'
-        },
-        cache: 'no-store',
-        body: JSON.stringify(payload)
-      })
+      // Call the function using Supabase client
+      const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
+        body: payload
+      });
 
-      const data = await response.json()
-
-      if (!response.ok) {
+      if (error) {
+        console.error('Function invoke error:', error);
         setTestError({
-          status: response.status,
-          message: data.error || 'Test lead failed',
+          status: 500,
+          message: error.message || 'Function call failed',
+          details: error.details,
+          endpoint: 'contact-sales',
+          function: CONTACT_SALES_FN,
+          version: 'unknown'
+        });
+        return;
+      }
+
+      if (!data?.success) {
+        setTestError({
+          status: 500,
+          message: data?.error || 'Test lead failed',
           details: data.details,
           endpoint: data.endpoint,
           function: data.function,
@@ -348,25 +354,20 @@ export default function AdminNotifications() {
 
       // Ping contact-sales
       try {
-        const contactResponse = await fetch(`${SUPABASE_URL}/functions/v1/contact-sales`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            'Cache-Control': 'no-store'
-          },
-          cache: 'no-store',
-          body: JSON.stringify({
+        console.log({ fn: CONTACT_SALES_FN, invoke: true, test: 'ping' });
+        
+        const { data: contactData, error: contactError } = await supabase.functions.invoke(CONTACT_SALES_FN, {
+          body: {
             inquiry_type: 'contact',
             full_name: 'Ping Test',
             email: 'ping@test.local',
             company: 'Test Co',
             message: 'Version ping test',
             website: 'block' // Honeypot trigger for silent success
-          })
-        })
+          }
+        });
         
-        const contactData = await contactResponse.json()
+        const contactResponse = contactError ? { success: false, error: contactError.message } : contactData;
         setFunctionVersions(prev => ({
           ...prev,
           'contact-sales': {
@@ -514,39 +515,33 @@ export default function AdminNotifications() {
           });
 
           console.log('Sending E2E test lead payload:', payload);
-          const response = await fetch(`${SUPABASE_URL}/functions/v1/contact-sales`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(payload)
-          })
+          console.log({ fn: CONTACT_SALES_FN, invoke: true, test: 'e2e' });
+          
+          const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
+            body: payload
+          });
 
-          const data = await response.json()
-
-          // Check both HTTP status and response data
-          if (response.ok && data.success === true) {
+          // Check response data
+          if (!error && data?.success === true) {
             leadResult = {
               status: 'success',
-              message: `Status ${response.status}: Lead sent successfully`,
+              message: `Lead sent successfully`,
               crm_reference: data.crm_sync?.leadId || data.leadId || 'Created'
             }
           } else {
-            // Surface HTTP status clearly, especially for CRM failures
-            const statusInfo = `Status ${response.status}`
-            const errorMsg = data.error || 'Lead creation failed'
-            const endpoint = data.endpoint ? ` (${data.endpoint})` : ''
+            // Surface error clearly, especially for CRM failures
+            const errorMsg = error?.message || data?.error || 'Lead creation failed'
+            const endpoint = data?.endpoint ? ` (${data.endpoint})` : ''
             
             // Show detailed error for validation issues (422)
-            if (response.status === 422 && data.details) {
+            if (data?.status === 422 && data.details) {
               console.error('Validation error details:', data.details)
               
               // Create error object for ApiErrorPanel
               const validationError = {
                 status: 422,
                 details: data.details,
-                message: `Status ${response.status}: ${errorMsg}${endpoint}`
+                message: `${errorMsg}${endpoint}`
               };
               
               toast({
@@ -557,15 +552,15 @@ export default function AdminNotifications() {
             } else {
               toast({
                 title: "❌ Test Lead Failed",
-                description: `${statusInfo}: ${errorMsg}${endpoint}`,
+                description: `${errorMsg}${endpoint}`,
                 variant: "destructive"
               })
             }
             
             leadResult = {
               status: 'error',
-              message: `${statusInfo}: ${errorMsg}${endpoint}`,
-              crm_reference: data.leadId || ''
+              message: `${errorMsg}${endpoint}`,
+              crm_reference: data?.leadId || ''
             }
           }
         } catch (error) {

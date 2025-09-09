@@ -9,6 +9,7 @@ import { CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { buildContactPayload, validateContactPayload } from "@/lib/contact-payload";
+import { CONTACT_SALES_FN } from "@/lib/constants";
 import { ApiErrorPanel } from "@/components/ui/ApiErrorPanel";
 import contactUsImage from "@/assets/contact-us.svg";
 import talkToUsGraphic from "@/assets/talk-to-us-graphic.png";
@@ -97,7 +98,9 @@ const TalkToUs = () => {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('contact-sales', {
+      console.log({ fn: CONTACT_SALES_FN, invoke: true });
+      
+      const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
         body: payload,
         headers: {
           'Cache-Control': 'no-store'

@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { buildContactPayload, validateContactPayload } from "@/lib/contact-payload";
 import { ApiErrorPanel } from "@/components/ui/ApiErrorPanel";
+import { CONTACT_SALES_FN } from "@/lib/constants";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 // import { useTurnstile } from "@/hooks/useTurnstile";
@@ -123,7 +124,9 @@ export default function ContactSales() {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('contact-sales', {
+      console.log({ fn: CONTACT_SALES_FN, invoke: true });
+      
+      const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
         body: payload,
         headers: {
           'Cache-Control': 'no-store',
