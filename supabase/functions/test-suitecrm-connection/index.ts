@@ -1,9 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+const VERSION = "2025-09-09-3" // Increment for each deploy
 
 interface SuiteCRMAuthResponse {
   access_token: string
@@ -18,33 +21,86 @@ interface SuiteCRMAuthResponse {
   }
 }
 
-// Boot logging - check what environment variables are present
-function logSuiteCRMEnvStatus() {
+// Simple in-memory rate limiter
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
+
+function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
+  const now = Date.now()
+  const windowMs = 60 * 1000 // 1 minute
+  const maxRequests = 10
+  
+  const current = rateLimitMap.get(ip)
+  
+  if (!current || now > current.resetTime) {
+    rateLimitMap.set(ip, { count: 1, resetTime: now + windowMs })
+    return { allowed: true, remaining: maxRequests - 1 }
+  }
+  
+  if (current.count >= maxRequests) {
+    return { allowed: false, remaining: 0 }
+  }
+  
+  current.count++
+  return { allowed: true, remaining: maxRequests - current.count }
+}
+
+function getClientIP(req: Request): string {
+  const xff = req.headers.get('x-forwarded-for')
+  if (xff) {
+    return xff.split(',')[0].trim()
+  }
+  const xri = req.headers.get('x-real-ip')
+  if (xri) {
+    return xri
+  }
+  return 'unknown'
+}
+
+// Check environment variables and return presence flags
+function checkSuiteCRMEnv() {
   const base_url = Deno.env.get('SUITECRM_BASE_URL')
   const client_id = Deno.env.get('SUITECRM_CLIENT_ID')
   const client_secret = Deno.env.get('SUITECRM_CLIENT_SECRET')
   const auth_mode = Deno.env.get('SUITECRM_AUTH_MODE')
   
-  const present = []
-  if (base_url) present.push('base_url')
-  if (client_id) present.push('client_id')
-  if (client_secret) present.push('client_secret')
-  if (auth_mode) present.push('auth_mode')
+  const envPresent = {
+    base_url: !!base_url,
+    client_id: !!client_id,
+    client_secret: !!client_secret,
+    auth_mode: !!auth_mode
+  }
+  
+  const present = Object.entries(envPresent)
+    .filter(([_, isPresent]) => isPresent)
+    .map(([key, _]) => key)
   
   console.log(`[CFG] suitecrm env present: ${present.join(', ')}`)
-  return { base_url, client_id, client_secret, auth_mode }
+  
+  return {
+    envPresent,
+    config: { base_url, client_id, client_secret, auth_mode }
+  }
 }
 
 async function testSuiteCRMConnection() {
-  const envConfig = logSuiteCRMEnvStatus()
-  const { base_url, client_id, client_secret, auth_mode } = envConfig
+  const { envPresent, config } = checkSuiteCRMEnv()
+  const { base_url, client_id, client_secret, auth_mode } = config
   
-  if (!base_url || !client_id || !client_secret || !auth_mode) {
-    throw new Error('Missing SuiteCRM environment configuration. Required: SUITECRM_BASE_URL, SUITECRM_CLIENT_ID, SUITECRM_CLIENT_SECRET, SUITECRM_AUTH_MODE')
+  // Check if all required env vars are present
+  const missingVars = Object.entries(envPresent)
+    .filter(([_, isPresent]) => !isPresent)
+    .map(([key, _]) => key)
+  
+  if (missingVars.length > 0) {
+    return {
+      success: false,
+      error: `Missing environment variables: ${missingVars.join(', ')}`,
+      env_present: envPresent
+    }
   }
   
   // Clean up base URL
-  const cleanBaseUrl = base_url.replace(/\/$/, '')
+  const cleanBaseUrl = base_url!.replace(/\/$/, '')
   
   try {
     let authPayload: any = {
@@ -61,7 +117,11 @@ async function testSuiteCRMConnection() {
 
     // Only supporting client credentials mode via environment variables
     if (auth_mode !== 'v8_client_credentials') {
-      throw new Error('Only v8_client_credentials authentication mode is supported')
+      return {
+        success: false,
+        error: `Auth mode '${auth_mode}' not supported, only 'v8_client_credentials' is supported`,
+        env_present: envPresent
+      }
     }
 
     console.log(`Testing SuiteCRM connection with ${auth_mode} mode to ${cleanBaseUrl}`)
@@ -80,8 +140,8 @@ async function testSuiteCRMConnection() {
       const errorText = await response.text()
       console.error(`SuiteCRM auth failed: ${response.status} ${response.statusText}`)
       
-      // Provide more detailed error information without exposing secrets
-      let errorMessage = `Authentication failed: ${response.status} ${response.statusText}`
+      // Provide sanitized error information (no secrets)
+      let errorMessage = `OAuth failed: ${response.status} ${response.statusText}`
       if (errorText) {
         try {
           const errorJson = JSON.parse(errorText)
@@ -91,20 +151,24 @@ async function testSuiteCRMConnection() {
             errorMessage += ` - ${errorJson.error}`
           }
         } catch {
-          // If not JSON, include the raw error text (truncated)
-          errorMessage += ` - ${errorText.substring(0, 200)}`
+          // If not JSON, include sanitized error text
+          const sanitized = errorText.substring(0, 100).replace(/[a-zA-Z0-9+/=]{20,}/g, '[REDACTED]')
+          errorMessage += ` - ${sanitized}`
         }
       }
       
-      throw new Error(errorMessage)
+      return {
+        success: false,
+        error: errorMessage,
+        env_present: envPresent
+      }
     }
 
     const authData: SuiteCRMAuthResponse = await response.json()
     console.log('Authentication successful, received token')
 
-    // For client credentials, we need to get user info from the token
+    // Try to get current user info to validate the token
     try {
-      // Try to get current user info to validate the token
       const userResponse = await fetch(`${cleanBaseUrl}/Api/V8/me`, {
         headers: {
           'Authorization': `Bearer ${authData.access_token}`,
@@ -112,36 +176,31 @@ async function testSuiteCRMConnection() {
         }
       })
 
+      let oauth_user = 'tulora-api' // default fallback
+      
       if (userResponse.ok) {
         const userData = await userResponse.json()
-        const userName = userData.data?.attributes?.user_name || 'tulora-api'
-        
-        return {
-          success: true,
-          message: `Token OK, associated user = ${userName}`,
-          token_type: authData.token_type,
-          expires_in: authData.expires_in,
-          user_name: userName
-        }
-      } else {
-        // If /me endpoint fails, still consider it successful if we got a token
-        return {
-          success: true,
-          message: 'Token OK, associated user = tulora-api',
-          token_type: authData.token_type,
-          expires_in: authData.expires_in,
-          user_name: 'tulora-api'
-        }
+        oauth_user = userData.data?.attributes?.user_name || 'tulora-api'
+      }
+      
+      return {
+        success: true,
+        message: `OAuth successful`,
+        oauth_user,
+        token_type: authData.token_type,
+        expires_in: authData.expires_in,
+        env_present: envPresent
       }
     } catch (error) {
       // If user info fetch fails, still consider it successful if we got a token
       console.log('Could not fetch user info, but token is valid')
       return {
         success: true,
-        message: 'Token OK, associated user = tulora-api',
+        message: `OAuth successful`,
+        oauth_user: 'tulora-api',
         token_type: authData.token_type,
         expires_in: authData.expires_in,
-        user_name: 'tulora-api'
+        env_present: envPresent
       }
     }
 
@@ -149,23 +208,108 @@ async function testSuiteCRMConnection() {
     console.error('SuiteCRM connection test failed:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred'
+      error: error instanceof Error ? error.message.replace(/[a-zA-Z0-9+/=]{20,}/g, '[REDACTED]') : 'Unknown error occurred',
+      env_present: envPresent
     }
   }
 }
 
+// Check if user is superadmin
+async function checkSuperadmin(authHeader: string | null): Promise<boolean> {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return false
+  }
+  
+  const token = authHeader.substring(7)
+  const supabase = createClient(
+    'https://nkjxbeypbiclvouqfjyc.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ranhiZXlwYmljbHZvdXFmanljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0Nzg2NDEsImV4cCI6MjA3MTA1NDY0MX0.iuFFcJSX97MKkiBvSYLmIao9aTMrQm7zqnf4kEDraQg',
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      },
+      global: {
+        headers: {
+          Authorization: authHeader
+        }
+      }
+    }
+  )
+  
+  try {
+    const { data: user, error: userError } = await supabase.auth.getUser(token)
+    if (userError || !user.user) {
+      return false
+    }
+    
+    // Check if user is superadmin
+    const { data, error } = await supabase.rpc('is_superadmin', { user_id: user.user.id })
+    return !error && data === true
+  } catch (error) {
+    console.error('Superadmin check failed:', error)
+    return false
+  }
+}
+
 serve(async (req) => {
+  const method = req.method
+  const clientIP = getClientIP(req)
+  
   // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
+  if (method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   // Method guard - only allow GET and POST
-  if (req.method !== 'GET' && req.method !== 'POST') {
+  if (method !== 'GET' && method !== 'POST') {
     return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
+      JSON.stringify({ 
+        error: 'Method not allowed',
+        version: VERSION,
+        method_used: method,
+        config_source: "edge_env"
+      }),
       { 
         status: 405, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
+  }
+
+  // Rate limiting
+  const rateLimit = checkRateLimit(clientIP)
+  if (!rateLimit.allowed) {
+    return new Response(
+      JSON.stringify({ 
+        error: 'Rate limit exceeded',
+        version: VERSION,
+        method_used: method,
+        config_source: "edge_env",
+        rate_limit: { remaining: 0 }
+      }),
+      { 
+        status: 429, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
+  }
+
+  // Check superadmin auth
+  const authHeader = req.headers.get('authorization')
+  const isSuperadmin = await checkSuperadmin(authHeader)
+  
+  if (!isSuperadmin) {
+    return new Response(
+      JSON.stringify({ 
+        error: 'Superadmin authentication required',
+        version: VERSION,
+        method_used: method,
+        config_source: "edge_env",
+        rate_limit: { remaining: rateLimit.remaining }
+      }),
+      { 
+        status: 403, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     )
@@ -174,10 +318,13 @@ serve(async (req) => {
   try {
     const result = await testSuiteCRMConnection()
     
-    // Add config source to response
+    // Build response with all required fields
     const response = {
       ...result,
-      config_source: "edge_env"
+      version: VERSION,
+      method_used: method,
+      config_source: "edge_env",
+      rate_limit: { remaining: rateLimit.remaining }
     }
 
     return new Response(
@@ -192,11 +339,14 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-        config_source: "edge_env"
+        error: 'Internal server error',
+        version: VERSION,
+        method_used: method,
+        config_source: "edge_env",
+        rate_limit: { remaining: rateLimit.remaining }
       }),
       { 
-        status: 400, 
+        status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     )
