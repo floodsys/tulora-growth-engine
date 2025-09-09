@@ -17,6 +17,15 @@ export function AdminGuard({ children }: AdminGuardProps) {
   // Development bypass: Skip admin check in development mode
   const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
   
+  // Debug logging
+  console.log('[AdminGuard] Debug info:', {
+    isDev,
+    hostname: window.location.hostname,
+    isSuperadmin,
+    isLoading,
+    error: error
+  });
+  
   if (isDev) {
     console.log('[AdminGuard] Development mode - bypassing admin checks');
     return <>{children}</>;
