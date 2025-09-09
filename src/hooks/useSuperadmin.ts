@@ -35,7 +35,8 @@ export function useSuperadmin(): UseSuperadminReturn {
                 window.location.hostname === 'localhost' ||
                 window.location.hostname.includes('lovable.app');
   
-  console.log('Dev check:', { isDev, hostname: window.location.hostname, env: import.meta.env.DEV });
+  console.log('🔍 Dev check:', { isDev, hostname: window.location.hostname, env: import.meta.env.DEV });
+  console.log('🔍 useSuperadmin hook initialized');
 
   const checkSuperadmin = useCallback(async (): Promise<void> => {
     // Development bypass
