@@ -1,37 +1,34 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-interface SecretCheck {
-  name: string;
-  present: boolean;
-  category: string;
-  required: boolean;
-  description?: string;
-}
-
-const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[CHECK-SECRETS] ${step}${detailsStr}`);
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
+  const route = new URL(req.url).pathname;
+  
+  if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    logStep("Function started");
+  if (req.method !== 'GET') {
+    console.log(JSON.stringify({ route, method: req.method, status: 405, error: "Method not allowed" }));
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 405,
+    });
+  }
 
-    const authHeader = req.headers.get("Authorization");
+  try {
+    // Verify JWT (authenticated users only)
+    const authHeader = req.headers.get('authorization');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "forbidden" }), {
+      console.log(JSON.stringify({ route, status: 401, error: "Missing authorization header" }));
+      return new Response(JSON.stringify({ error: "Missing authorization header" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
+        status: 401,
       });
     }
 
@@ -45,126 +42,52 @@ serve(async (req) => {
       }
     );
 
-    // Check if user is superadmin using USER context (not service role)
-    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin', { user_id: userData.user.id });
-    if (superadminError || !isSuperadmin) {
-      logStep("Superadmin check failed", { error: superadminError, isSuperadmin });
-      return new Response(JSON.stringify({ error: "forbidden" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
-      });
-    }
-
-    // Get user info for logging
+    // Get user data to verify authentication
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: "forbidden" }), {
+      console.log(JSON.stringify({ route, status: 401, error: "Invalid or expired token" }));
+      return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
+        status: 401,
       });
     }
 
-    logStep("Superadmin access verified", { userId: user.id, email: user.email });
+    // Check environment variables (never throw)
+    const HAS_RESEND_API_KEY = Boolean(Deno.env.get('RESEND_API_KEY'));
+    const NOTIFICATIONS_FROM = Deno.env.get('NOTIFICATIONS_FROM') || "";
+    const HELLO_INBOX = Deno.env.get('HELLO_INBOX') || "";
+    const ENTERPRISE_INBOX = Deno.env.get('ENTERPRISE_INBOX') || "";
+    const SALES_INBOX = Deno.env.get('SALES_INBOX') || "";
 
-    // Define all secrets to check
-    const secretsToCheck = [
-      // Stripe secrets
-      { name: "STRIPE_SECRET_KEY", category: "Stripe", required: true, description: "Required for all Stripe operations" },
-      { name: "STRIPE_WEBHOOK_SECRET", category: "Stripe", required: false, description: "Required for webhook verification" },
-      { name: "STRIPE_PORTAL_RETURN_URL", category: "Stripe", required: false, description: "Custom return URL for billing portal" },
-      { name: "STRIPE_PRICE_IDS", category: "Stripe", required: false, description: "Specific price IDs for plans" },
-      
-      // Supabase secrets
-      { name: "SUPABASE_URL", category: "Supabase", required: true, description: "Supabase project URL" },
-      { name: "SUPABASE_SERVICE_ROLE_KEY", category: "Supabase", required: true, description: "Service role key for admin operations" },
-      { name: "SUPABASE_ANON_KEY", category: "Supabase", required: true, description: "Anonymous key for client operations" },
-      
-      // Email secrets (multiple providers)
-      { name: "SMTP_HOST", category: "Email", required: false, description: "SMTP server hostname" },
-      { name: "SMTP_PORT", category: "Email", required: false, description: "SMTP server port" },
-      { name: "SMTP_USER", category: "Email", required: false, description: "SMTP username" },
-      { name: "SMTP_PASS", category: "Email", required: false, description: "SMTP password" },
-      { name: "SENDGRID_API_KEY", category: "Email", required: false, description: "SendGrid API key" },
-      { name: "RESEND_API_KEY", category: "Email", required: false, description: "Resend API key" },
-      
-      // Admin/Org specific secrets
-      { name: "ADMIN_SESSION_SECRET", category: "Admin", required: false, description: "Secret for admin session management" },
-      { name: "MFA_SECRET_KEY", category: "Admin", required: false, description: "Secret for MFA operations" },
-      { name: "STEP_UP_AUTH_SECRET", category: "Admin", required: false, description: "Secret for step-up authentication" },
-      
-      // External integrations
-      { name: "OPENAI_API_KEY", category: "External", required: false, description: "OpenAI API integration" },
-      { name: "ANTHROPIC_API_KEY", category: "External", required: false, description: "Anthropic API integration" },
-      
-      // Environment specific
-      { name: "ENVIRONMENT", category: "Environment", required: false, description: "Current environment (production, staging, dev)" },
-      { name: "JWT_SECRET", category: "Security", required: false, description: "JWT signing secret" },
-    ];
+    const result = {
+      HAS_RESEND_API_KEY,
+      NOTIFICATIONS_FROM,
+      HELLO_INBOX,
+      ENTERPRISE_INBOX,
+      SALES_INBOX
+    };
 
-    logStep("Checking secrets presence");
-
-    const results: SecretCheck[] = secretsToCheck.map(secret => {
-      const value = Deno.env.get(secret.name);
-      const present = value !== undefined && value !== null && value.trim() !== "";
-      
-      return {
-        name: secret.name,
-        present,
-        category: secret.category,
-        required: secret.required,
-        description: secret.description,
-      };
-    });
-
-    // Group results by category
-    const categorized = results.reduce((acc, result) => {
-      if (!acc[result.category]) {
-        acc[result.category] = [];
-      }
-      acc[result.category].push(result);
-      return acc;
-    }, {} as Record<string, SecretCheck[]>);
-
-    // Find missing required secrets
-    const missingRequired = results.filter(r => r.required && !r.present);
-    const missingOptional = results.filter(r => !r.required && !r.present);
-
-    logStep("Secrets check completed", { 
-      totalChecked: results.length,
-      missingRequired: missingRequired.length,
-      missingOptional: missingOptional.length
-    });
-
-    return new Response(JSON.stringify({
-      success: true,
-      timestamp: new Date().toISOString(),
-      summary: {
-        total_checked: results.length,
-        present: results.filter(r => r.present).length,
-        missing_required: missingRequired.length,
-        missing_optional: missingOptional.length,
-      },
-      categorized,
-      missing_required: missingRequired,
-      missing_optional: missingOptional,
-      blocking_for_admin_apis: missingRequired.filter(r => 
-        r.category === 'Stripe' || r.category === 'Supabase'
-      ),
-    }), {
+    console.log(JSON.stringify({ route, status: 200 }));
+    
+    return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR", { message: errorMessage });
+    // Never throw - always return 200 with error info if needed
+    console.log(JSON.stringify({ route, status: 200, error: error.message }));
     
-    return new Response(JSON.stringify({ 
-      error: errorMessage,
-      timestamp: new Date().toISOString()
+    return new Response(JSON.stringify({
+      HAS_RESEND_API_KEY: false,
+      NOTIFICATIONS_FROM: "",
+      HELLO_INBOX: "",
+      ENTERPRISE_INBOX: "",
+      SALES_INBOX: ""
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      status: 200,
     });
   }
 });
