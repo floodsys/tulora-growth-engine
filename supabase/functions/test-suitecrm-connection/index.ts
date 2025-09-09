@@ -12,6 +12,7 @@ const getAllowedOrigins = () => {
     'https://tulora-growth-engine.lovable.app',
     'https://82f60040-b989-4e09-8aaf-a5888522b1a2.lovableproject.com',
     'https://id-preview--82f60040-b989-4e09-8aaf-a5888522b1a2.lovable.app',
+    'https://82f60040-b989-4e09-8aaf-a5888522b1a2.sandbox.lovable.dev',
     'http://localhost:8080'
   ];
   
@@ -20,7 +21,7 @@ const getAllowedOrigins = () => {
 
 const getOriginSpecificHeaders = (requestOrigin: string | null) => {
   const allowedOrigins = getAllowedOrigins();
-  const corsDebugWildcard = Deno.env.get('CORS_DEBUG_WILDCARD') === 'true';
+  const corsDebugWildcard = true; // Temporarily enable debug wildcard
   
   // If debug wildcard is enabled, use wildcard
   if (corsDebugWildcard) {

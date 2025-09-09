@@ -60,6 +60,7 @@ export default function AdminNotifications() {
   const [testing, setTesting] = useState<Record<string, boolean>>({})
   const [e2eTesting, setE2eTesting] = useState(false)
   const [testError, setTestError] = useState<any>(null)
+  const [pingResult, setPingResult] = useState<any>(null)
   const [functionVersions, setFunctionVersions] = useState<{
     'contact-sales': { version?: string, status?: string },
     'test-suitecrm-connection': { version?: string, status?: string }
@@ -418,6 +419,94 @@ export default function AdminNotifications() {
     } finally {
       setTesting(prev => ({ ...prev, ping_functions: false }))
     }
+  }
+
+  const handlePingContactSales = async () => {
+    setTesting(prev => ({ ...prev, ping_contact_sales: true }))
+    setPingResult(null)
+    
+    try {
+      const token = await checkAuthentication()
+      if (!token) return
+
+      console.log('🔍 Ping test - Runtime config:');
+      console.log('SUPABASE_URL:', SUPABASE_URL);
+      console.log('CONTACT_SALES_FN:', CONTACT_SALES_FN);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('🔍 Session available:', !!session?.access_token);
+      
+      const payload = {
+        inquiry_type: 'contact',
+        full_name: 'Ping',
+        email: 'ping@tulora.io',
+        message: 'ping'
+      };
+      
+      console.log('🔍 Ping payload:', payload);
+      
+      const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
+        body: payload,
+        headers: {
+          'Cache-Control': 'no-store',
+          ...(session?.access_token ? {
+            Authorization: `Bearer ${session.access_token}`
+          } : {})
+        }
+      });
+      
+      console.log('🔍 Ping response:', { data, error });
+      
+      const result = {
+        success: !error && !!data,
+        status: error ? 'error' : (data?.success ? 'success' : 'partial'),
+        headers: {
+          'X-Function': data?.function || 'unknown',
+          'X-Version': data?.version || 'unknown', 
+          'X-CRM-Status': data?.crm_status || 'unknown'
+        },
+        response_preview: error ? error.message?.substring(0, 200) : JSON.stringify(data)?.substring(0, 200),
+        error: error?.message,
+        data
+      };
+      
+      setPingResult(result);
+      
+      if (!error && data?.success) {
+        toast({
+          title: "Ping Successful",
+          description: `contact-sales responded: ${data.version || 'unknown version'}`,
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "Ping Failed", 
+          description: error?.message || data?.error || 'Unknown error',
+          variant: "destructive"
+        });
+      }
+      
+    } catch (error) {
+      console.error('🔍 Ping error:', error);
+      const result = {
+        success: false,
+        status: 'error',
+        headers: {},
+        response_preview: `Catch error: ${error.message?.substring(0, 200)}`,
+        error: error.message,
+        data: null
+      };
+      setPingResult(result);
+      
+      toast({
+        title: "Ping Error",
+        description: error instanceof Error ? error.message : "Network error",
+        variant: "destructive"
+      });
+    } finally {
+      setTesting(prev => ({ ...prev, ping_contact_sales: false }))
+    }
+  }
   }
 
   const handleRunE2ETest = async () => {
@@ -1080,6 +1169,47 @@ export default function AdminNotifications() {
                     'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                   }`}>
                     {e2eResults.overall === 'success' ? '✅ All tests passed' : '❌ Test failures detected'}
+                  </div>
+                </div>
+              )}
+
+              {/* Ping Test Results */}
+              {pingResult && (
+                <div className="mt-6 p-4 bg-muted rounded-lg space-y-3">
+                  <h4 className="font-semibold text-sm">Ping Test Results</h4>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span>Status:</span>
+                      <Badge variant={pingResult.success ? 'default' : 'destructive'}>
+                        {pingResult.status}
+                      </Badge>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <span className="font-medium">Headers:</span>
+                      <div className="text-xs font-mono bg-background p-2 rounded">
+                        <div>X-Function: {pingResult.headers['X-Function']}</div>
+                        <div>X-Version: {pingResult.headers['X-Version']}</div>
+                        <div>X-CRM-Status: {pingResult.headers['X-CRM-Status']}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <span className="font-medium">Response Preview (first 200 chars):</span>
+                      <div className="text-xs font-mono bg-background p-2 rounded break-all">
+                        {pingResult.response_preview}
+                      </div>
+                    </div>
+                    
+                    {pingResult.error && (
+                      <div className="space-y-1">
+                        <span className="font-medium text-destructive">Error:</span>
+                        <div className="text-xs font-mono bg-destructive/10 p-2 rounded">
+                          {pingResult.error}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
