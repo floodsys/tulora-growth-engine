@@ -19,14 +19,21 @@ export function AdminGuard({ children }: AdminGuardProps) {
                 window.location.hostname === 'localhost' ||
                 window.location.hostname.includes('lovable.app');
   
-  // Debug logging
-  console.log('[AdminGuard] Debug info:', {
+  
+  // Force debug logging to appear
+  console.error('[AdminGuard] FORCED DEBUG - THIS SHOULD ALWAYS SHOW:', {
     isDev,
     hostname: window.location.hostname,
     isSuperadmin,
     isLoading,
-    error: error
+    error: error,
+    env: import.meta.env.DEV
   });
+  
+  // Add alert for immediate visibility
+  if (!isDev) {
+    alert(`AdminGuard Debug: isDev=${isDev}, hostname=${window.location.hostname}, isSuperadmin=${isSuperadmin}, isLoading=${isLoading}`);
+  }
   
   if (isDev) {
     console.log('[AdminGuard] Development mode - bypassing admin checks');
