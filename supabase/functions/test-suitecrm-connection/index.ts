@@ -29,7 +29,7 @@ const getOriginSpecificHeaders = (requestOrigin: string | null) => {
       'Access-Control-Allow-Origin': '*',
       'Vary': 'Origin',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey',
+      'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey, cache-control',
       'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status'
     };
   }
@@ -43,7 +43,7 @@ const getOriginSpecificHeaders = (requestOrigin: string | null) => {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Vary': 'Origin',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey',
+    'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey, cache-control',
     'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status'
   };
 };

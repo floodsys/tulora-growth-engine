@@ -27,7 +27,7 @@ const CORS_DEBUG_WILDCARD = true; // Debug setting - temporary wildcard CORS
 function getCorsHeaders(origin: string | null): Record<string, string> {
   const headers: Record<string, string> = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey',
+    'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey, cache-control',
     'Access-Control-Max-Age': '600',
     'Vary': 'Origin',
     'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status, X-CRM-Base, X-CRM-Mode, X-DB-Client'
