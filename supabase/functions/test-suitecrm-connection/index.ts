@@ -16,6 +16,20 @@ const getAllowedOrigins = (): string[] => {
 };
 
 const getOriginSpecificHeaders = (requestOrigin: string | null) => {
+  // Debug wildcard override
+  if (Deno.env.get('CORS_DEBUG_WILDCARD') === 'true') {
+    return {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'X-Function': 'test-suitecrm-connection',
+      'X-Version': VERSION,
+      'Vary': 'Origin'
+    };
+  }
+  
   const allowedOrigins = getAllowedOrigins();
   const originAllowed = requestOrigin && allowedOrigins.includes(requestOrigin);
   
@@ -303,17 +317,18 @@ serve(async (req) => {
   const clientIP = getClientIP(req)
   const requestOrigin = req.headers.get('origin');
   
-  // Handle CORS preflight requests
+  // Handle CORS preflight - MUST return 204 and stop
   if (method === 'OPTIONS') {
-    const allowedOrigins = getAllowedOrigins();
-    const originAllowed = requestOrigin && allowedOrigins.includes(requestOrigin);
+    const headers = {
+      ...getOriginSpecificHeaders(requestOrigin),
+      'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+      'Access-Control-Allow-Headers': 'authorization,content-type,x-client-info,apikey',
+      'Access-Control-Max-Age': '600'
+    };
     
     return new Response(null, { 
       status: 204,
-      headers: {
-        ...preflightHeaders,
-        'Access-Control-Allow-Origin': originAllowed ? requestOrigin : allowedOrigins[0]
-      }
+      headers
     });
   }
 
