@@ -98,17 +98,6 @@ export function useSuperadmin(): UseSuperadminReturn {
   // Set up auth state monitoring
   useEffect(() => {
     checkSuperadmin();
-
-    // Listen to auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
-        checkSuperadmin();
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, [checkSuperadmin]);
 
   // Optional: Refetch on window focus

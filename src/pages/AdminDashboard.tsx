@@ -11,8 +11,6 @@ export default function AdminDashboard() {
   const { toast } = useToast();
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
 
-  console.log('AdminDashboard: Component mounted');
-
   // Get current user's org for testing
   useEffect(() => {
     const getCurrentOrg = async () => {
