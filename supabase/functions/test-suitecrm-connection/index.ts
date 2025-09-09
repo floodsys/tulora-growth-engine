@@ -50,6 +50,7 @@ const getOriginSpecificHeaders = (requestOrigin: string | null) => {
 const preflightHeaders = (requestOrigin: string | null) => {
   return {
     ...getOriginSpecificHeaders(requestOrigin),
+    'Access-Control-Max-Age': '600',
     'Content-Length': '0'
   };
 };
