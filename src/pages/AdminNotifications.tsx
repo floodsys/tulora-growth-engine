@@ -980,18 +980,40 @@ export default function AdminNotifications() {
                   <div className="flex items-center justify-between p-2 bg-background rounded border">
                     <div className="flex items-center space-x-2">
                       <div className={`w-2 h-2 rounded-full ${
-                        e2eResults.lead.status === 'success' ? 'bg-green-500' :
-                        e2eResults.lead.status === 'error' ? 'bg-red-500' :
+                        e2eResults.contact.status === 'success' ? 'bg-green-500' :
+                        e2eResults.contact.status === 'error' ? 'bg-red-500' :
                         'bg-yellow-500'
                       }`} />
-                      <span className="text-sm font-medium">2. Test Lead Creation</span>
+                      <span className="text-sm font-medium">2. Contact Form Submission</span>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {e2eResults.lead.status === 'success' && e2eResults.lead.crm_reference && (
-                        <span>CRM ID: {e2eResults.lead.crm_reference}</span>
+                      {e2eResults.contact.status === 'success' && (
+                        <span>Function: {e2eResults.contact.function}, Version: {e2eResults.contact.version}</span>
                       )}
-                      {e2eResults.lead.status === 'error' && (
-                        <span>{e2eResults.lead.message}</span>
+                      {e2eResults.contact.status === 'error' && (
+                        <span>{e2eResults.contact.message}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Enterprise Form Test */}
+                  <div className="flex items-center justify-between p-2 bg-background rounded border">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        e2eResults.enterprise.status === 'success' ? 'bg-green-500' :
+                        e2eResults.enterprise.status === 'error' ? 'bg-red-500' :
+                        'bg-yellow-500'
+                      }`} />
+                      <span className="text-sm font-medium">3. Enterprise Form Submission</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {e2eResults.enterprise.status === 'success' && (
+                        <span>Function: {e2eResults.enterprise.function}, Version: {e2eResults.enterprise.version}
+                          {e2eResults.enterprise.crm_reference && `, CRM ID: ${e2eResults.enterprise.crm_reference}`}
+                        </span>
+                      )}
+                      {e2eResults.enterprise.status === 'error' && (
+                        <span>{e2eResults.enterprise.message}</span>
                       )}
                     </div>
                   </div>
