@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-const VERSION = "2025-09-09-8"
+const VERSION = "2025-09-09-v8-create"
 
 // CORS Configuration - identical to contact-sales
 const getAllowedOrigins = () => {
@@ -233,6 +233,34 @@ async function testSuiteCRMConnection() {
     const authData: SuiteCRMAuthResponse = await response.json()
     console.log('Authentication successful, received token')
 
+    // Test module endpoint after getting token
+    let moduleEndpointStatus = 'unknown'
+    try {
+      // Try primary endpoint first
+      const primaryModuleResponse = await fetch(`${cleanBaseUrl}/legacy/Api/V8/meta/modules`, {
+        headers: {
+          'Authorization': `Bearer ${authData.access_token}`,
+          'Accept': 'application/vnd.api+json'
+        }
+      })
+      
+      if (primaryModuleResponse.ok) {
+        moduleEndpointStatus = 'legacy-ok'
+      } else {
+        // Try fallback endpoint
+        const fallbackModuleResponse = await fetch(`${cleanBaseUrl}/Api/V8/meta/modules`, {
+          headers: {
+            'Authorization': `Bearer ${authData.access_token}`,
+            'Accept': 'application/vnd.api+json'
+          }
+        })
+        
+        moduleEndpointStatus = fallbackModuleResponse.ok ? 'fallback-ok' : 'both-failed'
+      }
+    } catch (error) {
+      moduleEndpointStatus = 'error'
+    }
+
     // Try to get current user info to validate the token
     try {
       const userResponse = await fetch(`${cleanBaseUrl}/Api/V8/me`, {
@@ -255,6 +283,7 @@ async function testSuiteCRMConnection() {
         oauth_user,
         token_type: authData.token_type,
         expires_in: authData.expires_in,
+        module_endpoint_status: moduleEndpointStatus,
         env_present: envPresent
       }
     } catch (error) {
@@ -266,6 +295,7 @@ async function testSuiteCRMConnection() {
         oauth_user: 'tulora-api',
         token_type: authData.token_type,
         expires_in: authData.expires_in,
+        module_endpoint_status: moduleEndpointStatus,
         env_present: envPresent
       }
     }

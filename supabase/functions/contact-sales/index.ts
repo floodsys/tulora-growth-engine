@@ -7,7 +7,7 @@ import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
 // Version and function info
-const VERSION = "2025-09-09-v8-jsonapi";
+const VERSION = "2025-09-09-v8-create";
 const FUNCTION_NAME = "contact-sales";
 
 // CORS Configuration
@@ -235,7 +235,7 @@ function mapLeadToSuiteCRMPayload(lead: LeadData): any {
     description: lead.message || '',
     
     // Safe defaults
-    status: 'new'
+    status: 'New'
   }
 
   // Optional fields if present
@@ -269,11 +269,14 @@ async function syncLeadToSuiteCRM(lead: LeadData, config: any): Promise<SuiteCRM
     }
   }
 
-  // Create payload
+  // Create payload with correct SuiteCRM field mapping
   const payload = mapLeadToSuiteCRMPayload(lead)
-  const endpoint = `${config.base_url}/legacy/Api/V8/module`
+  
+  // Try primary endpoint first, then fallback
+  const primaryEndpoint = `${config.base_url}/legacy/Api/V8/module`
+  const fallbackEndpoint = `${config.base_url}/Api/V8/module`
 
-  try {
+  const tryCreateLead = async (endpoint: string): Promise<{ response: Response; responseText: string }> => {
     console.log(`[CRM] sync lead to ${endpoint}`)
     console.log(`[CRM] payload keys: ${Object.keys(payload).join(', ')}`)
 
@@ -293,8 +296,24 @@ async function syncLeadToSuiteCRM(lead: LeadData, config: any): Promise<SuiteCRM
     })
 
     console.log(`[CRM] sync -> ${response.status}`)
-
     const responseText = await response.text()
+    return { response, responseText }
+  }
+
+  try {
+    // Try primary endpoint
+    let { response, responseText } = await tryCreateLead(primaryEndpoint)
+    let endpoint = primaryEndpoint
+
+    // If primary endpoint returns 404, try fallback
+    if (response.status === 404) {
+      console.log(`[CRM] primary endpoint 404, trying fallback`)
+      const fallback = await tryCreateLead(fallbackEndpoint)
+      response = fallback.response
+      responseText = fallback.responseText
+      endpoint = fallbackEndpoint
+    }
+
     let responseData
     try {
       responseData = JSON.parse(responseText)
