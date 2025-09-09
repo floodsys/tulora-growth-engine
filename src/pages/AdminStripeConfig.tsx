@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { SUPABASE_URL, SUPABASE_ANON } from '@/config/publicConfig';
+import { callEdge } from "@/lib/callEdge";
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { AdminGuard } from '@/components/guards/AdminGuard';
@@ -90,13 +89,11 @@ export default function AdminStripeConfig() {
   const handleSave = async (plan: PlanConfig) => {
     setSaving(plan.plan_key);
     try {
-      const { error } = await supabase.functions.invoke('admin-stripe-config', {
-        body: {
-          plan_key: plan.plan_key,
+      const { data, error } = await callEdge('admin-stripe-config', {
+        plan_key: plan.plan_key,
           stripe_price_id_monthly: plan.stripe_price_id_monthly,
           stripe_setup_price_id: plan.stripe_setup_price_id,
           bill_setup_fee_in_stripe: plan.bill_setup_fee_in_stripe
-        }
       });
 
       if (error) throw error;
