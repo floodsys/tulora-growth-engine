@@ -42,6 +42,27 @@ export default function ContactSales() {
   const turnstileToken = "test-token"; // Mock token for testing
   const turnstileReady = true;
 
+  // Verify runtime Supabase config and handle service workers
+  useEffect(() => {
+    // Log Supabase config verification
+    console.log('=== SUPABASE CONFIG VERIFICATION ===');
+    console.log('publicConfig.SUPABASE_URL:', SUPABASE_URL);
+    console.log('publicConfig.SUPABASE_ANON_KEY (masked):', SUPABASE_ANON ? `${SUPABASE_ANON.substring(0, 20)}...` : 'MISSING');
+    console.log('supabase.functions.url:', SUPABASE_URL + '/functions/v1');
+    
+    // Service worker guard - unregister if present and reload
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        if (registrations.length > 0) {
+          console.log('Service workers detected, unregistering and reloading...');
+          Promise.all(registrations.map(reg => reg.unregister())).then(() => {
+            window.location.reload();
+          });
+        }
+      });
+    }
+  }, []);
+
   // Check if enterprise extras are required (default false)
   const requireEnterpriseExtras = false; // This would typically come from an environment variable or config
 
@@ -84,11 +105,7 @@ export default function ContactSales() {
     
     console.log('CONTACT_SUBMIT start');
     
-    // Anti-spam: Check honeypot field
-    if (formData.website) {
-      // Silent fail for bot submissions
-      return;
-    }
+    // Honeypot neutralized for preview - let server handle rejection
 
     // Turnstile disabled for testing
     // if (!turnstileToken) {
@@ -359,7 +376,7 @@ export default function ContactSales() {
                 {/* Honeypot field - hidden from users */}
                 <input
                   type="text"
-                  name="website"
+                  name={`website_${Math.random().toString(36).substr(2, 9)}`}
                   value={formData.website}
                   onChange={(e) => handleInputChange('website', e.target.value)}
                   style={{ display: 'none' }}
