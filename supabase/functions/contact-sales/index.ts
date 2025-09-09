@@ -167,6 +167,11 @@ const sanitizeLogMetadata = (metadata: any): any => {
   return sanitized;
 }
 
+// Environment configuration
+const FORMS_NORMALIZE_KEYS = Deno.env.get('FORMS_NORMALIZE_KEYS') === 'true';
+const REQUIRE_ENTERPRISE_COMPANY = Deno.env.get('REQUIRE_ENTERPRISE_COMPANY') === 'true';
+const REQUIRE_ENTERPRISE_EXTRAS = Deno.env.get('REQUIRE_ENTERPRISE_EXTRAS') === 'true';
+
 const trimField = (value: any): string => {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -454,30 +459,25 @@ const validatePayload = (data: ContactFormRequest): ValidationError[] => {
     errors.push({ field: 'email', message: 'Email must be a valid email address' });
   }
 
-  // Validate based on inquiry type
+  // Validate based on inquiry type - aligned with Valid Payload Examples
   if (inquiryType === 'contact') {
-    if (!phone) {
-      errors.push({ field: 'phone', message: 'Phone number is required for contact inquiries' });
-    }
-    if (!company) {
-      errors.push({ field: 'company', message: 'Company name is required for contact inquiries' });
-    }
+    // Required: inquiry_type, full_name, email, message
     if (!message) {
       errors.push({ field: 'message', message: 'Message is required for contact inquiries' });
     }
   } else if (inquiryType === 'enterprise') {
-    // Required fields for enterprise: inquiry_type, full_name, email, company, message
-    if (!company) {
-      errors.push({ field: 'company', message: 'Company name is required for enterprise inquiries' });
-    }
+    // Required: inquiry_type, full_name, email, message (keep company + extras optional)
     if (!message) {
       errors.push({ field: 'message', message: 'Message is required for enterprise inquiries' });
     }
     
-    // Optional enterprise fields - only required if REQUIRE_ENTERPRISE_EXTRAS=true
-    const requireExtras = Deno.env.get('REQUIRE_ENTERPRISE_EXTRAS') === 'true'; // default false
+    // Company field - only required if REQUIRE_ENTERPRISE_COMPANY=true (default false)
+    if (REQUIRE_ENTERPRISE_COMPANY && !company) {
+      errors.push({ field: 'company', message: 'Company name is required for enterprise inquiries' });
+    }
     
-    if (requireExtras) {
+    // Optional enterprise fields - only required if REQUIRE_ENTERPRISE_EXTRAS=true (default false)
+    if (REQUIRE_ENTERPRISE_EXTRAS) {
       if (!productInterest) {
         errors.push({ field: 'product_interest', message: 'Product interest is required for enterprise inquiries' });
       }
