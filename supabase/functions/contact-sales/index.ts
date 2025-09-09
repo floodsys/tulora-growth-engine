@@ -7,7 +7,7 @@ import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
 // Version and function info
-const VERSION = "2025-09-09-unified-v8";
+const VERSION = "2025-09-09-v8-jsonapi";
 const FUNCTION_NAME = "contact-sales";
 
 // CORS Configuration
@@ -271,7 +271,7 @@ async function syncLeadToSuiteCRM(lead: LeadData, config: any): Promise<SuiteCRM
 
   // Create payload
   const payload = mapLeadToSuiteCRMPayload(lead)
-  const endpoint = `${config.base_url}/Api/V8/module/Leads`
+  const endpoint = `${config.base_url}/legacy/Api/V8/module`
 
   try {
     console.log(`[CRM] sync lead to ${endpoint}`)
@@ -281,7 +281,8 @@ async function syncLeadToSuiteCRM(lead: LeadData, config: any): Promise<SuiteCRM
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authResult.token}`,
-        'Content-Type': 'application/json'
+        'Accept': 'application/vnd.api+json',
+        'Content-Type': 'application/vnd.api+json'
       },
       body: JSON.stringify({
         data: {
