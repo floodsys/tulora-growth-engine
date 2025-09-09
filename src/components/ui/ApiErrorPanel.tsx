@@ -13,12 +13,53 @@ interface ApiErrorPanelProps {
   onDismiss?: () => void
 }
 
+// Helper function to parse validation errors into user-friendly messages
+const parseValidationErrors = (details: any): string => {
+  const messages: string[] = [];
+  
+  // Ensure details is an array of strings
+  const detailsArray = Array.isArray(details) 
+    ? details.map(d => typeof d === 'string' ? d : JSON.stringify(d))
+    : typeof details === 'string' 
+    ? [details]
+    : [JSON.stringify(details)];
+  
+  for (const detail of detailsArray) {
+    if (detail.includes('Unknown fields:')) {
+      const fields = detail.replace('Unknown fields: ', '');
+      messages.push(`Remove unknown fields: ${fields}`);
+    } else if (detail.includes('inquiry_type is required')) {
+      messages.push('inquiry_type must be contact or enterprise');
+    } else if (detail.includes('inquiry_type') && detail.includes('must be either')) {
+      messages.push('inquiry_type must be contact or enterprise');
+    } else if (detail.includes('full_name is required')) {
+      messages.push('full_name is required');
+    } else if (detail.includes('email is required')) {
+      messages.push('email is required');  
+    } else if (detail.includes('message is required')) {
+      messages.push('message is required');
+    } else {
+      // Fallback for other validation errors
+      messages.push(detail);
+    }
+  }
+  
+  return messages.join('. ');
+};
+
 export function ApiErrorPanel({ error, onDismiss }: ApiErrorPanelProps) {
-  // Parse 422 validation errors
-  const parse422Errors = (details: string[]): ValidationError[] => {
+  // Parse 422 validation errors with safety checks
+  const parse422Errors = (details: any): ValidationError[] => {
     const errors: ValidationError[] = []
     
-    for (const detail of details) {
+    // Ensure details is an array of strings
+    const detailsArray = Array.isArray(details) 
+      ? details.map(d => typeof d === 'string' ? d : JSON.stringify(d))
+      : typeof details === 'string' 
+      ? [details]
+      : [JSON.stringify(details)];
+    
+    for (const detail of detailsArray) {
       if (detail.includes('Unknown fields:')) {
         const fields = detail.replace('Unknown fields: ', '').split(', ')
         for (const field of fields) {
@@ -79,9 +120,9 @@ export function ApiErrorPanel({ error, onDismiss }: ApiErrorPanelProps) {
     return errors
   }
 
-  // Parse CRM errors (non-2xx)
+  // Parse CRM errors (non-2xx) with safety checks
   const parseCrmError = (error: any): { endpoint?: string, status?: number, message: string } => {
-    const errorStr = error?.message || JSON.stringify(error)
+    const errorStr = typeof error?.message === 'string' ? error.message : JSON.stringify(error || {})
     
     // Extract HTTP status
     const statusMatch = errorStr.match(/HTTP (\d+)/) || errorStr.match(/Status (\d+)/)
@@ -98,11 +139,11 @@ export function ApiErrorPanel({ error, onDismiss }: ApiErrorPanelProps) {
     }
   }
 
-  // Determine error type
-  const is422Error = error?.status === 422 || error?.message?.includes('Status 422') || error?.message?.includes('HTTP 422')
+  // Determine error type with safety checks
+  const is422Error = error?.status === 422 || error?.message?.includes?.('Status 422') || error?.message?.includes?.('HTTP 422')
   const validationDetails = error?.details || (error?.message && is422Error ? [error.message] : [])
   
-  if (is422Error && validationDetails.length > 0) {
+  if (is422Error && validationDetails && validationDetails.length > 0) {
     const validationErrors = parse422Errors(validationDetails)
     
     return (
