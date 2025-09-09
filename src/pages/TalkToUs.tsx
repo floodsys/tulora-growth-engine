@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { callEdge } from "@/lib/callEdge";
 import contactUsImage from "@/assets/contact-us.svg";
 import talkToUsGraphic from "@/assets/talk-to-us-graphic.png";
 import logoSvg from "@/assets/logo.svg";
@@ -84,22 +84,9 @@ const TalkToUs = () => {
         turnstile_token: turnstileToken
       };
 
-      const res = await fetch('/functions/v1/contact-sales', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const { data, error, status } = await callEdge('contact-sales', payload);
 
-      let data: any = null;
-      try { 
-        data = await res.json(); 
-      } catch { 
-        data = null; 
-      }
-
-      if (!res.ok) {
-        const msg = data?.error || `Request failed (${res.status})`;
-        
+      if (error || status >= 400) {
         // Handle Turnstile-specific errors
         if (data?.code === "turnstile_missing" || data?.code === "turnstile_failed") {
           toast({
@@ -112,7 +99,7 @@ const TalkToUs = () => {
         
         toast({
           title: "Failed to send message",
-          description: msg,
+          description: error?.message || `Request failed (${status})`,
           variant: "destructive"
         });
         return;

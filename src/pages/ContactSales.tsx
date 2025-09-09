@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CheckCircle, ArrowLeft, Send } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { callEdge } from "@/lib/callEdge";
 import { useToast } from "@/hooks/use-toast";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -40,6 +40,7 @@ export default function ContactSales() {
     // Pre-fill user data if authenticated
     const loadUserData = async () => {
       try {
+        const { supabase } = await import("@/integrations/supabase/client");
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           setFormData(prev => ({
@@ -78,25 +79,25 @@ export default function ContactSales() {
     setIsSubmitting(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const { data, error } = await supabase.functions.invoke('contact-sales', {
-        body: {
-          ...formData,
-          inquiry_type: 'enterprise',
-          turnstile_token: turnstileToken
-        },
-        headers: session?.access_token ? {
-          Authorization: `Bearer ${session.access_token}`
-        } : undefined
+      const { data, error, status } = await callEdge('contact-sales', {
+        ...formData,
+        inquiry_type: 'enterprise',
+        turnstile_token: turnstileToken
       });
 
-      if (error) throw error;
+      if (error || status >= 400) {
+        toast({
+          title: "Failed to send message",
+          description: error?.message || `Request failed (${status})`,
+          variant: "destructive"
+        });
+        return;
+      }
 
       setIsSubmitted(true);
       toast({
         title: "Request Submitted",
-        description: "Thank you! Our sales team will contact you within 24 hours.",
+        description: "Thanks — we received your message.",
       });
 
     } catch (error: any) {
