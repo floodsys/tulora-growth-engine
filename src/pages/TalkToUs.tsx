@@ -15,6 +15,7 @@ import contactUsImage from "@/assets/contact-us.svg";
 import talkToUsGraphic from "@/assets/talk-to-us-graphic.png";
 import logoSvg from "@/assets/logo.svg";
 import { SUPABASE_URL, SUPABASE_ANON } from "@/config/publicConfig";
+import { useContactFormSecurity } from "@/hooks/useContactFormSecurity";
 // import { useTurnstile } from "@/hooks/useTurnstile";
 
 
@@ -37,6 +38,9 @@ const TalkToUs = () => {
   // const { token: turnstileToken, isReady: turnstileReady } = useTurnstile('turnstile-widget', { theme: 'light' });
   const turnstileToken = "test-token"; // Mock token for testing
   const turnstileReady = true;
+
+  // Apply security headers for contact forms
+  useContactFormSecurity();
 
   // Verify runtime Supabase config and handle service workers
   useEffect(() => {

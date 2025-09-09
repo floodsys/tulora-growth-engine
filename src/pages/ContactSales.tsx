@@ -14,6 +14,7 @@ import { buildContactPayload, validateContactPayload } from "@/lib/contact-paylo
 import { ApiErrorPanel } from "@/components/ui/ApiErrorPanel";
 import { CONTACT_SALES_FN } from "@/lib/constants";
 import { SUPABASE_URL, SUPABASE_ANON } from "@/config/publicConfig";
+import { useContactFormSecurity } from "@/hooks/useContactFormSecurity";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 // import { useTurnstile } from "@/hooks/useTurnstile";
@@ -41,6 +42,9 @@ export default function ContactSales() {
   // const { token: turnstileToken, isReady: turnstileReady } = useTurnstile('turnstile-widget-contact', { theme: 'light' });
   const turnstileToken = "test-token"; // Mock token for testing
   const turnstileReady = true;
+
+  // Apply security headers for contact forms
+  useContactFormSecurity();
 
   // Verify runtime Supabase config and handle service workers
   useEffect(() => {
