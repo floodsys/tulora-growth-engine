@@ -1,15 +1,17 @@
-import { serve } from "https://deno.land/std/http/server.ts";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { Resend } from 'npm:resend@4.0.0'
+import { renderAsync } from 'npm:@react-email/components@0.0.22'
+import React from 'npm:react@18.3.1'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
-import { requireTurnstileIfPublic } from '../_shared/turnstile.ts'
+import { createSuiteCRMService } from './_lib/suitecrm-service.ts'
+import { previewSuiteCRMPayload } from './_lib/suitecrm-mapping.ts'
+import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
+import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
-
-export const VERSION = "2025-09-09-7";
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 // Initialize Resend
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'))
@@ -104,19 +106,6 @@ const trimField = (value: any): string => {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-const splitFullName = (fullName: string): { first_name: string; last_name: string } => {
-  const trimmed = fullName.trim()
-  const parts = trimmed.split(/\s+/)
-  
-  if (parts.length === 1) {
-    return { first_name: '', last_name: parts[0] }
-  } else {
-    const firstName = parts[0]
-    const lastName = parts.slice(1).join(' ')
-    return { first_name: firstName, last_name: lastName }
-  }
-}
-
 const normalizeFullName = (name: string): string => {
   // Normalize spacing: remove extra spaces, capitalize words properly
   return name.replace(/\s+/g, ' ').trim()
@@ -130,6 +119,34 @@ const validateEmail = (email: string): boolean => {
   return emailRegex.test(email);
 }
 
+const verifyTurnstileToken = async (token: string, remoteIP?: string): Promise<boolean> => {
+  const secretKey = Deno.env.get('CLOUDFLARE_TURNSTILE_SECRET_KEY');
+  
+  if (!secretKey) {
+    console.warn('Turnstile secret key not configured');
+    return false;
+  }
+
+  try {
+    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        secret: secretKey,
+        response: token,
+        ...(remoteIP && { remoteip: remoteIP })
+      }),
+    });
+
+    const result = await response.json();
+    return result.success === true;
+  } catch (error) {
+    console.error('Turnstile verification error:', error);
+    return false;
+  }
+}
 
 const mapProductInterestToLine = (productInterest: string): string => {
   const mapping: Record<string, string> = {
@@ -266,27 +283,11 @@ const checkHoneypot = (data: any): boolean => {
 };
 
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
+  }
+
   try {
-    if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
-    if (req.method !== "POST") {
-      return new Response(JSON.stringify({ ok:false, error:"Use POST", version: VERSION }),
-        { status:405, headers:{ ...CORS, "Content-Type":"application/json" }});
-    }
-
-    // Read/validate body (keep existing logic exactly)
-    // Verify Turnstile for public browser requests first
-    const turnstileResult = await requireTurnstileIfPublic(req);
-    if (!turnstileResult.ok) {
-      return new Response(JSON.stringify({
-        ok: false,
-        error: "Please complete the security verification to submit your request.",
-        code: turnstileResult.code
-      }), {
-        status: 403,
-        headers: { ...CORS, 'Content-Type': 'application/json' }
-      });
-    }
-
     const clientIP = req.headers.get('CF-Connecting-IP') || 
                      req.headers.get('X-Forwarded-For') || 
                      req.headers.get('X-Real-IP') || 
@@ -299,11 +300,11 @@ serve(async (req) => {
     if (!isAllowed) {
       logStep('Rate limit exceeded', undefined, 'blocked', { ip: '[IP_REDACTED]' });
       return new Response(JSON.stringify({ 
-        ok: false,
+        success: false,
         error: 'Too many requests. Please wait before submitting again.',
         retry_after: 60
       }), {
-        headers: { ...CORS, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 429,
       });
     }
@@ -327,10 +328,39 @@ serve(async (req) => {
       logStep('Honeypot triggered', undefined, 'blocked');
       // Silent fail for bot submissions - return success to avoid revealing the honeypot
       return new Response(JSON.stringify({ 
-        ok: true,
+        success: true,
         message: 'Thank you for your submission'
       }), {
-        headers: { ...CORS, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Verify Turnstile token
+    if (requestData.turnstile_token) {
+      const clientIP = req.headers.get('CF-Connecting-IP') || req.headers.get('X-Forwarded-For') || 'unknown';
+      const turnstileValid = await verifyTurnstileToken(requestData.turnstile_token, clientIP);
+      
+      if (!turnstileValid) {
+        logStep('Turnstile verification failed', undefined, 'blocked');
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Security verification failed. Please try again.'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
+      logStep('Turnstile verification passed', undefined, 'verified');
+    } else {
+      // If no Turnstile token provided, return error
+      logStep('No Turnstile token provided', undefined, 'blocked');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Security verification required. Please complete the verification.'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
@@ -339,11 +369,11 @@ serve(async (req) => {
     if (validationErrors.length > 0) {
       logStep('Validation failed', undefined, 'error')
       return new Response(JSON.stringify({ 
-        ok: false,
+        success: false,
         error: 'Validation failed',
         errors: validationErrors
       }), {
-        headers: { ...CORS, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       })
     }
@@ -412,70 +442,79 @@ serve(async (req) => {
       logStep('Database insert failed', undefined, 'error')
       console.error('Lead insertion error:', leadError)
       return new Response(JSON.stringify({ 
-        ok: false,
+        success: false,
         error: 'Failed to save submission',
         details: leadError.message
       }), {
-        headers: { ...CORS, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       })
     }
 
     logStep('Lead saved', savedLead.id, 'success')
 
-    // Call CRM sync inline after DB insert and before email
-    const traceId = crypto.randomUUID();
-    let crm_ok = false, crm_status = 0, crm_error = null, crm_id = null;
-    
+    // Sync to SuiteCRM if configured (don't block on failure)
+    let crmSyncResult = null
     try {
-      // Prepare lead payload for SuiteCRM
-      const { first_name, last_name } = splitFullName(leadData.full_name)
-      const leadPayload = {
-        first_name,
-        last_name,
-        email1: leadData.email,
-        phone_work: leadData.phone,
-        account_name: leadData.company,
-        lead_source: leadData.inquiry_type === 'contact' ? 'Website - Contact Us' : 'Website - Enterprise Sales',
-        description: leadData.inquiry_type === 'contact' ? leadData.message : leadData.additional_requirements,
-        product_line_c: leadData.product_line,
-        product_interest_c: leadData.product_interest,
-        inquiry_type_c: leadData.inquiry_type,
-        expected_volume_c: leadData.expected_volume_label,
-        expected_volume_code_c: leadData.expected_volume_value,
-        utm_source_c: leadData.utm_source,
-        utm_medium_c: leadData.utm_medium,
-        utm_campaign_c: leadData.utm_campaign,
-        utm_term_c: leadData.utm_term,
-        utm_content_c: leadData.utm_content,
-        page_url_c: leadData.page_url,
-        referrer_c: leadData.referrer,
-        ip_country_c: leadData.ip_country,
-        marketing_opt_in_c: leadData.marketing_opt_in,
-        external_id_c: savedLead.id,
-        full_name: leadData.full_name
+      const suiteCRMService = createSuiteCRMService()
+      if (suiteCRMService) {
+        logStep('Starting CRM sync', savedLead.id)
+        
+        // Preview the payload for debugging (no PII in logs)
+        const preview = previewSuiteCRMPayload(leadData)
+        logStep('CRM payload prepared', savedLead.id, 'ready', { 
+          fields_count: Object.keys(preview.payload || {}).length,
+          has_email: !!leadData.email,
+          has_company: !!leadData.company 
+        })
+        
+        crmSyncResult = await suiteCRMService.syncLead(leadData)
+        
+        if (crmSyncResult.success) {
+          logStep('CRM sync successful', savedLead.id, 'success')
+          
+          // Update lead with CRM sync status
+          await supabase
+            .from('leads')
+            .update({
+              crm_sync_status: 'synced',
+              crm_id: crmSyncResult.leadId,
+              crm_synced_at: new Date().toISOString()
+            })
+            .eq('id', savedLead.id)
+        } else {
+          logStep('CRM sync failed', savedLead.id, 'error')
+          console.error('CRM sync error:', crmSyncResult.message, crmSyncResult.errors)
+          
+          // Update lead with error status
+          await supabase
+            .from('leads')
+            .update({
+              crm_sync_status: 'failed',
+              crm_sync_error: crmSyncResult.message
+            })
+            .eq('id', savedLead.id)
+        }
+      } else {
+        logStep('CRM sync skipped - not configured', savedLead.id)
       }
-
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-      const res = await fetch(`${supabaseUrl}/functions/v1/suitecrm-sync`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(leadPayload)
-      });
+    } catch (error) {
+      logStep('CRM sync error', savedLead.id, 'error')
+      console.error('CRM sync unexpected error:', error)
       
-      crm_status = res.status;
-      const j = await res.json().catch(() => ({}));
-      crm_ok = !!j?.ok;
-      crm_error = j?.error || null;
-      crm_id = j?.result?.data?.id || j?.data?.id || null;
-      
-      logStep('CRM sync completed', savedLead.id, crm_ok ? 'success' : 'error')
-    } catch (e) {
-      crm_error = (e as Error).message || "network_error";
-      logStep('CRM sync failed', savedLead.id, 'error')
+      // Update lead with error status
+      try {
+        await supabase
+          .from('leads')
+          .update({
+            crm_sync_status: 'failed',
+            crm_sync_error: error instanceof Error ? error.message : 'Unknown CRM sync error'
+          })
+          .eq('id', savedLead.id)
+      } catch (updateError) {
+        console.error('Failed to update CRM sync error status:', updateError)
+      }
     }
-
-    console.info("lead.pipeline", { stage: "submit", crm_ok, status: crm_status });
 
     // Send notifications via email (no Slack integration)
     const resend = new Resend(resendKey)
@@ -641,35 +680,35 @@ serve(async (req) => {
       // Don't fail the whole request if status update fails
     }
 
-    // Prepare response with conditional admin debug info
-    const isAdminRequest = req.headers.get("x-admin-request") === "1"
-    const response: any = { 
-      ok: true,
-      version: VERSION,
+    return new Response(JSON.stringify({ 
+      success: true, 
       leadId: savedLead.id,
       inquiry_type: savedLead.inquiry_type,
       delivery_status: deliveryStatus,
       emails_sent: emailMessageIds.length,
+      crm_sync: crmSyncResult ? {
+        success: crmSyncResult.success,
+        leadId: crmSyncResult.leadId,
+        message: crmSyncResult.message,
+        fieldsCreated: crmSyncResult.fieldsCreated?.length || 0
+      } : { skipped: true },
       message: 'Submission received successfully'
-    }
-
-    // Add admin debug info if requested
-    if (isAdminRequest) {
-      response.crm_ok = crm_ok
-      response.crm_status = crm_status
-      response.crm_error = crm_error
-      response.crm_id = crm_id
-    }
-
-    return new Response(JSON.stringify({ ok:true, version: VERSION }),
-      { status:200, headers:{ ...CORS, "Content-Type":"application/json" }});
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    })
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     logStep('Unexpected error', undefined, 'error')
     console.error('Contact submission error:', errorMessage)
     
-    return new Response(JSON.stringify({ ok:false, error: (error as Error).message || "unexpected_error", version: VERSION }),
-      { status:500, headers:{ ...CORS, "Content-Type":"application/json" }});
+    return new Response(JSON.stringify({ 
+      success: false,
+      error: 'Internal server error'
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500,
+    })
   }
-});
+})

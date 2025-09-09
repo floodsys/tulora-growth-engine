@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { callEdge } from "@/lib/callEdge";
+import { supabase } from "@/integrations/supabase/client";
 import contactUsImage from "@/assets/contact-us.svg";
 import talkToUsGraphic from "@/assets/talk-to-us-graphic.png";
 import logoSvg from "@/assets/logo.svg";
@@ -72,52 +72,25 @@ const TalkToUs = () => {
     setIsSubmitting(true);
 
     try {
-      const payload = {
-        inquiry_type: 'contact',
-        full_name: formData.fullName,
-        email: formData.email,
-        phone: formData.phone,
-        company: formData.company,
-        message: formData.project,
-        accept_privacy: true,
-        marketing_opt_in: false,
-        turnstile_token: turnstileToken
-      };
-
-      const { data, error, status } = await callEdge('contact-submit', payload);
-
-      if (error || status >= 400) {
-        // Try to surface a useful message if the edge function sent JSON
-        const msg = (error as any)?.context?.body
-          ? (() => { try { return JSON.parse((error as any).context.body).error || (error as any).message; } catch { return (error as any).message; } })()
-          : (error?.message || `Request failed (${status})`);
-        
-        // Handle Turnstile-specific errors
-        if (data?.code === "turnstile_missing" || data?.code === "turnstile_failed") {
-          toast({
-            title: "Security verification required",
-            description: "Please complete the security check to continue",
-            variant: "destructive"
-          });
-          return;
+      const { data, error } = await supabase.functions.invoke('contact-sales', {
+        body: {
+          inquiry_type: 'contact',
+          full_name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          company: formData.company,
+          message: formData.project,
+          accept_privacy: true,
+          marketing_opt_in: false,
+          turnstile_token: turnstileToken
         }
-        
-        toast({
-          title: "Failed to send message",
-          description: msg || 'Submit failed.',
-          variant: "destructive"
-        });
-        return;
+      });
+
+      if (error) {
+        throw new Error(error.message);
       }
 
-      // Treat any 2xx as success even if data is null
-      if (data?.ok === false) {
-        toast({
-          title: "Failed to send message",
-          description: data?.error || 'Submit failed.',
-          variant: "destructive"
-        });
-      } else {
+      if (data?.success) {
         setIsSubmitted(true);
         // Reset form
         setFormData({
@@ -128,11 +101,9 @@ const TalkToUs = () => {
           project: "",
           website: ""
         });
-        toast({
-          title: "Message sent successfully",
-          description: "Thanks — we received your message.",
-          variant: "default"
-        });
+        // Form reset handled by hook
+      } else {
+        throw new Error(data?.error || 'Failed to submit form');
       }
     } catch (error: any) {
       console.error('Contact form error:', error);
@@ -329,7 +300,7 @@ const TalkToUs = () => {
                         size="lg" 
                         className="w-full h-12 text-lg font-semibold"
                         variant="brand"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || !turnstileToken}
                       >
                         {isSubmitting ? "Sending..." : "Send message"}
                       </Button>

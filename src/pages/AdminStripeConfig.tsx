@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { callEdge } from "@/lib/callEdge";
+import { supabase } from '@/integrations/supabase/client';
+import { SUPABASE_URL, SUPABASE_ANON } from '@/config/publicConfig';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { AdminGuard } from '@/components/guards/AdminGuard';
@@ -49,11 +50,20 @@ export default function AdminStripeConfig() {
 
   const fetchData = async () => {
     try {
-      const { data, error } = await callEdge('admin-stripe-config');
-      
-      if (error) {
-        throw new Error(error.message || 'Failed to fetch data');
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/admin-stripe-config`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          'apikey': SUPABASE_ANON,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      const data = await response.json();
       setPlans(data.plans || []);
       setStatus(data.status || { portalEnabled: false, webhookReachable: false, allPaidPlansConfigured: false, isLiveReady: false });
       setHealthCheck(data.healthCheck || {});
@@ -89,11 +99,13 @@ export default function AdminStripeConfig() {
   const handleSave = async (plan: PlanConfig) => {
     setSaving(plan.plan_key);
     try {
-      const { data, error } = await callEdge('admin-stripe-config', {
-        plan_key: plan.plan_key,
+      const { error } = await supabase.functions.invoke('admin-stripe-config', {
+        body: {
+          plan_key: plan.plan_key,
           stripe_price_id_monthly: plan.stripe_price_id_monthly,
           stripe_setup_price_id: plan.stripe_setup_price_id,
           bill_setup_fee_in_stripe: plan.bill_setup_fee_in_stripe
+        }
       });
 
       if (error) throw error;

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { callEdge } from "@/lib/callEdge";
+import { supabase } from '@/integrations/supabase/client';
+import { SUPABASE_URL, SUPABASE_ANON } from '@/config/publicConfig';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -47,12 +48,20 @@ export function CorePlanMigration() {
 
   const fetchCoreOrganizations = async () => {
     try {
-      const { data, error } = await callEdge('admin-core-migration');
-      
-      if (error) {
-        throw new Error(error.message || 'Failed to fetch data');
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/admin-core-migration`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          'apikey': SUPABASE_ANON,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
+      const data = await response.json();
       setCoreOrgs(data.coreOrganizations || []);
       
       // Initialize mappings with default values
@@ -90,19 +99,28 @@ export function CorePlanMigration() {
   const executeMigration = async () => {
     setMigrating(true);
     try {
-      const { data, error } = await callEdge('admin-core-migration', {
-        action: 'migrate',
-        mappings: Object.values(mappings)
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/admin-core-migration`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          'apikey': SUPABASE_ANON,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          action: 'migrate',
+          mappings: Object.values(mappings)
+        })
       });
 
-      if (error) {
-        throw new Error(error.message || 'Migration failed');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
+      const result = await response.json();
       setMigrationComplete(true);
       toast({
         title: "Migration Complete",
-        description: `Successfully migrated organizations from Core plans`,
+        description: `Successfully migrated ${result.migratedCount} organizations from Core plans`,
       });
     } catch (error) {
       console.error('Error executing migration:', error);

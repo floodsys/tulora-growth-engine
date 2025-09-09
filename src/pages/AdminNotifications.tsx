@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Eye, EyeOff, Mail, Database, Send, TestTube2, Link } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { callEdge } from "@/lib/callEdge"
+import { supabase } from "@/integrations/supabase/client"
+import { SUPABASE_URL } from "@/config/publicConfig"
 import { AdminGuard } from "@/components/admin/AdminGuard"
 
 export default function AdminNotifications() {
@@ -31,8 +32,7 @@ export default function AdminNotifications() {
   const navigate = useNavigate()
 
   const checkAuthentication = async () => {
-    const { supabase } = await import("@/integrations/supabase/client");
-    const { data } = await supabase.auth.getSession();
+    const { data } = await supabase.auth.getSession()
     if (!data.session?.access_token) {
       toast({
         title: "Authentication Required",
@@ -89,17 +89,25 @@ export default function AdminNotifications() {
         throw new Error(`${type === 'contact' ? 'Hello' : 'Enterprise'} inbox email is required`)
       }
 
-      // Call the function with callEdge
-      const { data, error } = await callEdge('send-test-email', {
-        to: emailTo,
-        subject: `Tulora ${type === 'contact' ? 'Contact' : 'Enterprise'} Test Email`,
-        html: `<p>This is a test email for the ${type} flow sent from the Admin Notifications panel.</p>`
-      });
+      // Call the function with proper JWT authentication
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/send-test-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          to: emailTo,
+          subject: `Tulora ${type === 'contact' ? 'Contact' : 'Enterprise'} Test Email`,
+          html: `<p>This is a test email for the ${type} flow sent from the Admin Notifications panel.</p>`
+        })
+      })
 
-      if (error) {
-        throw new Error(error.message || 'Test email failed');
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`)
       }
-
 
       if (data?.ok) {
         toast({
@@ -107,6 +115,9 @@ export default function AdminNotifications() {
           description: `${type === 'contact' ? 'Contact' : 'Enterprise'} test email sent successfully to ${emailTo}`,
           variant: "default"
         })
+      } else {
+        throw new Error(`Status ${response.status}: ${JSON.stringify(data)}`)
+      }
     } catch (error) {
       toast({
         title: "Email Test Failed",
@@ -130,18 +141,26 @@ export default function AdminNotifications() {
         throw new Error("Please fill in all CRM configuration fields")
       }
 
-      // Call the function with callEdge
-      const { data, error } = await callEdge('test-suitecrm-connection', {
-        base_url: crmConfig.base_url,
-        client_id: crmConfig.client_id,
-        client_secret: crmConfig.client_secret,
-        auth_mode: 'v8_client_credentials'
-      });
+      // Call the function with proper JWT authentication
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/test-suitecrm-connection`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          base_url: crmConfig.base_url,
+          client_id: crmConfig.client_id,
+          client_secret: crmConfig.client_secret,
+          auth_mode: 'v8_client_credentials'
+        })
+      })
 
-      if (error) {
-        throw new Error(error.message || 'CRM connection test failed');
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`)
       }
-
 
       if (data?.success) {
         toast({
@@ -149,6 +168,9 @@ export default function AdminNotifications() {
           description: data.message || "SuiteCRM connection test passed",
           variant: "default"
         })
+      } else {
+        throw new Error(`Status ${response.status}: ${JSON.stringify(data)}`)
+      }
     } catch (error) {
       toast({
         title: "CRM Connection Failed",
@@ -186,10 +208,20 @@ export default function AdminNotifications() {
         }
       }
 
-      // Call the function with callEdge
-      const { data, error } = await callEdge('contact-sales', testLead);
-      if (error) {
-        throw new Error(error.message || 'Contact sales test failed');
+      // Call the function with proper JWT authentication
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/contact-sales`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(testLead)
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`)
       }
 
       toast({

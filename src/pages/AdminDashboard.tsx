@@ -2,7 +2,6 @@ import { AdminGuard } from '@/components/admin/AdminGuard';
 import { TestDashboard } from '@/components/tests/TestDashboard';
 import { AdminSelfCheck } from '@/components/AdminSelfCheck';
 import { ProductLineGatingDemo } from '@/components/ProductLineGatingDemo';
-import { AdminCRMHealthCard } from '@/components/admin/AdminCRMHealthCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
@@ -91,9 +90,6 @@ export default function AdminDashboard() {
                 📧 Notifications & CRM
               </a>
             </div>
-            
-            {/* CRM Health Diagnostics */}
-            <AdminCRMHealthCard />
             
             <AdminSelfCheck />
             
