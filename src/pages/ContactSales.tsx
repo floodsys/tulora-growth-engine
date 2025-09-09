@@ -82,9 +82,11 @@ export default function ContactSales() {
       
       const { data, error } = await supabase.functions.invoke('contact-sales', {
         body: {
-          ...formData,
           inquiry_type: 'enterprise',
-          turnstile_token: turnstileToken
+          full_name: formData.name,
+          email: formData.email,
+          company: formData.company,
+          message: formData.notes
         },
         headers: session?.access_token ? {
           Authorization: `Bearer ${session.access_token}`
