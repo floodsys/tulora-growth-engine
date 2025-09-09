@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,6 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Eye, EyeOff, Mail, Database, Send, TestTube2, Link } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
+import { SUPABASE_URL } from "@/config/publicConfig"
 import { AdminGuard } from "@/components/admin/AdminGuard"
 
 export default function AdminNotifications() {
@@ -27,6 +29,21 @@ export default function AdminNotifications() {
   })
   const [testing, setTesting] = useState<Record<string, boolean>>({})
   const { toast } = useToast()
+  const navigate = useNavigate()
+
+  const checkAuthentication = async () => {
+    const { data } = await supabase.auth.getSession()
+    if (!data.session?.access_token) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in again",
+        variant: "destructive"
+      })
+      navigate('/auth')
+      return null
+    }
+    return data.session.access_token
+  }
 
   const toggleSecretVisibility = (field: string) => {
     setVisibleSecrets(prev => ({
@@ -62,25 +79,35 @@ export default function AdminNotifications() {
     setTesting(prev => ({ ...prev, [testKey]: true }))
 
     try {
+      // Check authentication and get token
+      const token = await checkAuthentication()
+      if (!token) return
+
       const emailTo = type === 'contact' ? emailConfig.hello_inbox : emailConfig.enterprise_inbox
       
       if (!emailTo) {
         throw new Error(`${type === 'contact' ? 'Hello' : 'Enterprise'} inbox email is required`)
       }
 
-      const { data, error } = await supabase.functions.invoke('send-test-email', {
-        body: {
+      // Call the function with proper JWT authentication
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/send-test-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
           to: emailTo,
-          template: type,
-          metadata: {
-            sent_by: 'admin',
-            test_type: type,
-            organization_id: 'admin'
-          }
-        }
+          subject: `Tulora ${type === 'contact' ? 'Contact' : 'Enterprise'} Test Email`,
+          html: `<p>This is a test email for the ${type} flow sent from the Admin Notifications panel.</p>`
+        })
       })
 
-      if (error) throw error
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`)
+      }
 
       if (data?.ok) {
         toast({
@@ -89,7 +116,7 @@ export default function AdminNotifications() {
           variant: "default"
         })
       } else {
-        throw new Error(data?.error || "Failed to send test email")
+        throw new Error(`Status ${response.status}: ${JSON.stringify(data)}`)
       }
     } catch (error) {
       toast({
@@ -106,20 +133,34 @@ export default function AdminNotifications() {
     setTesting(prev => ({ ...prev, crm_connection: true }))
 
     try {
+      // Check authentication and get token
+      const token = await checkAuthentication()
+      if (!token) return
+
       if (!validateCrmConfig()) {
         throw new Error("Please fill in all CRM configuration fields")
       }
 
-      const { data, error } = await supabase.functions.invoke('test-suitecrm-connection', {
-        body: {
+      // Call the function with proper JWT authentication
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/test-suitecrm-connection`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
           base_url: crmConfig.base_url,
           client_id: crmConfig.client_id,
           client_secret: crmConfig.client_secret,
           auth_mode: 'v8_client_credentials'
-        }
+        })
       })
 
-      if (error) throw error
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`)
+      }
 
       if (data?.success) {
         toast({
@@ -128,7 +169,7 @@ export default function AdminNotifications() {
           variant: "default"
         })
       } else {
-        throw new Error(data?.error || "Connection test failed")
+        throw new Error(`Status ${response.status}: ${JSON.stringify(data)}`)
       }
     } catch (error) {
       toast({
@@ -145,6 +186,10 @@ export default function AdminNotifications() {
     setTesting(prev => ({ ...prev, crm_lead: true }))
 
     try {
+      // Check authentication and get token
+      const token = await checkAuthentication()
+      if (!token) return
+
       if (!validateCrmConfig()) {
         throw new Error("Please configure and test CRM connection first")
       }
@@ -163,11 +208,21 @@ export default function AdminNotifications() {
         }
       }
 
-      const { data, error } = await supabase.functions.invoke('contact-sales', {
-        body: testLead
+      // Call the function with proper JWT authentication
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/contact-sales`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(testLead)
       })
 
-      if (error) throw error
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`)
+      }
 
       toast({
         title: "Test Lead Sent",
