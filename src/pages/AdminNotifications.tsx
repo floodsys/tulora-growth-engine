@@ -55,7 +55,7 @@ export default function AdminNotifications() {
     base_url: "",
     client_id: "",
     client_secret: "",
-    sync_enabled: false
+    sync_enabled: true // Enable SuiteCRM sync by default
   })
   const [testing, setTesting] = useState<Record<string, boolean>>({})
   const [e2eTesting, setE2eTesting] = useState(false)
@@ -519,11 +519,10 @@ export default function AdminNotifications() {
       }
       if (connectionResult.status === 'success') {
         try {
-          // Build canonical payload using shared builder for enterprise with full data
+          // Build canonical payload for E2E test - minimal required keys only
           const payload = buildContactPayload('enterprise', {
             name: "E2E Test User", // maps to full_name
             email: "e2e-test@example.com",
-            company: "E2E Test Company",
             notes: "CRM E2E integration test from admin panel" // maps to message
           });
 

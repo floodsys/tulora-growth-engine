@@ -64,10 +64,11 @@ const TalkToUs = () => {
     //   return;
     // }
     
-    // Basic validation
-    if (!formData.fullName || !formData.email || !formData.phone || !formData.company || !formData.project) {
+    // Basic validation - minimal required fields only
+    if (!formData.fullName || !formData.email || !formData.project) {
       toast({
         title: "Please fill in all required fields",
+        description: "Full name, email, and project description are required",
         variant: "destructive"
       });
       return;
@@ -256,10 +257,10 @@ const TalkToUs = () => {
                         />
                       </div>
 
-                      {/* Phone Number */}
+                      {/* Phone Number - now optional */}
                       <div className="space-y-2">
                         <Label htmlFor="phone" className="text-foreground font-medium">
-                          Phone Number *
+                          Phone Number
                         </Label>
                         <Input
                           id="phone"
@@ -268,16 +269,15 @@ const TalkToUs = () => {
                           placeholder="605-500-0123"
                           value={formData.phone}
                           onChange={handleInputChange}
-                          required
                           className="h-12"
                           disabled={isSubmitting}
                         />
                       </div>
 
-                      {/* Company */}
+                      {/* Company - now optional */}
                       <div className="space-y-2">
                         <Label htmlFor="company" className="text-foreground font-medium">
-                          Company *
+                          Company
                         </Label>
                         <Input
                           id="company"
@@ -286,7 +286,6 @@ const TalkToUs = () => {
                           placeholder="Company name"
                           value={formData.company}
                           onChange={handleInputChange}
-                          required
                           className="h-12"
                           disabled={isSubmitting}
                         />

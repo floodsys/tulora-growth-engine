@@ -102,14 +102,15 @@ export default function ContactSales() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
-      // Build canonical payload - only allowed snake_case keys  
+      // Build canonical payload - only required keys for enterprise
       const payload = buildContactPayload('enterprise', {
         name: formData.name, // maps to full_name
         email: formData.email,
-        company: formData.company,
-        product_interest: formData.product_interest.join(', '), // Join multi-select values
-        expected_volume: formData.expected_volume,
         additional_requirements: formData.additional_requirements, // maps to message
+        // Optional fields
+        company: formData.company,
+        product_interest: formData.product_interest.join(', '),
+        expected_volume: formData.expected_volume,
         website: formData.website // honeypot
       });
       
