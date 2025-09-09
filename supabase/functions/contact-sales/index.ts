@@ -10,26 +10,58 @@ import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmatio
 
 const VERSION = "2025-09-09-8" // Prompt 3 - Single route + version beacon
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-  'Pragma': 'no-cache',
-  'Expires': '0',
-  'X-Function': 'contact-sales',
-  'X-Version': VERSION
-}
+// CORS Configuration with Origin Validation
+const getAllowedOrigins = (): string[] => {
+  const allowedOrigins = Deno.env.get('ALLOWED_ORIGINS');
+  if (!allowedOrigins) {
+    // Fallback origins if env var not set
+    return [
+      'https://id-preview--82f60040-b989-4e09-8aaf-a5888522b1a2.lovable.app',
+      'https://tulora.io',
+      'https://www.tulora.io'
+    ];
+  }
+  return allowedOrigins.split(',').map(origin => origin.trim());
+};
+
+const getOriginSpecificHeaders = (requestOrigin: string | null) => {
+  const allowedOrigins = getAllowedOrigins();
+  const originAllowed = requestOrigin && allowedOrigins.includes(requestOrigin);
+  
+  return {
+    'Access-Control-Allow-Origin': originAllowed ? requestOrigin : allowedOrigins[0],
+    'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status',
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'X-Function': 'contact-sales',
+    'X-Version': VERSION,
+    'Vary': 'Origin'
+  };
+};
+
+const preflightHeaders = {
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'content-type, authorization, x-client-info, x-profile',
+  'Access-Control-Max-Age': '600',
+  'Vary': 'Origin'
+};
 
 // Initialize Resend
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'))
 
 // Helper function to create response with consistent headers
-const createResponse = (data: any, status = 200) => {
+const createResponse = (data: any, status = 200, requestOrigin: string | null = null) => {
+  const headers = { 
+    ...getOriginSpecificHeaders(requestOrigin), 
+    'Content-Type': 'application/json' 
+  };
+  
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  })
-}
+    headers
+  });
+};
 
 interface ContactFormRequest {
   inquiry_type: 'contact' | 'enterprise'
@@ -501,8 +533,20 @@ const checkHoneypot = (data: any): boolean => {
 };
 
 serve(async (req) => {
+  const requestOrigin = req.headers.get('origin');
+  
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    // Handle CORS preflight
+    const allowedOrigins = getAllowedOrigins();
+    const originAllowed = requestOrigin && allowedOrigins.includes(requestOrigin);
+    
+    return new Response(null, { 
+      status: 204,
+      headers: {
+        ...preflightHeaders,
+        'Access-Control-Allow-Origin': originAllowed ? requestOrigin : allowedOrigins[0]
+      }
+    });
   }
 
   try {
@@ -517,17 +561,14 @@ serve(async (req) => {
     const isAllowed = await checkRateLimit(clientIP);
     if (!isAllowed) {
       logStep('Rate limit exceeded', undefined, 'blocked', { ip: '[IP_REDACTED]' });
-      return new Response(JSON.stringify({ 
+      return createResponse({ 
         success: false,
         error: 'Too many requests. Please wait before submitting again.',
         retry_after: 60,
         function: 'contact-sales',
         version: VERSION,
         method_used: 'POST'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 429,
-      });
+      }, 429, requestOrigin);
     }
 
     const resendKey = Deno.env.get('RESEND_API_KEY')
@@ -550,16 +591,13 @@ serve(async (req) => {
       requestData = normalizationResult.payload
       
     } catch (error) {
-      return new Response(JSON.stringify({ 
+      return createResponse({ 
         success: false,
         error: 'Invalid JSON payload',
         function: 'contact-sales',
         version: VERSION,
         method_used: 'POST'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      })
+      }, 400, requestOrigin);
     }
 
     // Validate and normalize payload with structured error arrays
@@ -571,7 +609,7 @@ serve(async (req) => {
         enum_errors_count: validation.enum_errors.length
       });
 
-      return new Response(JSON.stringify({ 
+      return createResponse({ 
         success: false,
         error: 'Validation failed',
         unknown_fields: validation.unknown_fields,
@@ -580,16 +618,7 @@ serve(async (req) => {
         function: 'contact-sales',
         version: VERSION,
         method_used: 'POST'
-      }), {
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        },
-        status: 422,
-      })
+      }, 422, requestOrigin);
     }
     
     requestData = validation.normalized!
@@ -599,15 +628,13 @@ serve(async (req) => {
     if (!checkHoneypot(requestData)) {
       logStep('Honeypot triggered', undefined, 'blocked');
       // Silent fail for bot submissions - return success to avoid revealing the honeypot
-      return new Response(JSON.stringify({ 
+      return createResponse({ 
         success: true,
         message: 'Thank you for your submission',
         function: 'contact-sales',
         version: VERSION,
         method_used: 'POST'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      }, 200, requestOrigin);
     }
 
     // Turnstile verification temporarily disabled for testing
@@ -645,17 +672,14 @@ serve(async (req) => {
     const validationErrors = validatePayload(requestData)
     if (validationErrors.length > 0) {
       logStep('Validation failed', undefined, 'error')
-      return new Response(JSON.stringify({ 
+      return createResponse({ 
         success: false,
         error: 'Validation failed',
         details: validationErrors,
         function: 'contact-sales',
         version: VERSION,
         method_used: 'POST'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 422, // Unprocessable Entity
-      })
+      }, 422, requestOrigin);
     }
 
     // Determine inquiry type
@@ -721,17 +745,14 @@ serve(async (req) => {
     if (leadError) {
       logStep('Database insert failed', undefined, 'error')
       console.error('Lead insertion error:', leadError)
-      return new Response(JSON.stringify({ 
+      return createResponse({ 
         success: false,
         error: 'Failed to save submission',
         details: leadError.message,
         function: 'contact-sales',
         version: VERSION,
         method_used: 'POST'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      })
+      }, 500, requestOrigin);
     }
 
     logStep('Lead saved', savedLead.id, 'success')
@@ -971,7 +992,7 @@ serve(async (req) => {
       const crmError = crmSyncResult.message || 'CRM sync failed'
       const statusCode = crmError.includes('authentication') || crmError.includes('auth') ? 502 : 424
       
-      return new Response(JSON.stringify({ 
+      return createResponse({ 
         success: false,
         error: 'CRM synchronization failed',
         endpoint: 'SuiteCRM API',
@@ -983,14 +1004,11 @@ serve(async (req) => {
         details: crmError.replace(/[a-zA-Z0-9+/=]{20,}/g, '[REDACTED]'), // Sanitize any secrets
         delivery_status: deliveryStatus,
         emails_sent: emailMessageIds.length
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: statusCode,
-      })
+      }, statusCode, requestOrigin);
     }
 
     // Success response - only when CRM sync succeeds OR CRM is not configured
-    return new Response(JSON.stringify({ 
+    return createResponse({ 
       success: true, 
       function: 'contact-sales',
       version: VERSION,
@@ -1006,25 +1024,19 @@ serve(async (req) => {
         fieldsCreated: crmSyncResult.fieldsCreated?.length || 0
       } : { skipped: true },
       message: 'Submission received successfully'
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    })
+    }, 200, requestOrigin);
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     logStep('Unexpected error', undefined, 'error')
     console.error('Contact submission error:', errorMessage)
     
-    return new Response(JSON.stringify({ 
+    return createResponse({ 
       success: false,
       error: 'Internal server error',
       function: 'contact-sales',
       version: VERSION,
       method_used: 'POST'
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    })
+    }, 500, requestOrigin);
   }
 })

@@ -1,15 +1,55 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-  'Pragma': 'no-cache',
-  'Expires': '0',
-  'X-Function': 'test-suitecrm-connection',
-  'X-Version': VERSION
-}
+// CORS Configuration with Origin Validation
+const getAllowedOrigins = (): string[] => {
+  const allowedOrigins = Deno.env.get('ALLOWED_ORIGINS');
+  if (!allowedOrigins) {
+    // Fallback origins if env var not set
+    return [
+      'https://id-preview--82f60040-b989-4e09-8aaf-a5888522b1a2.lovable.app',
+      'https://tulora.io',
+      'https://www.tulora.io'
+    ];
+  }
+  return allowedOrigins.split(',').map(origin => origin.trim());
+};
+
+const getOriginSpecificHeaders = (requestOrigin: string | null) => {
+  const allowedOrigins = getAllowedOrigins();
+  const originAllowed = requestOrigin && allowedOrigins.includes(requestOrigin);
+  
+  return {
+    'Access-Control-Allow-Origin': originAllowed ? requestOrigin : allowedOrigins[0],
+    'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status',
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'X-Function': 'test-suitecrm-connection',
+    'X-Version': VERSION,
+    'Vary': 'Origin'
+  };
+};
+
+const preflightHeaders = {
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'content-type, authorization, x-client-info, x-profile',
+  'Access-Control-Max-Age': '600',
+  'Vary': 'Origin'
+};
+
+// Helper function to create response with consistent headers
+const createResponse = (data: any, status = 200, requestOrigin: string | null = null) => {
+  const headers = { 
+    ...getOriginSpecificHeaders(requestOrigin), 
+    'Content-Type': 'application/json' 
+  };
+  
+  return new Response(JSON.stringify(data), {
+    status,
+    headers
+  });
+};
 
 const VERSION = "2025-09-09-4" // Updated after SUITECRM_AUTH_MODE fix
 
@@ -261,44 +301,42 @@ async function checkSuperadmin(authHeader: string | null): Promise<boolean> {
 serve(async (req) => {
   const method = req.method
   const clientIP = getClientIP(req)
+  const requestOrigin = req.headers.get('origin');
   
   // Handle CORS preflight requests
   if (method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    const allowedOrigins = getAllowedOrigins();
+    const originAllowed = requestOrigin && allowedOrigins.includes(requestOrigin);
+    
+    return new Response(null, { 
+      status: 204,
+      headers: {
+        ...preflightHeaders,
+        'Access-Control-Allow-Origin': originAllowed ? requestOrigin : allowedOrigins[0]
+      }
+    });
   }
 
   // Method guard - only allow GET and POST
   if (method !== 'GET' && method !== 'POST') {
-    return new Response(
-      JSON.stringify({ 
-        error: 'Method not allowed',
-        version: VERSION,
-        method_used: method,
-        config_source: "edge_env"
-      }),
-      { 
-        status: 405, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    return createResponse({ 
+      error: 'Method not allowed',
+      version: VERSION,
+      method_used: method,
+      config_source: "edge_env"
+    }, 405, requestOrigin);
   }
 
   // Rate limiting
   const rateLimit = checkRateLimit(clientIP)
   if (!rateLimit.allowed) {
-    return new Response(
-      JSON.stringify({ 
-        error: 'Rate limit exceeded',
-        version: VERSION,
-        method_used: method,
-        config_source: "edge_env",
-        rate_limit: { remaining: 0 }
-      }),
-      { 
-        status: 429, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    return createResponse({ 
+      error: 'Rate limit exceeded',
+      version: VERSION,
+      method_used: method,
+      config_source: "edge_env",
+      rate_limit: { remaining: 0 }
+    }, 429, requestOrigin);
   }
 
   // Check superadmin auth
@@ -306,55 +344,36 @@ serve(async (req) => {
   const isSuperadmin = await checkSuperadmin(authHeader)
   
   if (!isSuperadmin) {
-    return new Response(
-      JSON.stringify({ 
-        error: 'Superadmin authentication required',
-        version: VERSION,
-        method_used: method,
-        config_source: "edge_env",
-        rate_limit: { remaining: rateLimit.remaining }
-      }),
-      { 
-        status: 403, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    return createResponse({ 
+      error: 'Superadmin authentication required',
+      version: VERSION,
+      method_used: method,
+      config_source: "edge_env",
+      rate_limit: { remaining: rateLimit.remaining }
+    }, 403, requestOrigin);
   }
 
   try {
     const result = await testSuiteCRMConnection()
     
     // Build response with all required fields
-    const response = {
+    return createResponse({
       ...result,
       version: VERSION,
       method_used: method,
       config_source: "edge_env",
       rate_limit: { remaining: rateLimit.remaining }
-    }
-
-    return new Response(
-      JSON.stringify(response),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    }, 200, requestOrigin);
 
   } catch (error) {
     console.error('Request processing error:', error)
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: 'Internal server error',
-        version: VERSION,
-        method_used: method,
-        config_source: "edge_env",
-        rate_limit: { remaining: rateLimit.remaining }
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    return createResponse({ 
+      success: false, 
+      error: 'Internal server error',
+      version: VERSION,
+      method_used: method,
+      config_source: "edge_env",
+      rate_limit: { remaining: rateLimit.remaining }
+    }, 500, requestOrigin);
   }
 })
