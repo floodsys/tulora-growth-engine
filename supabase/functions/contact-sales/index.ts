@@ -1,12 +1,15 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { serve } from "https://deno.land/std/http/server.ts";
 import { Resend } from 'npm:resend@4.0.0'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 import { requireTurnstileIfPublic } from '../_shared/turnstile.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type,authorization,x-client-info,apikey",
+};
+
+export const VERSION = "2025-09-09-6";
 
 // Initialize Resend
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'))
@@ -263,21 +266,24 @@ const checkHoneypot = (data: any): boolean => {
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
-  }
-
   try {
+    if (req.method === "OPTIONS")
+      return new Response(null, { status: 204, headers: CORS });
+    if (req.method !== "POST")
+      return new Response(JSON.stringify({ ok: false, error: "Use POST" }),
+        { status: 405, headers: { ...CORS, "Content-Type": "application/json" } });
+
+    // Read/validate body (keep existing logic exactly)
     // Verify Turnstile for public browser requests first
     const turnstileResult = await requireTurnstileIfPublic(req);
     if (!turnstileResult.ok) {
       return new Response(JSON.stringify({
-        success: false,
+        ok: false,
         error: "Please complete the security verification to submit your request.",
         code: turnstileResult.code
       }), {
         status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...CORS, 'Content-Type': 'application/json' }
       });
     }
 
@@ -293,11 +299,11 @@ serve(async (req) => {
     if (!isAllowed) {
       logStep('Rate limit exceeded', undefined, 'blocked', { ip: '[IP_REDACTED]' });
       return new Response(JSON.stringify({ 
-        success: false,
+        ok: false,
         error: 'Too many requests. Please wait before submitting again.',
         retry_after: 60
       }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...CORS, 'Content-Type': 'application/json' },
         status: 429,
       });
     }
@@ -321,10 +327,10 @@ serve(async (req) => {
       logStep('Honeypot triggered', undefined, 'blocked');
       // Silent fail for bot submissions - return success to avoid revealing the honeypot
       return new Response(JSON.stringify({ 
-        success: true,
+        ok: true,
         message: 'Thank you for your submission'
       }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...CORS, 'Content-Type': 'application/json' }
       });
     }
 
@@ -333,11 +339,11 @@ serve(async (req) => {
     if (validationErrors.length > 0) {
       logStep('Validation failed', undefined, 'error')
       return new Response(JSON.stringify({ 
-        success: false,
+        ok: false,
         error: 'Validation failed',
         errors: validationErrors
       }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...CORS, 'Content-Type': 'application/json' },
         status: 400,
       })
     }
@@ -406,11 +412,11 @@ serve(async (req) => {
       logStep('Database insert failed', undefined, 'error')
       console.error('Lead insertion error:', leadError)
       return new Response(JSON.stringify({ 
-        success: false,
+        ok: false,
         error: 'Failed to save submission',
         details: leadError.message
       }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...CORS, 'Content-Type': 'application/json' },
         status: 500,
       })
     }
@@ -639,6 +645,7 @@ serve(async (req) => {
     const isAdminRequest = req.headers.get("x-admin-request") === "1"
     const response: any = { 
       ok: true,
+      version: VERSION,
       leadId: savedLead.id,
       inquiry_type: savedLead.inquiry_type,
       delivery_status: deliveryStatus,
@@ -655,7 +662,7 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify(response), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...CORS, 'Content-Type': 'application/json' },
       status: 200,
     })
 
@@ -665,10 +672,11 @@ serve(async (req) => {
     console.error('Contact submission error:', errorMessage)
     
     return new Response(JSON.stringify({ 
-      success: false,
-      error: 'Internal server error'
+      ok: false,
+      error: 'Internal server error',
+      version: VERSION
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...CORS, 'Content-Type': 'application/json' },
       status: 500,
     })
   }
