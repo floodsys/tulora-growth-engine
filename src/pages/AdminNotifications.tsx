@@ -57,7 +57,9 @@ export default function AdminNotifications() {
     client_secret: "",
     sync_enabled: true // Enable SuiteCRM sync by default
   })
-  const [testing, setTesting] = useState<Record<string, boolean>>({})
+  const [testing, setTesting] = useState<Record<string, boolean>>({
+    ping_contact_sales: false
+  })
   const [e2eTesting, setE2eTesting] = useState(false)
   const [testError, setTestError] = useState<any>(null)
   const [pingResult, setPingResult] = useState<any>(null)
@@ -422,6 +424,7 @@ export default function AdminNotifications() {
   }
 
   const handlePingContactSales = async () => {
+    setTesting(prev => ({ ...prev, ping_contact_sales: true }))
     setTesting(prev => ({ ...prev, ping_contact_sales: true }))
     setPingResult(null)
     
@@ -795,7 +798,7 @@ export default function AdminNotifications() {
               </Button>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Button 
+                <Button
                   onClick={handlePingFunctions}
                   variant="secondary"
                   disabled={testing.ping_functions}
@@ -803,6 +806,16 @@ export default function AdminNotifications() {
                 >
                   <TestTube2 className="h-4 w-4" />
                   <span>{testing.ping_functions ? "Pinging..." : "Ping Functions"}</span>
+                </Button>
+                
+                <Button
+                  onClick={handlePingContactSales}
+                  variant="outline"
+                  disabled={testing.ping_contact_sales}
+                  className="flex items-center space-x-2"
+                >
+                  <Send className="h-4 w-4" />
+                  <span>{testing.ping_contact_sales ? "Pinging..." : "Ping contact-sales (direct)"}</span>
                 </Button>
                 
                 <Button
@@ -1194,12 +1207,12 @@ export default function AdminNotifications() {
                   <h4 className="font-semibold text-sm">Ping Test Results</h4>
                   
                   <div className="space-y-2 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span>Status:</span>
-                      <Badge variant={pingResult.success ? 'default' : 'destructive'}>
-                        {pingResult.status}
-                      </Badge>
-                    </div>
+                     <div className="flex items-center justify-between">
+                       <span>HTTP Status:</span>
+                       <Badge variant={pingResult.success ? 'default' : 'destructive'}>
+                         {pingResult.http_status}
+                       </Badge>
+                     </div>
                     
                     <div className="space-y-1">
                       <span className="font-medium">Headers:</span>
