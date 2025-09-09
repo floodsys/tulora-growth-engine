@@ -507,7 +507,6 @@ export default function AdminNotifications() {
       setTesting(prev => ({ ...prev, ping_contact_sales: false }))
     }
   }
-  }
 
   const handleRunE2ETest = async () => {
     setE2eTesting(true)
