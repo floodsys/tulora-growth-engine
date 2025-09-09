@@ -1,12 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { getSuiteCRMClient } from "../_shared/suitecrm.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Inline types and interfaces needed for SuiteCRM sync
+// Types and interfaces for lead sync
 interface LeadData {
   id: string
   organization_id: string
@@ -57,22 +58,6 @@ interface SuiteCRMLeadPayload {
   ip_country_c?: string
   marketing_opt_in_c?: boolean
   external_id_c: string
-}
-
-interface SuiteCRMAuthResponse {
-  access_token: string
-  token_type: string
-  expires_in: number
-  refresh_token?: string
-}
-
-interface SuiteCRMConfig {
-  baseUrl: string
-  authMode?: string
-  username?: string
-  password?: string
-  clientId?: string
-  clientSecret?: string
 }
 
 interface SyncRequest {
@@ -163,181 +148,26 @@ function mapLeadToSuiteCRM(lead: LeadData): SuiteCRMLeadPayload {
   }
 }
 
-// SuiteCRM Service Class
-class SuiteCRMService {
-  private config: SuiteCRMConfig
-  private accessToken?: string
-  private tokenExpiry?: Date
-
-  constructor(config: SuiteCRMConfig) {
-    this.config = config
-  }
-
-  async authenticate(): Promise<void> {
-    try {
-      const authMode = this.config.authMode || 'v8_client_credentials'
-      
-      let authPayload: any = {
-        client_id: this.config.clientId || 'suitecrm_client',
-        client_secret: this.config.clientSecret || ''
-      }
-
-      // Only add scope if SUITECRM_SCOPE environment variable is set and non-empty
-      const scopeValue = Deno.env.get('SUITECRM_SCOPE')
-      if (scopeValue && scopeValue.trim() !== '') {
-        authPayload.scope = scopeValue.trim()
-      }
-
-      if (authMode === 'v8_client_credentials') {
-        authPayload.grant_type = 'client_credentials'
-      } else {
-        authPayload.grant_type = 'password'
-        authPayload.username = this.config.username
-        authPayload.password = this.config.password
-      }
-
-      const response = await fetch(`${this.config.baseUrl}/Api/access_token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(authPayload)
-      })
-
-      if (!response.ok) {
-        throw new Error(`Authentication failed: ${response.status} ${response.statusText}`)
-      }
-
-      const authData: SuiteCRMAuthResponse = await response.json()
-      this.accessToken = authData.access_token
-      
-      const expirySeconds = authData.expires_in - 300
-      this.tokenExpiry = new Date(Date.now() + (expirySeconds * 1000))
-      
-    } catch (error) {
-      throw new Error(`SuiteCRM authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
-
-  private async ensureAuthenticated(): Promise<void> {
-    if (!this.accessToken || !this.tokenExpiry || this.tokenExpiry <= new Date()) {
-      await this.authenticate()
-    }
-  }
-
-  private async apiRequest(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    await this.ensureAuthenticated()
+async function findLeadByExternalId(client: any, externalId: string): Promise<string | null> {
+  try {
+    const response = await client.crmFetch(`module/Leads?filter[external_id_c]=${encodeURIComponent(externalId)}`)
     
-    const url = `${this.config.baseUrl}/Api/V8${endpoint}`
-    const headers = {
-      'Authorization': `Bearer ${this.accessToken}`,
-      'Content-Type': 'application/json',
-      ...options.headers
-    }
-
-    const response = await fetch(url, { ...options, headers })
-
     if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`SuiteCRM API request failed: ${response.status} ${response.statusText} - ${errorText}`)
-    }
-
-    return response
-  }
-
-  async findLeadByExternalId(externalId: string): Promise<string | null> {
-    try {
-      const response = await this.apiRequest(`/module/Leads?filter[external_id_c]=${encodeURIComponent(externalId)}`)
-      const data = await response.json()
-      
-      if (data.data && data.data.length > 0) {
-        return data.data[0].id
-      }
-      
-      return null
-    } catch (error) {
-      console.error('Failed to find lead by external ID:', error)
+      console.warn(`Failed to search for lead: ${response.status}`)
       return null
     }
-  }
-
-  async upsertLead(payload: SuiteCRMLeadPayload): Promise<{ success: boolean, leadId?: string, message: string }> {
-    try {
-      const existingLeadId = await this.findLeadByExternalId(payload.external_id_c)
-      
-      if (existingLeadId) {
-        // Update existing lead
-        const response = await this.apiRequest(`/module/Leads/${existingLeadId}`, {
-          method: 'PATCH',
-          body: JSON.stringify({ data: { attributes: payload } })
-        })
-        
-        return {
-          success: true,
-          leadId: existingLeadId,
-          message: `Lead updated successfully (ID: ${existingLeadId})`
-        }
-      } else {
-        // Create new lead
-        const response = await this.apiRequest('/module/Leads', {
-          method: 'POST',
-          body: JSON.stringify({ data: { type: 'Leads', attributes: payload } })
-        })
-        
-        const data = await response.json()
-        const newLeadId = data.data?.id
-        
-        return {
-          success: true,
-          leadId: newLeadId,
-          message: `Lead created successfully (ID: ${newLeadId})`
-        }
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: `Failed to sync lead: ${error instanceof Error ? error.message : 'Unknown error'}`
-      }
+    
+    const data = await response.json()
+    
+    if (data.data && data.data.length > 0) {
+      return data.data[0].id
     }
-  }
-
-  async syncLead(lead: LeadData): Promise<{ success: boolean, leadId?: string, message: string }> {
-    try {
-      const payload = mapLeadToSuiteCRM(lead)
-      console.log('SuiteCRM Lead payload:', JSON.stringify(payload, null, 2))
-      
-      const syncResult = await this.upsertLead(payload)
-      return syncResult
-      
-    } catch (error) {
-      return {
-        success: false,
-        message: `SuiteCRM sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      }
-    }
-  }
-}
-
-function createSuiteCRMService(): SuiteCRMService | null {
-  const baseUrl = Deno.env.get('SUITECRM_BASE_URL')
-  const clientId = Deno.env.get('SUITECRM_CLIENT_ID')
-  const clientSecret = Deno.env.get('SUITECRM_CLIENT_SECRET')
-  const username = Deno.env.get('SUITECRM_USERNAME')
-  const password = Deno.env.get('SUITECRM_PASSWORD')
-  
-  if (!baseUrl || !clientId || !clientSecret) {
-    console.log('SuiteCRM credentials not configured (missing base URL, client ID, or client secret), skipping CRM sync')
+    
+    return null
+  } catch (error) {
+    console.warn('Failed to find lead by external ID:', error instanceof Error ? error.message : 'Unknown error')
     return null
   }
-  
-  const authMode = (username && password) ? 'v8_password' : 'v8_client_credentials'
-  
-  return new SuiteCRMService({
-    baseUrl: baseUrl.replace(/\/$/, ''),
-    authMode,
-    username,
-    password,
-    clientId,
-    clientSecret
-  })
 }
 
 async function syncLeadToSuiteCRM(leadId: string) {
@@ -345,8 +175,13 @@ async function syncLeadToSuiteCRM(leadId: string) {
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  const version = "2025-09-08-1"
 
   try {
+    // Get shared SuiteCRM client
+    const client = getSuiteCRMClient()
+    const mode = client.getMode()
+
     // Get lead data
     const { data: lead, error: leadError } = await supabase
       .from('leads')
@@ -367,58 +202,117 @@ async function syncLeadToSuiteCRM(leadId: string) {
       })
       .eq('id', leadId)
 
-    // Create SuiteCRM service
-    const suiteCRMService = createSuiteCRMService()
-    if (!suiteCRMService) {
-      throw new Error('SuiteCRM not configured')
+    // Map lead data to SuiteCRM format
+    const payload = mapLeadToSuiteCRM(lead as LeadData)
+    console.info('SuiteCRM Lead payload:', JSON.stringify(payload, null, 2))
+
+    // Check if lead already exists in SuiteCRM
+    const existingLeadId = await findLeadByExternalId(client, payload.external_id_c)
+    
+    let response: Response
+    let leadCrmId: string | undefined
+
+    if (existingLeadId) {
+      // Update existing lead
+      console.info({ mode, endpoint: "module/Leads", action: "update", existing_id: existingLeadId })
+      response = await client.crmFetch(`module/Leads/${existingLeadId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { attributes: payload } })
+      })
+      leadCrmId = existingLeadId
+    } else {
+      // Create new lead
+      console.info({ mode, endpoint: "module/Leads", action: "create" })
+      response = await client.crmFetch('module/Leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { type: 'Leads', attributes: payload } })
+      })
     }
 
-    // Sync lead to SuiteCRM
-    const syncResult = await suiteCRMService.syncLead(lead as LeadData)
+    console.info({ mode, endpoint: "module/Leads", status: response.status })
 
-    if (syncResult.success && syncResult.leadId) {
-      // Generate deep link to SuiteCRM lead
-      const baseUrl = Deno.env.get('SUITECRM_BASE_URL')?.replace(/\/$/, '') || ''
-      const crmUrl = `${baseUrl}/#/Leads/view/${syncResult.leadId}`
-
-      // Update lead with success
-      await supabase
-        .from('leads')
-        .update({
-          crm_sync_status: 'synced',
-          crm_id: syncResult.leadId,
-          crm_url: crmUrl,
-          crm_synced_at: new Date().toISOString(),
-          crm_sync_error: null
-        })
-        .eq('id', leadId)
-
-      // Mark outbox entry as completed
-      await supabase
-        .from('crm_outbox')
-        .update({
-          status: 'completed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('lead_id', leadId)
-
-      console.log(`Lead ${leadId} synced successfully to SuiteCRM: ${syncResult.leadId}`)
-      
-      return {
-        success: true,
-        leadId: syncResult.leadId,
-        crmUrl,
-        message: syncResult.message
+    if (!response.ok) {
+      // Parse error response
+      let errorMessage = `SuiteCRM API error (${response.status})`
+      try {
+        const errorData = await response.json()
+        if (errorData.errors && errorData.errors.length > 0) {
+          errorMessage = errorData.errors.map((err: any) => err.detail || err.title || 'Unknown error').join('; ')
+        } else if (errorData.error) {
+          errorMessage = errorData.error
+        }
+      } catch {
+        // If JSON parsing fails, get first 400 chars of response text
+        try {
+          const errorText = await response.text()
+          errorMessage = errorText.substring(0, 400)
+        } catch {
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        }
       }
-    } else {
-      throw new Error(syncResult.message || 'Unknown sync error')
+
+      return {
+        ok: false,
+        mode,
+        error: errorMessage,
+        status: response.status
+      }
+    }
+
+    // Parse successful response
+    const responseData = await response.json()
+    if (!existingLeadId && responseData.data?.id) {
+      leadCrmId = responseData.data.id
+    }
+
+    // Generate deep link to SuiteCRM lead
+    const baseUrl = Deno.env.get('SUITECRM_BASE_URL')?.replace(/\/$/, '') || ''
+    const crmUrl = leadCrmId ? `${baseUrl}/#/Leads/view/${leadCrmId}` : undefined
+
+    // Update lead with success in database
+    await supabase
+      .from('leads')
+      .update({
+        crm_sync_status: 'synced',
+        crm_id: leadCrmId,
+        crm_url: crmUrl,
+        crm_synced_at: new Date().toISOString(),
+        crm_sync_error: null
+      })
+      .eq('id', leadId)
+
+    // Mark outbox entry as completed
+    await supabase
+      .from('crm_outbox')
+      .update({
+        status: 'completed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('lead_id', leadId)
+
+    console.info(`Lead ${leadId} synced successfully to SuiteCRM: ${leadCrmId}`)
+    
+    return {
+      ok: true,
+      mode,
+      result: {
+        leadId: leadCrmId,
+        crmUrl,
+        action: existingLeadId ? 'updated' : 'created',
+        message: existingLeadId 
+          ? `Lead updated successfully (ID: ${leadCrmId})` 
+          : `Lead created successfully (ID: ${leadCrmId})`
+      },
+      version
     }
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     console.error(`Failed to sync lead ${leadId}:`, errorMessage)
 
-    // Update lead with error
+    // Update lead with error in database
     await supabase
       .from('leads')
       .update({
@@ -435,16 +329,6 @@ async function syncLeadToSuiteCRM(leadId: string) {
       .single()
 
     const attemptCount = (outboxEntry?.attempt_count || 0) + 1
-    
-    // Calculate next retry delay: 5m, 30m, 2h, 24h
-    let retryDelay: string
-    switch (attemptCount) {
-      case 1: retryDelay = '5 minutes'; break
-      case 2: retryDelay = '30 minutes'; break  
-      case 3: retryDelay = '2 hours'; break
-      default: retryDelay = '24 hours'; break
-    }
-
     const nextAttempt = new Date()
     nextAttempt.setTime(nextAttempt.getTime() + getRetryDelayMs(attemptCount))
 
@@ -460,7 +344,8 @@ async function syncLeadToSuiteCRM(leadId: string) {
       .eq('lead_id', leadId)
 
     return {
-      success: false,
+      ok: false,
+      mode: 'client_credentials',
       error: errorMessage,
       nextRetry: nextAttempt.toISOString(),
       attemptCount
@@ -489,7 +374,7 @@ serve(async (req) => {
     if (!lead_id) {
       return new Response(
         JSON.stringify({ 
-          success: false, 
+          ok: false, 
           error: 'lead_id is required' 
         }),
         { 
@@ -512,7 +397,8 @@ serve(async (req) => {
     console.error('Request processing error:', error)
     return new Response(
       JSON.stringify({ 
-        success: false, 
+        ok: false, 
+        mode: 'client_credentials',
         error: error instanceof Error ? error.message : 'Unknown error occurred' 
       }),
       { 
