@@ -39,8 +39,11 @@ export function useSuperadmin(): UseSuperadminReturn {
   console.log('🔍 useSuperadmin hook initialized');
 
   const checkSuperadmin = useCallback(async (): Promise<void> => {
+    console.log('🔍 checkSuperadmin called, isDev:', isDev);
+    
     // Development bypass
     if (isDev) {
+      console.log('🔍 Dev mode detected - setting superadmin true');
       setIsSuperadmin(true);
       setIsLoading(false);
       setError(null);
