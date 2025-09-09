@@ -328,14 +328,17 @@ function logSuiteCRMEnvStatus() {
   const clientId = Deno.env.get('SUITECRM_CLIENT_ID')
   const clientSecret = Deno.env.get('SUITECRM_CLIENT_SECRET')
   const authMode = Deno.env.get('SUITECRM_AUTH_MODE')
+  const autoCreateFields = Deno.env.get('SUITECRM_AUTO_CREATE_FIELDS')
   
   const present = []
   if (baseUrl) present.push('base_url')
   if (clientId) present.push('client_id')
   if (clientSecret) present.push('client_secret')
   if (authMode) present.push('auth_mode')
+  if (autoCreateFields) present.push('auto_create_fields')
   
   console.log(`[CFG] suitecrm env present: ${present.join(', ')}`)
+  console.log(`[CFG] suitecrm auto_create_fields: ${autoCreateFields === 'true' ? 'enabled' : 'disabled (default)'}`)
   return { baseUrl, clientId, clientSecret, authMode }
 }
 
