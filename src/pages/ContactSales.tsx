@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import { useTurnstile } from "@/hooks/useTurnstile";
+// import { useTurnstile } from "@/hooks/useTurnstile";
 
 export default function ContactSales() {
   const [searchParams] = useSearchParams();
@@ -31,8 +31,10 @@ export default function ContactSales() {
     website: ""
   });
 
-  // Initialize Turnstile
-  const { token: turnstileToken, isReady: turnstileReady } = useTurnstile('turnstile-widget-contact', { theme: 'light' });
+  // Disable Turnstile for testing
+  // const { token: turnstileToken, isReady: turnstileReady } = useTurnstile('turnstile-widget-contact', { theme: 'light' });
+  const turnstileToken = "test-token"; // Mock token for testing
+  const turnstileReady = true;
 
   useEffect(() => {
     // Pre-fill user data if authenticated
@@ -63,15 +65,15 @@ export default function ContactSales() {
       return;
     }
 
-    // Check Turnstile verification
-    if (!turnstileToken) {
-      toast({
-        title: "Please complete verification",
-        description: "Please complete the security check to continue",
-        variant: "destructive"
-      });
-      return;
-    }
+    // Turnstile disabled for testing
+    // if (!turnstileToken) {
+    //   toast({
+    //     title: "Please complete verification",
+    //     description: "Please complete the security check to continue",
+    //     variant: "destructive"
+    //   });
+    //   return;
+    // }
     
     setIsSubmitting(true);
 
@@ -266,8 +268,8 @@ export default function ContactSales() {
                   autoComplete="off"
                 />
 
-                {/* Turnstile Widget */}
-                <div id="turnstile-widget-contact" className="flex justify-center"></div>
+                {/* Turnstile Widget - Disabled for testing */}
+                {/* <div id="turnstile-widget-contact" className="flex justify-center"></div> */}
 
                 <div className="flex gap-4">
                   <Button

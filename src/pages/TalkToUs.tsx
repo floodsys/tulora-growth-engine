@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import contactUsImage from "@/assets/contact-us.svg";
 import talkToUsGraphic from "@/assets/talk-to-us-graphic.png";
 import logoSvg from "@/assets/logo.svg";
-import { useTurnstile } from "@/hooks/useTurnstile";
+// import { useTurnstile } from "@/hooks/useTurnstile";
 
 
 const TalkToUs = () => {
@@ -28,8 +28,10 @@ const TalkToUs = () => {
     website: ""
   });
 
-  // Initialize Turnstile
-  const { token: turnstileToken, isReady: turnstileReady } = useTurnstile('turnstile-widget', { theme: 'light' });
+  // Disable Turnstile for testing
+  // const { token: turnstileToken, isReady: turnstileReady } = useTurnstile('turnstile-widget', { theme: 'light' });
+  const turnstileToken = "test-token"; // Mock token for testing
+  const turnstileReady = true;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -48,15 +50,15 @@ const TalkToUs = () => {
       return;
     }
 
-    // Check Turnstile verification
-    if (!turnstileToken) {
-      toast({
-        title: "Please complete verification",
-        description: "Please complete the security check to continue",
-        variant: "destructive"
-      });
-      return;
-    }
+    // Turnstile disabled for testing
+    // if (!turnstileToken) {
+    //   toast({
+    //     title: "Please complete verification",
+    //     description: "Please complete the security check to continue",
+    //     variant: "destructive"
+    //   });
+    //   return;
+    // }
     
     // Basic validation
     if (!formData.fullName || !formData.email || !formData.phone || !formData.company || !formData.project) {
@@ -289,8 +291,8 @@ const TalkToUs = () => {
                         autoComplete="off"
                       />
 
-                       {/* Turnstile Widget */}
-                      <div id="turnstile-widget" className="flex justify-center"></div>
+                        {/* Turnstile Widget - Disabled for testing */}
+                      {/* <div id="turnstile-widget" className="flex justify-center"></div> */}
 
                        {/* Submit Button */}
                       <Button 
