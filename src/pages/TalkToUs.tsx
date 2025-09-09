@@ -78,6 +78,7 @@ const TalkToUs = () => {
 
     try {
       setSubmitError(null);
+      const { data: { session } } = await supabase.auth.getSession();
       
       // Build canonical payload - only allowed snake_case keys
       const payload = buildContactPayload('contact', {
@@ -94,7 +95,8 @@ const TalkToUs = () => {
       if (validationErrors.length > 0) {
         setSubmitError({
           status: 422,
-          details: validationErrors
+          details: validationErrors,
+          message: 'Please fix the following errors:'
         });
         return;
       }
@@ -104,7 +106,10 @@ const TalkToUs = () => {
       const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
         body: payload,
         headers: {
-          'Cache-Control': 'no-store'
+          'Cache-Control': 'no-store',
+          ...(session?.access_token ? {
+            Authorization: `Bearer ${session.access_token}`
+          } : {})
         }
       });
 
