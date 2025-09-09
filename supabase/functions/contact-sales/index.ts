@@ -19,6 +19,7 @@ const ALLOWED_ORIGINS = Deno.env.get('ALLOWED_ORIGINS')?.split(',').map(o => o.t
   'https://tulora-growth-engine.lovable.app',
   'https://82f60040-b989-4e09-8aaf-a5888522b1a2.lovableproject.com',
   'https://id-preview--82f60040-b989-4e09-8aaf-a5888522b1a2.lovable.app',
+  'https://82f60040-b989-4e09-8aaf-a5888522b1a2.sandbox.lovable.dev',
   'http://localhost:8080'
 ];
 const CORS_DEBUG_WILDCARD = false; // Production setting - no wildcard CORS
