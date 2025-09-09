@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { Eye, EyeOff, Mail, Database, Send, TestTube2, Link } from "lucide-react"
+import { Eye, EyeOff, Mail, Database, Send, TestTube2, Link, RefreshCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { buildContactPayload, validateContactPayload } from "@/lib/contact-payload"
@@ -62,6 +62,40 @@ export default function AdminNotifications() {
     lead: { status: 'pending' | 'success' | 'error', message?: string, crm_reference?: string },
     overall: 'pending' | 'success' | 'error'
   } | null>(null)
+  const handleHardRefresh = async () => {
+    try {
+      // Clear all caches
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(
+          cacheNames.map(cacheName => caches.delete(cacheName))
+        );
+      }
+
+      // Unregister service workers
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(
+          registrations.map(registration => registration.unregister())
+        );
+      }
+
+      // Clear local storage and session storage
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // Force reload with cache bypass
+      window.location.reload();
+    } catch (error) {
+      console.error('Hard refresh failed:', error);
+      toast({
+        title: "Hard Refresh Failed",
+        description: "Could not clear all caches. Try manually refreshing.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const { toast } = useToast()
   const navigate = useNavigate()
 
@@ -487,13 +521,23 @@ export default function AdminNotifications() {
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8 space-y-8">
           {/* Page Header */}
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-foreground">
-              Notifications & CRM
-            </h1>
-            <p className="text-muted-foreground">
-              Manage email notifications and CRM integration settings
-            </p>
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold text-foreground">
+                Notifications & CRM
+              </h1>
+              <p className="text-muted-foreground">
+                Manage email notifications and CRM integration settings
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleHardRefresh}
+              className="flex items-center space-x-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Hard Refresh Cache</span>
+            </Button>
           </div>
 
           {/* Email (Resend) Section */}

@@ -8,7 +8,7 @@ import { previewSuiteCRMPayload } from './_lib/suitecrm-mapping.ts'
 import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
-const VERSION = "2025-09-09-4" // Track version for deployments
+const VERSION = "2025-09-09-5" // Track version for deployments
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -446,7 +446,9 @@ serve(async (req) => {
       return new Response(JSON.stringify({ 
         success: false,
         error: 'Invalid JSON payload',
-        version: VERSION
+        function: 'contact-sales',
+        version: VERSION,
+        method_used: 'POST'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
@@ -460,7 +462,9 @@ serve(async (req) => {
         success: false,
         error: 'Invalid payload',
         details: validation.errors,
-        version: VERSION
+        function: 'contact-sales',
+        version: VERSION,
+        method_used: 'POST'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 422, // Unprocessable Entity
@@ -521,7 +525,9 @@ serve(async (req) => {
         success: false,
         error: 'Validation failed',
         details: validationErrors,
-        version: VERSION
+        function: 'contact-sales',
+        version: VERSION,
+        method_used: 'POST'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 422, // Unprocessable Entity
@@ -843,7 +849,9 @@ serve(async (req) => {
         error: 'CRM synchronization failed',
         endpoint: 'SuiteCRM API',
         status_code: statusCode,
+        function: 'contact-sales',
         version: VERSION,
+        method_used: 'POST',
         leadId: savedLead.id,
         details: crmError.replace(/[a-zA-Z0-9+/=]{20,}/g, '[REDACTED]'), // Sanitize any secrets
         delivery_status: deliveryStatus,
@@ -857,6 +865,9 @@ serve(async (req) => {
     // Success response - only when CRM sync succeeds OR CRM is not configured
     return new Response(JSON.stringify({ 
       success: true, 
+      function: 'contact-sales',
+      version: VERSION,
+      method_used: 'POST',
       leadId: savedLead.id,
       inquiry_type: savedLead.inquiry_type,
       delivery_status: deliveryStatus,
@@ -867,7 +878,6 @@ serve(async (req) => {
         message: crmSyncResult.message,
         fieldsCreated: crmSyncResult.fieldsCreated?.length || 0
       } : { skipped: true },
-      version: VERSION,
       message: 'Submission received successfully'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -882,7 +892,9 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: false,
       error: 'Internal server error',
-      version: VERSION
+      function: 'contact-sales',
+      version: VERSION,
+      method_used: 'POST'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

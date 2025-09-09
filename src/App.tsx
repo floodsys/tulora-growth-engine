@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -44,13 +45,32 @@ import Pricing from "@/pages/Pricing";
 
 import { AdminGuard } from "@/components/admin/AdminGuard";
 
+// Component to disable service worker on admin routes
+function ServiceWorkerManager() {
+  useEffect(() => {
+    const isAdminRoute = window.location.pathname.startsWith('/admin');
+    
+    if (isAdminRoute && 'serviceWorker' in navigator) {
+      // Disable service worker on admin routes
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        registrations.forEach(registration => {
+          registration.unregister();
+        });
+      });
+    }
+  }, []);
+
+  return null;
+}
+
 function App() {
   return (
     <HelmetProvider>
       <AuthProvider>
         <TooltipProvider>
           <Router>
-          <AdminSecurityWrapper>
+            <ServiceWorkerManager />
+            <AdminSecurityWrapper>
             <ProgressiveProfilingGuard>
               <Routes>
               <Route path="/" element={<Index />} />
