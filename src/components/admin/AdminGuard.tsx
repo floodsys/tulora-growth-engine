@@ -13,13 +13,22 @@ export function AdminGuard({ children }: AdminGuardProps) {
   const location = useLocation();
 
   useEffect(() => {
-    // Only show toast if we've finished loading and user is not a superadmin
+    // Only show toast once when access is denied
     if (!isLoading && !isSuperadmin && !error) {
-      toast({
-        title: "Access Denied",
-        description: "Admin access restricted. Superadmin privileges required.",
-        variant: "destructive",
-      });
+      const hasShownToast = sessionStorage.getItem('admin-access-denied-toast');
+      if (!hasShownToast) {
+        toast({
+          title: "Access Denied",
+          description: "Admin access restricted. Superadmin privileges required.",
+          variant: "destructive",
+        });
+        sessionStorage.setItem('admin-access-denied-toast', 'true');
+      }
+    }
+    
+    // Clear the toast flag when user gains access
+    if (isSuperadmin) {
+      sessionStorage.removeItem('admin-access-denied-toast');
     }
   }, [isLoading, isSuperadmin, error, toast]);
 

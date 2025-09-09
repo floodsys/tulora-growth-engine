@@ -41,7 +41,6 @@ export function useSuperadmin(): UseSuperadminReturn {
       setIsSuperadmin(true);
       setIsLoading(false);
       setError(null);
-      console.log('[useSuperadmin] Development mode - bypassing superadmin checks');
       return;
     }
 
@@ -51,6 +50,9 @@ export function useSuperadmin(): UseSuperadminReturn {
       setError(null);
       return;
     }
+
+    // Prevent multiple simultaneous calls
+    if (isLoading) return;
 
     setIsLoading(true);
     setError(null);
@@ -69,16 +71,6 @@ export function useSuperadmin(): UseSuperadminReturn {
 
       const result = normalizeBooleanResult(data);
       setIsSuperadmin(result);
-
-      // Structured observability log (minimal, no PII beyond ID)
-      const logData = {
-        where: "UI",
-        user_id: user.id,
-        isSuperadmin: result,
-        raw_data: data,
-        ts: new Date().toISOString()
-      };
-      console.log('🔐 Superadmin Check:', JSON.stringify(logData));
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -88,29 +80,23 @@ export function useSuperadmin(): UseSuperadminReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [user, isDev]);
+  }, [user, isDev, isLoading]);
 
   // Expose refresh function
   const refresh = useCallback(async () => {
     await checkSuperadmin();
   }, [checkSuperadmin]);
 
-  // Set up auth state monitoring
+  // Set up auth state monitoring - only check once when user changes
   useEffect(() => {
-    checkSuperadmin();
-  }, [checkSuperadmin]);
-
-  // Optional: Refetch on window focus
-  useEffect(() => {
-    const handleFocus = () => {
-      if (user && !isLoading) {
-        checkSuperadmin();
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [checkSuperadmin, user, isLoading]);
+    if (user) {
+      checkSuperadmin();
+    } else {
+      setIsSuperadmin(false);
+      setIsLoading(false);
+      setError(null);
+    }
+  }, [user?.id]); // Only trigger when user ID changes, not the whole user object
 
   const bootstrapSuperadmin = async (token: string): Promise<{ success: boolean; error?: string }> => {
     try {
