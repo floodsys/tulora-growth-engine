@@ -137,38 +137,65 @@ export default function AdminNotifications() {
       const token = await checkAuthentication()
       if (!token) return
 
-      if (!validateCrmConfig()) {
-        throw new Error("Please fill in all CRM configuration fields")
-      }
+      let response: Response
+      let methodUsed = 'POST'
 
-      // Call the function with proper JWT authentication (no params needed, uses env vars)
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/test-suitecrm-connection`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+      // Try POST first (new deployment) - no credentials needed, uses server env vars
+      try {
+        response = await fetch(`${SUPABASE_URL}/functions/v1/test-suitecrm-connection`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+          // No body - uses server-side environment variables only
+        })
+
+        // If we get 405 Method Not Allowed, retry with GET
+        if (response.status === 405) {
+          console.log('POST method not allowed, retrying with GET')
+          methodUsed = 'GET'
+          
+          response = await fetch(`${SUPABASE_URL}/functions/v1/test-suitecrm-connection`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
         }
-      })
+      } catch (error) {
+        // If POST fails completely, try GET as fallback
+        console.log('POST request failed, retrying with GET:', error)
+        methodUsed = 'GET'
+        
+        response = await fetch(`${SUPABASE_URL}/functions/v1/test-suitecrm-connection`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+      }
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`)
+        throw new Error(`HTTP ${response.status}: ${data.error || JSON.stringify(data)}`)
       }
 
       if (data?.success) {
         toast({
-          title: "CRM Connection Successful",
-          description: data.message || "SuiteCRM connection test passed",
+          title: "✅ SuiteCRM Connection Successful",
+          description: `Method: ${data.method_used || methodUsed} | Version: ${data.version || 'unknown'} | User: ${data.oauth_user || 'unknown'}`,
           variant: "default"
         })
       } else {
-        throw new Error(`Status ${response.status}: ${JSON.stringify(data)}`)
+        throw new Error(`Status ${response.status}: ${data.error || JSON.stringify(data)}`)
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
       toast({
-        title: "CRM Connection Failed",
-        description: error instanceof Error ? error.message : "Unknown error occurred",
+        title: "❌ SuiteCRM Connection Failed", 
+        description: errorMessage,
         variant: "destructive"
       })
     } finally {
