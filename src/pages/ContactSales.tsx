@@ -46,7 +46,7 @@ export default function ContactSales() {
   // Apply security headers for contact forms
   useContactFormSecurity();
 
-  // Verify runtime Supabase config and handle service workers
+  // Verify runtime Supabase config
   useEffect(() => {
     // Log Supabase config verification
     console.log('=== SUPABASE CONFIG VERIFICATION ===');
@@ -54,14 +54,12 @@ export default function ContactSales() {
     console.log('publicConfig.SUPABASE_ANON_KEY (masked):', SUPABASE_ANON ? `${SUPABASE_ANON.substring(0, 20)}...` : 'MISSING');
     console.log('supabase.functions.url:', SUPABASE_URL + '/functions/v1');
     
-    // Service worker guard - unregister if present and reload
+    // Additional SW check for debugging
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(registrations => {
+        console.log('[ContactSales] Current SW scopes after cleanup:', registrations.map(r => r.scope));
         if (registrations.length > 0) {
-          console.log('Service workers detected, unregistering and reloading...');
-          Promise.all(registrations.map(reg => reg.unregister())).then(() => {
-            window.location.reload();
-          });
+          console.warn('[ContactSales] SWs still active! This may cause form submission failures.');
         }
       });
     }
