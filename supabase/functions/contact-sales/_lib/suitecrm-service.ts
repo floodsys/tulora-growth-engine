@@ -77,6 +77,9 @@ export class SuiteCRMService {
         authPayload.password = this.config.password
       }
 
+      const scrubbed_endpoint = this.config.baseUrl.replace(/\/+$/, '') + '/Api/access_token'
+      console.log(`[CRM] authenticate ${scrubbed_endpoint}`)
+      
       const response = await fetch(`${this.config.baseUrl}/Api/access_token`, {
         method: 'POST',
         headers: {
@@ -84,6 +87,8 @@ export class SuiteCRMService {
         },
         body: JSON.stringify(authPayload)
       })
+
+      console.log(`[CRM] authenticate ${scrubbed_endpoint} -> ${response.status}`)
 
       if (!response.ok) {
         throw new Error(`Authentication failed: ${response.status} ${response.statusText}`)
@@ -243,15 +248,19 @@ export class SuiteCRMService {
    */
   async upsertLead(payload: SuiteCRMLeadPayload): Promise<{ success: boolean, leadId?: string, message: string }> {
     try {
+      console.log(`[CRM] upsert lead start`)
       // Check if lead already exists
       const existingLeadId = await this.findLeadByExternalId(payload.external_id_c)
       
       if (existingLeadId) {
         // Update existing lead
+        console.log(`[CRM] upsert lead update -> ${existingLeadId}`)
         const response = await this.apiRequest(`/module/Leads/${existingLeadId}`, {
           method: 'PATCH',
           body: JSON.stringify({ data: { attributes: payload } })
         })
+        
+        console.log(`[CRM] upsert lead update -> ${response.status}`)
         
         return {
           success: true,
@@ -260,6 +269,7 @@ export class SuiteCRMService {
         }
       } else {
         // Create new lead
+        console.log(`[CRM] upsert lead create`)
         const response = await this.apiRequest('/module/Leads', {
           method: 'POST',
           body: JSON.stringify({ data: { type: 'Leads', attributes: payload } })
@@ -268,6 +278,8 @@ export class SuiteCRMService {
         const data = await response.json()
         const newLeadId = data.data?.id
         
+        console.log(`[CRM] upsert lead create -> ${response.status} ${newLeadId ? `(${newLeadId})` : ''}`)
+        
         return {
           success: true,
           leadId: newLeadId,
@@ -275,9 +287,11 @@ export class SuiteCRMService {
         }
       }
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message.substring(0, 100) : 'unknown'
+      console.error(`[CRM] upsert lead -> error: ${errorMsg}`)
       return {
         success: false,
-        message: `Failed to sync lead: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: `Failed to sync lead: ${errorMsg}`
       }
     }
   }
@@ -330,15 +344,9 @@ function logSuiteCRMEnvStatus() {
   const authMode = Deno.env.get('SUITECRM_AUTH_MODE')
   const autoCreateFields = Deno.env.get('SUITECRM_AUTO_CREATE_FIELDS')
   
-  const present = []
-  if (baseUrl) present.push('base_url')
-  if (clientId) present.push('client_id')
-  if (clientSecret) present.push('client_secret')
-  if (authMode) present.push('auth_mode')
-  if (autoCreateFields) present.push('auto_create_fields')
+  // Log presence booleans only
+  console.log(`[CFG] suitecrm env: base_url=${!!baseUrl} client_id=${!!clientId} client_secret=${!!clientSecret} auth_mode=${!!authMode} auto_create_fields=${autoCreateFields === 'true'}`)
   
-  console.log(`[CFG] suitecrm env present: ${present.join(', ')}`)
-  console.log(`[CFG] suitecrm auto_create_fields: ${autoCreateFields === 'true' ? 'enabled' : 'disabled (default)'}`)
   return { baseUrl, clientId, clientSecret, authMode }
 }
 

@@ -124,7 +124,7 @@ async function testSuiteCRMConnection() {
       }
     }
 
-    console.log(`Testing SuiteCRM connection with ${auth_mode} mode to ${cleanBaseUrl}`)
+    console.log(`[CRM] authenticate ${cleanBaseUrl}/Api/access_token`)
 
     const response = await fetch(`${cleanBaseUrl}/Api/access_token`, {
       method: 'POST',
@@ -134,11 +134,13 @@ async function testSuiteCRMConnection() {
       body: JSON.stringify(authPayload)
     })
 
-    console.log(`Response status: ${response.status} ${response.statusText}`)
+    console.log(`[CRM] authenticate ${cleanBaseUrl}/Api/access_token -> ${response.status}`)
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error(`SuiteCRM auth failed: ${response.status} ${response.statusText}`)
+      // Scrub any potential secrets from error messages
+      const scrubbed_error = errorText.substring(0, 100).replace(/[a-zA-Z0-9+/=]{20,}/g, '[REDACTED]')
+      console.error(`[CRM] auth failed ${response.status}: ${scrubbed_error}`)
       
       // Provide sanitized error information (no secrets)
       let errorMessage = `OAuth failed: ${response.status} ${response.statusText}`
@@ -152,8 +154,7 @@ async function testSuiteCRMConnection() {
           }
         } catch {
           // If not JSON, include sanitized error text
-          const sanitized = errorText.substring(0, 100).replace(/[a-zA-Z0-9+/=]{20,}/g, '[REDACTED]')
-          errorMessage += ` - ${sanitized}`
+          errorMessage += ` - ${scrubbed_error}`
         }
       }
       
