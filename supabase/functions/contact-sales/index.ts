@@ -8,7 +8,7 @@ import { previewSuiteCRMPayload } from './_lib/suitecrm-mapping.ts'
 import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
-const VERSION = "2025-09-09-7" // Prompt 1 - Relaxed Enterprise validation
+const VERSION = "2025-09-09-8" // Prompt 2 - Enhanced normalization
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -195,22 +195,52 @@ function normalizePayload(payload: any): { payload: any; normalized: boolean } {
     trimmedPayload[trimmedKey] = trimmedValue;
   }
   
-  // Map "source metadata" → source_metadata
-  if (trimmedPayload['source metadata'] && !trimmedPayload['source_metadata']) {
-    trimmedPayload['source_metadata'] = trimmedPayload['source metadata'];
-    delete trimmedPayload['source metadata'];
+  // Field synonym mapping
+  const fieldMappings = {
+    'source metadata': 'source_metadata',
+    'expected_volume_label': 'expected_volume',
+    'productInterest': 'product_interest',
+    'notes': 'additional_requirements'
+  };
+  
+  // Apply field mappings
+  for (const [oldField, newField] of Object.entries(fieldMappings)) {
+    if (trimmedPayload[oldField] && !trimmedPayload[newField]) {
+      trimmedPayload[newField] = trimmedPayload[oldField];
+      delete trimmedPayload[oldField];
+      hasNormalized = true;
+    }
+  }
+  
+  // Special handling for notes → additional_requirements (append to message if both exist)
+  if (trimmedPayload.notes && trimmedPayload.message && trimmedPayload.additional_requirements) {
+    // If we have notes, message, and additional_requirements, append notes to message
+    trimmedPayload.message = `${trimmedPayload.message}\n\nAdditional notes: ${trimmedPayload.notes}`;
+    delete trimmedPayload.notes;
+    hasNormalized = true;
+  } else if (trimmedPayload.notes && trimmedPayload.message && !trimmedPayload.additional_requirements) {
+    // If we have notes and message but no additional_requirements, move notes to additional_requirements
+    trimmedPayload.additional_requirements = trimmedPayload.notes;
+    delete trimmedPayload.notes;
     hasNormalized = true;
   }
   
-  // Normalize inquiry_type
+  // Normalize inquiry_type with enhanced coercion
   if (trimmedPayload.inquiry_type) {
     const original = trimmedPayload.inquiry_type;
     let normalized_inquiry = original.toLowerCase().trim();
     
-    // Coerce common variations
-    if (normalized_inquiry.includes('enterprise') || normalized_inquiry.includes('business') || normalized_inquiry.includes('sales')) {
+    // Enhanced coercion for inquiry type
+    if (normalized_inquiry.includes('enterprise') || 
+        normalized_inquiry.includes('business') || 
+        normalized_inquiry.includes('sales') ||
+        normalized_inquiry.includes('commercial') ||
+        normalized_inquiry.includes('b2b')) {
       normalized_inquiry = 'enterprise';
-    } else if (normalized_inquiry.includes('contact') || normalized_inquiry === 'support') {
+    } else if (normalized_inquiry.includes('contact') || 
+               normalized_inquiry.includes('support') ||
+               normalized_inquiry.includes('general') ||
+               normalized_inquiry.includes('info')) {
       normalized_inquiry = 'contact';
     }
     
@@ -220,7 +250,7 @@ function normalizePayload(payload: any): { payload: any; normalized: boolean } {
     }
   }
   
-  // Log deprecation warning if normalization occurred
+  // Log deprecation warning if normalization occurred (no PII, no values)
   if (hasNormalized) {
     console.log('[DEPRECATION] Payload normalization applied. Please update forms to send properly formatted data.');
   }
