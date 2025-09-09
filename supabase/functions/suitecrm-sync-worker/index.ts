@@ -175,8 +175,10 @@ async function findLeadByExternalId(client: any, externalId: string): Promise<st
   }
 }
 
+export const VERSION = "2025-09-08-2"
+
 async function syncSingleLead(supabase: any, client: any, leadId: string): Promise<{ ok: boolean, mode: string, error?: string, status?: number }> {
-  const version = "2025-09-08-1"
+  const version = VERSION
   const mode = client.getMode()
 
   try {
@@ -456,7 +458,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         message: `Processed ${result.processed} entries, ${result.errors} errors`,
-        version: "2025-09-08-1",
+        version: VERSION,
         ...result
       }),
       { 
@@ -470,7 +472,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown worker error',
-        version: "2025-09-08-1"
+        version: VERSION
       }),
       { 
         status: 500, 

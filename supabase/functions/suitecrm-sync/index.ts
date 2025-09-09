@@ -170,12 +170,14 @@ async function findLeadByExternalId(client: any, externalId: string): Promise<st
   }
 }
 
+export const VERSION = "2025-09-08-2"
+
 async function syncLeadToSuiteCRM(leadId: string) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
-  const version = "2025-09-08-1"
+  const version = VERSION
 
   try {
     // Get shared SuiteCRM client

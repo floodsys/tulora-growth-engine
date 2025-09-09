@@ -6,8 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+export const VERSION = "2025-09-08-2"
+
 async function testSuiteCRMHealth() {
-  const version = "2025-09-08-1";
+  const version = VERSION;
   
   try {
     const client = getSuiteCRMClient();
@@ -79,7 +81,7 @@ serve(async (req) => {
       JSON.stringify({ 
         ok: false, 
         error: 'Method not allowed. Use GET only.',
-        version: "2025-09-08-1"
+        version: VERSION
       }),
       { 
         status: 405, 
@@ -109,7 +111,7 @@ serve(async (req) => {
         mode: "client_credentials",
         error: 'Request processing failed',
         hint: "Check SUITECRM_BASE_URL, SUITECRM_CLIENT_ID, SUITECRM_CLIENT_SECRET",
-        version: "2025-09-08-1"
+        version: VERSION
       }),
       { 
         status: 400, 
