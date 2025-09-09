@@ -51,11 +51,15 @@ const preflightHeaders = {
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'))
 
 // Helper function to create response with consistent headers
-const createResponse = (data: any, status = 200, requestOrigin: string | null = null) => {
+const createResponse = (data: any, status = 200, requestOrigin: string | null = null, crmStatus?: string) => {
   const headers = { 
     ...getOriginSpecificHeaders(requestOrigin), 
     'Content-Type': 'application/json' 
   };
+  
+  if (crmStatus) {
+    headers['X-CRM-Status'] = crmStatus;
+  }
   
   return new Response(JSON.stringify(data), {
     status,
