@@ -50,10 +50,13 @@ const TalkToUs = () => {
     e.preventDefault();
     
     // ============= DEBUGGING INFO =============
-    console.log('🔍 Runtime env values:');
-    console.log('SUPABASE_URL:', SUPABASE_URL || 'undefined');
-    console.log('SUPABASE_ANON_KEY:', (SUPABASE_ANON || 'undefined').slice(0, 20) + '...(masked)');
-    console.log('CONTACT_SALES_FN:', CONTACT_SALES_FN);
+    console.log('🔍 TalkToUs - Runtime env values:');
+    console.log('  SUPABASE_URL:', SUPABASE_URL || 'undefined');
+    console.log('  SUPABASE_ANON_KEY:', (SUPABASE_ANON || 'undefined').slice(0, 20) + '...(masked)');
+    console.log('  CONTACT_SALES_FN:', CONTACT_SALES_FN);
+    console.log('  supabase.functions.url:', (supabase as any)?.functions?.url || (supabase as any)?.functions?.restUrl || 'not found');
+    console.log('  Client import:', 'src/integrations/supabase/client.ts');
+    console.log('  Constants import:', '@/lib/constants');
     
     // Anti-spam: Check honeypot field
     if (formData.website) {
@@ -149,15 +152,14 @@ const TalkToUs = () => {
         });
       }
     } catch (error: any) {
-      console.error('🔍 Full error object:', {
-        message: error.message,
-        name: error.name,
-        stack: error.stack,
-        cause: error.cause,
-        response: error.response,
-        causeResponse: error.cause?.response,
-        fullError: error
-      });
+      console.error('💥 TalkToUs - Full error object:');
+      console.error('  message:', error?.message || 'No message');
+      console.error('  name:', error?.name || 'No name');
+      console.error('  stack:', error?.stack || 'No stack');
+      console.error('  cause:', error?.cause || 'No cause');
+      console.error('  error.response:', error?.response || 'No response');
+      console.error('  error.cause.response:', error?.cause?.response || 'No cause.response');
+      console.error('  Full error:', error);
       setSubmitError(error);
     } finally {
       setIsSubmitting(false);
