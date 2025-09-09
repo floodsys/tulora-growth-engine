@@ -342,14 +342,14 @@ export default function AdminNotifications() {
       if (connectionResult.status === 'success') {
         try {
           const testLead = {
-            name: "E2E Test Lead",
+            inquiry_type: "enterprise",
+            full_name: "E2E Test Lead",
             email: "e2e-test@example.com",
             company: "E2E Test Company",
             phone: "+1234567890",
-            message: "This is an automated E2E test lead",
+            message: "CRM E2E test - automated test lead",
             source: "admin_e2e_test",
-            leads_id: `e2e-test-${Date.now()}`,
-            metadata: {
+            source_metadata: {
               test_lead: true,
               e2e_test: true,
               created_by: "admin_e2e_panel"
@@ -379,6 +379,16 @@ export default function AdminNotifications() {
             const statusInfo = `Status ${response.status}`
             const errorMsg = data.error || 'Lead creation failed'
             const endpoint = data.endpoint ? ` (${data.endpoint})` : ''
+            
+            // Show detailed error for validation issues (422)
+            if (response.status === 422 && data.details) {
+              console.error('Validation error details:', data.details)
+              toast({
+                title: "❌ Invalid Payload",
+                description: `${errorMsg}. Check console for details.`,
+                variant: "destructive"
+              })
+            }
             
             leadResult = {
               status: 'error',
