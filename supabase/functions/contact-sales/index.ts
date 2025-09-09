@@ -171,6 +171,61 @@ const mapVolumeToCode = (volumeLabel: string): string => {
   return mapping[volumeLabel] || '';
 }
 
+// Field validation and legacy mapping
+function validateAndNormalizePayload(payload: any): { valid: boolean; errors: string[]; normalized?: ContactFormRequest } {
+  const errors: string[] = []
+  const normalized = { ...payload }
+  
+  // Define allowed fields
+  const allowedFields = new Set([
+    'inquiry_type', 'full_name', 'name', 'email', 'phone', 'company', 'message',
+    'product_line', 'product_interest', 'expected_volume', 'expected_volume_label',
+    'notes', 'additional_requirements', 'accept_privacy', 'marketing_opt_in',
+    'turnstile_token', 'leads_id', 'leadid' // leadid for legacy compatibility
+  ])
+  
+  // Check for unknown fields
+  const unknownFields = Object.keys(payload).filter(key => !allowedFields.has(key))
+  if (unknownFields.length > 0) {
+    errors.push(`Unknown fields: ${unknownFields.join(', ')}`)
+  }
+  
+  // Handle leads_id / leadid field mapping
+  const acceptLegacy = Deno.env.get('FORMS_ACCEPT_LEGACY_LEADID') !== 'false' // default true
+  
+  if (payload.leads_id && payload.leadid) {
+    errors.push('Cannot specify both leads_id and leadid (legacy). Use leads_id only.')
+  } else if (payload.leadid && !payload.leads_id) {
+    if (acceptLegacy) {
+      console.log(`[DEPRECATION] Field 'leadid' is deprecated, use 'leads_id' instead. Legacy support will be removed in future versions.`)
+      normalized.leads_id = payload.leadid
+      delete normalized.leadid
+    } else {
+      errors.push('Field leadid is deprecated. Use leads_id instead.')
+    }
+  }
+  
+  // Required field validation
+  if (!payload.email || typeof payload.email !== 'string') {
+    errors.push('email is required and must be a string')
+  }
+  
+  if (!payload.inquiry_type || !['contact', 'enterprise'].includes(payload.inquiry_type)) {
+    errors.push('inquiry_type is required and must be either "contact" or "enterprise"')
+  }
+  
+  const fullName = normalized.full_name || normalized.name
+  if (!fullName || typeof fullName !== 'string') {
+    errors.push('full_name (or name) is required and must be a string')
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors,
+    normalized: errors.length === 0 ? normalized : undefined
+  }
+}
+
 const validatePayload = (data: ContactFormRequest): ValidationError[] => {
   const errors: ValidationError[] = [];
   
@@ -322,7 +377,35 @@ serve(async (req) => {
     )
 
     // Parse and validate request data
-    const requestData: ContactFormRequest = await req.json()
+    let requestData: ContactFormRequest
+    try {
+      requestData = await req.json()
+    } catch (error) {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Invalid JSON payload',
+        version: VERSION
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
+
+    // Validate and normalize payload (handle legacy fields and unknown fields)
+    const validation = validateAndNormalizePayload(requestData)
+    if (!validation.valid) {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Invalid payload',
+        details: validation.errors,
+        version: VERSION
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 422, // Unprocessable Entity
+      })
+    }
+    
+    requestData = validation.normalized!
     logStep('Request received', undefined, 'parsing')
 
     // Anti-spam: Check honeypot field
@@ -368,16 +451,20 @@ serve(async (req) => {
     
     logStep('Turnstile verification skipped for testing', undefined, 'bypass');
 
-    // Validate payload
+    // Validate payload with inquiry type specific rules
     const validationErrors = validatePayload(requestData)
     if (validationErrors.length > 0) {
       logStep('Validation failed', undefined, 'error')
       return new Response(JSON.stringify({ 
         success: false,
         error: 'Validation failed',
-        errors: validationErrors
+        details: validationErrors,
+        version: VERSION
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 422, // Unprocessable Entity
+      })
+    }
         status: 400,
       })
     }
