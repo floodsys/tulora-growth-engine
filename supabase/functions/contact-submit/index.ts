@@ -130,7 +130,6 @@ const validateEmail = (email: string): boolean => {
   return emailRegex.test(email);
 }
 
-
 const mapProductInterestToLine = (productInterest: string): string => {
   const mapping: Record<string, string> = {
     'AI Lead Generation': 'leadgen',
@@ -156,7 +155,7 @@ const validatePayload = (data: ContactFormRequest): ValidationError[] => {
   const errors: ValidationError[] = [];
   
   // Determine inquiry type
-  const inquiryType = data.inquiry_type || (data.product_interest || data.product_line ? 'enterprise' : 'contact');
+  const inquiryType = data.inquiry_type || 'contact';
   
   // Get full_name from either field
   const fullName = trimField(data.full_name || data.name);
@@ -164,9 +163,6 @@ const validatePayload = (data: ContactFormRequest): ValidationError[] => {
   const phone = trimField(data.phone);
   const company = trimField(data.company);
   const message = trimField(data.message);
-  const productInterest = trimField(data.product_interest);
-  const expectedVolumeLabel = trimField(data.expected_volume_label || data.expected_volume);
-  const additionalRequirements = trimField(data.additional_requirements || data.notes);
 
   // Validate common required fields
   if (!fullName) {
@@ -179,7 +175,7 @@ const validatePayload = (data: ContactFormRequest): ValidationError[] => {
     errors.push({ field: 'email', message: 'Email must be a valid email address' });
   }
 
-  // Validate based on inquiry type
+  // Validate for contact inquiries
   if (inquiryType === 'contact') {
     if (!phone) {
       errors.push({ field: 'phone', message: 'Phone number is required for contact inquiries' });
@@ -189,29 +185,6 @@ const validatePayload = (data: ContactFormRequest): ValidationError[] => {
     }
     if (!message) {
       errors.push({ field: 'message', message: 'Message is required for contact inquiries' });
-    }
-  } else if (inquiryType === 'enterprise') {
-    if (!company) {
-      errors.push({ field: 'company', message: 'Company name is required for enterprise inquiries' });
-    }
-    if (!productInterest) {
-      errors.push({ field: 'product_interest', message: 'Product interest is required for enterprise inquiries' });
-    }
-    if (!expectedVolumeLabel) {
-      errors.push({ field: 'expected_volume_label', message: 'Expected volume is required for enterprise inquiries' });
-    }
-    if (!additionalRequirements) {
-      errors.push({ field: 'additional_requirements', message: 'Additional requirements are required for enterprise inquiries' });
-    }
-    
-    // Validate product interest mapping
-    if (productInterest && !['AI Lead Generation', 'AI Customer Service', 'leadgen', 'support'].includes(productInterest)) {
-      errors.push({ field: 'product_interest', message: 'Product interest must be "AI Lead Generation" or "AI Customer Service"' });
-    }
-    
-    // Validate expected volume mapping
-    if (expectedVolumeLabel && !mapVolumeToCode(expectedVolumeLabel)) {
-      errors.push({ field: 'expected_volume_label', message: 'Expected volume must be one of the predefined options' });
     }
   }
 
@@ -273,14 +246,14 @@ serve(async (req) => {
         { status:405, headers:{ ...CORS, "Content-Type":"application/json" }});
     }
 
-    // Read/validate body (keep existing logic exactly)
     // Verify Turnstile for public browser requests first
     const turnstileResult = await requireTurnstileIfPublic(req);
     if (!turnstileResult.ok) {
       return new Response(JSON.stringify({
         ok: false,
         error: "Please complete the security verification to submit your request.",
-        code: turnstileResult.code
+        code: turnstileResult.code,
+        version: VERSION
       }), {
         status: 403,
         headers: { ...CORS, 'Content-Type': 'application/json' }
@@ -301,7 +274,8 @@ serve(async (req) => {
       return new Response(JSON.stringify({ 
         ok: false,
         error: 'Too many requests. Please wait before submitting again.',
-        retry_after: 60
+        retry_after: 60,
+        version: VERSION
       }), {
         headers: { ...CORS, 'Content-Type': 'application/json' },
         status: 429,
@@ -328,7 +302,8 @@ serve(async (req) => {
       // Silent fail for bot submissions - return success to avoid revealing the honeypot
       return new Response(JSON.stringify({ 
         ok: true,
-        message: 'Thank you for your submission'
+        message: 'Thank you for your submission',
+        version: VERSION
       }), {
         headers: { ...CORS, 'Content-Type': 'application/json' }
       });
@@ -341,7 +316,8 @@ serve(async (req) => {
       return new Response(JSON.stringify({ 
         ok: false,
         error: 'Validation failed',
-        errors: validationErrors
+        errors: validationErrors,
+        version: VERSION
       }), {
         headers: { ...CORS, 'Content-Type': 'application/json' },
         status: 400,
@@ -349,13 +325,11 @@ serve(async (req) => {
     }
 
     // Determine inquiry type
-    const inquiryType = requestData.inquiry_type || (requestData.product_interest || requestData.product_line ? 'enterprise' : 'contact');
+    const inquiryType = requestData.inquiry_type || 'contact';
     
     // Normalize and prepare data
     const fullName = normalizeFullName(trimField(requestData.full_name || requestData.name));
     const email = trimField(requestData.email).toLowerCase();
-    const productInterest = trimField(requestData.product_interest);
-    const expectedVolumeLabel = trimField(requestData.expected_volume_label || requestData.expected_volume);
     
     // Extract tracking data
     const trackingData = extractTrackingData(req);
@@ -379,14 +353,9 @@ serve(async (req) => {
       inquiry_type: inquiryType as 'contact' | 'enterprise',
       full_name: fullName,
       email: email,
-      phone: inquiryType === 'contact' ? trimField(requestData.phone) : undefined,
+      phone: trimField(requestData.phone),
       company: trimField(requestData.company),
-      message: inquiryType === 'contact' ? trimField(requestData.message) : undefined,
-      product_interest: inquiryType === 'enterprise' ? productInterest : undefined,
-      product_line: inquiryType === 'enterprise' ? mapProductInterestToLine(productInterest) : undefined,
-      additional_requirements: inquiryType === 'enterprise' ? trimField(requestData.additional_requirements || requestData.notes) : undefined,
-      expected_volume_label: inquiryType === 'enterprise' ? expectedVolumeLabel : undefined,
-      expected_volume_value: inquiryType === 'enterprise' ? mapVolumeToCode(expectedVolumeLabel) : undefined,
+      message: trimField(requestData.message),
       accept_privacy: requestData.accept_privacy ?? true,
       marketing_opt_in: requestData.marketing_opt_in ?? false,
       
@@ -395,8 +364,7 @@ serve(async (req) => {
       
       // Legacy compatibility fields
       name: fullName,
-      notes: inquiryType === 'enterprise' ? trimField(requestData.additional_requirements || requestData.notes) : trimField(requestData.message),
-      legacy_expected_volume: expectedVolumeLabel,
+      notes: trimField(requestData.message),
     };
 
     logStep('Data normalized', undefined, 'ready')
@@ -414,7 +382,8 @@ serve(async (req) => {
       return new Response(JSON.stringify({ 
         ok: false,
         error: 'Failed to save submission',
-        details: leadError.message
+        details: leadError.message,
+        version: VERSION
       }), {
         headers: { ...CORS, 'Content-Type': 'application/json' },
         status: 500,
@@ -436,13 +405,9 @@ serve(async (req) => {
         email1: leadData.email,
         phone_work: leadData.phone,
         account_name: leadData.company,
-        lead_source: leadData.inquiry_type === 'contact' ? 'Website - Contact Us' : 'Website - Enterprise Sales',
-        description: leadData.inquiry_type === 'contact' ? leadData.message : leadData.additional_requirements,
-        product_line_c: leadData.product_line,
-        product_interest_c: leadData.product_interest,
+        lead_source: 'Website - Contact Us',
+        description: leadData.message,
         inquiry_type_c: leadData.inquiry_type,
-        expected_volume_c: leadData.expected_volume_label,
-        expected_volume_code_c: leadData.expected_volume_value,
         utm_source_c: leadData.utm_source,
         utm_medium_c: leadData.utm_medium,
         utm_campaign_c: leadData.utm_campaign,
@@ -477,52 +442,18 @@ serve(async (req) => {
 
     console.info("lead.pipeline", { stage: "submit", crm_ok, status: crm_status });
 
-    // Send notifications via email (no Slack integration)
+    // Send notifications via email (don't block on failure)
     const resend = new Resend(resendKey)
     
     // Get configurable email addresses
-    const salesInbox = Deno.env.get('SALES_INBOX') || 'sales@tulora.io'
     const helloInbox = Deno.env.get('HELLO_INBOX') || 'hello@tulora.io'
-    const enterpriseInbox = Deno.env.get('ENTERPRISE_INBOX') || 'sales@tulora.io'
     const notificationsFrom = Deno.env.get('NOTIFICATIONS_FROM') || 'notifications@tulora.io'
     
-    // Determine recipient based on inquiry type and product line
-    let recipient = inquiryType === 'contact' ? helloInbox : enterpriseInbox
-    const ccRecipients: string[] = []
-    
-    // CC sales for leadgen products
-    if (leadData.product_line === 'leadgen' && recipient !== salesInbox) {
-      ccRecipients.push(salesInbox)
-    }
-    
-    // Subject pattern: [Tulora Lead] ${inquiry_type} • ${product_line} • ${company || '(no company)'}
+    // Subject pattern: [Tulora Lead] contact • ${company || '(no company)'}
     const companyText = leadData.company || '(no company)'
-    const productLineText = leadData.product_line || inquiryType
-    const emailSubject = `[Tulora Lead] ${inquiryType} • ${productLineText} • ${companyText}`
+    const emailSubject = `[Tulora Lead] contact • ${companyText}`
 
-    const emailHtml = inquiryType === 'enterprise' ? `
-      <h2>New Enterprise Sales Inquiry</h2>
-      <p>A new enterprise prospect has submitted a contact request:</p>
-      
-      <h3>Contact Information</h3>
-      <ul>
-        <li><strong>Name:</strong> ${leadData.full_name}</li>
-        <li><strong>Email:</strong> ${leadData.email}</li>
-        <li><strong>Company:</strong> ${leadData.company}</li>
-      </ul>
-      
-      <h3>Interest Details</h3>
-      <ul>
-        <li><strong>Product Interest:</strong> ${leadData.product_interest}</li>
-        <li><strong>Expected Volume:</strong> ${leadData.expected_volume_label}</li>
-        <li><strong>Volume Code:</strong> ${leadData.expected_volume_value}</li>
-      </ul>
-      
-      <h3>Requirements</h3>
-      <p>${leadData.additional_requirements}</p>
-      
-      <p><strong>Lead ID:</strong> ${savedLead.id}</p>
-    ` : `
+    const emailHtml = `
       <h2>New Contact Inquiry</h2>
       <p>A new contact inquiry has been submitted:</p>
       
@@ -545,7 +476,7 @@ serve(async (req) => {
       <h2>Thank you for contacting Tulora</h2>
       <p>Hi ${leadData.full_name},</p>
       
-      <p>Thank you for your interest in Tulora's AI solutions. We've received your ${inquiryType} inquiry and will respond within 24 hours.</p>
+      <p>Thank you for contacting us. We've received your inquiry and will respond within 24 hours.</p>
       
       <p>In the meantime, you can:</p>
       <ul>
@@ -556,120 +487,39 @@ serve(async (req) => {
       <p>Best regards,<br>The Tulora Team</p>
     `
 
-    // Initialize email message IDs array and delivery status
-    const emailMessageIds: string[] = []
-    let deliveryStatus = 'pending'
-
-    // Send notification to sales team (don't block on failure)
+    // Send notification and confirmation emails (try/catch, don't fail the request)
     try {
-      const emailOptions: any = {
+      await resend.emails.send({
         from: notificationsFrom,
-        to: [recipient],
+        to: [helloInbox],
         subject: emailSubject,
         html: emailHtml,
         reply_to: leadData.email
-      }
-      
-      if (ccRecipients.length > 0) {
-        emailOptions.cc = ccRecipients
-      }
-
-      const { data: emailData, error: emailError } = await resend.emails.send(emailOptions)
-
-      if (emailError) {
-        logStep('Sales notification email failed', savedLead.id, 'error')
-        console.error('Failed to send sales notification email:', emailError)
-        deliveryStatus = 'failed'
-      } else {
-        logStep('Sales notification email sent', savedLead.id, 'success')
-        if (emailData?.id) {
-          emailMessageIds.push(emailData.id)
-        }
-      }
+      })
+      logStep('Sales notification email sent', savedLead.id, 'success')
     } catch (error) {
       logStep('Sales notification email error', savedLead.id, 'error')
       console.error('Sales notification email error:', error)
-      deliveryStatus = 'failed'
     }
 
-    // Send confirmation email to prospect (don't block on failure)
     try {
-      const { data: confirmationData, error: confirmationError } = await resend.emails.send({
+      await resend.emails.send({
         from: notificationsFrom,
         to: [leadData.email],
         subject: `Thank you for contacting Tulora`,
         html: confirmationHtml
       })
-
-      if (confirmationError) {
-        logStep('Confirmation email failed', savedLead.id, 'error')
-        console.error('Failed to send confirmation email:', confirmationError)
-        if (deliveryStatus !== 'failed') {
-          deliveryStatus = 'partial'
-        }
-      } else {
-        logStep('Confirmation email sent', savedLead.id, 'success')
-        if (confirmationData?.id) {
-          emailMessageIds.push(confirmationData.id)
-        }
-        if (deliveryStatus === 'pending') {
-          deliveryStatus = 'sent'
-        }
-      }
+      logStep('Confirmation email sent', savedLead.id, 'success')
     } catch (error) {
       logStep('Confirmation email error', savedLead.id, 'error')
       console.error('Confirmation email error:', error)
-      if (deliveryStatus !== 'failed') {
-        deliveryStatus = 'partial'
-      }
-    }
-
-    // Update lead with delivery status and message IDs (don't fail if this fails)
-    try {
-      await supabase
-        .from('leads')
-        .update({
-          delivery_status: deliveryStatus,
-          email_message_ids: emailMessageIds
-        })
-        .eq('id', savedLead.id)
-      
-      logStep('Lead delivery status updated', savedLead.id, deliveryStatus)
-    } catch (error) {
-      logStep('Failed to update delivery status', savedLead.id, 'error')
-      console.error('Failed to update lead delivery status:', error)
-      // Don't fail the whole request if status update fails
-    }
-
-    // Prepare response with conditional admin debug info
-    const isAdminRequest = req.headers.get("x-admin-request") === "1"
-    const response: any = { 
-      ok: true,
-      version: VERSION,
-      leadId: savedLead.id,
-      inquiry_type: savedLead.inquiry_type,
-      delivery_status: deliveryStatus,
-      emails_sent: emailMessageIds.length,
-      message: 'Submission received successfully'
-    }
-
-    // Add admin debug info if requested
-    if (isAdminRequest) {
-      response.crm_ok = crm_ok
-      response.crm_status = crm_status
-      response.crm_error = crm_error
-      response.crm_id = crm_id
     }
 
     return new Response(JSON.stringify({ ok:true, version: VERSION }),
       { status:200, headers:{ ...CORS, "Content-Type":"application/json" }});
 
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    logStep('Unexpected error', undefined, 'error')
-    console.error('Contact submission error:', errorMessage)
-    
-    return new Response(JSON.stringify({ ok:false, error: (error as Error).message || "unexpected_error", version: VERSION }),
+  } catch (e) {
+    return new Response(JSON.stringify({ ok:false, error: (e as Error).message || "unexpected_error", version: VERSION }),
       { status:500, headers:{ ...CORS, "Content-Type":"application/json" }});
   }
 });
