@@ -7,6 +7,7 @@ import { createSuiteCRMService } from './_lib/suitecrm-service.ts'
 import { previewSuiteCRMPayload } from './_lib/suitecrm-mapping.ts'
 import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
+import { requireTurnstileIfPublic } from '../_shared/turnstile.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -119,34 +120,6 @@ const validateEmail = (email: string): boolean => {
   return emailRegex.test(email);
 }
 
-const verifyTurnstileToken = async (token: string, remoteIP?: string): Promise<boolean> => {
-  const secretKey = Deno.env.get('CLOUDFLARE_TURNSTILE_SECRET_KEY');
-  
-  if (!secretKey) {
-    console.warn('Turnstile secret key not configured');
-    return false;
-  }
-
-  try {
-    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        secret: secretKey,
-        response: token,
-        ...(remoteIP && { remoteip: remoteIP })
-      }),
-    });
-
-    const result = await response.json();
-    return result.success === true;
-  } catch (error) {
-    console.error('Turnstile verification error:', error);
-    return false;
-  }
-}
 
 const mapProductInterestToLine = (productInterest: string): string => {
   const mapping: Record<string, string> = {
@@ -288,6 +261,19 @@ serve(async (req) => {
   }
 
   try {
+    // Verify Turnstile for public browser requests first
+    const turnstileResult = await requireTurnstileIfPublic(req);
+    if (!turnstileResult.ok) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Please complete the security verification to submit your request.",
+        code: turnstileResult.code
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     const clientIP = req.headers.get('CF-Connecting-IP') || 
                      req.headers.get('X-Forwarded-For') || 
                      req.headers.get('X-Real-IP') || 
@@ -334,37 +320,6 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-
-    // Turnstile verification temporarily disabled for testing
-    // if (requestData.turnstile_token) {
-    //   const clientIP = req.headers.get('CF-Connecting-IP') || req.headers.get('X-Forwarded-For') || 'unknown';
-    //   const turnstileValid = await verifyTurnstileToken(requestData.turnstile_token, clientIP);
-    //   
-    //   if (!turnstileValid) {
-    //     logStep('Turnstile verification failed', undefined, 'blocked');
-    //     return new Response(JSON.stringify({
-    //       success: false,
-    //       error: 'Security verification failed. Please try again.'
-    //     }), {
-    //       status: 400,
-    //       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    //     });
-    //   }
-    //   
-    //   logStep('Turnstile verification passed', undefined, 'verified');
-    // } else {
-    //   // If no Turnstile token provided, return error
-    //   logStep('No Turnstile token provided', undefined, 'blocked');
-    //   return new Response(JSON.stringify({
-    //     success: false,
-    //     error: 'Security verification required. Please complete the verification.'
-    //   }), {
-    //     status: 400,
-    //     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    //   });
-    // }
-    
-    logStep('Turnstile verification skipped for testing', undefined, 'bypass');
 
     // Validate payload
     const validationErrors = validatePayload(requestData)
