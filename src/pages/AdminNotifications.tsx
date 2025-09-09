@@ -512,21 +512,26 @@ export default function AdminNotifications() {
           }
         });
 
-        // Check response data
+        // Check response data and headers
+        const headers = error?.headers || {}; // Function response headers
+        const xFunction = headers['x-function'] || 'unknown';
+        const xVersion = headers['x-version'] || 'unknown';
+        const xCrmStatus = headers['x-crm-status'] || 'unknown';
+        
         if (!error && data?.success === true) {
           contactResult = {
             status: 'success',
-            message: `Contact form sent successfully`,
+            message: `Contact form sent successfully (${xFunction} v${xVersion}, CRM: ${xCrmStatus})`,
             crm_reference: data.crm_sync?.leadId || data.leadId || 'Created'
           }
         } else {
-          // Surface error clearly
+          // Surface error clearly with headers
           const errorMsg = error?.message || data?.error || 'Contact form creation failed'
           const endpoint = data?.endpoint ? ` (${data.endpoint})` : ''
           
           contactResult = {
             status: 'error',
-            message: `${errorMsg}${endpoint}`,
+            message: `${errorMsg}${endpoint} [${xFunction} v${xVersion}, CRM: ${xCrmStatus}]`,
             crm_reference: data?.leadId || ''
           }
         }
@@ -563,17 +568,23 @@ export default function AdminNotifications() {
           }
         });
 
-        // Check response data
+        // Check response data and headers
+        const headers = error?.headers || {}; // Function response headers
+        const xFunction = headers['x-function'] || 'unknown';
+        const xVersion = headers['x-version'] || 'unknown';
+        const xCrmStatus = headers['x-crm-status'] || 'unknown';
+        
         if (!error && data?.success === true) {
           enterpriseResult = {
             status: 'success',
-            message: `Enterprise form sent successfully`,
+            message: `Enterprise form sent successfully (${xFunction} v${xVersion}, CRM: ${xCrmStatus})`,
             crm_reference: data.crm_sync?.leadId || data.leadId || 'Created'
           }
         } else {
-          // Surface error clearly, especially for CRM failures
+          // Surface error clearly, especially for CRM failures, with headers
           const errorMsg = error?.message || data?.error || 'Enterprise form creation failed'
           const endpoint = data?.endpoint ? ` (${data.endpoint})` : ''
+          const headerInfo = `[${xFunction} v${xVersion}, CRM: ${xCrmStatus}]`;
           
           // Show detailed error for validation issues (422)
           if (data?.status === 422 && data.details) {
@@ -583,7 +594,7 @@ export default function AdminNotifications() {
             const validationError = {
               status: 422,
               details: data.details,
-              message: `${errorMsg}${endpoint}`
+              message: `${errorMsg}${endpoint} ${headerInfo}`
             };
             
             toast({
@@ -594,14 +605,14 @@ export default function AdminNotifications() {
           } else {
             toast({
               title: "❌ Enterprise Test Failed",
-              description: `${errorMsg}${endpoint}`,
+              description: `${errorMsg}${endpoint} ${headerInfo}`,
               variant: "destructive"
             })
           }
           
           enterpriseResult = {
             status: 'error',
-            message: `${errorMsg}${endpoint}`,
+            message: `${errorMsg}${endpoint} ${headerInfo}`,
             crm_reference: data?.leadId || ''
           }
         }

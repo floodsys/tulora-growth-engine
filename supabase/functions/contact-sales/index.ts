@@ -7,7 +7,7 @@ import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
 // Version and function info
-const VERSION = "2025-09-09-v8-production";
+const VERSION = "2025-09-09-v8-production-idempotent";
 const FUNCTION_NAME = "contact-sales";
 const IS_PRODUCTION = Deno.env.get('ENVIRONMENT') === 'prod' || Deno.env.get('NODE_ENV') === 'production';
 
@@ -361,6 +361,9 @@ async function syncLeadToSuiteCRM(lead: LeadData, config: any): Promise<SuiteCRM
       success: false,
       message: 'CRM sync failed',
       error: errorMsg,
+      // Always log payload keys for monitoring (no PII)
+      payload_keys: Object.keys(payload),
+      endpoint: endpoint || 'unknown',
       ...(IS_PRODUCTION ? {} : {
         debug: {
           endpoint,
@@ -767,10 +770,16 @@ serve(async (req) => {
       }
     }
 
-    // Insert lead into database with proper field mapping (using regular insert, not upsert)
+    // Create stable external ID for idempotency (email + date + inquiry type for unique daily entries)
+    const stableId = `${leadData.email}-${new Date().toISOString().split('T')[0]}-${leadData.inquiry_type}`;
+    
+    // Upsert lead into database with proper field mapping using stable external ID for idempotency
     const { data: leadRecord, error: insertError } = await supabase
       .from('leads')
-      .insert({
+      .upsert({
+        // Use stable external ID for idempotency to prevent duplicates on retries
+        external_id: stableId,
+        
         // Map required NOT NULL fields
         name: leadData.full_name, // Map full_name → name (NOT NULL)
         email: leadData.email, // Map email → email (NOT NULL)
@@ -809,6 +818,9 @@ serve(async (req) => {
         organization_id: organizationId,
         crm_sync_status: organizationId ? 'pending' : 'not_applicable',
         email_status: 'pending'
+      }, { 
+        onConflict: 'external_id',
+        ignoreDuplicates: false 
       })
       .select()
       .single();
@@ -978,10 +990,16 @@ serve(async (req) => {
       }
     });
 
+    // Log successful completion for monitoring (payload keys only, no PII)
+    console.log(`[MONITORING] Lead processed successfully: status=200, crm_status=${syncResult?.success ? 'success' : syncResult ? 'failed' : 'skipped'}, payload_keys=[${Object.keys(data).join(', ')}], endpoint=${crmBase || 'none'}`);
+
     return createResponse(successResponse, 200, origin, crmStatus, crmBase, crmMode);
 
   } catch (error) {
     console.error('[ERROR] Contact sales submission failed:', error);
+    
+    // Log error for monitoring (no PII)
+    console.log(`[MONITORING] Lead processing failed: status=500, error_type=${error.constructor.name}, function=contact-sales`);
     
     const errorResponse = {
       success: false,
