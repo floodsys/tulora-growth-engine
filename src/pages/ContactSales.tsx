@@ -328,14 +328,15 @@ export default function ContactSales() {
                 </div>
 
                 <div>
-                  <Label htmlFor="additional_requirements">Additional Requirements {requireEnterpriseExtras ? '*' : '(Optional)'}</Label>
+                  <Label htmlFor="additional_requirements">Message *</Label>
                   <Textarea
                     id="additional_requirements"
                     value={formData.additional_requirements}
                     onChange={(e) => handleInputChange('additional_requirements', e.target.value)}
-                    placeholder="Tell us about your specific needs, compliance requirements, integration needs, or any other details..."
+                    placeholder="Describe your requirements, goals, or any specific questions..."
                     rows={4}
                     className="resize-none"
+                    required
                   />
                 </div>
 
@@ -372,10 +373,10 @@ export default function ContactSales() {
                       !formData.name || 
                       !formData.email || 
                       !formData.company ||
+                      !formData.additional_requirements ||
                       (requireEnterpriseExtras && (
                         formData.product_interest.length === 0 ||
-                        !formData.expected_volume ||
-                        !formData.additional_requirements
+                        !formData.expected_volume
                       ))
                     }
                     className="flex-1"
