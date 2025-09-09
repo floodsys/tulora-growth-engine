@@ -479,94 +479,136 @@ export default function AdminNotifications() {
         overall: connectionResult.status === 'success' ? 'pending' : 'error'
       } : null)
 
-      // Step 2: Send Test Lead (only if connection succeeded)
-      let leadResult: { status: 'pending' | 'success' | 'error', message: string, crm_reference: string } = { 
+      // Step 2: Send Contact Test (always run independently)
+      let contactResult: { status: 'pending' | 'success' | 'error', message: string, crm_reference: string } = { 
         status: 'pending', 
         message: '', 
         crm_reference: '' 
       }
-      if (connectionResult.status === 'success') {
-        try {
-          // Build canonical payload for E2E test - minimal required keys only
-          const payload = buildContactPayload('enterprise', {
-            name: "E2E Test User", // maps to full_name
-            email: "e2e-test@example.com",
-            notes: "CRM E2E integration test from admin panel" // maps to message
-          });
+      try {
+        // Build contact payload for E2E test
+        const contactPayload = buildContactPayload('contact', {
+          name: "E2E Contact Test User",
+          email: "e2e-contact@example.com",
+          notes: "Contact form E2E test from admin panel"
+        });
 
-          console.log('Sending E2E test lead payload:', payload);
-          console.log({ fn: CONTACT_SALES_FN, invoke: true, test: 'e2e' });
-          
-          const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
-            body: payload,
-            headers: {
-              'Cache-Control': 'no-store'
-            }
-          });
-
-          // Check response data
-          if (!error && data?.success === true) {
-            leadResult = {
-              status: 'success',
-              message: `Lead sent successfully`,
-              crm_reference: data.crm_sync?.leadId || data.leadId || 'Created'
-            }
-          } else {
-            // Surface error clearly, especially for CRM failures
-            const errorMsg = error?.message || data?.error || 'Lead creation failed'
-            const endpoint = data?.endpoint ? ` (${data.endpoint})` : ''
-            
-            // Show detailed error for validation issues (422)
-            if (data?.status === 422 && data.details) {
-              console.error('Validation error details:', data.details)
-              
-              // Create error object for ApiErrorPanel
-              const validationError = {
-                status: 422,
-                details: data.details,
-                message: `${errorMsg}${endpoint}`
-              };
-              
-              toast({
-                title: "❌ Invalid Payload (422)",
-                description: "See detailed validation errors below",
-                variant: "destructive"
-              })
-            } else {
-              toast({
-                title: "❌ Test Lead Failed",
-                description: `${errorMsg}${endpoint}`,
-                variant: "destructive"
-              })
-            }
-            
-            leadResult = {
-              status: 'error',
-              message: `${errorMsg}${endpoint}`,
-              crm_reference: data?.leadId || ''
-            }
+        console.log('Sending E2E contact test payload:', contactPayload);
+        console.log({ fn: CONTACT_SALES_FN, invoke: true, test: 'e2e-contact' });
+        
+        const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
+          body: contactPayload,
+          headers: {
+            'Cache-Control': 'no-store'
           }
-        } catch (error) {
-          leadResult = {
+        });
+
+        // Check response data
+        if (!error && data?.success === true) {
+          contactResult = {
+            status: 'success',
+            message: `Contact form sent successfully`,
+            crm_reference: data.crm_sync?.leadId || data.leadId || 'Created'
+          }
+        } else {
+          // Surface error clearly
+          const errorMsg = error?.message || data?.error || 'Contact form creation failed'
+          const endpoint = data?.endpoint ? ` (${data.endpoint})` : ''
+          
+          contactResult = {
             status: 'error',
-            message: error instanceof Error ? error.message : 'Lead test failed',
-            crm_reference: ''
+            message: `${errorMsg}${endpoint}`,
+            crm_reference: data?.leadId || ''
           }
         }
-      } else {
-        leadResult = {
+      } catch (error) {
+        contactResult = {
           status: 'error',
-          message: 'Skipped due to connection failure',
+          message: error instanceof Error ? error.message : 'Contact form test failed',
           crm_reference: ''
         }
       }
 
-      const overallStatus = connectionResult.status === 'success' && leadResult.status === 'success' ? 'success' : 'error'
+      // Step 3: Send Enterprise Test (always run independently)
+      let enterpriseResult: { status: 'pending' | 'success' | 'error', message: string, crm_reference: string } = { 
+        status: 'pending', 
+        message: '', 
+        crm_reference: '' 
+      }
+      try {
+        // Build enterprise payload for E2E test
+        const enterprisePayload = buildContactPayload('enterprise', {
+          name: "E2E Enterprise Test User",
+          email: "e2e-enterprise@example.com",
+          notes: "Enterprise form E2E test from admin panel"
+        });
+
+        console.log('Sending E2E enterprise test payload:', enterprisePayload);
+        console.log({ fn: CONTACT_SALES_FN, invoke: true, test: 'e2e-enterprise' });
+        
+        const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
+          body: enterprisePayload,
+          headers: {
+            'Cache-Control': 'no-store'
+          }
+        });
+
+        // Check response data
+        if (!error && data?.success === true) {
+          enterpriseResult = {
+            status: 'success',
+            message: `Enterprise form sent successfully`,
+            crm_reference: data.crm_sync?.leadId || data.leadId || 'Created'
+          }
+        } else {
+          // Surface error clearly, especially for CRM failures
+          const errorMsg = error?.message || data?.error || 'Enterprise form creation failed'
+          const endpoint = data?.endpoint ? ` (${data.endpoint})` : ''
+          
+          // Show detailed error for validation issues (422)
+          if (data?.status === 422 && data.details) {
+            console.error('Validation error details:', data.details)
+            
+            // Create error object for ApiErrorPanel
+            const validationError = {
+              status: 422,
+              details: data.details,
+              message: `${errorMsg}${endpoint}`
+            };
+            
+            toast({
+              title: "❌ Invalid Payload (422)",
+              description: "See detailed validation errors below",
+              variant: "destructive"
+            })
+          } else {
+            toast({
+              title: "❌ Enterprise Test Failed",
+              description: `${errorMsg}${endpoint}`,
+              variant: "destructive"
+            })
+          }
+          
+          enterpriseResult = {
+            status: 'error',
+            message: `${errorMsg}${endpoint}`,
+            crm_reference: data?.leadId || ''
+          }
+        }
+      } catch (error) {
+        enterpriseResult = {
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Enterprise form test failed',
+          crm_reference: ''
+        }
+      }
+
+      const overallStatus = connectionResult.status === 'success' && contactResult.status === 'success' && enterpriseResult.status === 'success' ? 'success' : 'error'
 
       setE2eResults({
         connection: connectionResult,
-        contact: { status: 'pending' },
-        enterprise: { status: 'pending' },
+        contact: contactResult,
+        enterprise: enterpriseResult,
         overall: overallStatus
       })
 
@@ -574,13 +616,13 @@ export default function AdminNotifications() {
       if (overallStatus === 'success') {
         toast({
           title: "✅ E2E Test Passed",
-          description: `All steps completed successfully. OAuth user: ${connectionResult.oauth_user}, CRM ref: ${leadResult.crm_reference}`,
+          description: `All steps completed successfully. OAuth user: ${connectionResult.oauth_user}, Enterprise ref: ${enterpriseResult.crm_reference}`,
           variant: "default"
         })
       } else {
         toast({
           title: "❌ E2E Test Failed",
-          description: `Connection: ${connectionResult.status}, Lead: ${leadResult.status}`,
+          description: `Connection: ${connectionResult.status}, Contact: ${contactResult.status}, Enterprise: ${enterpriseResult.status}`,
           variant: "destructive"
         })
       }
