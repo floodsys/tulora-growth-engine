@@ -7,7 +7,7 @@ import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
 // Version and function info
-const VERSION = "2025-09-09-v8-production-idempotent";
+const VERSION = "2025-09-09-v8-no-idem";
 const FUNCTION_NAME = "contact-sales";
 const IS_PRODUCTION = Deno.env.get('ENVIRONMENT') === 'prod' || Deno.env.get('NODE_ENV') === 'production';
 
@@ -770,60 +770,129 @@ serve(async (req) => {
       }
     }
 
-    // Create stable external ID for idempotency (email + date + inquiry type for unique daily entries)
-    const stableId = `${leadData.email}-${new Date().toISOString().split('T')[0]}-${leadData.inquiry_type}`;
-    
-    // Upsert lead into database with proper field mapping using stable external ID for idempotency
-    const { data: leadRecord, error: insertError } = await supabase
-      .from('leads')
-      .upsert({
-        // Use stable external ID for idempotency to prevent duplicates on retries
-        external_id: stableId,
-        
-        // Map required NOT NULL fields
-        name: leadData.full_name, // Map full_name → name (NOT NULL)
-        email: leadData.email, // Map email → email (NOT NULL)
-        status: 'new', // Ensure NOT NULL status field
-        
-        // Map message to notes column
-        notes: leadData.message,
-        
-        // Only set product_line if it's valid (leadgen|support), otherwise leave NULL
-        product_line: (leadData.product_line === 'leadgen' || leadData.product_line === 'support') 
-          ? leadData.product_line 
-          : null,
-        
-        // Optional fields from leadData
-        phone: leadData.phone,
-        company: leadData.company,
-        inquiry_type: leadData.inquiry_type,
-        full_name: leadData.full_name, // Keep original field too
-        message: leadData.message, // Keep if column exists
-        product_interest: leadData.product_interest,
-        additional_requirements: leadData.additional_requirements,
-        expected_volume_label: leadData.expected_volume_label,
-        expected_volume_value: leadData.expected_volume_value,
-        accept_privacy: leadData.accept_privacy,
-        marketing_opt_in: leadData.marketing_opt_in,
-        page_url: leadData.page_url,
-        referrer: leadData.referrer,
-        utm_source: leadData.utm_source,
-        utm_medium: leadData.utm_medium,
-        utm_campaign: leadData.utm_campaign,
-        utm_term: leadData.utm_term,
-        utm_content: leadData.utm_content,
-        ip_country: leadData.ip_country,
-        
-        // Context fields
-        organization_id: organizationId,
-        crm_sync_status: organizationId ? 'pending' : 'not_applicable',
-        email_status: 'pending'
-      }, { 
-        onConflict: 'external_id',
-        ignoreDuplicates: false 
-      })
-      .select()
-      .single();
+    // Check if external_id column exists for idempotency (hotfix approach)
+    let useIdempotency = false;
+    try {
+      const { error: checkError } = await supabase
+        .from('leads')
+        .select('external_id')
+        .limit(0);
+      useIdempotency = !checkError; // If no error, column exists
+    } catch {
+      useIdempotency = false; // Fallback if check fails
+    }
+
+    let leadRecord;
+    let insertError;
+
+    if (useIdempotency) {
+      // Create stable external ID for idempotency (email + date + inquiry type for unique daily entries)
+      const stableId = `${leadData.email}-${new Date().toISOString().split('T')[0]}-${leadData.inquiry_type}`;
+      
+      // Upsert lead into database with proper field mapping using stable external ID for idempotency
+      const { data, error } = await supabase
+        .from('leads')
+        .upsert({
+          // Use stable external ID for idempotency to prevent duplicates on retries
+          external_id: stableId,
+          
+          // Map required NOT NULL fields
+          name: leadData.full_name,
+          email: leadData.email,
+          status: 'new',
+          
+          // Map message to notes column
+          notes: leadData.message,
+          
+          // Only set product_line if it's valid (leadgen|support), otherwise leave NULL
+          product_line: (leadData.product_line === 'leadgen' || leadData.product_line === 'support') 
+            ? leadData.product_line 
+            : null,
+          
+          // Optional fields from leadData
+          phone: leadData.phone,
+          company: leadData.company,
+          inquiry_type: leadData.inquiry_type,
+          full_name: leadData.full_name,
+          message: leadData.message,
+          product_interest: leadData.product_interest,
+          additional_requirements: leadData.additional_requirements,
+          expected_volume_label: leadData.expected_volume_label,
+          expected_volume_value: leadData.expected_volume_value,
+          accept_privacy: leadData.accept_privacy,
+          marketing_opt_in: leadData.marketing_opt_in,
+          page_url: leadData.page_url,
+          referrer: leadData.referrer,
+          utm_source: leadData.utm_source,
+          utm_medium: leadData.utm_medium,
+          utm_campaign: leadData.utm_campaign,
+          utm_term: leadData.utm_term,
+          utm_content: leadData.utm_content,
+          ip_country: leadData.ip_country,
+          
+          // Context fields
+          organization_id: organizationId,
+          crm_sync_status: organizationId ? 'pending' : 'not_applicable',
+          email_status: 'pending'
+        }, { 
+          onConflict: 'external_id',
+          ignoreDuplicates: false 
+        })
+        .select()
+        .single();
+      
+      leadRecord = data;
+      insertError = error;
+    } else {
+      // Fallback to regular insert (pre-idempotency behavior)
+      const { data, error } = await supabase
+        .from('leads')
+        .insert({
+          // Map required NOT NULL fields
+          name: leadData.full_name,
+          email: leadData.email,
+          status: 'new',
+          
+          // Map message to notes column
+          notes: leadData.message,
+          
+          // Only set product_line if it's valid (leadgen|support), otherwise leave NULL
+          product_line: (leadData.product_line === 'leadgen' || leadData.product_line === 'support') 
+            ? leadData.product_line 
+            : null,
+          
+          // Optional fields from leadData
+          phone: leadData.phone,
+          company: leadData.company,
+          inquiry_type: leadData.inquiry_type,
+          full_name: leadData.full_name,
+          message: leadData.message,
+          product_interest: leadData.product_interest,
+          additional_requirements: leadData.additional_requirements,
+          expected_volume_label: leadData.expected_volume_label,
+          expected_volume_value: leadData.expected_volume_value,
+          accept_privacy: leadData.accept_privacy,
+          marketing_opt_in: leadData.marketing_opt_in,
+          page_url: leadData.page_url,
+          referrer: leadData.referrer,
+          utm_source: leadData.utm_source,
+          utm_medium: leadData.utm_medium,
+          utm_campaign: leadData.utm_campaign,
+          utm_term: leadData.utm_term,
+          utm_content: leadData.utm_content,
+          ip_country: leadData.ip_country,
+          
+          // Context fields
+          organization_id: organizationId,
+          crm_sync_status: organizationId ? 'pending' : 'not_applicable',
+          email_status: 'pending'
+        })
+        .select()
+        .single();
+      
+      leadRecord = data;
+      insertError = error;
+    }
 
     if (insertError || !leadRecord) {
       logStep('db_insert_failed', undefined, 'failed', { error: insertError?.message });
