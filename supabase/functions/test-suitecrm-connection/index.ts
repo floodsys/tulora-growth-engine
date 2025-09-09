@@ -165,8 +165,37 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  // Method guard - only allow GET and POST
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { 
+        status: 405, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
+  }
+
   try {
-    const { auth_mode, base_url, client_id, client_secret, username, password } = await req.json()
+    let auth_mode, base_url, client_id, client_secret, username, password
+
+    if (req.method === 'GET') {
+      const url = new URL(req.url)
+      auth_mode = url.searchParams.get('auth_mode')
+      base_url = url.searchParams.get('base_url')
+      client_id = url.searchParams.get('client_id')
+      client_secret = url.searchParams.get('client_secret')
+      username = url.searchParams.get('username')
+      password = url.searchParams.get('password')
+    } else {
+      const body = await req.json()
+      auth_mode = body.auth_mode
+      base_url = body.base_url
+      client_id = body.client_id
+      client_secret = body.client_secret
+      username = body.username
+      password = body.password
+    }
 
     // Validate required fields based on auth mode
     if (!base_url || !client_id || !client_secret) {

@@ -149,10 +149,10 @@ export default function AdminNotifications() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
+          auth_mode: 'v8_client_credentials',
           base_url: crmConfig.base_url,
           client_id: crmConfig.client_id,
-          client_secret: crmConfig.client_secret,
-          auth_mode: 'v8_client_credentials'
+          client_secret: crmConfig.client_secret
         })
       })
 
