@@ -465,9 +465,6 @@ serve(async (req) => {
         status: 422, // Unprocessable Entity
       })
     }
-        status: 400,
-      })
-    }
 
     // Determine inquiry type
     const inquiryType = requestData.inquiry_type || (requestData.product_interest || requestData.product_line ? 'enterprise' : 'contact');
