@@ -8,18 +8,28 @@ import { previewSuiteCRMPayload } from './_lib/suitecrm-mapping.ts'
 import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
-const VERSION = "2025-09-09-11" // Prompt 7 - Actionable 422 errors
+const VERSION = "2025-09-09-8" // Prompt 3 - Single route + version beacon
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
   'Pragma': 'no-cache',
-  'Expires': '0'
+  'Expires': '0',
+  'X-Function': 'contact-sales',
+  'X-Version': VERSION
 }
 
 // Initialize Resend
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'))
+
+// Helper function to create response with consistent headers
+const createResponse = (data: any, status = 200) => {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  })
+}
 
 interface ContactFormRequest {
   inquiry_type: 'contact' | 'enterprise'

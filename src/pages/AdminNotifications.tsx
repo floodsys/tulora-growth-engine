@@ -370,15 +370,15 @@ export default function AdminNotifications() {
         const contactResponse = contactError ? { success: false, error: contactError.message } : contactData;
         setFunctionVersions(prev => ({
           ...prev,
-          'contact-sales': {
-            version: contactData.version || 'unknown',
-            status: contactResponse.ok ? 'ok' : `${contactResponse.status}`
+          [CONTACT_SALES_FN]: {
+            version: contactData?.version || 'unknown',
+            status: contactResponse?.success ? 'success' : 'error'
           }
         }))
       } catch (error) {
         setFunctionVersions(prev => ({
           ...prev,
-          'contact-sales': {
+          [CONTACT_SALES_FN]: {
             version: 'error',
             status: 'unreachable'
           }
@@ -387,23 +387,21 @@ export default function AdminNotifications() {
 
       // Ping test-suitecrm-connection
       try {
-        const crmResponse = await fetch(`${SUPABASE_URL}/functions/v1/test-suitecrm-connection`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        })
+        console.log({ fn: 'test-suitecrm-connection', invoke: true, test: 'ping' });
         
-        const crmData = await crmResponse.json()
+        const { data: crmData, error: crmError } = await supabase.functions.invoke('test-suitecrm-connection', {
+          body: {}
+        });
+        const crmResponse = crmError ? { success: false, error: crmError.message } : crmData;
         setFunctionVersions(prev => ({
           ...prev,
           'test-suitecrm-connection': {
-            version: crmData.version || 'unknown',
-            status: crmResponse.ok ? 'ok' : `${crmResponse.status}`
+            version: crmData?.version || 'unknown',
+            status: crmResponse?.success ? 'success' : 'error'
           }
         }))
       } catch (error) {
+        console.error('CRM ping error:', error);
         setFunctionVersions(prev => ({
           ...prev,
           'test-suitecrm-connection': {
@@ -682,14 +680,14 @@ export default function AdminNotifications() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <h4 className="font-medium flex items-center gap-2">
-                    contact-sales
-                    <Badge variant={functionVersions['contact-sales'].status === 'ok' ? 'default' : 'destructive'}>
-                      {functionVersions['contact-sales'].status || 'unknown'}
+                    {CONTACT_SALES_FN}
+                    <Badge variant={functionVersions[CONTACT_SALES_FN]?.status === 'success' ? 'default' : 'destructive'}>
+                      {functionVersions[CONTACT_SALES_FN]?.status || 'unknown'}
                     </Badge>
                   </h4>
                   <p className="text-sm text-muted-foreground">
                     Version: <code className="bg-muted px-1 rounded">
-                      {functionVersions['contact-sales'].version || 'not checked'}
+                      {functionVersions[CONTACT_SALES_FN]?.version || 'not checked'}
                     </code>
                   </p>
                 </div>
@@ -697,7 +695,7 @@ export default function AdminNotifications() {
                 <div className="space-y-2">
                   <h4 className="font-medium flex items-center gap-2">
                     test-suitecrm-connection
-                    <Badge variant={functionVersions['test-suitecrm-connection'].status === 'ok' ? 'default' : 'destructive'}>
+                    <Badge variant={functionVersions['test-suitecrm-connection'].status === 'success' ? 'default' : 'destructive'}>
                       {functionVersions['test-suitecrm-connection'].status || 'unknown'}
                     </Badge>
                   </h4>
