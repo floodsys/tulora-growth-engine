@@ -343,17 +343,9 @@ export default function AdminNotifications() {
         try {
           const testLead = {
             inquiry_type: "enterprise",
-            full_name: "E2E Test Lead",
-            email: "e2e-test@example.com",
-            company: "E2E Test Company",
-            phone: "+1234567890",
-            message: "CRM E2E test - automated test lead",
-            source: "admin_e2e_test",
-            source_metadata: {
-              test_lead: true,
-              e2e_test: true,
-              created_by: "admin_e2e_panel"
-            }
+            full_name: "Test User",
+            email: "test@example.com",
+            message: "CRM E2E test"
           }
 
           const response = await fetch(`${SUPABASE_URL}/functions/v1/contact-sales`, {
@@ -383,9 +375,16 @@ export default function AdminNotifications() {
             // Show detailed error for validation issues (422)
             if (response.status === 422 && data.details) {
               console.error('Validation error details:', data.details)
+              const fieldErrors = Array.isArray(data.details) ? data.details.join(', ') : JSON.stringify(data.details)
               toast({
                 title: "❌ Invalid Payload",
-                description: `${errorMsg}. Check console for details.`,
+                description: `${errorMsg}: ${fieldErrors}`,
+                variant: "destructive"
+              })
+            } else {
+              toast({
+                title: "❌ Test Lead Failed",
+                description: `${statusInfo}: ${errorMsg}${endpoint}`,
                 variant: "destructive"
               })
             }
