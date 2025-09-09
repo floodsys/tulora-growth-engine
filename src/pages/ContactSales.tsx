@@ -82,14 +82,7 @@ export default function ContactSales() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // ============= DEBUGGING INFO =============
-    console.log('🔍 ContactSales - Runtime env values:');
-    console.log('  SUPABASE_URL:', SUPABASE_URL || 'undefined');
-    console.log('  SUPABASE_ANON_KEY:', (SUPABASE_ANON || 'undefined').slice(0, 20) + '...(masked)');
-    console.log('  CONTACT_SALES_FN:', CONTACT_SALES_FN);
-    console.log('  supabase.functions.url:', (supabase as any)?.functions?.url || (supabase as any)?.functions?.restUrl || 'not found');
-    console.log('  Client import:', 'src/integrations/supabase/client.ts');
-    console.log('  Constants import:', '@/lib/constants');
+    console.log('CONTACT_SUBMIT start');
     
     // Anti-spam: Check honeypot field
     if (formData.website) {
@@ -116,7 +109,7 @@ export default function ContactSales() {
       const payload = buildContactPayload('enterprise', {
         name: formData.name, // maps to full_name
         email: formData.email,
-        message: formData.additional_requirements || `Enterprise inquiry from ${formData.company || 'company'}`, // ensure non-empty message
+        message: formData.additional_requirements, // map textarea directly to message
         // Optional fields
         company: formData.company,
         product_interest: formData.product_interest.join(', '),
@@ -124,7 +117,7 @@ export default function ContactSales() {
         website: formData.website // honeypot
       });
       
-      console.log('🔍 Built payload:', payload);
+      console.log('Built payload keys:', Object.keys(payload));
       
       // Validate payload
       const validationErrors = validateContactPayload(payload);
@@ -137,7 +130,7 @@ export default function ContactSales() {
         return;
       }
 
-      console.log('🔍 About to invoke:', { fn: CONTACT_SALES_FN, payload });
+      console.log('invoke called');
       
       const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
         body: payload,
@@ -171,14 +164,16 @@ export default function ContactSales() {
       }
 
     } catch (error: any) {
-      console.error('💥 ContactSales - Full error object:');
-      console.error('  message:', error?.message || 'No message');
-      console.error('  name:', error?.name || 'No name');
-      console.error('  stack:', error?.stack || 'No stack');
-      console.error('  cause:', error?.cause || 'No cause');
-      console.error('  error.response:', error?.response || 'No response');
-      console.error('  error.cause.response:', error?.cause?.response || 'No cause.response');
-      console.error('  Full error:', error);
+      console.error('Full error object:', {
+        name: error?.name || 'No name',
+        message: error?.message || 'No message',
+        'error.response.status': error?.response?.status || 'No response.status',
+        'error.response.text (first 200 chars)': error?.response?.text ? 
+          (typeof error.response.text === 'string' ? error.response.text.substring(0, 200) : 
+           typeof error.response.text === 'function' ? '[function]' : String(error.response.text).substring(0, 200)) 
+          : 'No response.text',
+        fullError: error
+      });
       setSubmitError(error);
     } finally {
       setIsSubmitting(false);
