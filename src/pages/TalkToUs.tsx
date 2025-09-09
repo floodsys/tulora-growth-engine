@@ -87,6 +87,11 @@ const TalkToUs = () => {
       const { data, error, status } = await callEdge('contact-submit', payload);
 
       if (error || status >= 400) {
+        // Try to surface a useful message if the edge function sent JSON
+        const msg = (error as any)?.context?.body
+          ? (() => { try { return JSON.parse((error as any).context.body).error || (error as any).message; } catch { return (error as any).message; } })()
+          : (error?.message || `Request failed (${status})`);
+        
         // Handle Turnstile-specific errors
         if (data?.code === "turnstile_missing" || data?.code === "turnstile_failed") {
           toast({
@@ -99,13 +104,20 @@ const TalkToUs = () => {
         
         toast({
           title: "Failed to send message",
-          description: error?.message || `Request failed (${status})`,
+          description: msg || 'Submit failed.',
           variant: "destructive"
         });
         return;
       }
 
-      if (data && data.ok) {
+      // Treat any 2xx as success even if data is null
+      if (data?.ok === false) {
+        toast({
+          title: "Failed to send message",
+          description: data?.error || 'Submit failed.',
+          variant: "destructive"
+        });
+      } else {
         setIsSubmitted(true);
         // Reset form
         setFormData({
@@ -119,13 +131,6 @@ const TalkToUs = () => {
         toast({
           title: "Message sent successfully",
           description: "Thanks — we received your message.",
-          variant: "default"
-        });
-      } else {
-        // Handle the odd case of 2xx but no JSON or ok:false
-        toast({
-          title: "Message submitted",
-          description: "Thanks — submitted.",
           variant: "default"
         });
       }

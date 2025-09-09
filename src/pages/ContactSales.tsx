@@ -86,19 +86,32 @@ export default function ContactSales() {
       });
 
       if (error || status >= 400) {
+        // Try to surface a useful message if the edge function sent JSON
+        const msg = (error as any)?.context?.body
+          ? (() => { try { return JSON.parse((error as any).context.body).error || (error as any).message; } catch { return (error as any).message; } })()
+          : (error?.message || `Request failed (${status})`);
         toast({
           title: "Failed to send message",
-          description: error?.message || `Request failed (${status})`,
+          description: msg || 'Submit failed.',
           variant: "destructive"
         });
         return;
       }
 
-      setIsSubmitted(true);
-      toast({
-        title: "Request Submitted",
-        description: "Thanks — we received your message.",
-      });
+      // Treat any 2xx as success even if data is null
+      if (data?.ok === false) {
+        toast({
+          title: "Failed to send message",
+          description: data?.error || 'Submit failed.',
+          variant: "destructive"
+        });
+      } else {
+        setIsSubmitted(true);
+        toast({
+          title: "Request Submitted",
+          description: "Thanks — we received your message.",
+        });
+      }
 
     } catch (error: any) {
       console.error('Contact sales error:', error);
