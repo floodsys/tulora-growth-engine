@@ -7,9 +7,10 @@ import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
 // Version and function info
-const VERSION = "2025-09-09-v8-idem";
+const VERSION = "2025-09-09-v8-idem2";
 const FUNCTION_NAME = "contact-sales";
 const IS_PRODUCTION = Deno.env.get('ENVIRONMENT') === 'prod' || Deno.env.get('NODE_ENV') === 'production';
+const FORMS_IDEMPOTENCY_REQUIRED = Deno.env.get('FORMS_IDEMPOTENCY_REQUIRED') !== 'false';
 
 // CORS Configuration
 const ALLOWED_ORIGINS = Deno.env.get('ALLOWED_ORIGINS')?.split(',').map(o => o.trim()) || [
@@ -770,86 +771,185 @@ serve(async (req) => {
       }
     }
 
-    // Generate deterministic external ID for idempotency using UUIDv5
-    // Use namespace UUID and combine email + inquiry_type for consistent ID generation
-    const namespaceUuid = '6ba7b810-9dad-11d1-80b4-00c04fd430c8'; // Standard namespace UUID
-    const idempotencyData = `${leadData.email.toLowerCase().trim()}-${leadData.inquiry_type}`;
+    // Generate deterministic external ID for idempotency
+    // Use email + inquiry_type for consistent ID generation across retries
+    const idempotencyData = `${leadData.email.toLowerCase().trim()}:${leadData.inquiry_type}`;
     
-    // Simple deterministic ID generation (fallback if crypto.subtle unavailable)
+    // Simple deterministic ID generation using built-in hash
     let externalId;
     try {
       const encoder = new TextEncoder();
-      const data = encoder.encode(namespaceUuid + idempotencyData);
+      const data = encoder.encode(idempotencyData);
       const hashBuffer = await crypto.subtle.digest('SHA-256', data);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      externalId = `lead-${hashHex.substring(0, 32)}`;
+      externalId = hashHex.substring(0, 32);
     } catch {
       // Fallback: simple hash if crypto.subtle not available
       let hash = 0;
-      const str = namespaceUuid + idempotencyData;
-      for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
+      for (let i = 0; i < idempotencyData.length; i++) {
+        const char = idempotencyData.charCodeAt(i);
         hash = ((hash << 5) - hash) + char;
         hash = hash & hash; // Convert to 32bit integer
       }
-      externalId = `lead-${Math.abs(hash).toString(36)}`;
+      externalId = Math.abs(hash).toString(36);
     }
 
-    // Upsert lead into database with idempotency
-    const { data: leadRecord, error: insertError } = await supabase
-      .from('leads')
-      .upsert({
-        // Use deterministic external ID for idempotency to prevent duplicates on retries
-        external_id: externalId,
+    let leadRecord;
+    let insertError;
+    
+    // Try idempotent upsert with safety fallback
+    if (FORMS_IDEMPOTENCY_REQUIRED) {
+      try {
+        const { data, error } = await supabase
+          .from('leads')
+          .upsert({
+            // Use deterministic external ID for idempotency
+            external_id: externalId,
+            
+            // Map required NOT NULL fields
+            name: leadData.full_name,
+            email: leadData.email,
+            status: 'new',
+            
+            // Map message to notes column (update on conflict for latest info)
+            notes: leadData.message,
+            
+            // Only set product_line if it's valid (leadgen|support), otherwise leave NULL
+            product_line: (leadData.product_line === 'leadgen' || leadData.product_line === 'support') 
+              ? leadData.product_line 
+              : null,
+            
+            // Optional fields from leadData (update for latest info)
+            phone: leadData.phone,
+            company: leadData.company,
+            inquiry_type: leadData.inquiry_type,
+            full_name: leadData.full_name,
+            message: leadData.message,
+            product_interest: leadData.product_interest,
+            additional_requirements: leadData.additional_requirements,
+            expected_volume_label: leadData.expected_volume_label,
+            expected_volume_value: leadData.expected_volume_value,
+            accept_privacy: leadData.accept_privacy,
+            marketing_opt_in: leadData.marketing_opt_in,
+            page_url: leadData.page_url,
+            referrer: leadData.referrer,
+            utm_source: leadData.utm_source,
+            utm_medium: leadData.utm_medium,
+            utm_campaign: leadData.utm_campaign,
+            utm_term: leadData.utm_term,
+            utm_content: leadData.utm_content,
+            ip_country: leadData.ip_country,
+            
+            // Context fields
+            organization_id: organizationId,
+            crm_sync_status: organizationId ? 'pending' : 'not_applicable',
+            email_status: 'pending',
+            
+            // Update timestamp on upsert
+            updated_at: new Date().toISOString()
+          }, { 
+            onConflict: 'external_id',
+            ignoreDuplicates: false 
+          })
+          .select()
+          .single();
+          
+        leadRecord = data;
+        insertError = error;
         
-        // Map required NOT NULL fields
-        name: leadData.full_name,
-        email: leadData.email,
-        status: 'new',
+        // Log external_id for monitoring (hash first 8 chars for security)
+        const hashedId = externalId.substring(0, 8) + '...';
+        logStep('idempotent_upsert', leadRecord?.id, 'success', { external_id_hash: hashedId });
         
-        // Map message to notes column (update on conflict for latest info)
-        notes: leadData.message,
+      } catch (upsertError) {
+        // If UNIQUE constraint fails, fall back to regular insert
+        console.warn('[IDEMPOTENCY] Upsert failed, falling back to insert:', upsertError.message);
+        logStep('idempotency_fallback', undefined, 'warning', { reason: 'constraint_error' });
         
-        // Only set product_line if it's valid (leadgen|support), otherwise leave NULL
-        product_line: (leadData.product_line === 'leadgen' || leadData.product_line === 'support') 
-          ? leadData.product_line 
-          : null,
+        // Regular insert without external_id
+        const { data, error } = await supabase
+          .from('leads')
+          .insert({
+            name: leadData.full_name,
+            email: leadData.email,
+            status: 'new',
+            notes: leadData.message,
+            product_line: (leadData.product_line === 'leadgen' || leadData.product_line === 'support') 
+              ? leadData.product_line 
+              : null,
+            phone: leadData.phone,
+            company: leadData.company,
+            inquiry_type: leadData.inquiry_type,
+            full_name: leadData.full_name,
+            message: leadData.message,
+            product_interest: leadData.product_interest,
+            additional_requirements: leadData.additional_requirements,
+            expected_volume_label: leadData.expected_volume_label,
+            expected_volume_value: leadData.expected_volume_value,
+            accept_privacy: leadData.accept_privacy,
+            marketing_opt_in: leadData.marketing_opt_in,
+            page_url: leadData.page_url,
+            referrer: leadData.referrer,
+            utm_source: leadData.utm_source,
+            utm_medium: leadData.utm_medium,
+            utm_campaign: leadData.utm_campaign,
+            utm_term: leadData.utm_term,
+            utm_content: leadData.utm_content,
+            ip_country: leadData.ip_country,
+            organization_id: organizationId,
+            crm_sync_status: organizationId ? 'pending' : 'not_applicable',
+            email_status: 'pending'
+          })
+          .select()
+          .single();
+          
+        leadRecord = data;
+        insertError = error;
+      }
+    } else {
+      // Idempotency disabled - regular insert
+      logStep('idempotency_disabled', undefined, 'bypass', { reason: 'env_flag' });
+      
+      const { data, error } = await supabase
+        .from('leads')
+        .insert({
+          name: leadData.full_name,
+          email: leadData.email,
+          status: 'new',
+          notes: leadData.message,
+          product_line: (leadData.product_line === 'leadgen' || leadData.product_line === 'support') 
+            ? leadData.product_line 
+            : null,
+          phone: leadData.phone,
+          company: leadData.company,
+          inquiry_type: leadData.inquiry_type,
+          full_name: leadData.full_name,
+          message: leadData.message,
+          product_interest: leadData.product_interest,
+          additional_requirements: leadData.additional_requirements,
+          expected_volume_label: leadData.expected_volume_label,
+          expected_volume_value: leadData.expected_volume_value,
+          accept_privacy: leadData.accept_privacy,
+          marketing_opt_in: leadData.marketing_opt_in,
+          page_url: leadData.page_url,
+          referrer: leadData.referrer,
+          utm_source: leadData.utm_source,
+          utm_medium: leadData.utm_medium,
+          utm_campaign: leadData.utm_campaign,
+          utm_term: leadData.utm_term,
+          utm_content: leadData.utm_content,
+          ip_country: leadData.ip_country,
+          organization_id: organizationId,
+          crm_sync_status: organizationId ? 'pending' : 'not_applicable',
+          email_status: 'pending'
+        })
+        .select()
+        .single();
         
-        // Optional fields from leadData (update for latest info)
-        phone: leadData.phone,
-        company: leadData.company,
-        inquiry_type: leadData.inquiry_type,
-        full_name: leadData.full_name,
-        message: leadData.message,
-        product_interest: leadData.product_interest,
-        additional_requirements: leadData.additional_requirements,
-        expected_volume_label: leadData.expected_volume_label,
-        expected_volume_value: leadData.expected_volume_value,
-        accept_privacy: leadData.accept_privacy,
-        marketing_opt_in: leadData.marketing_opt_in,
-        page_url: leadData.page_url,
-        referrer: leadData.referrer,
-        utm_source: leadData.utm_source,
-        utm_medium: leadData.utm_medium,
-        utm_campaign: leadData.utm_campaign,
-        utm_term: leadData.utm_term,
-        utm_content: leadData.utm_content,
-        ip_country: leadData.ip_country,
-        
-        // Context fields
-        organization_id: organizationId,
-        crm_sync_status: organizationId ? 'pending' : 'not_applicable',
-        email_status: 'pending',
-        
-        // Update timestamp on upsert
-        updated_at: new Date().toISOString()
-      }, { 
-        onConflict: 'external_id',
-        ignoreDuplicates: false 
-      })
-      .select()
-      .single();
+      leadRecord = data;
+      insertError = error;
+    }
 
     if (insertError || !leadRecord) {
       logStep('db_insert_failed', undefined, 'failed', { error: insertError?.message });
