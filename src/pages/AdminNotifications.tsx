@@ -301,14 +301,19 @@ export default function AdminNotifications() {
         if (response.ok && data.success) {
           connectionResult = {
             status: 'success',
-            message: `Method: ${data.method_used || 'POST'} | Version: ${data.version || 'unknown'}`,
+            message: `Status ${response.status}: Method: ${data.method_used || 'POST'} | Version: ${data.version || 'unknown'}`,
             oauth_user: data.oauth_user || 'unknown',
             env_present: data.env_present || {}
           }
         } else {
+          // Surface HTTP status clearly for debugging
+          const statusInfo = `Status ${response.status}`
+          const errorMsg = data.error || 'Connection failed'
+          const endpoint = data.endpoint ? ` (${data.endpoint})` : ''
+          
           connectionResult = {
             status: 'error',
-            message: `Status ${response.status}: ${data.error || 'Connection failed'}`,
+            message: `${statusInfo}: ${errorMsg}${endpoint}`,
             oauth_user: '',
             env_present: data.env_present || {}
           }
@@ -362,17 +367,23 @@ export default function AdminNotifications() {
 
           const data = await response.json()
 
-          if (response.ok && data.success !== false) {
+          // Check both HTTP status and response data
+          if (response.ok && data.success === true) {
             leadResult = {
               status: 'success',
-              message: 'Lead sent successfully',
-              crm_reference: data.crm_reference || data.id || 'Created'
+              message: `Status ${response.status}: Lead sent successfully`,
+              crm_reference: data.crm_sync?.leadId || data.leadId || 'Created'
             }
           } else {
+            // Surface HTTP status clearly, especially for CRM failures
+            const statusInfo = `Status ${response.status}`
+            const errorMsg = data.error || 'Lead creation failed'
+            const endpoint = data.endpoint ? ` (${data.endpoint})` : ''
+            
             leadResult = {
               status: 'error',
-              message: `Status ${response.status}: ${data.error || 'Lead creation failed'}`,
-              crm_reference: ''
+              message: `${statusInfo}: ${errorMsg}${endpoint}`,
+              crm_reference: data.leadId || ''
             }
           }
         } catch (error) {

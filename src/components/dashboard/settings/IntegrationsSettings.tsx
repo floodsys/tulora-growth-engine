@@ -182,10 +182,12 @@ export function IntegrationsSettings() {
       if (data?.success) {
         toast({
           title: "Connection Successful",
-          description: data.message || "SuiteCRM connection test passed"
+          description: `Status: ${data.status_code || 'Success'} - ${data.message || "SuiteCRM connection test passed"}${data.oauth_user ? ` (User: ${data.oauth_user})` : ''}`
         })
       } else {
-        throw new Error(data?.error || "Connection test failed")
+        const statusInfo = data?.status_code ? `Status ${data.status_code}: ` : ''
+        const endpoint = data?.endpoint ? ` (${data.endpoint})` : ''
+        throw new Error(`${statusInfo}${data?.error || "Connection test failed"}${endpoint}`)
       }
     } catch (error) {
       toast({
