@@ -21,7 +21,7 @@ const ALLOWED_ORIGINS = Deno.env.get('ALLOWED_ORIGINS')?.split(',').map(o => o.t
   'https://id-preview--82f60040-b989-4e09-8aaf-a5888522b1a2.lovable.app',
   'http://localhost:8080'
 ];
-const CORS_DEBUG_WILDCARD = Deno.env.get('CORS_DEBUG_WILDCARD') === 'true';
+const CORS_DEBUG_WILDCARD = false; // Production setting - no wildcard CORS
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
   const headers: Record<string, string> = {
