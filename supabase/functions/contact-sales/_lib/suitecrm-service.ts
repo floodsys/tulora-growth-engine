@@ -321,29 +321,48 @@ export class SuiteCRMService {
 }
 
 /**
- * Create SuiteCRM service instance from environment variables
+ * Boot logging - check what environment variables are present
  */
-export function createSuiteCRMService(): SuiteCRMService | null {
+function logSuiteCRMEnvStatus() {
   const baseUrl = Deno.env.get('SUITECRM_BASE_URL')
   const clientId = Deno.env.get('SUITECRM_CLIENT_ID')
   const clientSecret = Deno.env.get('SUITECRM_CLIENT_SECRET')
-  const username = Deno.env.get('SUITECRM_USERNAME')
-  const password = Deno.env.get('SUITECRM_PASSWORD')
+  const authMode = Deno.env.get('SUITECRM_AUTH_MODE')
   
-  // For client credentials mode, only require base URL, client ID, and client secret
-  if (!baseUrl || !clientId || !clientSecret) {
-    console.log('SuiteCRM credentials not configured (missing base URL, client ID, or client secret), skipping CRM sync')
+  const present = []
+  if (baseUrl) present.push('base_url')
+  if (clientId) present.push('client_id')
+  if (clientSecret) present.push('client_secret')
+  if (authMode) present.push('auth_mode')
+  
+  console.log(`[CFG] suitecrm env present: ${present.join(', ')}`)
+  return { baseUrl, clientId, clientSecret, authMode }
+}
+
+/**
+ * Create SuiteCRM service instance from environment variables
+ */
+export function createSuiteCRMService(): SuiteCRMService | null {
+  const envConfig = logSuiteCRMEnvStatus()
+  const { baseUrl, clientId, clientSecret, authMode } = envConfig
+  
+  // For client credentials mode, only require base URL, client ID, client secret, and auth mode
+  if (!baseUrl || !clientId || !clientSecret || !authMode) {
+    console.log('SuiteCRM credentials not configured (missing base URL, client ID, client secret, or auth mode), skipping CRM sync')
     return null
   }
   
-  // Determine auth mode based on available credentials
-  const authMode = (username && password) ? 'v8_password' : 'v8_client_credentials'
+  // Only support client credentials mode from environment
+  if (authMode !== 'v8_client_credentials') {
+    console.log(`SuiteCRM auth mode '${authMode}' not supported, only 'v8_client_credentials' is supported, skipping CRM sync`)
+    return null
+  }
   
   return new SuiteCRMService({
     baseUrl: baseUrl.replace(/\/$/, ''), // Remove trailing slash
     authMode,
-    username,
-    password,
+    username: undefined, // Not used in client credentials mode
+    password: undefined, // Not used in client credentials mode
     clientId,
     clientSecret
   })

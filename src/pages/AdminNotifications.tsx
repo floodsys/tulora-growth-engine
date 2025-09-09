@@ -141,19 +141,13 @@ export default function AdminNotifications() {
         throw new Error("Please fill in all CRM configuration fields")
       }
 
-      // Call the function with proper JWT authentication
+      // Call the function with proper JWT authentication (no params needed, uses env vars)
       const response = await fetch(`${SUPABASE_URL}/functions/v1/test-suitecrm-connection`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          auth_mode: 'v8_client_credentials',
-          base_url: crmConfig.base_url,
-          client_id: crmConfig.client_id,
-          client_secret: crmConfig.client_secret
-        })
+        }
       })
 
       const data = await response.json()

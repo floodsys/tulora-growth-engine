@@ -5,15 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface TestConnectionRequest {
-  auth_mode: string
-  base_url: string
-  client_id: string
-  client_secret: string
-  username?: string
-  password?: string
-}
-
 interface SuiteCRMAuthResponse {
   access_token: string
   token_type: string
@@ -27,8 +18,30 @@ interface SuiteCRMAuthResponse {
   }
 }
 
-async function testSuiteCRMConnection(config: TestConnectionRequest) {
-  const { auth_mode, base_url, client_id, client_secret, username, password } = config
+// Boot logging - check what environment variables are present
+function logSuiteCRMEnvStatus() {
+  const base_url = Deno.env.get('SUITECRM_BASE_URL')
+  const client_id = Deno.env.get('SUITECRM_CLIENT_ID')
+  const client_secret = Deno.env.get('SUITECRM_CLIENT_SECRET')
+  const auth_mode = Deno.env.get('SUITECRM_AUTH_MODE')
+  
+  const present = []
+  if (base_url) present.push('base_url')
+  if (client_id) present.push('client_id')
+  if (client_secret) present.push('client_secret')
+  if (auth_mode) present.push('auth_mode')
+  
+  console.log(`[CFG] suitecrm env present: ${present.join(', ')}`)
+  return { base_url, client_id, client_secret, auth_mode }
+}
+
+async function testSuiteCRMConnection() {
+  const envConfig = logSuiteCRMEnvStatus()
+  const { base_url, client_id, client_secret, auth_mode } = envConfig
+  
+  if (!base_url || !client_id || !client_secret || !auth_mode) {
+    throw new Error('Missing SuiteCRM environment configuration. Required: SUITECRM_BASE_URL, SUITECRM_CLIENT_ID, SUITECRM_CLIENT_SECRET, SUITECRM_AUTH_MODE')
+  }
   
   // Clean up base URL
   const cleanBaseUrl = base_url.replace(/\/$/, '')
@@ -46,15 +59,9 @@ async function testSuiteCRMConnection(config: TestConnectionRequest) {
       authPayload.scope = scopeValue.trim()
     }
 
-    if (auth_mode === 'v8_client_credentials') {
-      // Client credentials mode - only send grant_type, client_id, client_secret (and scope if configured)
-    } else {
-      // For password grant, add username and password
-      if (!username || !password) {
-        throw new Error('Username and password are required for this authentication mode')
-      }
-      authPayload.username = username
-      authPayload.password = password
+    // Only supporting client credentials mode via environment variables
+    if (auth_mode !== 'v8_client_credentials') {
+      throw new Error('Only v8_client_credentials authentication mode is supported')
     }
 
     console.log(`Testing SuiteCRM connection with ${auth_mode} mode to ${cleanBaseUrl}`)
@@ -71,9 +78,9 @@ async function testSuiteCRMConnection(config: TestConnectionRequest) {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error(`SuiteCRM auth failed: ${response.status} ${response.statusText} - ${errorText}`)
+      console.error(`SuiteCRM auth failed: ${response.status} ${response.statusText}`)
       
-      // Provide more detailed error information
+      // Provide more detailed error information without exposing secrets
       let errorMessage = `Authentication failed: ${response.status} ${response.statusText}`
       if (errorText) {
         try {
@@ -96,40 +103,28 @@ async function testSuiteCRMConnection(config: TestConnectionRequest) {
     console.log('Authentication successful, received token')
 
     // For client credentials, we need to get user info from the token
-    if (auth_mode === 'v8_client_credentials') {
-      try {
-        // Try to get current user info to validate the token
-        const userResponse = await fetch(`${cleanBaseUrl}/Api/V8/me`, {
-          headers: {
-            'Authorization': `Bearer ${authData.access_token}`,
-            'Content-Type': 'application/json'
-          }
-        })
-
-        if (userResponse.ok) {
-          const userData = await userResponse.json()
-          const userName = userData.data?.attributes?.user_name || 'tulora-api'
-          
-          return {
-            success: true,
-            message: `Token OK, associated user = ${userName}`,
-            token_type: authData.token_type,
-            expires_in: authData.expires_in,
-            user_name: userName
-          }
-        } else {
-          // If /me endpoint fails, still consider it successful if we got a token
-          return {
-            success: true,
-            message: 'Token OK, associated user = tulora-api',
-            token_type: authData.token_type,
-            expires_in: authData.expires_in,
-            user_name: 'tulora-api'
-          }
+    try {
+      // Try to get current user info to validate the token
+      const userResponse = await fetch(`${cleanBaseUrl}/Api/V8/me`, {
+        headers: {
+          'Authorization': `Bearer ${authData.access_token}`,
+          'Content-Type': 'application/json'
         }
-      } catch (error) {
-        // If user info fetch fails, still consider it successful if we got a token
-        console.log('Could not fetch user info, but token is valid')
+      })
+
+      if (userResponse.ok) {
+        const userData = await userResponse.json()
+        const userName = userData.data?.attributes?.user_name || 'tulora-api'
+        
+        return {
+          success: true,
+          message: `Token OK, associated user = ${userName}`,
+          token_type: authData.token_type,
+          expires_in: authData.expires_in,
+          user_name: userName
+        }
+      } else {
+        // If /me endpoint fails, still consider it successful if we got a token
         return {
           success: true,
           message: 'Token OK, associated user = tulora-api',
@@ -138,15 +133,15 @@ async function testSuiteCRMConnection(config: TestConnectionRequest) {
           user_name: 'tulora-api'
         }
       }
-    } else {
-      // For password grant, use the user info from the token response if available
-      const userName = authData.user?.user_name || username || 'authenticated-user'
+    } catch (error) {
+      // If user info fetch fails, still consider it successful if we got a token
+      console.log('Could not fetch user info, but token is valid')
       return {
         success: true,
-        message: `Authentication successful, user = ${userName}`,
+        message: 'Token OK, associated user = tulora-api',
         token_type: authData.token_type,
         expires_in: authData.expires_in,
-        user_name: userName
+        user_name: 'tulora-api'
       }
     }
 
@@ -177,92 +172,16 @@ serve(async (req) => {
   }
 
   try {
-    let auth_mode, base_url, client_id, client_secret, username, password
-
-    if (req.method === 'GET') {
-      const url = new URL(req.url)
-      auth_mode = url.searchParams.get('auth_mode')
-      base_url = url.searchParams.get('base_url')
-      client_id = url.searchParams.get('client_id')
-      client_secret = url.searchParams.get('client_secret')
-      username = url.searchParams.get('username')
-      password = url.searchParams.get('password')
-    } else {
-      const body = await req.json()
-      auth_mode = body.auth_mode
-      base_url = body.base_url
-      client_id = body.client_id
-      client_secret = body.client_secret
-      username = body.username
-      password = body.password
+    const result = await testSuiteCRMConnection()
+    
+    // Add config source to response
+    const response = {
+      ...result,
+      config_source: "edge_env"
     }
-
-    // Validate required fields based on auth mode
-    if (!base_url || !client_id || !client_secret) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Base URL, Client ID, and Client Secret are required' 
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
-
-    // Validate base URL format
-    if (!base_url.startsWith('http://') && !base_url.startsWith('https://')) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Base URL must start with http:// or https://' 
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
-
-    // Check for incomplete URLs
-    if (base_url === 'https://' || base_url === 'http://') {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Base URL is incomplete. Please provide the full SuiteCRM URL (e.g., https://your-suitecrm.com)' 
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
-
-    if (auth_mode !== 'v8_client_credentials' && (!username || !password)) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Username and password are required for this authentication mode' 
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
-
-    const result = await testSuiteCRMConnection({
-      auth_mode: auth_mode || 'v8_client_credentials',
-      base_url,
-      client_id,
-      client_secret,
-      username,
-      password
-    })
 
     return new Response(
-      JSON.stringify(result),
+      JSON.stringify(response),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
@@ -273,7 +192,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: 'Invalid request format' 
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        config_source: "edge_env"
       }),
       { 
         status: 400, 
