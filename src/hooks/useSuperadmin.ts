@@ -35,8 +35,8 @@ export function useSuperadmin(): UseSuperadminReturn {
                 window.location.hostname === 'localhost' ||
                 window.location.hostname.includes('lovable.app');
   
-  console.log('🔍 Dev check:', { isDev, hostname: window.location.hostname, env: import.meta.env.DEV });
-  console.log('🔍 useSuperadmin hook initialized');
+  console.error('🔍 SUPERADMIN DEBUG - Dev check:', { isDev, hostname: window.location.hostname, env: import.meta.env.DEV });
+  console.error('🔍 SUPERADMIN DEBUG - useSuperadmin hook initialized');
 
   // In development mode, immediately set superadmin to true
   useEffect(() => {
