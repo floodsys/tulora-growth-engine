@@ -8,7 +8,7 @@ import { previewSuiteCRMPayload } from './_lib/suitecrm-mapping.ts'
 import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
-const VERSION = "2025-09-09-6" // Prompt D - All forms use buildContactPayload
+const VERSION = "2025-09-09-7" // Prompt 1 - Relaxed Enterprise validation
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -322,17 +322,27 @@ const validatePayload = (data: ContactFormRequest): ValidationError[] => {
       errors.push({ field: 'message', message: 'Message is required for contact inquiries' });
     }
   } else if (inquiryType === 'enterprise') {
+    // Required fields for enterprise: inquiry_type, full_name, email, company, message
     if (!company) {
       errors.push({ field: 'company', message: 'Company name is required for enterprise inquiries' });
     }
-    if (!productInterest) {
-      errors.push({ field: 'product_interest', message: 'Product interest is required for enterprise inquiries' });
+    if (!message) {
+      errors.push({ field: 'message', message: 'Message is required for enterprise inquiries' });
     }
-    if (!expectedVolumeLabel) {
-      errors.push({ field: 'expected_volume_label', message: 'Expected volume is required for enterprise inquiries' });
-    }
-    if (!additionalRequirements) {
-      errors.push({ field: 'additional_requirements', message: 'Additional requirements are required for enterprise inquiries' });
+    
+    // Optional enterprise fields - only required if REQUIRE_ENTERPRISE_EXTRAS=true
+    const requireExtras = Deno.env.get('REQUIRE_ENTERPRISE_EXTRAS') === 'true'; // default false
+    
+    if (requireExtras) {
+      if (!productInterest) {
+        errors.push({ field: 'product_interest', message: 'Product interest is required for enterprise inquiries' });
+      }
+      if (!expectedVolumeLabel) {
+        errors.push({ field: 'expected_volume_label', message: 'Expected volume is required for enterprise inquiries' });
+      }
+      if (!additionalRequirements) {
+        errors.push({ field: 'additional_requirements', message: 'Additional requirements are required for enterprise inquiries' });
+      }
     }
     
     // Validate product interest mapping
