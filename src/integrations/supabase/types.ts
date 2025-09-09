@@ -730,8 +730,10 @@ export type Database = {
           email: string
           email_delivery_error: string | null
           email_message_ids: Json | null
+          email_status: string | null
           expected_volume_label: string | null
           expected_volume_value: string | null
+          external_id: string | null
           full_name: string | null
           id: string
           inquiry_type: string | null
@@ -773,8 +775,10 @@ export type Database = {
           email: string
           email_delivery_error?: string | null
           email_message_ids?: Json | null
+          email_status?: string | null
           expected_volume_label?: string | null
           expected_volume_value?: string | null
+          external_id?: string | null
           full_name?: string | null
           id?: string
           inquiry_type?: string | null
@@ -816,8 +820,10 @@ export type Database = {
           email?: string
           email_delivery_error?: string | null
           email_message_ids?: Json | null
+          email_status?: string | null
           expected_volume_label?: string | null
           expected_volume_value?: string | null
+          external_id?: string | null
           full_name?: string | null
           id?: string
           inquiry_type?: string | null
