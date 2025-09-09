@@ -3,13 +3,11 @@ import { Resend } from 'npm:resend@4.0.0'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import React from 'npm:react@18.3.1'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
-import { createSuiteCRMService } from './_lib/suitecrm-service.ts'
-import { previewSuiteCRMPayload } from './_lib/suitecrm-mapping.ts'
 import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
 // Version and function info
-const VERSION = "2025-09-09-8";
+const VERSION = "2025-09-09-unified-v8";
 const FUNCTION_NAME = "contact-sales";
 
 // CORS Configuration
@@ -29,7 +27,7 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
     'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey',
     'Access-Control-Max-Age': '600',
     'Vary': 'Origin',
-    'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status, X-DB-Client'
+    'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status, X-CRM-Base, X-CRM-Mode, X-DB-Client'
   };
 
   // Force wildcard if debug mode is enabled
@@ -50,7 +48,7 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'))
 
 // Helper function to create response with consistent headers
-const createResponse = (data: any, status = 200, requestOrigin: string | null = null, crmStatus?: string) => {
+const createResponse = (data: any, status = 200, requestOrigin: string | null = null, crmStatus?: string, crmBase?: string, crmMode?: string) => {
   const headers = { 
     ...getCorsHeaders(requestOrigin), 
     'Content-Type': 'application/json',
@@ -61,6 +59,14 @@ const createResponse = (data: any, status = 200, requestOrigin: string | null = 
   
   if (crmStatus) {
     headers['X-CRM-Status'] = crmStatus;
+  }
+  
+  if (crmBase) {
+    headers['X-CRM-Base'] = crmBase;
+  }
+  
+  if (crmMode) {
+    headers['X-CRM-Mode'] = crmMode;
   }
   
   // Add function and version info to response data with DB client marker
@@ -128,6 +134,221 @@ interface LeadData {
   name?: string
   notes?: string
   legacy_expected_volume?: string
+}
+
+// SuiteCRM integration - unified config loader (same as test-suitecrm-connection)
+function loadSuiteCRMConfig() {
+  const base_url = Deno.env.get('SUITECRM_BASE_URL')
+  const client_id = Deno.env.get('SUITECRM_CLIENT_ID')
+  const client_secret = Deno.env.get('SUITECRM_CLIENT_SECRET')
+  const auth_mode = Deno.env.get('SUITECRM_AUTH_MODE')
+  const auto_create_fields = Deno.env.get('SUITECRM_AUTO_CREATE_FIELDS') !== 'false' // default true, disabled with false
+  
+  console.log(`[CRM-CFG] env present: base_url=${!!base_url}, client_id=${!!client_id}, client_secret=${!!client_secret}, auth_mode=${!!auth_mode}, auto_create=${auto_create_fields}`)
+  
+  return {
+    base_url: base_url?.replace(/\/$/, ''), // Remove trailing slash
+    client_id,
+    client_secret,
+    auth_mode,
+    auto_create_fields,
+    isConfigured: !!(base_url && client_id && client_secret && auth_mode)
+  }
+}
+
+interface SuiteCRMSyncResult {
+  success: boolean
+  crm_id?: string
+  message: string
+  error?: string
+  debug?: {
+    endpoint: string
+    method: string
+    status: number
+    response_preview: string
+    payload_keys: string[]
+  }
+}
+
+async function authenticateSuiteCRM(config: any): Promise<{ success: boolean, token?: string, error?: string }> {
+  if (!config.isConfigured) {
+    return { success: false, error: 'SuiteCRM not configured' }
+  }
+
+  // Confirm auth_mode is v8_client_credentials
+  if (config.auth_mode !== 'v8_client_credentials') {
+    return { success: false, error: `Auth mode '${config.auth_mode}' not supported, only 'v8_client_credentials' supported` }
+  }
+
+  try {
+    const authPayload = {
+      grant_type: 'client_credentials',
+      client_id: config.client_id,
+      client_secret: config.client_secret
+    }
+
+    // Only add scope if SUITECRM_SCOPE environment variable is set and non-empty
+    const scopeValue = Deno.env.get('SUITECRM_SCOPE')
+    if (scopeValue && scopeValue.trim() !== '') {
+      authPayload.scope = scopeValue.trim()
+    }
+
+    const endpoint = `${config.base_url}/Api/access_token`
+    console.log(`[CRM] auth ${endpoint}`)
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(authPayload)
+    })
+
+    console.log(`[CRM] auth -> ${response.status}`)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`[CRM] auth failed ${response.status}: ${errorText.substring(0, 100)}`)
+      return { success: false, error: `OAuth failed: ${response.status} ${response.statusText}` }
+    }
+
+    const authData = await response.json()
+    return { success: true, token: authData.access_token }
+
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+    console.error(`[CRM] auth error: ${errorMsg}`)
+    return { success: false, error: errorMsg }
+  }
+}
+
+function mapLeadToSuiteCRMPayload(lead: LeadData): any {
+  // Create minimal, valid Lead payload for SuiteCRM v8
+  const payload: any = {
+    // Map full_name → last_name (required by SuiteCRM)
+    last_name: lead.full_name || 'Unknown',
+    
+    // Map email → email1
+    email1: lead.email,
+    
+    // Map message → description
+    description: lead.message || '',
+    
+    // Safe defaults
+    status: 'new'
+  }
+
+  // Optional fields if present
+  if (lead.phone) {
+    payload.phone_work = lead.phone
+  }
+  
+  if (lead.company) {
+    payload.account_name = lead.company
+  }
+  
+  // Map source if available (be careful not to send invalid enums)
+  if (lead.utm_source) {
+    payload.lead_source = lead.utm_source
+  }
+
+  // Set assigned_user_id to API user if required - can be added later if needed
+  // payload.assigned_user_id = 'some-api-user-id'
+
+  return payload
+}
+
+async function syncLeadToSuiteCRM(lead: LeadData, config: any): Promise<SuiteCRMSyncResult> {
+  // Authenticate first
+  const authResult = await authenticateSuiteCRM(config)
+  if (!authResult.success) {
+    return {
+      success: false,
+      message: 'Authentication failed',
+      error: authResult.error
+    }
+  }
+
+  // Create payload
+  const payload = mapLeadToSuiteCRMPayload(lead)
+  const endpoint = `${config.base_url}/Api/V8/module/Leads`
+
+  try {
+    console.log(`[CRM] sync lead to ${endpoint}`)
+    console.log(`[CRM] payload keys: ${Object.keys(payload).join(', ')}`)
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authResult.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        data: {
+          type: 'Leads',
+          attributes: payload
+        }
+      })
+    })
+
+    console.log(`[CRM] sync -> ${response.status}`)
+
+    const responseText = await response.text()
+    let responseData
+    try {
+      responseData = JSON.parse(responseText)
+    } catch {
+      responseData = { raw: responseText }
+    }
+
+    // Create debug info for non-prod environments
+    const debug = {
+      endpoint,
+      method: 'POST',
+      status: response.status,
+      response_preview: responseText.substring(0, 200),
+      payload_keys: Object.keys(payload)
+    }
+
+    if (response.ok) {
+      const leadId = responseData.data?.id || 'unknown'
+      console.log(`[CRM] lead created: ${leadId}`)
+      
+      return {
+        success: true,
+        crm_id: leadId,
+        message: `Lead synced successfully (ID: ${leadId})`,
+        debug
+      }
+    } else {
+      console.error(`[CRM] sync failed ${response.status}: ${responseText.substring(0, 100)}`)
+      
+      // If SuiteCRM rejects, return 424 with debug info
+      return {
+        success: false,
+        message: `CRM sync failed: ${response.status} ${response.statusText}`,
+        error: `SuiteCRM rejected with ${response.status}`,
+        debug
+      }
+    }
+
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+    console.error(`[CRM] sync error: ${errorMsg}`)
+    
+    return {
+      success: false,
+      message: 'CRM sync failed',
+      error: errorMsg,
+      debug: {
+        endpoint,
+        method: 'POST',
+        status: 0,
+        response_preview: `Error: ${errorMsg}`,
+        payload_keys: Object.keys(payload)
+      }
+    }
+  }
 }
 
 const logStep = (step: string, leadId?: string, status?: string, metadata?: any) => {
@@ -424,6 +645,9 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Load CRM config
+    const crmConfig = loadSuiteCRMConfig();
+
     // Parse request body
     let data: ContactFormRequest;
     try {
@@ -578,21 +802,34 @@ serve(async (req) => {
 
     logStep('lead_inserted', leadRecord.id, 'success');
 
-    // CRM Sync (only if organization context exists)
-    let syncResult = null;
-    if (organizationId) {
+    // CRM Sync (always try if configured)
+    let syncResult: SuiteCRMSyncResult | null = null;
+    let crmStatus = 'not_applicable';
+    let crmBase = '';
+    let crmMode = '';
+    
+    if (crmConfig.isConfigured) {
       try {
-        const crmService = createSuiteCRMService();
-        syncResult = await crmService.syncLead(leadRecord);
+        crmBase = new URL(crmConfig.base_url!).host;
+        crmMode = 'v8';
+        
+        syncResult = await syncLeadToSuiteCRM(leadData, crmConfig);
         
         if (syncResult.success) {
+          crmStatus = 'success';
           logStep('crm_sync_success', leadRecord.id, 'synced', { crm_id: syncResult.crm_id });
         } else {
+          crmStatus = 'failed';
           logStep('crm_sync_failed', leadRecord.id, 'failed', { error: syncResult.error });
         }
       } catch (crmError) {
+        crmStatus = 'error';
         logStep('crm_sync_error', leadRecord.id, 'error', { error: crmError.message });
-        syncResult = { success: false, error: crmError.message };
+        syncResult = { 
+          success: false, 
+          message: 'CRM sync error',
+          error: crmError.message 
+        };
       }
 
       // Update lead with CRM sync status
@@ -688,8 +925,9 @@ serve(async (req) => {
         error: 'CRM synchronization failed',
         details: syncResult.error,
         error_code: 'crm_sync_failed',
-        lead_id: leadRecord.id
-      }, 424, origin, 'failed');
+        lead_id: leadRecord.id,
+        crm_debug: syncResult.debug || {}
+      }, 424, origin, crmStatus, crmBase, crmMode);
     }
 
     // Success response
@@ -697,7 +935,12 @@ serve(async (req) => {
       success: true,
       message: 'Lead submitted successfully',
       lead_id: leadRecord.id,
-      crm_sync: syncResult,
+      crm_sync: syncResult ? {
+        success: syncResult.success,
+        crm_id: syncResult.crm_id,
+        message: syncResult.message
+      } : null,
+      crm_debug: syncResult?.debug || {},
       email_delivery: {
         sales_notification: salesEmailResult,
         confirmation: confirmationEmailResult
@@ -712,7 +955,7 @@ serve(async (req) => {
       }
     });
 
-    return createResponse(successResponse, 200, origin, syncResult?.success ? 'success' : 'not_applicable');
+    return createResponse(successResponse, 200, origin, crmStatus, crmBase, crmMode);
 
   } catch (error) {
     console.error('[ERROR] Contact sales submission failed:', error);
