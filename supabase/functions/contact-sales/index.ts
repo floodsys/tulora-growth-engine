@@ -29,7 +29,7 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
     'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey',
     'Access-Control-Max-Age': '600',
     'Vary': 'Origin',
-    'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status'
+    'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status, X-DB-Client'
   };
 
   // Force wildcard if debug mode is enabled
@@ -55,19 +55,21 @@ const createResponse = (data: any, status = 200, requestOrigin: string | null = 
     ...getCorsHeaders(requestOrigin), 
     'Content-Type': 'application/json',
     'X-Function': FUNCTION_NAME,
-    'X-Version': VERSION
+    'X-Version': VERSION,
+    'X-DB-Client': 'service_role'
   };
   
   if (crmStatus) {
     headers['X-CRM-Status'] = crmStatus;
   }
   
-  // Add function and version info to response data
+  // Add function and version info to response data with DB client marker
   const responseData = {
     ...data,
     function: FUNCTION_NAME,
     version: VERSION,
-    method_used: 'POST'
+    method_used: 'POST',
+    db_client: 'service_role'
   };
   
   return new Response(JSON.stringify(responseData), {
@@ -382,7 +384,8 @@ serve(async (req) => {
       error: 'Method not allowed',
       function: FUNCTION_NAME,
       version: VERSION,
-      method_used: req.method
+      method_used: req.method,
+      db_client: 'service_role'
     };
     
     return new Response(JSON.stringify(responseData), { 
@@ -391,7 +394,8 @@ serve(async (req) => {
         ...corsHeaders,
         'Content-Type': 'application/json',
         'X-Function': FUNCTION_NAME,
-        'X-Version': VERSION
+        'X-Version': VERSION,
+        'X-DB-Client': 'service_role'
       }
     });
   }
@@ -415,10 +419,10 @@ serve(async (req) => {
   logStep('request_start', undefined, 'processing');
 
   try {
-    // Initialize Supabase client
+    // Initialize Supabase client with SERVICE ROLE KEY (bypasses RLS)
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Parse request body
     let data: ContactFormRequest;
@@ -490,14 +494,16 @@ serve(async (req) => {
       has_tracking: !!(leadData.utm_source || leadData.referrer)
     });
 
-    // Authenticate user if Authorization header is provided
+    // Check for Authorization header (for HTTP gating only - DB uses service role)
     let organizationId: string | null = null;
     const authHeader = req.headers.get('Authorization');
     if (authHeader) {
       try {
-        const { data: { user }, error } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+        // Create a temporary client with anon key just for auth validation (not DB ops)
+        const tempClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!);
+        const { data: { user }, error } = await tempClient.auth.getUser(authHeader.replace('Bearer ', ''));
         if (user && !error) {
-          // Get user's organization
+          // Get user's organization using the service role client
           const { data: orgData } = await supabase
             .from('organizations')
             .select('id')
