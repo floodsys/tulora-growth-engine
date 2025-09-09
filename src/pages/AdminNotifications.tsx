@@ -67,8 +67,9 @@ export default function AdminNotifications() {
     'test-suitecrm-connection': {}
   })
   const [e2eResults, setE2eResults] = useState<{
-    connection: { status: 'pending' | 'success' | 'error', message?: string, oauth_user?: string, env_present?: Record<string, boolean> },
-    lead: { status: 'pending' | 'success' | 'error', message?: string, crm_reference?: string },
+    connection: { status: 'pending' | 'success' | 'error', message?: string, oauth_user?: string, env_present?: Record<string, boolean>, function?: string, version?: string },
+    contact: { status: 'pending' | 'success' | 'error', message?: string, function?: string, version?: string, response_status?: number },
+    enterprise: { status: 'pending' | 'success' | 'error', message?: string, crm_reference?: string, function?: string, version?: string, response_status?: number },
     overall: 'pending' | 'success' | 'error'
   } | null>(null)
   const handleHardRefresh = async () => {
@@ -433,7 +434,8 @@ export default function AdminNotifications() {
     setE2eTesting(true)
     setE2eResults({
       connection: { status: 'pending' },
-      lead: { status: 'pending' },
+      contact: { status: 'pending' },
+      enterprise: { status: 'pending' },
       overall: 'pending'
     })
 
@@ -585,7 +587,8 @@ export default function AdminNotifications() {
 
       setE2eResults({
         connection: connectionResult,
-        lead: leadResult,
+        contact: { status: 'pending' },
+        enterprise: { status: 'pending' },
         overall: overallStatus
       })
 
@@ -606,8 +609,9 @@ export default function AdminNotifications() {
 
     } catch (error) {
       setE2eResults({
-        connection: { status: 'error', message: 'E2E test failed to start' },
-        lead: { status: 'error', message: 'Not attempted' },
+        connection: { status: 'error', message: 'E2E test failed to start', function: '', version: '' },
+        contact: { status: 'error', message: 'Not executed', function: '', version: '', response_status: 0 },
+        enterprise: { status: 'error', message: 'Not executed', function: '', version: '', response_status: 0 },
         overall: 'error'
       })
       
