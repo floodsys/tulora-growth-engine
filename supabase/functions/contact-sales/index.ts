@@ -8,6 +8,8 @@ import { previewSuiteCRMPayload } from './_lib/suitecrm-mapping.ts'
 import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
+const VERSION = "2025-09-09-3" // Track version for deployments
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -682,6 +684,31 @@ serve(async (req) => {
       // Don't fail the whole request if status update fails
     }
 
+    // Determine final response based on CRM sync status
+    const crmSyncSuccessful = crmSyncResult?.success === true
+    
+    // If CRM is configured but sync failed, return error status
+    if (crmSyncResult && !crmSyncSuccessful) {
+      const crmError = crmSyncResult.message || 'CRM sync failed'
+      const statusCode = crmError.includes('authentication') || crmError.includes('auth') ? 502 : 424
+      
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'CRM synchronization failed',
+        endpoint: 'SuiteCRM API',
+        status_code: statusCode,
+        version: VERSION,
+        leadId: savedLead.id,
+        details: crmError.replace(/[a-zA-Z0-9+/=]{20,}/g, '[REDACTED]'), // Sanitize any secrets
+        delivery_status: deliveryStatus,
+        emails_sent: emailMessageIds.length
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: statusCode,
+      })
+    }
+
+    // Success response - only when CRM sync succeeds OR CRM is not configured
     return new Response(JSON.stringify({ 
       success: true, 
       leadId: savedLead.id,
@@ -694,6 +721,7 @@ serve(async (req) => {
         message: crmSyncResult.message,
         fieldsCreated: crmSyncResult.fieldsCreated?.length || 0
       } : { skipped: true },
+      version: VERSION,
       message: 'Submission received successfully'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -707,7 +735,8 @@ serve(async (req) => {
     
     return new Response(JSON.stringify({ 
       success: false,
-      error: 'Internal server error'
+      error: 'Internal server error',
+      version: VERSION
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
