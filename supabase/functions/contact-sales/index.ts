@@ -8,7 +8,7 @@ import { previewSuiteCRMPayload } from './_lib/suitecrm-mapping.ts'
 import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
-const VERSION = "2025-09-09-10" // Prompt 6 - Cache-control headers
+const VERSION = "2025-09-09-11" // Prompt 7 - Actionable 422 errors
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -261,9 +261,17 @@ function normalizePayload(payload: any): { payload: any; normalized: boolean } {
   return { payload: trimmedPayload, normalized: hasNormalized };
 }
 
-// Field validation and legacy mapping
-function validateAndNormalizePayload(payload: any): { valid: boolean; errors: string[]; normalized?: ContactFormRequest } {
-  const errors: string[] = []
+// Enhanced validation with structured error arrays
+function validateAndNormalizePayload(payload: any): { 
+  valid: boolean; 
+  unknown_fields: string[];
+  missing_required: string[];
+  enum_errors: Array<{field: string, value: any, allowed: string[]}>;
+  normalized?: ContactFormRequest 
+} {
+  const unknown_fields: string[] = []
+  const missing_required: string[] = []
+  const enum_errors: Array<{field: string, value: any, allowed: string[]}> = []
   const normalized = { ...payload }
   
   // Define allowed fields
@@ -271,48 +279,91 @@ function validateAndNormalizePayload(payload: any): { valid: boolean; errors: st
     'inquiry_type', 'full_name', 'name', 'email', 'phone', 'company', 'message',
     'product_line', 'product_interest', 'expected_volume', 'expected_volume_label',
     'notes', 'additional_requirements', 'accept_privacy', 'marketing_opt_in',
-    'turnstile_token', 'leads_id', 'leadid' // leadid for legacy compatibility
+    'turnstile_token', 'leads_id', 'leadid', 'website', 'utm_source', 'utm_medium',
+    'utm_campaign', 'utm_term', 'utm_content', 'source', 'source_metadata'
   ])
   
   // Check for unknown fields
-  const unknownFields = Object.keys(payload).filter(key => !allowedFields.has(key))
-  if (unknownFields.length > 0) {
-    errors.push(`Unknown fields: ${unknownFields.join(', ')}`)
-  }
+  const unknownFieldsList = Object.keys(payload).filter(key => !allowedFields.has(key))
+  unknown_fields.push(...unknownFieldsList)
   
   // Handle leads_id / leadid field mapping
   const acceptLegacy = Deno.env.get('FORMS_ACCEPT_LEGACY_LEADID') !== 'false' // default true
   
   if (payload.leads_id && payload.leadid) {
-    errors.push('Cannot specify both leads_id and leadid (legacy). Use leads_id only.')
+    unknown_fields.push('leadid') // Prefer leads_id over leadid
   } else if (payload.leadid && !payload.leads_id) {
     if (acceptLegacy) {
-      console.log(`[DEPRECATION] Field 'leadid' is deprecated, use 'leads_id' instead. Legacy support will be removed in future versions.`)
+      console.log(`[DEPRECATION] Field 'leadid' is deprecated, use 'leads_id' instead.`)
       normalized.leads_id = payload.leadid
       delete normalized.leadid
     } else {
-      errors.push('Field leadid is deprecated. Use leads_id instead.')
+      unknown_fields.push('leadid')
     }
   }
   
   // Required field validation
   if (!payload.email || typeof payload.email !== 'string') {
-    errors.push('email is required and must be a string')
+    missing_required.push('email')
   }
   
-  if (!payload.inquiry_type || !['contact', 'enterprise'].includes(payload.inquiry_type)) {
-    errors.push('inquiry_type is required and must be either "contact" or "enterprise"')
+  if (!payload.inquiry_type) {
+    missing_required.push('inquiry_type')
+  } else if (!['contact', 'enterprise'].includes(payload.inquiry_type)) {
+    enum_errors.push({
+      field: 'inquiry_type',
+      value: payload.inquiry_type,
+      allowed: ['contact', 'enterprise']
+    })
   }
   
   const fullName = normalized.full_name || normalized.name
   if (!fullName || typeof fullName !== 'string') {
-    errors.push('full_name (or name) is required and must be a string')
+    missing_required.push('full_name')
+  }
+
+  // Check for enterprise extras if required
+  if (payload.inquiry_type === 'enterprise') {
+    const requireExtras = Deno.env.get('REQUIRE_ENTERPRISE_EXTRAS') === 'true'
+    
+    if (requireExtras) {
+      if (!payload.product_interest) {
+        missing_required.push('product_interest')
+      }
+      if (!payload.expected_volume) {
+        missing_required.push('expected_volume')
+      }
+      if (!payload.additional_requirements) {
+        missing_required.push('additional_requirements')
+      }
+    }
+
+    // Validate product interest enum
+    if (payload.product_interest && !['AI Lead Generation', 'AI Customer Service', 'leadgen', 'support'].includes(payload.product_interest)) {
+      enum_errors.push({
+        field: 'product_interest',
+        value: payload.product_interest,
+        allowed: ['AI Lead Generation', 'AI Customer Service']
+      })
+    }
+
+    // Validate expected volume enum
+    const validVolumes = ['< 5,000 calls/month', '5,000-20,000 calls/month', '20,000-100,000 calls/month', '> 100,000 calls/month', 'Custom/Variable']
+    if (payload.expected_volume && !validVolumes.includes(payload.expected_volume)) {
+      enum_errors.push({
+        field: 'expected_volume',
+        value: payload.expected_volume,
+        allowed: validVolumes
+      })
+    }
   }
   
   return {
-    valid: errors.length === 0,
-    errors,
-    normalized: errors.length === 0 ? normalized : undefined
+    valid: unknown_fields.length === 0 && missing_required.length === 0 && enum_errors.length === 0,
+    unknown_fields,
+    missing_required,
+    enum_errors,
+    normalized: (unknown_fields.length === 0 && missing_required.length === 0 && enum_errors.length === 0) ? normalized : undefined
   }
 }
 
@@ -501,19 +552,33 @@ serve(async (req) => {
       })
     }
 
-    // Validate and normalize payload (handle legacy fields and unknown fields)
+    // Validate and normalize payload with structured error arrays
     const validation = validateAndNormalizePayload(requestData)
     if (!validation.valid) {
+      logStep('Validation failed', undefined, 'error', { 
+        unknown_fields_count: validation.unknown_fields.length,
+        missing_required_count: validation.missing_required.length,
+        enum_errors_count: validation.enum_errors.length
+      });
+
       return new Response(JSON.stringify({ 
         success: false,
-        error: 'Invalid payload',
-        details: validation.errors,
+        error: 'Validation failed',
+        unknown_fields: validation.unknown_fields,
+        missing_required: validation.missing_required,
+        enum_errors: validation.enum_errors,
         function: 'contact-sales',
         version: VERSION,
         method_used: 'POST'
       }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 422, // Unprocessable Entity
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        status: 422,
       })
     }
     

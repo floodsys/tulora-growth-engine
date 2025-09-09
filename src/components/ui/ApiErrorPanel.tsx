@@ -13,107 +13,98 @@ interface ApiErrorPanelProps {
   onDismiss?: () => void
 }
 
-// Helper function to parse validation errors into user-friendly messages
-const parseValidationErrors = (details: any): string => {
-  const messages: string[] = [];
-  
-  // Ensure details is an array of strings
-  const detailsArray = Array.isArray(details) 
-    ? details.map(d => typeof d === 'string' ? d : JSON.stringify(d))
-    : typeof details === 'string' 
-    ? [details]
-    : [JSON.stringify(details)];
-  
-  for (const detail of detailsArray) {
-    if (detail.includes('Unknown fields:')) {
-      const fields = detail.replace('Unknown fields: ', '');
-      messages.push(`Remove unknown fields: ${fields}`);
-    } else if (detail.includes('inquiry_type is required')) {
-      messages.push('inquiry_type must be contact or enterprise');
-    } else if (detail.includes('inquiry_type') && detail.includes('must be either')) {
-      messages.push('inquiry_type must be contact or enterprise');
-    } else if (detail.includes('full_name is required')) {
-      messages.push('full_name is required');
-    } else if (detail.includes('email is required')) {
-      messages.push('email is required');  
-    } else if (detail.includes('message is required')) {
-      messages.push('message is required');
-    } else {
-      // Fallback for other validation errors
-      messages.push(detail);
-    }
-  }
-  
-  return messages.join('. ');
-};
-
 export function ApiErrorPanel({ error, onDismiss }: ApiErrorPanelProps) {
-  // Parse 422 validation errors with safety checks
-  const parse422Errors = (details: any): ValidationError[] => {
+  // Enhanced 422 error parsing for structured error arrays
+  const parse422Errors = (error: any): ValidationError[] => {
     const errors: ValidationError[] = []
     
-    // Ensure details is an array of strings
-    const detailsArray = Array.isArray(details) 
-      ? details.map(d => typeof d === 'string' ? d : JSON.stringify(d))
-      : typeof details === 'string' 
-      ? [details]
-      : [JSON.stringify(details)];
+    // Handle new structured format
+    if (error.unknown_fields && Array.isArray(error.unknown_fields)) {
+      error.unknown_fields.forEach((field: string) => {
+        errors.push({
+          field,
+          message: `Remove unknown field: "${field}"`,
+          suggestion: 'This field is not allowed'
+        })
+      })
+    }
     
-    for (const detail of detailsArray) {
-      if (detail.includes('Unknown fields:')) {
-        const fields = detail.replace('Unknown fields: ', '').split(', ')
-        for (const field of fields) {
-          if (field.includes('source metadata')) {
-            errors.push({
-              field: 'source metadata',
-              message: `Remove: "${field}"`,
-              suggestion: 'use: source_metadata'
-            })
-          } else {
+    if (error.missing_required && Array.isArray(error.missing_required)) {
+      error.missing_required.forEach((field: string) => {
+        errors.push({
+          field,
+          message: `Missing required field: "${field}"`,
+          suggestion: 'This field must be provided'
+        })
+      })
+    }
+    
+    if (error.enum_errors && Array.isArray(error.enum_errors)) {
+      error.enum_errors.forEach((enumError: any) => {
+        errors.push({
+          field: enumError.field,
+          message: `Invalid value for "${enumError.field}": "${enumError.value}"`,
+          suggestion: `Allowed values: ${enumError.allowed.join(', ')}`
+        })
+      })
+    }
+    
+    // Fallback to legacy format if no structured arrays
+    if (errors.length === 0 && error.details) {
+      const detailsArray = Array.isArray(error.details) 
+        ? error.details.map(d => typeof d === 'string' ? d : JSON.stringify(d))
+        : typeof error.details === 'string' 
+        ? [error.details]
+        : [JSON.stringify(error.details)];
+      
+      for (const detail of detailsArray) {
+        if (detail.includes('Unknown fields:')) {
+          const fields = detail.replace('Unknown fields: ', '').split(', ')
+          for (const field of fields) {
             errors.push({
               field,
               message: `Remove: "${field}"`,
               suggestion: 'Field not allowed'
             })
           }
-        }
-      } else if (detail.includes('inquiry_type')) {
-        if (detail.includes('is required')) {
+        } else if (detail.includes('inquiry_type')) {
+          if (detail.includes('is required')) {
+            errors.push({
+              field: 'inquiry_type',
+              message: 'inquiry_type is required',
+              suggestion: 'must be "contact" or "enterprise"'
+            })
+          } else if (detail.includes('must be either')) {
+            errors.push({
+              field: 'inquiry_type',
+              message: 'Invalid inquiry_type value',
+              suggestion: 'must be "contact" or "enterprise"'
+            })
+          }
+        } else if (detail.includes('full_name is required')) {
           errors.push({
-            field: 'inquiry_type',
-            message: 'inquiry_type is required',
-            suggestion: 'must be "contact" or "enterprise"'
+            field: 'full_name',
+            message: 'full_name is required',
+            suggestion: 'Must provide a name'
           })
-        } else if (detail.includes('must be either')) {
+        } else if (detail.includes('email is required')) {
           errors.push({
-            field: 'inquiry_type',
-            message: 'Invalid inquiry_type value',
-            suggestion: 'must be "contact" or "enterprise"'
+            field: 'email',
+            message: 'email is required',
+            suggestion: 'Must provide a valid email'
+          })
+        } else if (detail.includes('message is required')) {
+          errors.push({
+            field: 'message',
+            message: 'message is required',
+            suggestion: 'Must provide a message'
+          })
+        } else {
+          errors.push({
+            message: detail,
+            suggestion: 'Check field format and requirements'
           })
         }
-      } else if (detail.includes('full_name is required')) {
-        errors.push({
-          field: 'full_name',
-          message: 'full_name is required',
-          suggestion: 'Must provide a name'
-        })
-      } else if (detail.includes('email is required')) {
-        errors.push({
-          field: 'email',
-          message: 'email is required',
-          suggestion: 'Must provide a valid email'
-        })
-      } else if (detail.includes('message is required')) {
-        errors.push({
-          field: 'message',
-          message: 'message is required',
-          suggestion: 'Must provide a message'
-        })
-      } else {
-        errors.push({
-          message: detail,
-          suggestion: 'Check field format and requirements'
-        })
       }
     }
     
@@ -141,10 +132,9 @@ export function ApiErrorPanel({ error, onDismiss }: ApiErrorPanelProps) {
 
   // Determine error type with safety checks
   const is422Error = error?.status === 422 || error?.message?.includes?.('Status 422') || error?.message?.includes?.('HTTP 422')
-  const validationDetails = error?.details || (error?.message && is422Error ? [error.message] : [])
   
-  if (is422Error && validationDetails && validationDetails.length > 0) {
-    const validationErrors = parse422Errors(validationDetails)
+  if (is422Error) {
+    const validationErrors = parse422Errors(error)
     
     return (
       <Alert variant="destructive" className="mb-4">
