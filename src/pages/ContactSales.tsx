@@ -164,7 +164,15 @@ export default function ContactSales() {
       console.log('🔍 Invoke response:', { data, error });
 
       if (error) {
-        setSubmitError(error);
+        // Check if this is a validation error with field details
+        if (error.status === 422 && error.details) {
+          setSubmitError({
+            message: error.message || 'Validation failed',
+            details: error.details
+          });
+        } else {
+          setSubmitError(error);
+        }
         return;
       }
 
@@ -176,10 +184,18 @@ export default function ContactSales() {
           description: "Thank you! Our sales team will contact you within 24 hours.",
         });
       } else {
-        setSubmitError({
-          message: data?.error || 'Failed to submit form',
-          details: data?.details
-        });
+        // Check for validation errors in the response
+        if (data?.error_code === 'validation_error' && data?.details) {
+          setSubmitError({
+            message: data.error || 'Validation failed',
+            details: data.details
+          });
+        } else {
+          setSubmitError({
+            message: data?.error || 'Failed to submit form',
+            details: data?.details
+          });
+        }
       }
 
     } catch (error: any) {

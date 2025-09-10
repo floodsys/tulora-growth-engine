@@ -12,7 +12,7 @@ export interface ContactPayloadData {
   leads_id?: string;
   source?: string;
   source_metadata?: Record<string, any>;
-  product_interest?: string;
+  product_interest?: string | string[];
   expected_volume?: string;
   additional_requirements?: string;
   utm_source?: string;
@@ -32,7 +32,7 @@ export interface RawFormData {
   message?: string;
   notes?: string; // Enterprise form
   product_line?: string; // Enterprise form (legacy)
-  product_interest?: string; // Enterprise form (new)
+  product_interest?: string | string[]; // Enterprise form (supports multi-select)
   expected_volume?: string; // Enterprise form
   additional_requirements?: string; // Enterprise form (new)
   website?: string; // honeypot
@@ -80,8 +80,24 @@ export function buildContactPayload(
 
   // Enterprise-specific fields
   if (inquiryType === 'enterprise') {
-    if (formData.product_interest?.trim()) {
+    if (Array.isArray(formData.product_interest)) {
+      // Handle multi-select array
+      const cleanedInterests = formData.product_interest.filter(p => p && p.trim()).map(p => p.trim());
+      if (cleanedInterests.length > 0) {
+        payload.product_interest = cleanedInterests;
+        // Include the raw array in source_metadata
+        if (!payload.source_metadata) {
+          payload.source_metadata = {};
+        }
+        payload.source_metadata.product_interests = cleanedInterests;
+      }
+    } else if (formData.product_interest?.trim()) {
       payload.product_interest = formData.product_interest.trim();
+      // Include single value as array in source_metadata for consistency
+      if (!payload.source_metadata) {
+        payload.source_metadata = {};
+      }
+      payload.source_metadata.product_interests = [formData.product_interest.trim()];
     } else if (formData.product_line?.trim()) {
       // Legacy support for product_line field
       const productInterestMap: Record<string, string> = {
@@ -89,6 +105,10 @@ export function buildContactPayload(
         'support': 'AI Customer Service'
       };
       payload.product_interest = productInterestMap[formData.product_line] || formData.product_line;
+      if (!payload.source_metadata) {
+        payload.source_metadata = {};
+      }
+      payload.source_metadata.product_interests = [payload.product_interest];
     }
 
     if (formData.expected_volume?.trim()) {
@@ -163,6 +183,26 @@ export function validateContactPayload(payload: ContactPayloadData): string[] {
 
   if (!payload.message?.trim()) {
     errors.push('message is required');
+  }
+
+  // Validate product_interest for enterprise forms
+  if (payload.inquiry_type === 'enterprise' && payload.product_interest) {
+    const validValues = ['AI Lead Generation', 'AI Customer Service', 'leadgen', 'support'];
+    
+    if (Array.isArray(payload.product_interest)) {
+      if (payload.product_interest.length === 0) {
+        errors.push('At least one product interest must be selected');
+      } else {
+        const invalidValues = payload.product_interest.filter(p => !validValues.includes(p));
+        if (invalidValues.length > 0) {
+          errors.push(`Invalid product interest values: ${invalidValues.join(', ')}`);
+        }
+      }
+    } else {
+      if (!validValues.includes(payload.product_interest)) {
+        errors.push('Product interest must be either "AI Lead Generation" or "AI Customer Service"');
+      }
+    }
   }
 
   return errors;

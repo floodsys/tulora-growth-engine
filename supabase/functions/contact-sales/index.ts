@@ -96,7 +96,7 @@ interface ContactFormRequest {
   company?: string
   message?: string // for contact forms
   product_line?: 'leadgen' | 'support' // legacy field
-  product_interest?: string // new normalized field
+  product_interest?: string | string[] // support multi-select
   expected_volume?: string // legacy field name
   expected_volume_label?: string // new field name
   notes?: string // legacy field for additional_requirements
@@ -104,6 +104,7 @@ interface ContactFormRequest {
   accept_privacy?: boolean
   marketing_opt_in?: boolean
   turnstile_token?: string // Cloudflare Turnstile token
+  source_metadata?: Record<string, any> // support metadata
 }
 
 interface ValidationError {
@@ -133,6 +134,7 @@ interface LeadData {
   utm_term?: string
   utm_content?: string
   ip_country?: string
+  source_metadata?: Record<string, any>
   // Legacy compatibility fields
   name?: string
   notes?: string
@@ -506,7 +508,16 @@ const validatePayload = (data: ContactFormRequest): ValidationError[] => {
   const phone = trimField(data.phone);
   const company = trimField(data.company);
   const message = trimField(data.message);
-  const productInterest = trimField(data.product_interest);
+  
+  // Handle product_interest as string or array
+  let productInterest: string | string[] | undefined;
+  if (Array.isArray(data.product_interest)) {
+    productInterest = data.product_interest.filter(p => p && p.trim()).map(p => p.trim());
+    if (productInterest.length === 0) productInterest = undefined;
+  } else if (data.product_interest) {
+    productInterest = trimField(data.product_interest);
+  }
+  
   const expectedVolumeLabel = trimField(data.expected_volume_label || data.expected_volume);
   const additionalRequirements = trimField(data.additional_requirements || data.notes);
 
@@ -552,8 +563,25 @@ const validatePayload = (data: ContactFormRequest): ValidationError[] => {
     }
 
     // Validate product interest enum (if provided)
-    if (productInterest && !['AI Lead Generation', 'AI Customer Service', 'leadgen', 'support'].includes(productInterest)) {
-      errors.push({ field: 'product_interest', message: 'Product interest must be either "AI Lead Generation" or "AI Customer Service"' });
+    if (productInterest) {
+      const validValues = ['AI Lead Generation', 'AI Customer Service', 'leadgen', 'support'];
+      
+      if (Array.isArray(productInterest)) {
+        // For arrays, require at least one valid value and all values must be valid
+        if (productInterest.length === 0) {
+          errors.push({ field: 'product_interest', message: 'At least one product interest must be selected' });
+        } else {
+          const invalidValues = productInterest.filter(p => !validValues.includes(p));
+          if (invalidValues.length > 0) {
+            errors.push({ field: 'product_interest', message: `Invalid product interest values: ${invalidValues.join(', ')}. Must be "AI Lead Generation" or "AI Customer Service"` });
+          }
+        }
+      } else {
+        // For single values, validate normally
+        if (!validValues.includes(productInterest)) {
+          errors.push({ field: 'product_interest', message: 'Product interest must be either "AI Lead Generation" or "AI Customer Service"' });
+        }
+      }
     }
 
     // Validate expected volume enum (if provided)
@@ -723,20 +751,59 @@ serve(async (req) => {
     const trackingData = extractTrackingData(req);
 
     // Normalize and prepare lead data
+    let normalizedProductInterest: string | undefined;
+    let normalizedProductLine: string | undefined;
+    let enhancedMessage = data.message?.trim() || undefined;
+    let sourceMetadata: Record<string, any> = { ...data.source_metadata };
+    
+    // Handle multi-select product_interest
+    if (data.product_interest) {
+      if (Array.isArray(data.product_interest)) {
+        const cleanedInterests = data.product_interest.filter(p => p && p.trim()).map(p => p.trim());
+        if (cleanedInterests.length > 0) {
+          // Set primary product_interest to first selected after normalization
+          const normalizedInterests = cleanedInterests.map(p => {
+            if (p === 'AI Lead Generation' || p === 'leadgen') return 'leadgen';
+            if (p === 'AI Customer Service' || p === 'support') return 'support';
+            return p;
+          });
+          
+          normalizedProductInterest = cleanedInterests[0];
+          normalizedProductLine = normalizedInterests[0];
+          
+          // Save all selections to source_metadata
+          sourceMetadata.product_interests = cleanedInterests;
+          
+          // Append note to message if multiple selections
+          if (cleanedInterests.length > 1) {
+            const otherInterests = cleanedInterests.slice(1).join(', ');
+            enhancedMessage = enhancedMessage 
+              ? `${enhancedMessage}\n\nAlso interested in: ${otherInterests}`
+              : `Also interested in: ${otherInterests}`;
+          }
+        }
+      } else {
+        normalizedProductInterest = data.product_interest.trim();
+        normalizedProductLine = mapProductInterestToLine(data.product_interest);
+        sourceMetadata.product_interests = [normalizedProductInterest];
+      }
+    }
+    
     const leadData: LeadData = {
       inquiry_type: data.inquiry_type,
       full_name: normalizeFullName(data.full_name || data.name || ''),
       email: data.email.toLowerCase().trim(),
       phone: data.phone?.trim() || undefined,
       company: data.company?.trim() || undefined,
-      message: data.message?.trim() || undefined,
-      product_interest: data.product_interest?.trim() || undefined,
-      product_line: data.product_interest ? mapProductInterestToLine(data.product_interest) : undefined,
+      message: enhancedMessage,
+      product_interest: normalizedProductInterest,
+      product_line: normalizedProductLine,
       additional_requirements: (data.additional_requirements || data.notes)?.trim() || undefined,
       expected_volume_label: (data.expected_volume_label || data.expected_volume)?.trim() || undefined,
       expected_volume_value: data.expected_volume ? mapVolumeToCode(data.expected_volume) : undefined,
       accept_privacy: data.accept_privacy ?? true,
       marketing_opt_in: data.marketing_opt_in ?? false,
+      source_metadata: Object.keys(sourceMetadata).length > 0 ? sourceMetadata : undefined,
       ...trackingData,
       ip_country: req.headers.get('cf-ipcountry') || undefined
     };
@@ -898,6 +965,7 @@ serve(async (req) => {
             utm_term: leadData.utm_term,
             utm_content: leadData.utm_content,
             ip_country: leadData.ip_country,
+            source_metadata: leadData.source_metadata,
             organization_id: organizationId,
             crm_sync_status: organizationId ? 'pending' : 'not_applicable',
             email_status: 'pending'
@@ -941,6 +1009,7 @@ serve(async (req) => {
           utm_term: leadData.utm_term,
           utm_content: leadData.utm_content,
           ip_country: leadData.ip_country,
+          source_metadata: leadData.source_metadata,
           organization_id: organizationId,
           crm_sync_status: organizationId ? 'pending' : 'not_applicable',
           email_status: 'pending'
