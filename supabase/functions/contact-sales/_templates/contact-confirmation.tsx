@@ -24,14 +24,13 @@ export const ContactConfirmationEmail = ({ name }: ContactConfirmationProps) => 
           Hi {name},
         </Text>
         <Text style={text}>
-          Thanks for reaching out to Tulora. We'll email you soon to schedule a demo.
+          Thanks for reaching out to Tulora — your request is confirmed.
         </Text>
         <Text style={text}>
-          We're excited to show you how our AI-powered lead generation can help grow your business.
+          We’ll be in touch soon to refine what you’d like to build and outline scope, timeline, and pricing.
         </Text>
         <Text style={footer}>
-          Best regards,<br />
-          The Tulora Team
+          — The Tulora Team
         </Text>
       </Container>
     </Body>
