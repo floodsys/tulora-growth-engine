@@ -20,15 +20,18 @@ export const EnterpriseConfirmationEmail = ({ name, company }: EnterpriseConfirm
     <Preview>Thanks — enterprise team on it</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>Enterprise inquiry received</Heading>
+        <Heading style={h1}>We’ve received your enterprise inquiry for Tulora</Heading>
         <Text style={text}>
           Hi {name},
         </Text>
         <Text style={text}>
-          We've received your enterprise inquiry{company ? ` for ${company}` : ''}. A specialist will follow up shortly to discuss requirements and pricing.
+          Thank you for your interest in Tulora! We have received your enterprise AI request and
+          are excited to show you how our solution can benefit your organization.
         </Text>
         <Text style={text}>
           Our enterprise solutions are designed to scale with your business and integrate seamlessly with your existing workflows.
+          
+          We look forward to speaking with you!
         </Text>
         <Text style={footer}>
           Best regards,<br />
