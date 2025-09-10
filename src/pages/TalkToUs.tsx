@@ -61,27 +61,15 @@ const TalkToUs = () => {
     }
   }, []);
 
-  const formatPhoneNumber = (value: string): string => {
-    // Remove all non-numeric characters
-    const numbers = value.replace(/\D/g, '');
-    
-    // Don't format if empty
-    if (!numbers) return '';
-    
-    // Format as E.164: +[country code][subscriber number]
-    // Just add the + prefix to make it clear it's international format
-    return `+${numbers}`;
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
     if (name === 'phone') {
-      // Only allow numbers and format as E.164
-      const formattedPhone = formatPhoneNumber(value);
+      // Only allow numbers for phone field
+      const numbersOnly = value.replace(/\D/g, '');
       setFormData(prev => ({
         ...prev,
-        [name]: formattedPhone
+        [name]: numbersOnly
       }));
     } else {
       setFormData(prev => ({
@@ -328,7 +316,7 @@ const TalkToUs = () => {
                            id="phone"
                            name="phone"
                            type="tel"
-                           placeholder="+1234567890 or +213800495885"
+                           placeholder="xxx xxx xxxx"
                            value={formData.phone}
                            onChange={handleInputChange}
                            required
