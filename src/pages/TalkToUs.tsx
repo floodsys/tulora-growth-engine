@@ -242,15 +242,15 @@ const TalkToUs = () => {
                       <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
                       <div className="space-y-2">
                         <h2 className="text-2xl font-bold text-foreground">
-                          Thanks!
+                          Thanks—you're all set.
                         </h2>
                         <p className="text-lg text-muted-foreground">
-                          We'll reach out to schedule your demo.
+                          We’ll be in touch soon to review your goals and outline next steps.
                         </p>
                       </div>
                       <div className="bg-muted/50 p-4 rounded-lg">
                         <p className="text-sm text-muted-foreground">
-                          Look for a confirmation email in your inbox. We'll email you soon to schedule a personalized demo of our AI lead generation platform.
+                          Look for a confirmation email in your inbox. We’ll follow up soon to refine your requirements and outline scope and timeline.
                         </p>
                       </div>
                       <Button 
