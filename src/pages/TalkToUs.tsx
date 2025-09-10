@@ -68,40 +68,16 @@ const TalkToUs = () => {
     // Don't format if empty
     if (!numbers) return '';
     
-    // Add leading 1 if not present and format as E164
-    let formattedNumbers = numbers;
-    if (!formattedNumbers.startsWith('1') && formattedNumbers.length === 10) {
-      formattedNumbers = '1' + formattedNumbers;
-    }
-    
-    // Format as (XXX) XXX-XXXX
-    if (formattedNumbers.length >= 11) {
-      const countryCode = formattedNumbers.substring(0, 1);
-      const areaCode = formattedNumbers.substring(1, 4);
-      const firstThree = formattedNumbers.substring(4, 7);
-      const lastFour = formattedNumbers.substring(7, 11);
-      return `(${areaCode}) ${firstThree}-${lastFour}`;
-    } else if (formattedNumbers.length >= 7) {
-      const areaCode = formattedNumbers.substring(0, 3);
-      const firstThree = formattedNumbers.substring(3, 6);
-      const lastFour = formattedNumbers.substring(6);
-      return `(${areaCode}) ${firstThree}-${lastFour}`;
-    } else if (formattedNumbers.length >= 4) {
-      const areaCode = formattedNumbers.substring(0, 3);
-      const rest = formattedNumbers.substring(3);
-      return `(${areaCode}) ${rest}`;
-    } else if (formattedNumbers.length >= 1) {
-      return `(${formattedNumbers}`;
-    }
-    
-    return formattedNumbers;
+    // Format as E.164: +[country code][subscriber number]
+    // Just add the + prefix to make it clear it's international format
+    return `+${numbers}`;
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
     if (name === 'phone') {
-      // Only allow numbers and format as E164
+      // Only allow numbers and format as E.164
       const formattedPhone = formatPhoneNumber(value);
       setFormData(prev => ({
         ...prev,
@@ -352,7 +328,7 @@ const TalkToUs = () => {
                            id="phone"
                            name="phone"
                            type="tel"
-                           placeholder="(XXX) XXX-XXXX"
+                           placeholder="+1234567890 or +213800495885"
                            value={formData.phone}
                            onChange={handleInputChange}
                            required
