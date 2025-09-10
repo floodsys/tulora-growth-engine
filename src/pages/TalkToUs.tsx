@@ -61,12 +61,58 @@ const TalkToUs = () => {
     }
   }, []);
 
+  const formatPhoneNumber = (value: string): string => {
+    // Remove all non-numeric characters
+    const numbers = value.replace(/\D/g, '');
+    
+    // Don't format if empty
+    if (!numbers) return '';
+    
+    // Add leading 1 if not present and format as E164
+    let formattedNumbers = numbers;
+    if (!formattedNumbers.startsWith('1') && formattedNumbers.length === 10) {
+      formattedNumbers = '1' + formattedNumbers;
+    }
+    
+    // Format as (XXX) XXX-XXXX
+    if (formattedNumbers.length >= 11) {
+      const countryCode = formattedNumbers.substring(0, 1);
+      const areaCode = formattedNumbers.substring(1, 4);
+      const firstThree = formattedNumbers.substring(4, 7);
+      const lastFour = formattedNumbers.substring(7, 11);
+      return `(${areaCode}) ${firstThree}-${lastFour}`;
+    } else if (formattedNumbers.length >= 7) {
+      const areaCode = formattedNumbers.substring(0, 3);
+      const firstThree = formattedNumbers.substring(3, 6);
+      const lastFour = formattedNumbers.substring(6);
+      return `(${areaCode}) ${firstThree}-${lastFour}`;
+    } else if (formattedNumbers.length >= 4) {
+      const areaCode = formattedNumbers.substring(0, 3);
+      const rest = formattedNumbers.substring(3);
+      return `(${areaCode}) ${rest}`;
+    } else if (formattedNumbers.length >= 1) {
+      return `(${formattedNumbers}`;
+    }
+    
+    return formattedNumbers;
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    if (name === 'phone') {
+      // Only allow numbers and format as E164
+      const formattedPhone = formatPhoneNumber(value);
+      setFormData(prev => ({
+        ...prev,
+        [name]: formattedPhone
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -86,11 +132,11 @@ const TalkToUs = () => {
     //   return;
     // }
     
-    // Basic validation - minimal required fields only
-    if (!formData.fullName || !formData.email || !formData.project) {
+    // Basic validation - required fields including phone and company
+    if (!formData.fullName || !formData.email || !formData.phone || !formData.company || !formData.project) {
       toast({
         title: "Please fill in all required fields",
-        description: "Full name, email, and project description are required",
+        description: "Full name, email, phone number, company, and project description are required",
         variant: "destructive"
       });
       return;
@@ -297,39 +343,42 @@ const TalkToUs = () => {
                         />
                       </div>
 
-                      {/* Phone Number - now optional */}
-                      <div className="space-y-2">
-                        <Label htmlFor="phone" className="text-foreground font-medium">
-                          Phone Number
-                        </Label>
-                        <Input
-                          id="phone"
-                          name="phone"
-                          type="tel"
-                          placeholder="605-500-0123"
-                          value={formData.phone}
-                          onChange={handleInputChange}
-                          className="h-12"
-                          disabled={isSubmitting}
-                        />
-                      </div>
+                       {/* Phone Number - required */}
+                       <div className="space-y-2">
+                         <Label htmlFor="phone" className="text-foreground font-medium">
+                           Phone Number *
+                         </Label>
+                         <Input
+                           id="phone"
+                           name="phone"
+                           type="tel"
+                           placeholder="(XXX) XXX-XXXX"
+                           value={formData.phone}
+                           onChange={handleInputChange}
+                           required
+                           className="h-12"
+                           disabled={isSubmitting}
+                           autoComplete="tel"
+                         />
+                       </div>
 
-                      {/* Company - now optional */}
-                      <div className="space-y-2">
-                        <Label htmlFor="company" className="text-foreground font-medium">
-                          Company
-                        </Label>
-                        <Input
-                          id="company"
-                          name="company"
-                          type="text"
-                          placeholder="Company name"
-                          value={formData.company}
-                          onChange={handleInputChange}
-                          className="h-12"
-                          disabled={isSubmitting}
-                        />
-                      </div>
+                       {/* Company - required */}
+                       <div className="space-y-2">
+                         <Label htmlFor="company" className="text-foreground font-medium">
+                           Company *
+                         </Label>
+                         <Input
+                           id="company"
+                           name="company"
+                           type="text"
+                           placeholder="Company name"
+                           value={formData.company}
+                           onChange={handleInputChange}
+                           required
+                           className="h-12"
+                           disabled={isSubmitting}
+                         />
+                       </div>
 
                       {/* Project Description */}
                       <div className="space-y-2">
