@@ -3,8 +3,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { ManualAccessBanner } from "@/components/ui/ManualAccessBanner"
 import { CreditCard, ExternalLink, Calendar, Users, Phone, Bot } from "lucide-react"
 import { toast } from "sonner"
+import { useState, useEffect } from "react"
+import { supabase } from "@/integrations/supabase/client"
+import { useAuth } from "@/contexts/AuthContext"
 
 const billingData = {
   plan: "Pro",
@@ -24,6 +28,41 @@ const billingData = {
 
 export function BillingSettings() {
   const { logBillingAction } = useActivityLogger();
+  const { user } = useAuth();
+  const [organizationData, setOrganizationData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOrganizationData = async () => {
+      if (!user) return;
+      
+      try {
+        // Get user's current organization
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('current_org_id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profile?.current_org_id) {
+          // Get organization with entitlements
+          const { data: org } = await supabase
+            .from('organizations')
+            .select('id, name, plan_key, billing_status, entitlements')
+            .eq('id', profile.current_org_id)
+            .single();
+
+          setOrganizationData(org);
+        }
+      } catch (error) {
+        console.error('Error fetching organization data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrganizationData();
+  }, [user]);
   
   const handleManageSubscription = async () => {
     try {
@@ -53,6 +92,16 @@ export function BillingSettings() {
         <h1 className="text-2xl font-semibold">Billing & Subscription</h1>
         <p className="text-muted-foreground">Manage your subscription and view usage</p>
       </div>
+
+      {/* Manual Access Banner */}
+      {!loading && organizationData?.entitlements?.manual_activation && (
+        <ManualAccessBanner
+          organizationId={organizationData.id}
+          planKey={organizationData.plan_key}
+          endsAt={organizationData.entitlements.manual_activation.ends_at}
+          isActive={organizationData.entitlements.manual_activation.active}
+        />
+      )}
 
       <Card>
         <CardHeader>
