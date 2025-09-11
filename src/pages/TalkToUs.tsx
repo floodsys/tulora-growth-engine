@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import Navigation from "@/components/Navigation";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -192,19 +193,8 @@ const TalkToUs = () => {
 
   return (
     <div className="min-h-screen bg-gradient-hero">
-      {/* Header */}
-      <header className="py-6 px-4 sm:px-6 lg:px-8 border-b border-border/20">
-        <div className="container mx-auto">
-          <div className="flex items-center justify-between">
-            <Link to="/">
-              <img src={logoSvg} alt="Tulora" className="h-8" />
-            </Link>
-            <Button variant="ghost" asChild>
-              <Link to="/">← Back</Link>
-            </Button>
-          </div>
-        </div>
-      </header>
+      {/* Navigation */}
+      <Navigation />
 
       {/* Main Content */}
       <main className="py-16 px-4 sm:px-6 lg:px-8">
