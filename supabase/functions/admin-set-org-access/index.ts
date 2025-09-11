@@ -103,19 +103,25 @@ Deno.serve(async (req: Request) => {
         set_at: new Date().toISOString()
       };
 
+      // First get current entitlements
+      const { data: currentOrg } = await supabase
+        .from('organizations')
+        .select('entitlements')
+        .eq('id', orgId)
+        .single();
+
+      const currentEntitlements = currentOrg?.entitlements || {};
+      const updatedEntitlements = {
+        ...currentEntitlements,
+        manual_activation: manualActivationData
+      };
+
       const { data, error } = await supabase
         .from('organizations')
         .update({
           plan_key: planKey,
           billing_status: 'active',
-          entitlements: supabase.rpc('jsonb_set', {
-            target: supabase.rpc('coalesce', { 
-              value: supabase.from('organizations').select('entitlements').eq('id', orgId).single(),
-              default_value: '{}'
-            }),
-            path: '{manual_activation}',
-            new_value: JSON.stringify(manualActivationData)
-          })
+          entitlements: updatedEntitlements
         })
         .eq('id', orgId)
         .select()
@@ -143,15 +149,22 @@ Deno.serve(async (req: Request) => {
 
     } else {
       // Deactivate manual access
+      // First get current entitlements
+      const { data: currentOrg } = await supabase
+        .from('organizations')
+        .select('entitlements')
+        .eq('id', orgId)
+        .single();
+
+      const currentEntitlements = currentOrg?.entitlements || {};
+      const { manual_activation, ...remainingEntitlements } = currentEntitlements;
+
       const { data, error } = await supabase
         .from('organizations')
         .update({
           billing_status: 'trialing',
           plan_key: 'trial',
-          entitlements: supabase.rpc('jsonb_delete_key', {
-            data: supabase.from('organizations').select('entitlements').eq('id', orgId).single(),
-            key: 'manual_activation'
-          })
+          entitlements: remainingEntitlements
         })
         .eq('id', orgId)
         .select()
