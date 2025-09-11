@@ -265,14 +265,8 @@ const PricingTable = () => {
           <p className="text-sm text-muted-foreground mb-4">{plan.subtitle}</p>
           
           <div className="mb-4">
-            {plan.setupFee && <div className="text-sm text-muted-foreground">Setup: {plan.setupFee}</div>}
-            <div className="text-3xl font-bold text-foreground">{plan.monthlyPrice}</div>
-            {!plan.isEnterprise && <div className="text-sm text-muted-foreground">per month</div>}
-            {plan.setupFee && !plan.isEnterprise && (
-              <div className="text-xs text-muted-foreground/80 mt-1">
-                Setup fee invoiced separately.
-              </div>
-            )}
+            <div className="text-3xl font-bold text-foreground">Custom Solutions</div>
+            <div className="text-sm text-muted-foreground">4-week implementation</div>
           </div>
         </div>
 
@@ -315,18 +309,17 @@ const PricingTable = () => {
           <Button 
             className="w-full" 
             variant="outline"
-            onClick={() => window.location.href = `/contact/sales?product=${activeTab === 'leadgen' ? 'leadgen' : 'support'}`}
+            onClick={() => window.location.href = '/talktous'}
           >
-            Contact sales
+            Contact Us
             <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
         ) : (
           <Button 
             className="w-full" 
-            onClick={() => handleGetStarted(plan.planKey)}
-            disabled={isLoading}
+            onClick={() => window.location.href = '/talktous'}
           >
-            Get started
+            Contact Us
           </Button>
         )}
       </div>

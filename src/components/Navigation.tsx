@@ -53,9 +53,9 @@ const Navigation = () => {
                   <Link to="/auth" className="text-foreground hover:text-brand transition-colors duration-200">
                     Sign in
                   </Link>
-                  <Link to="/auth">
+                  <Link to="/talktous">
                     <Button className="btn-primary px-6">
-                      Get started
+                      Contact Us
                     </Button>
                   </Link>
                   {/* Temporary test link */}
@@ -104,9 +104,9 @@ const Navigation = () => {
                     Sign in
                   </Link>
                   <div className="px-3 py-2">
-                    <Link to="/auth">
+                    <Link to="/talktous">
                       <Button className="btn-primary w-full" onClick={() => setIsMenuOpen(false)}>
-                        Get started
+                        Contact Us
                       </Button>
                     </Link>
                   </div>
