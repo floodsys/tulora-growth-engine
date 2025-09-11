@@ -567,14 +567,28 @@ const validatePayload = (data: ContactFormRequest): ValidationError[] => {
       const validValues = ['AI Lead Generation', 'AI Customer Service', 'leadgen', 'support'];
       
       if (Array.isArray(productInterest)) {
-        // For arrays, require at least one valid value and all values must be valid
-        if (productInterest.length === 0) {
-          errors.push({ field: 'product_interest', message: 'At least one product interest must be selected' });
-        } else {
-          const invalidValues = productInterest.filter(p => !validValues.includes(p));
-          if (invalidValues.length > 0) {
-            errors.push({ field: 'product_interest', message: `Invalid product interest values: ${invalidValues.join(', ')}. Must be "AI Lead Generation" or "AI Customer Service"` });
+        // Normalize and filter out invalid values, only error if unknown values exist
+        const normalizedValid = [];
+        const unknownValues = [];
+        
+        for (const interest of productInterest) {
+          if (interest === 'AI Lead Generation' || interest === 'leadgen') {
+            normalizedValid.push(interest);
+          } else if (interest === 'AI Customer Service' || interest === 'support') {
+            normalizedValid.push(interest);
+          } else {
+            unknownValues.push(interest);
           }
+        }
+        
+        // Only error if unknown values are present
+        if (unknownValues.length > 0) {
+          errors.push({ field: 'product_interest', message: `Invalid product interest values: ${unknownValues.join(', ')}. Must be "AI Lead Generation" or "AI Customer Service"` });
+        }
+        
+        // If REQUIRE_ENTERPRISE_EXTRAS=true and no valid selections remain after filtering unknowns
+        if (REQUIRE_ENTERPRISE_EXTRAS && normalizedValid.length === 0) {
+          errors.push({ field: 'product_interest', message: 'Product interest is required for enterprise inquiries' });
         }
       } else {
         // For single values, validate normally
@@ -760,32 +774,49 @@ serve(async (req) => {
     if (data.product_interest) {
       if (Array.isArray(data.product_interest)) {
         const cleanedInterests = data.product_interest.filter(p => p && p.trim()).map(p => p.trim());
-        if (cleanedInterests.length > 0) {
-          // Set primary product_interest to first selected after normalization
-          const normalizedInterests = cleanedInterests.map(p => {
-            if (p === 'AI Lead Generation' || p === 'leadgen') return 'leadgen';
-            if (p === 'AI Customer Service' || p === 'support') return 'support';
-            return p;
-          });
-          
-          normalizedProductInterest = cleanedInterests[0];
+        
+        // Normalize to leadgen/support, dropping unknowns
+        const normalizedInterests = [];
+        const validOriginalInterests = [];
+        
+        for (const interest of cleanedInterests) {
+          if (interest === 'AI Lead Generation' || interest === 'leadgen') {
+            normalizedInterests.push('leadgen');
+            validOriginalInterests.push(interest);
+          } else if (interest === 'AI Customer Service' || interest === 'support') {
+            normalizedInterests.push('support');
+            validOriginalInterests.push(interest);
+          }
+          // Drop unknown values silently (they were caught in validation)
+        }
+        
+        if (normalizedInterests.length > 0) {
+          // Set primary product_line to first normalized selection
           normalizedProductLine = normalizedInterests[0];
+          normalizedProductInterest = validOriginalInterests[0];
           
-          // Save all selections to source_metadata
-          sourceMetadata.product_interests = cleanedInterests;
+          // Save all valid selections to source_metadata
+          sourceMetadata.product_interests = validOriginalInterests;
           
           // Append note to message if multiple selections
-          if (cleanedInterests.length > 1) {
-            const otherInterests = cleanedInterests.slice(1).join(', ');
+          if (validOriginalInterests.length > 1) {
+            const otherInterests = validOriginalInterests.slice(1).map(interest => {
+              // Convert to pretty labels for the message
+              if (interest === 'leadgen') return 'AI Lead Generation';
+              if (interest === 'support') return 'AI Customer Service';
+              return interest;
+            }).join(', ');
+            
             enhancedMessage = enhancedMessage 
               ? `${enhancedMessage}\n\nAlso interested in: ${otherInterests}`
               : `Also interested in: ${otherInterests}`;
           }
         }
       } else {
-        normalizedProductInterest = data.product_interest.trim();
-        normalizedProductLine = mapProductInterestToLine(data.product_interest);
-        sourceMetadata.product_interests = [normalizedProductInterest];
+        const trimmedInterest = data.product_interest.trim();
+        normalizedProductInterest = trimmedInterest;
+        normalizedProductLine = mapProductInterestToLine(trimmedInterest);
+        sourceMetadata.product_interests = [trimmedInterest];
       }
     }
     
@@ -908,6 +939,7 @@ serve(async (req) => {
             utm_term: leadData.utm_term,
             utm_content: leadData.utm_content,
             ip_country: leadData.ip_country,
+            source_metadata: leadData.source_metadata,
             
             // Context fields
             organization_id: organizationId,
