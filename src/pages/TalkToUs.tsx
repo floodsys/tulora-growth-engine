@@ -199,8 +199,8 @@ const TalkToUs = () => {
             <Link to="/">
               <img src={logoSvg} alt="Tulora" className="h-8" />
             </Link>
-            <Button variant="ghost" onClick={() => window.history.back()}>
-              ← Back
+            <Button variant="ghost" asChild>
+              <Link to="/">← Back</Link>
             </Button>
           </div>
         </div>
