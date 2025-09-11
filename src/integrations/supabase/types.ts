@@ -1716,12 +1716,14 @@ export type Database = {
         Returns: Json
       }
       admin_change_member_role: {
-        Args: {
-          p_admin_user_id?: string
-          p_new_role: Database["public"]["Enums"]["org_role"]
-          p_organization_id: string
-          p_user_id: string
-        }
+        Args:
+          | {
+              p_admin_user_id?: string
+              p_new_role: Database["public"]["Enums"]["org_role"]
+              p_organization_id: string
+              p_user_id: string
+            }
+          | { p_new_role: string; p_organization_id: string; p_user_id: string }
         Returns: Json
       }
       admin_destructive_action: {
@@ -1759,12 +1761,18 @@ export type Database = {
         Returns: Json
       }
       admin_toggle_member_seat: {
-        Args: {
-          p_admin_user_id?: string
-          p_organization_id: string
-          p_seat_active: boolean
-          p_user_id: string
-        }
+        Args:
+          | {
+              p_admin_user_id?: string
+              p_organization_id: string
+              p_seat_active: boolean
+              p_user_id: string
+            }
+          | {
+              p_organization_id: string
+              p_seat_active: boolean
+              p_user_id: string
+            }
         Returns: Json
       }
       backfill_audit_logs: {
