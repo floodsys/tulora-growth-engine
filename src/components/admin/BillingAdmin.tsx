@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   CreditCard, 
   ExternalLink, 
@@ -44,12 +45,15 @@ import {
   Pause,
   Play,
   Gift,
-  Receipt
+  Receipt,
+  Settings,
+  Calendar,
+  UserCheck
 } from 'lucide-react';
 import { SeatSyncDialog } from "./SeatSyncDialog";
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 
 interface SubscriptionSummary {
   id: string;
@@ -85,6 +89,22 @@ interface WebhookEvent {
   created: number;
   livemode: boolean;
   api_version: string;
+}
+
+interface Organization {
+  id: string;
+  name: string;
+  plan_key: string;
+  billing_status: string;
+  entitlements?: {
+    manual_activation?: {
+      active: boolean;
+      ends_at: string;
+      notes?: string;
+      set_by: string;
+      set_at: string;
+    };
+  };
 }
 
 interface ChangePlanDialogProps {
@@ -255,10 +275,20 @@ export function BillingAdmin() {
     hasSubscription: boolean;
   } | null>(null);
   const [activeTab, setActiveTab] = useState('subscriptions');
+  
+  // Manual Access state
+  const [selectedOrgId, setSelectedOrgId] = useState('');
+  const [selectedPlan, setSelectedPlan] = useState<'pro' | 'business'>('pro');
+  const [manualEndsAt, setManualEndsAt] = useState('');
+  const [manualNotes, setManualNotes] = useState('');
+  const [currentOrganizations, setCurrentOrganizations] = useState<Organization[]>([]);
+  const [isManualAccessLoading, setIsManualAccessLoading] = useState(false);
+  
   const { toast } = useToast();
 
   useEffect(() => {
     loadBillingData();
+    loadOrganizations();
   }, []);
 
   const loadBillingData = async () => {
@@ -325,7 +355,24 @@ export function BillingAdmin() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const loadOrganizations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('id, name, plan_key, billing_status, entitlements')
+        .order('name');
+
+      if (error) throw error;
+      setCurrentOrganizations(data || []);
+    } catch (error: any) {
+      console.error('Error loading organizations:', error);
+      toast({
+        title: "Error loading organizations",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
     switch (status) {
       case 'active':
         return <Badge className="bg-green-500 text-white"><CheckCircle className="h-3 w-3 mr-1" />Active</Badge>;
@@ -489,6 +536,78 @@ export function BillingAdmin() {
     }
   };
 
+  const handleManualAccessAction = async (action: 'enable' | 'extend' | 'deactivate') => {
+    if (!selectedOrgId) {
+      toast({
+        title: "Error",
+        description: "Please select an organization",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsManualAccessLoading(true);
+
+    try {
+      let requestBody;
+      
+      if (action === 'deactivate') {
+        requestBody = {
+          orgId: selectedOrgId,
+          planKey: 'trial',
+          manual: { active: false }
+        };
+      } else {
+        // Default to 90 days from now if not specified
+        const endsAt = manualEndsAt || addDays(new Date(), 90).toISOString();
+        
+        requestBody = {
+          orgId: selectedOrgId,
+          planKey: selectedPlan,
+          manual: {
+            active: true,
+            ends_at: endsAt,
+            notes: manualNotes
+          }
+        };
+      }
+
+      const { data, error } = await supabase.functions.invoke('admin-set-org-access', {
+        body: requestBody
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Manual access updated",
+        description: `Successfully ${action === 'deactivate' ? 'deactivated' : 'enabled'} manual access`,
+      });
+
+      // Reset form
+      setSelectedOrgId('');
+      setSelectedPlan('pro');
+      setManualEndsAt('');
+      setManualNotes('');
+      
+      // Refresh data
+      await Promise.all([loadBillingData(), loadOrganizations()]);
+      
+    } catch (error: any) {
+      toast({
+        title: "Error updating manual access",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsManualAccessLoading(false);
+    }
+  };
+
+  const getCurrentOrgStatus = () => {
+    if (!selectedOrgId) return null;
+    return currentOrganizations.find(org => org.id === selectedOrgId);
+  };
+
   const filteredSubscriptions = subscriptions.filter(sub => {
     const matchesSearch = sub.organization_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          sub.owner_email.toLowerCase().includes(searchQuery.toLowerCase());
@@ -524,6 +643,7 @@ export function BillingAdmin() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+          <TabsTrigger value="manual-access">Manual Access</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="webhooks">Webhook Events</TabsTrigger>
         </TabsList>
@@ -722,6 +842,163 @@ export function BillingAdmin() {
                   ))}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="invoices" className="space-y-4">
+        </TabsContent>
+
+        <TabsContent value="manual-access" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Manual Access Control
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Manually enable Starter or Business plans for organizations with a 90-day default window
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Organization Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="org-select">Organization</Label>
+                <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an organization..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currentOrganizations.map((org) => (
+                      <SelectItem key={org.id} value={org.id}>
+                        {org.name} - {org.plan_key} 
+                        {org.entitlements?.manual_activation?.active && (
+                          <span className="text-green-600 ml-2">(Manual Active)</span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Current Status Display */}
+              {selectedOrgId && (() => {
+                const org = getCurrentOrgStatus();
+                const manualActivation = org?.entitlements?.manual_activation;
+                return (
+                  <div className="p-4 bg-muted rounded-lg space-y-2">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <UserCheck className="h-4 w-4" />
+                      Current Status
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Plan:</span>
+                        <Badge variant="outline" className="ml-2">
+                          {org?.plan_key === 'pro' ? 'Starter' : org?.plan_key === 'business' ? 'Business' : org?.plan_key}
+                        </Badge>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Billing Status:</span>
+                        <span className="ml-2">{org?.billing_status}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Manual Access:</span>
+                        <Badge className={`ml-2 ${manualActivation?.active ? 'bg-green-500' : 'bg-gray-500'}`}>
+                          {manualActivation?.active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </div>
+                      {manualActivation?.active && (
+                        <div>
+                          <span className="text-muted-foreground">Ends At:</span>
+                          <span className="ml-2">
+                            {format(new Date(manualActivation.ends_at), "MMM d, yyyy")}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    {manualActivation?.notes && (
+                      <div>
+                        <span className="text-muted-foreground">Notes:</span>
+                        <p className="mt-1 text-sm">{manualActivation.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Manual Access Form */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="plan-select">Plan</Label>
+                  <Select value={selectedPlan} onValueChange={(value: 'pro' | 'business') => setSelectedPlan(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pro">Starter (pro)</SelectItem>
+                      <SelectItem value="business">Business (business)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ends-at">Ends At</Label>
+                  <Input
+                    id="ends-at"
+                    type="datetime-local"
+                    value={manualEndsAt}
+                    onChange={(e) => setManualEndsAt(e.target.value)}
+                    placeholder="Default: +90 days"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Leave empty for default 90 days from now
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={manualNotes}
+                  onChange={(e) => setManualNotes(e.target.value)}
+                  placeholder="Optional notes about this manual access grant..."
+                  rows={3}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => handleManualAccessAction('enable')}
+                  disabled={!selectedOrgId || isManualAccessLoading}
+                  className="flex items-center gap-2"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  Enable Manual Access
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => handleManualAccessAction('extend')}
+                  disabled={!selectedOrgId || isManualAccessLoading}
+                  className="flex items-center gap-2"
+                >
+                  <Calendar className="h-4 w-4" />
+                  Extend/Update
+                </Button>
+                
+                <Button
+                  variant="destructive"
+                  onClick={() => handleManualAccessAction('deactivate')}
+                  disabled={!selectedOrgId || isManualAccessLoading}
+                  className="flex items-center gap-2"
+                >
+                  <XCircle className="h-4 w-4" />
+                  Deactivate
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
