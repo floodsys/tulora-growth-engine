@@ -882,50 +882,46 @@ export function BillingAdmin() {
               </div>
 
               {/* Current Status Display */}
-              {selectedOrgId && (() => {
-                const org = getCurrentOrgStatus();
-                const manualActivation = org?.entitlements?.manual_activation;
-                return (
-                  <div className="p-4 bg-muted rounded-lg space-y-2">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <UserCheck className="h-4 w-4" />
-                      Current Status
-                    </h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Plan:</span>
-                        <Badge variant="outline" className="ml-2">
-                          {org?.plan_key === 'pro' ? 'Starter' : org?.plan_key === 'business' ? 'Business' : org?.plan_key}
-                        </Badge>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Billing Status:</span>
-                        <span className="ml-2">{org?.billing_status}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Manual Access:</span>
-                        <Badge className={`ml-2 ${manualActivation?.active ? 'bg-green-500' : 'bg-gray-500'}`}>
-                          {manualActivation?.active ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </div>
-                      {manualActivation?.active && (
-                        <div>
-                          <span className="text-muted-foreground">Ends At:</span>
-                          <span className="ml-2">
-                            {format(new Date(manualActivation.ends_at), "MMM d, yyyy")}
-                          </span>
-                        </div>
-                      )}
+              {selectedOrgId && (
+                <div className="p-4 bg-muted rounded-lg space-y-2">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <UserCheck className="h-4 w-4" />
+                    Current Status
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Plan:</span>
+                      <Badge variant="outline" className="ml-2">
+                        {getCurrentOrgStatus()?.plan_key === 'pro' ? 'Starter' : getCurrentOrgStatus()?.plan_key === 'business' ? 'Business' : getCurrentOrgStatus()?.plan_key}
+                      </Badge>
                     </div>
-                    {manualActivation?.notes && (
+                    <div>
+                      <span className="text-muted-foreground">Billing Status:</span>
+                      <span className="ml-2">{getCurrentOrgStatus()?.billing_status}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Manual Access:</span>
+                      <Badge className={`ml-2 ${getCurrentOrgStatus()?.entitlements?.manual_activation?.active ? 'bg-green-500' : 'bg-gray-500'}`}>
+                        {getCurrentOrgStatus()?.entitlements?.manual_activation?.active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                    {getCurrentOrgStatus()?.entitlements?.manual_activation?.active && (
                       <div>
-                        <span className="text-muted-foreground">Notes:</span>
-                        <p className="mt-1 text-sm">{manualActivation.notes}</p>
+                        <span className="text-muted-foreground">Ends At:</span>
+                        <span className="ml-2">
+                          {format(new Date(getCurrentOrgStatus()?.entitlements?.manual_activation?.ends_at || ''), "MMM d, yyyy")}
+                        </span>
                       </div>
                     )}
                   </div>
-                );
-              })()}
+                  {getCurrentOrgStatus()?.entitlements?.manual_activation?.notes && (
+                    <div>
+                      <span className="text-muted-foreground">Notes:</span>
+                      <p className="mt-1 text-sm">{getCurrentOrgStatus()?.entitlements?.manual_activation?.notes}</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Manual Access Form */}
               <div className="grid grid-cols-2 gap-4">
