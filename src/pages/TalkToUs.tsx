@@ -198,32 +198,32 @@ const TalkToUs = () => {
 
       {/* Main Content */}
       <main className="py-16 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto max-w-6xl">
-          <div className="grid lg:grid-cols-2 gap-12 items-start">
+        <div className="container mx-auto max-w-7xl">
+          <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
             {/* Left Side - Content */}
-            <div className="space-y-8 lg:pt-8">
+            <div className="space-y-6 md:space-y-8 md:pt-4 lg:pt-8">
               {/* Hero Section */}
-              <div className="space-y-6">
-                <h1 className="text-4xl lg:text-5xl font-bold text-foreground leading-tight">
+              <div className="space-y-4 md:space-y-6">
+                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground leading-tight">
                   Let's build together
                 </h1>
-                <p className="text-xl text-muted-foreground leading-relaxed">
+                <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
                   Tell us what you have in mind and we'll schedule a personalized demo to show you how to bring it to life with Tulora
                 </p>
               </div>
 
               {/* Illustration */}
-              <div className="flex justify-center lg:justify-start">
+              <div className="flex justify-center md:justify-start">
                 <img 
                   src={talkToUsGraphic} 
                   alt="Contact us illustration" 
-                  className="w-full max-w-md h-auto"
+                  className="w-full max-w-sm md:max-w-md h-auto"
                 />
               </div>
             </div>
 
             {/* Right Side - Form or Success State */}
-            <div className="w-full">
+            <div className="w-full max-w-lg md:max-w-none mx-auto">
               <Card className="card-glass">
                 <CardContent className="p-8">
                   {isSubmitted ? (
