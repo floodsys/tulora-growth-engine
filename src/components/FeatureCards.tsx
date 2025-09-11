@@ -136,15 +136,15 @@ const FeatureCards = () => {
                     </div>)}
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
-                  {agent.features.map((feature, idx) => <div key={idx} className="bg-muted/50 p-4 rounded-lg border border-border/50 text-center transition-all duration-200 hover:bg-muted hover:border-border min-h-[120px] flex flex-col justify-center">
-                      <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded text-lg flex items-center justify-center mx-auto mb-3">
-                        <span className="text-white text-sm">{feature.icon.charAt(0)}</span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3 mt-2">
+                  {agent.features.map((feature, idx) => <div key={idx} className="bg-muted/50 p-3 rounded-lg border border-border/50 text-center transition-all duration-200 hover:bg-muted hover:border-border min-h-[75px] flex flex-col justify-center">
+                      <div className="w-6 h-6 bg-gradient-to-br from-primary to-purple-600 rounded text-xs flex items-center justify-center mx-auto mb-2">
+                        <span className="text-white text-[10px]">{feature.icon.charAt(0)}</span>
                       </div>
-                      <div className="text-sm font-semibold text-foreground mb-2 font-heading break-words hyphens-auto text-center">
+                      <div className="text-xs font-semibold text-foreground mb-1 font-heading break-words hyphens-auto text-center leading-tight">
                         {feature.title}
                       </div>
-                      <div className="text-xs text-muted-foreground leading-tight break-words hyphens-auto">
+                      <div className="text-[10px] text-muted-foreground leading-tight break-words hyphens-auto">
                         {feature.subtitle}
                       </div>
                     </div>)}
