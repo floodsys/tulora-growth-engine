@@ -7,7 +7,7 @@ import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
 // Version and function info
-const VERSION = "2025-09-11-v10-normalize-first";
+const VERSION = "2025-09-11-v10-metadata";
 const FUNCTION_NAME = "contact-sales";
 const IS_PRODUCTION = Deno.env.get('ENVIRONMENT') === 'prod' || Deno.env.get('NODE_ENV') === 'production';
 const FORMS_IDEMPOTENCY_REQUIRED = Deno.env.get('FORMS_IDEMPOTENCY_REQUIRED') !== 'false';
@@ -702,6 +702,9 @@ serve(async (req) => {
       has_name: !!(data.full_name || data.name)
     });
 
+    // Log product_interest after parsing for debugging
+    console.log(`[DEBUG] product_interest type: ${typeof data.product_interest}, value:`, data.product_interest);
+
     // === NORMALIZE PRODUCT INTEREST BEFORE ANY VALIDATION ===
     const raw = data.product_interest;
     const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
@@ -763,7 +766,7 @@ serve(async (req) => {
     // Set lead.product_line = normalized[0] ?? null
     normalizedProductLine = uniqueNormalized.length > 0 ? uniqueNormalized[0] : undefined;
     
-    // Set lead.source_metadata.product_interests = normalized
+    // Set metadata.product_interests = normalized
     if (uniqueNormalized.length > 0) {
       sourceMetadata.product_interests = uniqueNormalized;
       
@@ -904,7 +907,7 @@ serve(async (req) => {
             utm_term: leadData.utm_term,
             utm_content: leadData.utm_content,
             ip_country: leadData.ip_country,
-            source_metadata: leadData.source_metadata,
+            metadata: leadData.source_metadata,
             
             // Context fields
             organization_id: organizationId,
@@ -962,7 +965,7 @@ serve(async (req) => {
             utm_term: leadData.utm_term,
             utm_content: leadData.utm_content,
             ip_country: leadData.ip_country,
-            source_metadata: leadData.source_metadata,
+            metadata: leadData.source_metadata,
             organization_id: organizationId,
             crm_sync_status: organizationId ? 'pending' : 'not_applicable',
             email_status: 'pending'
@@ -1006,7 +1009,7 @@ serve(async (req) => {
           utm_term: leadData.utm_term,
           utm_content: leadData.utm_content,
           ip_country: leadData.ip_country,
-          source_metadata: leadData.source_metadata,
+          metadata: leadData.source_metadata,
           organization_id: organizationId,
           crm_sync_status: organizationId ? 'pending' : 'not_applicable',
           email_status: 'pending'
