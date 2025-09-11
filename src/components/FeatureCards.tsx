@@ -121,7 +121,7 @@ const FeatureCards = () => {
 
         {/* Cards Container */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-[1600px] mx-auto">
-          {agents.map((agent, index) => <div key={index} className="bg-white rounded-2xl p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-[3fr_200px] gap-6 lg:gap-8 items-start transition-all duration-300 border border-border shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-primary min-h-[280px]">
+          {agents.map((agent, index) => <div key={index} className="bg-white rounded-2xl p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-[3fr_200px] gap-6 lg:gap-8 items-center transition-all duration-300 border border-border shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-primary min-h-[280px]">
               {/* Agent Content */}
               <div className="flex flex-col gap-2">
                 <div className="mb-2">
