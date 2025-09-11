@@ -142,7 +142,6 @@ export function ApiErrorPanel({ error, onDismiss }: ApiErrorPanelProps) {
     
     return errors
   }
-  }
 
   // Parse CRM errors (non-2xx) with safety checks
   const parseCrmError = (error: any): { endpoint?: string, status?: number, message: string } => {
