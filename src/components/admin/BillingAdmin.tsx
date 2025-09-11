@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ManualAccessTests } from './ManualAccessTests';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { 
@@ -648,6 +649,7 @@ export function BillingAdmin() {
           <TabsTrigger value="manual-access">Manual Access</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="webhooks">Webhook Events</TabsTrigger>
+          <TabsTrigger value="tests">Acceptance Tests</TabsTrigger>
         </TabsList>
 
         <TabsContent value="subscriptions" className="space-y-4">
@@ -1040,6 +1042,10 @@ export function BillingAdmin() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="tests" className="space-y-4">
+          <ManualAccessTests />
         </TabsContent>
       </Tabs>
 
