@@ -53,7 +53,7 @@ const Navigation = () => {
                   <Link to="/auth" className="text-foreground hover:text-brand transition-colors duration-200">
                     Sign in
                   </Link>
-                  <Link to="/talktous">
+                  <Link to="/talk-to-us">
                     <Button className="btn-primary px-6">
                       Contact Us
                     </Button>
@@ -104,7 +104,7 @@ const Navigation = () => {
                     Sign in
                   </Link>
                   <div className="px-3 py-2">
-                    <Link to="/talktous">
+                    <Link to="/talk-to-us">
                       <Button className="btn-primary w-full" onClick={() => setIsMenuOpen(false)}>
                         Contact Us
                       </Button>

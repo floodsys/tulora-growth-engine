@@ -309,7 +309,7 @@ const PricingTable = () => {
           <Button 
             className="w-full" 
             variant="outline"
-            onClick={() => window.location.href = '/talktous'}
+            onClick={() => window.location.href = '/talk-to-us'}
           >
             Contact Us
             <ArrowRight className="h-4 w-4 ml-2" />
@@ -317,7 +317,7 @@ const PricingTable = () => {
         ) : (
           <Button 
             className="w-full" 
-            onClick={() => window.location.href = '/talktous'}
+            onClick={() => window.location.href = '/talk-to-us'}
           >
             Contact Us
           </Button>
