@@ -7,7 +7,7 @@ import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
 // Version and function info
-const VERSION = "2025-09-11-v9-multiselect";
+const VERSION = "2025-09-11-v10-normalize-first";
 const FUNCTION_NAME = "contact-sales";
 const IS_PRODUCTION = Deno.env.get('ENVIRONMENT') === 'prod' || Deno.env.get('NODE_ENV') === 'production';
 const FORMS_IDEMPOTENCY_REQUIRED = Deno.env.get('FORMS_IDEMPOTENCY_REQUIRED') !== 'false';
@@ -496,7 +496,7 @@ const mapVolumeToCode = (volumeLabel: string): string => {
   return mapping[volumeLabel] || '';
 }
 
-const validatePayload = (data: ContactFormRequest): ValidationError[] => {
+const validatePayload = (data: ContactFormRequest, normalizedProductInterest: string[], originalRaw: any): ValidationError[] => {
   const errors: ValidationError[] = [];
   
   // Determine inquiry type
@@ -508,15 +508,6 @@ const validatePayload = (data: ContactFormRequest): ValidationError[] => {
   const phone = trimField(data.phone);
   const company = trimField(data.company);
   const message = trimField(data.message);
-  
-  // Handle product_interest as string or array
-  let productInterest: string | string[] | undefined;
-  if (Array.isArray(data.product_interest)) {
-    productInterest = data.product_interest.filter(p => p && p.trim()).map(p => p.trim());
-    if (productInterest.length === 0) productInterest = undefined;
-  } else if (data.product_interest) {
-    productInterest = trimField(data.product_interest);
-  }
   
   const expectedVolumeLabel = trimField(data.expected_volume_label || data.expected_volume);
   const additionalRequirements = trimField(data.additional_requirements || data.notes);
@@ -549,52 +540,26 @@ const validatePayload = (data: ContactFormRequest): ValidationError[] => {
       errors.push({ field: 'company', message: 'Company name is required for enterprise inquiries' });
     }
     
-    // Optional enterprise fields - only required if REQUIRE_ENTERPRISE_EXTRAS=true (default false)
-    if (REQUIRE_ENTERPRISE_EXTRAS) {
-      if (!productInterest) {
-        errors.push({ field: 'product_interest', message: 'Product interest is required for enterprise inquiries' });
+    // NEW VALIDATION RULES FOR PRODUCT INTEREST
+    if (REQUIRE_ENTERPRISE_EXTRAS === false) {
+      // Product interest is optional, but if provided and none normalized → 422
+      if (originalRaw && normalizedProductInterest.length === 0) {
+        errors.push({ field: 'product_interest', message: 'Product interest must be either "AI Lead Generation" or "AI Customer Service".' });
       }
+    } else if (REQUIRE_ENTERPRISE_EXTRAS === true) {
+      // Require normalized.length >= 1
+      if (normalizedProductInterest.length === 0) {
+        errors.push({ field: 'product_interest', message: 'Product interest is required for enterprise inquiries.' });
+      }
+    }
+    
+    // Other enterprise fields validation
+    if (REQUIRE_ENTERPRISE_EXTRAS) {
       if (!expectedVolumeLabel) {
         errors.push({ field: 'expected_volume', message: 'Expected volume is required for enterprise inquiries' });
       }
       if (!additionalRequirements) {
         errors.push({ field: 'additional_requirements', message: 'Additional requirements are required for enterprise inquiries' });
-      }
-    }
-
-    // Validate product interest enum (if provided)
-    if (productInterest) {
-      const validValues = ['AI Lead Generation', 'AI Customer Service', 'leadgen', 'support'];
-      
-      if (Array.isArray(productInterest)) {
-        // Normalize and filter out invalid values, only error if unknown values exist
-        const normalizedValid = [];
-        const unknownValues = [];
-        
-        for (const interest of productInterest) {
-          if (interest === 'AI Lead Generation' || interest === 'leadgen') {
-            normalizedValid.push(interest);
-          } else if (interest === 'AI Customer Service' || interest === 'support') {
-            normalizedValid.push(interest);
-          } else {
-            unknownValues.push(interest);
-          }
-        }
-        
-        // Only error if unknown values are present
-        if (unknownValues.length > 0) {
-          errors.push({ field: 'product_interest', message: `Invalid product interest values: ${unknownValues.join(', ')}. Must be "AI Lead Generation" or "AI Customer Service"` });
-        }
-        
-        // If REQUIRE_ENTERPRISE_EXTRAS=true and no valid selections remain after filtering unknowns
-        if (REQUIRE_ENTERPRISE_EXTRAS && normalizedValid.length === 0) {
-          errors.push({ field: 'product_interest', message: 'Product interest is required for enterprise inquiries' });
-        }
-      } else {
-        // For single values, validate normally
-        if (!validValues.includes(productInterest)) {
-          errors.push({ field: 'product_interest', message: 'Product interest must be either "AI Lead Generation" or "AI Customer Service"' });
-        }
       }
     }
 
@@ -737,6 +702,31 @@ serve(async (req) => {
       has_name: !!(data.full_name || data.name)
     });
 
+    // === NORMALIZE PRODUCT INTEREST BEFORE ANY VALIDATION ===
+    const raw = data.product_interest;
+    const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+    
+    // Map each to lowercased labels and normalize synonyms
+    const normalized = list
+      .filter(item => item && typeof item === 'string' && item.trim())
+      .map(item => {
+        const lower = item.toLowerCase().trim();
+        // Map synonyms to normalized values
+        if (lower === 'ai lead generation' || lower === 'leadgen' || lower === 'lead gen') {
+          return 'leadgen';
+        } else if (lower === 'ai customer service' || lower === 'support' || lower === 'customer service') {
+          return 'support';
+        }
+        return null; // Unknown values
+      })
+      .filter(item => item !== null) as string[];
+    
+    // Remove duplicates
+    const uniqueNormalized = [...new Set(normalized)];
+    
+    // Update data with normalized values for validation
+    data.product_interest = uniqueNormalized;
+
     // Check honeypot
     if (!checkHoneypot(data)) {
       logStep('honeypot_triggered', undefined, 'blocked');
@@ -746,8 +736,8 @@ serve(async (req) => {
       }, 400, origin);
     }
 
-    // Validate payload
-    const validationErrors = validatePayload(data);
+    // Validate payload with normalized data
+    const validationErrors = validatePayload(data, uniqueNormalized, raw);
     if (validationErrors.length > 0) {
       logStep('validation_failed', undefined, 'failed', { 
         error_count: validationErrors.length,
@@ -764,59 +754,34 @@ serve(async (req) => {
     // Extract tracking data
     const trackingData = extractTrackingData(req);
 
-    // Normalize and prepare lead data
+    // Prepare lead data using normalized values
     let normalizedProductInterest: string | undefined;
     let normalizedProductLine: string | undefined;
     let enhancedMessage = data.message?.trim() || undefined;
     let sourceMetadata: Record<string, any> = { ...data.source_metadata };
     
-    // Handle multi-select product_interest
-    if (data.product_interest) {
-      if (Array.isArray(data.product_interest)) {
-        const cleanedInterests = data.product_interest.filter(p => p && p.trim()).map(p => p.trim());
+    // Set lead.product_line = normalized[0] ?? null
+    normalizedProductLine = uniqueNormalized.length > 0 ? uniqueNormalized[0] : undefined;
+    
+    // Set lead.source_metadata.product_interests = normalized
+    if (uniqueNormalized.length > 0) {
+      sourceMetadata.product_interests = uniqueNormalized;
+      
+      // Convert first normalized back to pretty label for product_interest field
+      const prettyLabels: Record<string, string> = {
+        'leadgen': 'AI Lead Generation',
+        'support': 'AI Customer Service'
+      };
+      normalizedProductInterest = prettyLabels[uniqueNormalized[0]] || uniqueNormalized[0];
+      
+      // If normalized.length > 1, append "Also interested in..." to message
+      if (uniqueNormalized.length > 1) {
+        const otherPrettyLabels = uniqueNormalized.slice(1).map(item => prettyLabels[item] || item);
+        const otherInterests = otherPrettyLabels.join(', ');
         
-        // Normalize to leadgen/support, dropping unknowns
-        const normalizedInterests = [];
-        const validOriginalInterests = [];
-        
-        for (const interest of cleanedInterests) {
-          if (interest === 'AI Lead Generation' || interest === 'leadgen') {
-            normalizedInterests.push('leadgen');
-            validOriginalInterests.push(interest);
-          } else if (interest === 'AI Customer Service' || interest === 'support') {
-            normalizedInterests.push('support');
-            validOriginalInterests.push(interest);
-          }
-          // Drop unknown values silently (they were caught in validation)
-        }
-        
-        if (normalizedInterests.length > 0) {
-          // Set primary product_line to first normalized selection
-          normalizedProductLine = normalizedInterests[0];
-          normalizedProductInterest = validOriginalInterests[0];
-          
-          // Save all valid selections to source_metadata
-          sourceMetadata.product_interests = validOriginalInterests;
-          
-          // Append note to message if multiple selections
-          if (validOriginalInterests.length > 1) {
-            const otherInterests = validOriginalInterests.slice(1).map(interest => {
-              // Convert to pretty labels for the message
-              if (interest === 'leadgen') return 'AI Lead Generation';
-              if (interest === 'support') return 'AI Customer Service';
-              return interest;
-            }).join(', ');
-            
-            enhancedMessage = enhancedMessage 
-              ? `${enhancedMessage}\n\nAlso interested in: ${otherInterests}`
-              : `Also interested in: ${otherInterests}`;
-          }
-        }
-      } else {
-        const trimmedInterest = data.product_interest.trim();
-        normalizedProductInterest = trimmedInterest;
-        normalizedProductLine = mapProductInterestToLine(trimmedInterest);
-        sourceMetadata.product_interests = [trimmedInterest];
+        enhancedMessage = enhancedMessage 
+          ? `${enhancedMessage}\n\nAlso interested in: ${otherInterests}.`
+          : `Also interested in: ${otherInterests}.`;
       }
     }
     
