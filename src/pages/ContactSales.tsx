@@ -139,7 +139,9 @@ export default function ContactSales() {
       console.log('Built payload keys:', Object.keys(payload));
       
       // Validate payload
-      const validationErrors = validateContactPayload(payload);
+      const validationErrors = validateContactPayload(payload, { 
+        requireEnterpriseExtras 
+      });
       if (validationErrors.length > 0) {
         setSubmitError({
           status: 422,

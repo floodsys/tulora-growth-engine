@@ -49,66 +49,99 @@ export function ApiErrorPanel({ error, onDismiss }: ApiErrorPanelProps) {
       })
     }
     
-    // Fallback to legacy format if no structured arrays
-    if (errors.length === 0 && error.details) {
-      const detailsArray = Array.isArray(error.details) 
-        ? error.details.map(d => typeof d === 'string' ? d : JSON.stringify(d))
-        : typeof error.details === 'string' 
-        ? [error.details]
-        : [JSON.stringify(error.details)];
-      
-      for (const detail of detailsArray) {
-        if (detail.includes('Unknown fields:')) {
-          const fields = detail.replace('Unknown fields: ', '').split(', ')
-          for (const field of fields) {
-            errors.push({
-              field,
-              message: `Remove: "${field}"`,
-              suggestion: 'Field not allowed'
-            })
-          }
-        } else if (detail.includes('inquiry_type')) {
-          if (detail.includes('is required')) {
-            errors.push({
-              field: 'inquiry_type',
-              message: 'inquiry_type is required',
-              suggestion: 'must be "contact" or "enterprise"'
-            })
-          } else if (detail.includes('must be either')) {
-            errors.push({
-              field: 'inquiry_type',
-              message: 'Invalid inquiry_type value',
-              suggestion: 'must be "contact" or "enterprise"'
-            })
-          }
-        } else if (detail.includes('full_name is required')) {
+    // Handle both new structured format (array of {field, message}) and legacy format (array of strings)
+    if (errors.length === 0 && error.details && Array.isArray(error.details)) {
+      for (const detail of error.details) {
+        if (typeof detail === 'object' && detail.field && detail.message) {
+          // New structured format from frontend validation
           errors.push({
-            field: 'full_name',
-            message: 'full_name is required',
-            suggestion: 'Must provide a name'
-          })
-        } else if (detail.includes('email is required')) {
-          errors.push({
-            field: 'email',
-            message: 'email is required',
-            suggestion: 'Must provide a valid email'
-          })
-        } else if (detail.includes('message is required')) {
-          errors.push({
-            field: 'message',
-            message: 'message is required',
-            suggestion: 'Must provide a message'
-          })
+            field: detail.field,
+            message: detail.message,
+            suggestion: detail.field === 'product_interest' ? 'Select valid product options' : 'Check field requirements'
+          });
         } else {
-          errors.push({
-            message: detail,
-            suggestion: 'Check field format and requirements'
-          })
+          // Legacy string format - parse manually
+          const detailStr = typeof detail === 'string' ? detail : JSON.stringify(detail);
+          
+          if (detailStr.includes('Unknown fields:')) {
+            const fields = detailStr.replace('Unknown fields: ', '').split(', ')
+            for (const field of fields) {
+              errors.push({
+                field,
+                message: `Remove: "${field}"`,
+                suggestion: 'Field not allowed'
+              })
+            }
+          } else if (detailStr.includes('inquiry_type')) {
+            if (detailStr.includes('is required')) {
+              errors.push({
+                field: 'inquiry_type',
+                message: 'inquiry_type is required',
+                suggestion: 'must be "contact" or "enterprise"'
+              })
+            } else if (detailStr.includes('must be either')) {
+              errors.push({
+                field: 'inquiry_type',
+                message: 'Invalid inquiry_type value',
+                suggestion: 'must be "contact" or "enterprise"'
+              })
+            }
+          } else if (detailStr.includes('full_name is required')) {
+            errors.push({
+              field: 'full_name',
+              message: 'full_name is required',
+              suggestion: 'Must provide a name'
+            })
+          } else if (detailStr.includes('email is required')) {
+            errors.push({
+              field: 'email',
+              message: 'email is required',
+              suggestion: 'Must provide a valid email'
+            })
+          } else if (detailStr.includes('message is required')) {
+            errors.push({
+              field: 'message',
+              message: 'message is required',
+              suggestion: 'Must provide a message'
+            })
+          } else if (detailStr.includes('product_interest')) {
+            if (detailStr.includes('Product interest is required')) {
+              errors.push({
+                field: 'product_interest',
+                message: 'Product interest is required for enterprise inquiries',
+                suggestion: 'Select at least one product option'
+              })
+            } else if (detailStr.includes('Invalid product interest values')) {
+              errors.push({
+                field: 'product_interest',
+                message: detailStr,
+                suggestion: 'Must be "AI Lead Generation" or "AI Customer Service"'
+              })
+            } else if (detailStr.includes('must be either')) {
+              errors.push({
+                field: 'product_interest',
+                message: 'Product interest must be either "AI Lead Generation" or "AI Customer Service"',
+                suggestion: 'Select a valid product option'
+              })
+            }
+          } else {
+            errors.push({
+              message: detailStr,
+              suggestion: 'Check field format and requirements'
+            })
+          }
         }
       }
+    } else if (errors.length === 0 && error.details && typeof error.details === 'string') {
+      // Handle single string detail
+      errors.push({
+        message: error.details,
+        suggestion: 'Check field format and requirements'
+      });
     }
     
     return errors
+  }
   }
 
   // Parse CRM errors (non-2xx) with safety checks

@@ -163,44 +163,57 @@ export function buildContactPayload(
   return payload;
 }
 
+export interface ValidationError {
+  field: string;
+  message: string;
+}
+
 /**
  * Validates that a payload contains required fields
  */
-export function validateContactPayload(payload: ContactPayloadData): string[] {
-  const errors: string[] = [];
+export function validateContactPayload(payload: ContactPayloadData, options?: { requireEnterpriseExtras?: boolean }): ValidationError[] {
+  const errors: ValidationError[] = [];
 
   if (!payload.inquiry_type || !['contact', 'enterprise'].includes(payload.inquiry_type)) {
-    errors.push('inquiry_type must be contact or enterprise');
+    errors.push({ field: 'inquiry_type', message: 'inquiry_type must be contact or enterprise' });
   }
 
   if (!payload.full_name?.trim()) {
-    errors.push('full_name is required');
+    errors.push({ field: 'full_name', message: 'full_name is required' });
   }
 
   if (!payload.email?.trim()) {
-    errors.push('email is required');
+    errors.push({ field: 'email', message: 'email is required' });
   }
 
   if (!payload.message?.trim()) {
-    errors.push('message is required');
+    errors.push({ field: 'message', message: 'message is required' });
   }
 
-  // Validate product_interest for enterprise forms
-  if (payload.inquiry_type === 'enterprise' && payload.product_interest) {
+  // Validate product_interest for enterprise forms only if extras are required OR if provided with invalid values
+  if (payload.inquiry_type === 'enterprise') {
+    const requireExtras = options?.requireEnterpriseExtras ?? false;
     const validValues = ['AI Lead Generation', 'AI Customer Service', 'leadgen', 'support'];
     
-    if (Array.isArray(payload.product_interest)) {
-      if (payload.product_interest.length === 0) {
-        errors.push('At least one product interest must be selected');
-      } else {
-        const invalidValues = payload.product_interest.filter(p => !validValues.includes(p));
-        if (invalidValues.length > 0) {
-          errors.push(`Invalid product interest values: ${invalidValues.join(', ')}`);
+    if (requireExtras && !payload.product_interest) {
+      errors.push({ field: 'product_interest', message: 'Product interest is required for enterprise inquiries' });
+    } else if (payload.product_interest) {
+      // Only validate if product_interest is provided
+      if (Array.isArray(payload.product_interest)) {
+        if (payload.product_interest.length === 0) {
+          if (requireExtras) {
+            errors.push({ field: 'product_interest', message: 'At least one product interest must be selected' });
+          }
+        } else {
+          const invalidValues = payload.product_interest.filter(p => !validValues.includes(p));
+          if (invalidValues.length > 0) {
+            errors.push({ field: 'product_interest', message: `Invalid product interest values: ${invalidValues.join(', ')}. Must be "AI Lead Generation" or "AI Customer Service"` });
+          }
         }
-      }
-    } else {
-      if (!validValues.includes(payload.product_interest)) {
-        errors.push('Product interest must be either "AI Lead Generation" or "AI Customer Service"');
+      } else {
+        if (!validValues.includes(payload.product_interest)) {
+          errors.push({ field: 'product_interest', message: 'Product interest must be either "AI Lead Generation" or "AI Customer Service"' });
+        }
       }
     }
   }
