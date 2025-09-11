@@ -131,7 +131,7 @@ export default function ContactSales() {
         message: formData.additional_requirements, // map textarea directly to message
         // Optional fields
         company: formData.company,
-        product_interest: formData.product_interest.join(', '),
+        product_interest: formData.product_interest, // Send array directly
         expected_volume: formData.expected_volume,
         website: formData.website // honeypot
       });
