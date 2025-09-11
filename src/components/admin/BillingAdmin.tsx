@@ -363,7 +363,7 @@ export function BillingAdmin() {
         .order('name');
 
       if (error) throw error;
-      setCurrentOrganizations(data || []);
+      setCurrentOrganizations((data || []) as Organization[]);
     } catch (error: any) {
       console.error('Error loading organizations:', error);
       toast({
@@ -373,6 +373,8 @@ export function BillingAdmin() {
       });
     }
   };
+
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
         return <Badge className="bg-green-500 text-white"><CheckCircle className="h-3 w-3 mr-1" />Active</Badge>;
@@ -795,60 +797,6 @@ export function BillingAdmin() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="invoices" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Invoices</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice ID</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Period</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {invoices.map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell className="font-mono text-xs">
-                        {invoice.id}
-                      </TableCell>
-                      <TableCell>
-                        ${(invoice.amount_paid / 100).toFixed(2)} {invoice.currency.toUpperCase()}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                      <TableCell>
-                        {format(new Date(invoice.created * 1000), "MMM d, yyyy")}
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(invoice.period_start * 1000), "MMM d")} - {format(new Date(invoice.period_end * 1000), "MMM d, yyyy")}
-                      </TableCell>
-                      <TableCell>
-                        {invoice.hosted_invoice_url && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={invoice.hosted_invoice_url} target="_blank" rel="noopener noreferrer">
-                              <Receipt className="h-4 w-4 mr-1" />
-                              View
-                            </a>
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="invoices" className="space-y-4">
-        </TabsContent>
-
         <TabsContent value="manual-access" className="space-y-4">
           <Card>
             <CardHeader>
@@ -995,6 +943,57 @@ export function BillingAdmin() {
                   Deactivate
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="invoices" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Invoices</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice ID</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Period</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {invoices.map((invoice) => (
+                    <TableRow key={invoice.id}>
+                      <TableCell className="font-mono text-xs">
+                        {invoice.id}
+                      </TableCell>
+                      <TableCell>
+                        ${(invoice.amount_paid / 100).toFixed(2)} {invoice.currency.toUpperCase()}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                      <TableCell>
+                        {format(new Date(invoice.created * 1000), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(invoice.period_start * 1000), "MMM d")} - {format(new Date(invoice.period_end * 1000), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell>
+                        {invoice.hosted_invoice_url && (
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={invoice.hosted_invoice_url} target="_blank" rel="noopener noreferrer">
+                              <Receipt className="h-4 w-4 mr-1" />
+                              View
+                            </a>
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
