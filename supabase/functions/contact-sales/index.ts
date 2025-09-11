@@ -7,7 +7,7 @@ import { ContactConfirmationEmail } from './_templates/contact-confirmation.tsx'
 import { EnterpriseConfirmationEmail } from './_templates/enterprise-confirmation.tsx'
 
 // Version and function info
-const VERSION = "2025-09-09-v8-idem2";
+const VERSION = "2025-09-11-v9-multiselect";
 const FUNCTION_NAME = "contact-sales";
 const IS_PRODUCTION = Deno.env.get('ENVIRONMENT') === 'prod' || Deno.env.get('NODE_ENV') === 'production';
 const FORMS_IDEMPOTENCY_REQUIRED = Deno.env.get('FORMS_IDEMPOTENCY_REQUIRED') !== 'false';
