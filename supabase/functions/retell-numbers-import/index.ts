@@ -6,6 +6,26 @@ interface ImportNumberRequest {
   country?: string
   byoc_provider: string
   sms_enabled?: boolean
+  sip_config?: {
+    sip_domain: string
+    sip_username?: string
+    auth_username?: string
+    auth_password?: string
+    trunk_name?: string
+    caller_id_name?: string
+    caller_id_number?: string
+    codec_preferences?: string[]
+    dtmf_mode?: 'rfc2833' | 'inband' | 'info'
+    registration_required?: boolean
+    outbound_proxy?: string
+    custom_headers?: Record<string, string>
+  }
+  network_config?: {
+    ip_whitelist?: string[]
+    port_range?: string
+    protocol?: 'udp' | 'tcp' | 'tls'
+    nat_traversal?: boolean
+  }
 }
 
 Deno.serve(async (req) => {
@@ -102,6 +122,9 @@ Deno.serve(async (req) => {
         metadata: {
           imported_at: new Date().toISOString(),
           imported_by: user.id,
+          sip_config: requestData.sip_config || {},
+          network_config: requestData.network_config || {},
+          enterprise_verified: true
         }
       })
       .select()

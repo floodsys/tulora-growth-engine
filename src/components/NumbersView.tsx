@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Phone, Settings, Trash2, Upload } from 'lucide-react'
+import { Plus, Phone, Settings, Trash2, Upload, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -13,6 +13,8 @@ import { useRetellNumbers } from '@/hooks/useRetellNumbers'
 import { useRetellAgents } from '@/hooks/useRetellAgents'
 import { useSMS } from '@/hooks/useSMS'
 import { Skeleton } from '@/components/ui/skeleton'
+import { BYOCImportDialog } from '@/components/BYOCImportDialog'
+import { EnterpriseDocsModal } from '@/components/EnterpriseDocsModal'
 
 export const NumbersView = () => {
   const {
@@ -31,6 +33,7 @@ export const NumbersView = () => {
   
   const [buyDialogOpen, setBuyDialogOpen] = useState(false)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [docsModalOpen, setDocsModalOpen] = useState(false)
   const [editingNumber, setEditingNumber] = useState<any>(null)
   
   // Form states
@@ -60,12 +63,9 @@ export const NumbersView = () => {
     }
   }
 
-  const handleImportNumber = async () => {
-    const result = await importNumber(importForm)
-    if (result) {
-      setImportDialogOpen(false)
-      setImportForm({ e164: '', country: 'US', byoc_provider: '', sms_enabled: false })
-    }
+  const handleImportNumber = async (data: any) => {
+    const result = await importNumber(data)
+    return !!result
   }
 
   const handleUpdateNumber = async (numberId: string, updates: any) => {
@@ -118,70 +118,15 @@ export const NumbersView = () => {
           <p className="text-muted-foreground">Manage your phone numbers and routing</p>
         </div>
         <div className="flex gap-2">
-          <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Upload className="h-4 w-4 mr-2" />
-                Import BYOC
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Import BYOC Number</DialogTitle>
-                <DialogDescription>
-                  Import a Bring Your Own Carrier (BYOC) number from your SIP provider
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="e164">Phone Number (E.164 format)</Label>
-                  <Input
-                    id="e164"
-                    placeholder="+15551234567"
-                    value={importForm.e164}
-                    onChange={(e) => setImportForm({ ...importForm, e164: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="byoc_provider">BYOC Provider</Label>
-                  <Input
-                    id="byoc_provider"
-                    placeholder="Twilio, Vonage, etc."
-                    value={importForm.byoc_provider}
-                    onChange={(e) => setImportForm({ ...importForm, byoc_provider: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="country">Country</Label>
-                  <Select value={importForm.country} onValueChange={(value) => setImportForm({ ...importForm, country: value })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="US">United States</SelectItem>
-                      <SelectItem value="CA">Canada</SelectItem>
-                      <SelectItem value="GB">United Kingdom</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="sms_enabled"
-                    checked={importForm.sms_enabled}
-                    onCheckedChange={(checked) => setImportForm({ ...importForm, sms_enabled: checked })}
-                  />
-                  <Label htmlFor="sms_enabled">SMS Enabled</Label>
-                </div>
-                <Button 
-                  onClick={handleImportNumber} 
-                  disabled={!importForm.e164 || !importForm.byoc_provider || loading}
-                  className="w-full"
-                >
-                  Import Number
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button variant="outline" onClick={() => setDocsModalOpen(true)}>
+            <BookOpen className="h-4 w-4 mr-2" />
+            Enterprise Docs
+          </Button>
+          
+          <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Import BYOC
+          </Button>
 
           <Dialog open={buyDialogOpen} onOpenChange={setBuyDialogOpen}>
             <DialogTrigger asChild>
@@ -357,6 +302,18 @@ export const NumbersView = () => {
           ))}
         </div>
       )}
+
+      <BYOCImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImport={handleImportNumber}
+        loading={loading}
+      />
+
+      <EnterpriseDocsModal
+        open={docsModalOpen}
+        onOpenChange={setDocsModalOpen}
+      />
     </div>
   )
 }
