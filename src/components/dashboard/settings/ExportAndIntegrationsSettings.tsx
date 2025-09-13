@@ -268,10 +268,10 @@ export function ExportAndIntegrationsSettings() {
                     <SelectContent>
                       <SelectItem value="">All channels</SelectItem>
                       <SelectItem value="audit">Audit</SelectItem>
-                      {shouldShowChannel('internal', isOwner, isOwner) && (
+                      {shouldShowChannel('internal', isOwner ? 'owner' : 'member', 'active') && (
                         <SelectItem value="internal">Internal</SelectItem>
                       )}
-                      {shouldShowChannel('test_invites', isOwner, isOwner) && (
+                      {shouldShowChannel('test_invites', isOwner ? 'owner' : 'member', 'active') && (
                         <SelectItem value="test_invites">Test Invites</SelectItem>
                       )}
                     </SelectContent>
@@ -361,7 +361,7 @@ export function ExportAndIntegrationsSettings() {
                     <Label>Channel Filters</Label>
                     <div className="flex gap-2">
                       {['audit', 'internal'].map(channel => (
-                        shouldShowChannel(channel, isOwner, isOwner) && (
+                        shouldShowChannel(channel, isOwner ? 'owner' : 'member', 'active') && (
                           <div key={channel} className="flex items-center space-x-2">
                             <input
                               type="checkbox"
