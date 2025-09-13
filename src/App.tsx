@@ -43,6 +43,7 @@ import AdminSelfCheck from "@/pages/AdminSelfCheck";
 import AdminContactSettings from "@/pages/AdminContactSettings";
 import AdminNotifications from "@/pages/AdminNotifications";
 import Pricing from "@/pages/Pricing";
+import { ObservabilityDashboard } from "@/pages/admin/ObservabilityDashboard";
 
 import { AdminGuard } from "@/components/admin/AdminGuard";
 
@@ -99,7 +100,8 @@ function App() {
               <Route path="/admin-setup" element={<AdminSetup />} />
               <Route path="/admin/logs/org/:orgId" element={<AdminOrgLogs />} />
               <Route path="/admin/agents" element={<AdminGuard><AdminAgents /></AdminGuard>} />
-              <Route path="/admin/calls" element={<AdminGuard><AdminCalls /></AdminGuard>} />
+               <Route path="/admin/calls" element={<AdminGuard><AdminCalls /></AdminGuard>} />
+               <Route path="/admin/observability" element={<AdminGuard><ObservabilityDashboard /></AdminGuard>} />
               <Route path="/admin/contact-settings" element={<AdminGuard><AdminContactSettings /></AdminGuard>} />
               <Route path="/admin/notifications" element={<AdminGuard><AdminNotifications /></AdminGuard>} />
               <Route path="/admin/stripe-config" element={<AdminGuard><AdminStripeConfig /></AdminGuard>} />
