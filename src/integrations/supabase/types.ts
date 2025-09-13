@@ -1484,6 +1484,84 @@ export type Database = {
         }
         Relationships: []
       }
+      retell_calls: {
+        Row: {
+          agent_id: string | null
+          analysis_json: Json | null
+          call_id: string
+          created_at: string
+          direction: string
+          duration_ms: number | null
+          ended_at: string | null
+          from_e164: string
+          id: string
+          lead_score: number | null
+          organization_id: string
+          outcome: string | null
+          owner_user_id: string | null
+          raw_webhook_data: Json | null
+          recording_signed_url: string | null
+          sentiment: string | null
+          started_at: string | null
+          status: string
+          tags: string[] | null
+          to_e164: string
+          topics: string[] | null
+          transcript_summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id?: string | null
+          analysis_json?: Json | null
+          call_id: string
+          created_at?: string
+          direction: string
+          duration_ms?: number | null
+          ended_at?: string | null
+          from_e164: string
+          id?: string
+          lead_score?: number | null
+          organization_id: string
+          outcome?: string | null
+          owner_user_id?: string | null
+          raw_webhook_data?: Json | null
+          recording_signed_url?: string | null
+          sentiment?: string | null
+          started_at?: string | null
+          status: string
+          tags?: string[] | null
+          to_e164: string
+          topics?: string[] | null
+          transcript_summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string | null
+          analysis_json?: Json | null
+          call_id?: string
+          created_at?: string
+          direction?: string
+          duration_ms?: number | null
+          ended_at?: string | null
+          from_e164?: string
+          id?: string
+          lead_score?: number | null
+          organization_id?: string
+          outcome?: string | null
+          owner_user_id?: string | null
+          raw_webhook_data?: Json | null
+          recording_signed_url?: string | null
+          sentiment?: string | null
+          started_at?: string | null
+          status?: string
+          tags?: string[] | null
+          to_e164?: string
+          topics?: string[] | null
+          transcript_summary?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sales_invoices: {
         Row: {
           amount: number
