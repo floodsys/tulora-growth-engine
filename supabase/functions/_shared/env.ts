@@ -32,3 +32,8 @@ export const STRIPE_WEBHOOK_SECRET = (): string => getEnv("STRIPE_WEBHOOK_SECRET
 export const STRIPE_PORTAL_RETURN_URL = (): string | undefined => getOptionalEnv("STRIPE_PORTAL_RETURN_URL");
 export const VOICE_DEBUG_KEY = (): string | undefined => getOptionalEnv("VOICE_DEBUG_KEY");
 export const CORS_ALLOWED_ORIGINS = (): string | undefined => getOptionalEnv("CORS_ALLOWED_ORIGINS");
+
+// Retell URL configuration
+export const RETELL_PHONE_CREATE_URL = (): string | undefined => getOptionalEnv("RETELL_PHONE_CREATE_URL");
+export const RETELL_WEB_CREATE_URL = (): string | undefined => getOptionalEnv("RETELL_WEB_CREATE_URL");
+export const RETELL_FROM_NUMBER = (): string | undefined => getOptionalEnv("RETELL_FROM_NUMBER");
