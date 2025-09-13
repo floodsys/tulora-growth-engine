@@ -106,7 +106,8 @@ Deno.serve(async (req) => {
 
     // If inbound agent is being updated, also update Retell API
     if (requestData.inbound_agent_id !== undefined) {
-      const retellApiKey = Deno.env.get('RETELL_API_KEY')
+      const { RETELL_API_KEY } = await import('../_shared/env.ts')
+      const retellApiKey = RETELL_API_KEY()
       if (retellApiKey) {
         try {
           await fetch(`https://api.retellai.com/update-phone-number/${requestData.number_id}`, {

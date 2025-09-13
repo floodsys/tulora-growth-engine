@@ -74,7 +74,8 @@ Deno.serve(async (req) => {
 
     // Release from Retell API first (if not BYOC)
     if (!existingNumber.is_byoc) {
-      const retellApiKey = Deno.env.get('RETELL_API_KEY')
+      const { RETELL_API_KEY } = await import('../_shared/env.ts')
+      const retellApiKey = RETELL_API_KEY()
       if (retellApiKey) {
         try {
           const retellResponse = await fetch(`https://api.retellai.com/delete-phone-number/${requestData.number_id}`, {
