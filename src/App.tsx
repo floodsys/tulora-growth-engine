@@ -15,6 +15,7 @@ import OnboardingOrganization from "@/pages/OnboardingOrganization";
 import CompleteProfile from "@/pages/CompleteProfile";
 import ProfileTest from "@/pages/ProfileTest";
 import TalkToUs from "@/pages/TalkToUs";
+import RetellAgentSettings from "@/pages/RetellAgentSettings";
 import NotFound from "@/pages/NotFound";
 
 import InviteAccept from "@/pages/InviteAccept";
@@ -81,6 +82,7 @@ function App() {
               <Route path="/complete-profile" element={<CompleteProfile />} />
               <Route path="/profile-test" element={<ProfileTest />} />
               <Route path="/talk-to-us" element={<TalkToUs />} />
+              <Route path="/retell-agent/:agentId" element={<RetellAgentSettings />} />
               <Route path="/settings" element={<SettingsLayout />}>
                 
                 <Route path="teams" element={<RedirectToOrganizationTeam />} />
