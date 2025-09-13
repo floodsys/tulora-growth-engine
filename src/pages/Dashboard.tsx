@@ -4,6 +4,7 @@ import { DashboardOverview } from "@/components/dashboard/DashboardOverview"
 import { CallsScreen } from "@/components/dashboard/CallsScreen"
 import { AgentsScreen } from "@/components/dashboard/AgentsScreen"
 import { NumbersView } from "@/components/NumbersView"
+import SMSView from "@/components/SMSView"
 import { KnowledgeBase } from "@/components/dashboard/KnowledgeBase"
 import { Scheduling } from "@/components/dashboard/Scheduling"
 import { UsageBilling } from "@/components/dashboard/UsageBilling"
@@ -70,6 +71,8 @@ const Dashboard = () => {
         return <AgentsScreen />
       case "numbers":
         return <NumbersView />
+      case "sms":
+        return <SMSView />
       case "knowledge":
         return <KnowledgeBase />
       case "scheduling":
@@ -101,6 +104,7 @@ const Dashboard = () => {
               <h1 className="text-lg font-semibold capitalize truncate">
                 {activeScreen === "overview" ? "Dashboard" : 
                  activeScreen === "settings" ? "Settings" :
+                 activeScreen === "sms" ? "SMS / 10DLC" :
                  activeScreen}
               </h1>
             </div>

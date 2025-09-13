@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { useRetellNumbers } from '@/hooks/useRetellNumbers'
 import { useRetellAgents } from '@/hooks/useRetellAgents'
+import { useSMS } from '@/hooks/useSMS'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export const NumbersView = () => {
@@ -26,6 +27,7 @@ export const NumbersView = () => {
   } = useRetellNumbers()
   
   const { agents, loading: agentsLoading, loadAgents } = useRetellAgents()
+  const { brands, listBrands } = useSMS()
   
   const [buyDialogOpen, setBuyDialogOpen] = useState(false)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
@@ -47,6 +49,7 @@ export const NumbersView = () => {
   useEffect(() => {
     listNumbers()
     loadAgents()
+    listBrands()
   }, [])
 
   const handleBuyNumber = async () => {
@@ -323,10 +326,16 @@ export const NumbersView = () => {
                       onCheckedChange={(checked) => handleUpdateNumber(number.number_id, { 
                         sms_enabled: checked 
                       })}
+                      disabled={!number.sms_enabled && !brands?.some(b => b.registration_status === 'approved')}
                     />
                     <Label htmlFor={`sms-${number.id}`} className="text-sm">
                       SMS
                     </Label>
+                    {!number.sms_enabled && !brands?.some(b => b.registration_status === 'approved') && (
+                      <Badge variant="outline" className="text-xs">
+                        Requires approved SMS brand
+                      </Badge>
+                    )}
                   </div>
                   
                   <Button
