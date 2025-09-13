@@ -2294,6 +2294,10 @@ export type Database = {
         Args: { org_id: string }
         Returns: Json
       }
+      get_or_create_usage_rollup: {
+        Args: { p_org_id: string; p_period?: string }
+        Returns: string
+      }
       get_org_entitlements: {
         Args: { p_org_id: string }
         Returns: Json
@@ -2653,6 +2657,18 @@ export type Database = {
       trim_user_agent: {
         Args: { user_agent_string: string }
         Returns: string
+      }
+      update_usage_rollup: {
+        Args: {
+          p_calls?: number
+          p_concurrency_peak?: number
+          p_kb_ops?: number
+          p_messages?: number
+          p_minutes?: number
+          p_org_id: string
+          p_period: string
+        }
+        Returns: undefined
       }
       validate_role_constraint: {
         Args: { role_value: string }
