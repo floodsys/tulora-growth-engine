@@ -1562,6 +1562,75 @@ export type Database = {
         }
         Relationships: []
       }
+      retell_chat_messages: {
+        Row: {
+          chat_id: string
+          content: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          role: string
+        }
+        Insert: {
+          chat_id: string
+          content: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role: string
+        }
+        Update: {
+          chat_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role?: string
+        }
+        Relationships: []
+      }
+      retell_chats: {
+        Row: {
+          agent_id: string
+          chat_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          last_message_at: string | null
+          messages_count: number
+          metadata: Json | null
+          organization_id: string
+          started_at: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          chat_id: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          messages_count?: number
+          metadata?: Json | null
+          organization_id: string
+          started_at?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          chat_id?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          messages_count?: number
+          metadata?: Json | null
+          organization_id?: string
+          started_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       retell_kb_sources: {
         Row: {
           created_at: string | null
