@@ -1385,6 +1385,105 @@ export type Database = {
         }
         Relationships: []
       }
+      retell_agents: {
+        Row: {
+          agent_id: string
+          backchannel_enabled: boolean
+          backchannel_frequency: number | null
+          begin_message_delay_ms: number | null
+          created_at: string
+          data_storage_setting: string | null
+          end_call_after_silence_ms: number | null
+          id: string
+          is_active: boolean
+          kb_ids: string[] | null
+          language: string
+          max_call_duration_ms: number | null
+          name: string
+          normalize_for_speech: boolean
+          opt_in_signed_url: boolean
+          organization_id: string
+          pronunciation_dict: Json | null
+          published_at: string | null
+          status: string
+          transfer_mode: string | null
+          transfer_number: string | null
+          updated_at: string
+          version: number
+          voice_id: string | null
+          voice_model: string | null
+          voice_speed: number | null
+          voice_temperature: number | null
+          voicemail_option: string | null
+          volume: number | null
+          webhook_url: string | null
+        }
+        Insert: {
+          agent_id: string
+          backchannel_enabled?: boolean
+          backchannel_frequency?: number | null
+          begin_message_delay_ms?: number | null
+          created_at?: string
+          data_storage_setting?: string | null
+          end_call_after_silence_ms?: number | null
+          id?: string
+          is_active?: boolean
+          kb_ids?: string[] | null
+          language?: string
+          max_call_duration_ms?: number | null
+          name: string
+          normalize_for_speech?: boolean
+          opt_in_signed_url?: boolean
+          organization_id: string
+          pronunciation_dict?: Json | null
+          published_at?: string | null
+          status?: string
+          transfer_mode?: string | null
+          transfer_number?: string | null
+          updated_at?: string
+          version?: number
+          voice_id?: string | null
+          voice_model?: string | null
+          voice_speed?: number | null
+          voice_temperature?: number | null
+          voicemail_option?: string | null
+          volume?: number | null
+          webhook_url?: string | null
+        }
+        Update: {
+          agent_id?: string
+          backchannel_enabled?: boolean
+          backchannel_frequency?: number | null
+          begin_message_delay_ms?: number | null
+          created_at?: string
+          data_storage_setting?: string | null
+          end_call_after_silence_ms?: number | null
+          id?: string
+          is_active?: boolean
+          kb_ids?: string[] | null
+          language?: string
+          max_call_duration_ms?: number | null
+          name?: string
+          normalize_for_speech?: boolean
+          opt_in_signed_url?: boolean
+          organization_id?: string
+          pronunciation_dict?: Json | null
+          published_at?: string | null
+          status?: string
+          transfer_mode?: string | null
+          transfer_number?: string | null
+          updated_at?: string
+          version?: number
+          voice_id?: string | null
+          voice_model?: string | null
+          voice_speed?: number | null
+          voice_temperature?: number | null
+          voicemail_option?: string | null
+          volume?: number | null
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
       sales_invoices: {
         Row: {
           amount: number
