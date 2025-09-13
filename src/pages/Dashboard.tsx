@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/AppSidebar"
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview"
 import { CallsScreen } from "@/components/dashboard/CallsScreen"
 import { AgentsScreen } from "@/components/dashboard/AgentsScreen"
+import { NumbersView } from "@/components/NumbersView"
 import { KnowledgeBase } from "@/components/dashboard/KnowledgeBase"
 import { Scheduling } from "@/components/dashboard/Scheduling"
 import { UsageBilling } from "@/components/dashboard/UsageBilling"
@@ -65,6 +66,8 @@ const Dashboard = () => {
         return <CallsScreen />
       case "agents":
         return <AgentsScreen />
+      case "numbers":
+        return <NumbersView />
       case "knowledge":
         return <KnowledgeBase />
       case "scheduling":
