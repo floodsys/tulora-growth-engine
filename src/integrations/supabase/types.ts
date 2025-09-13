@@ -1562,6 +1562,154 @@ export type Database = {
         }
         Relationships: []
       }
+      retell_kb_sources: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: string
+          kb_id: string
+          metadata: Json | null
+          name: string
+          size: number | null
+          source_id: string
+          status: string | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          kb_id: string
+          metadata?: Json | null
+          name: string
+          size?: number | null
+          source_id: string
+          status?: string | null
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          kb_id?: string
+          metadata?: Json | null
+          name?: string
+          size?: number | null
+          source_id?: string
+          status?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retell_kb_sources_kb_id_fkey"
+            columns: ["kb_id"]
+            isOneToOne: false
+            referencedRelation: "retell_kbs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      retell_kbs: {
+        Row: {
+          chunks: number | null
+          created_at: string | null
+          id: string
+          kb_id: string
+          last_indexed_at: string | null
+          organization_id: string
+          source_count: number | null
+          state: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          chunks?: number | null
+          created_at?: string | null
+          id?: string
+          kb_id: string
+          last_indexed_at?: string | null
+          organization_id: string
+          source_count?: number | null
+          state?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          chunks?: number | null
+          created_at?: string | null
+          id?: string
+          kb_id?: string
+          last_indexed_at?: string | null
+          organization_id?: string
+          source_count?: number | null
+          state?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retell_kbs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      retell_numbers: {
+        Row: {
+          byoc_provider: string | null
+          country: string
+          created_at: string
+          e164: string
+          id: string
+          inbound_agent_id: string | null
+          is_active: boolean
+          is_byoc: boolean
+          metadata: Json | null
+          number_id: string
+          organization_id: string
+          outbound_agent_id: string | null
+          sms_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          byoc_provider?: string | null
+          country?: string
+          created_at?: string
+          e164: string
+          id?: string
+          inbound_agent_id?: string | null
+          is_active?: boolean
+          is_byoc?: boolean
+          metadata?: Json | null
+          number_id: string
+          organization_id: string
+          outbound_agent_id?: string | null
+          sms_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          byoc_provider?: string | null
+          country?: string
+          created_at?: string
+          e164?: string
+          id?: string
+          inbound_agent_id?: string | null
+          is_active?: boolean
+          is_byoc?: boolean
+          metadata?: Json | null
+          number_id?: string
+          organization_id?: string
+          outbound_agent_id?: string | null
+          sms_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sales_invoices: {
         Row: {
           amount: number
@@ -1739,6 +1887,7 @@ export type Database = {
       }
       usage_events: {
         Row: {
+          concurrency_level: number | null
           cost_cents: number | null
           created_at: string | null
           event_type: string
@@ -1750,6 +1899,7 @@ export type Database = {
           resource_type: string | null
         }
         Insert: {
+          concurrency_level?: number | null
           cost_cents?: number | null
           created_at?: string | null
           event_type: string
@@ -1761,6 +1911,7 @@ export type Database = {
           resource_type?: string | null
         }
         Update: {
+          concurrency_level?: number | null
           cost_cents?: number | null
           created_at?: string | null
           event_type?: string
@@ -1780,6 +1931,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      usage_rollups: {
+        Row: {
+          calls: number
+          concurrency_peak: number
+          created_at: string
+          id: string
+          kb_ops: number
+          messages: number
+          minutes: number
+          organization_id: string
+          updated_at: string
+          year_month: string
+        }
+        Insert: {
+          calls?: number
+          concurrency_peak?: number
+          created_at?: string
+          id?: string
+          kb_ops?: number
+          messages?: number
+          minutes?: number
+          organization_id: string
+          updated_at?: string
+          year_month: string
+        }
+        Update: {
+          calls?: number
+          concurrency_peak?: number
+          created_at?: string
+          id?: string
+          kb_ops?: number
+          messages?: number
+          minutes?: number
+          organization_id?: string
+          updated_at?: string
+          year_month?: string
+        }
+        Relationships: []
       }
       voice_agents: {
         Row: {
@@ -1952,6 +2142,10 @@ export type Database = {
             }
         Returns: Json
       }
+      aggregate_usage_rollup: {
+        Args: { p_org_id: string; p_year_month: string }
+        Returns: Json
+      }
       backfill_audit_logs: {
         Args: {
           p_batch_size?: number
@@ -2087,6 +2281,10 @@ export type Database = {
       find_potentially_unused_tables: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      get_current_concurrency: {
+        Args: { p_org_id: string }
+        Returns: number
       }
       get_duplicate_org_members: {
         Args: Record<PropertyKey, never>
