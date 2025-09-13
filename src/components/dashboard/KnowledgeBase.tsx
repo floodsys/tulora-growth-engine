@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,6 +12,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { 
   Upload, 
   Search, 
@@ -21,21 +28,15 @@ import {
   File,
   CheckCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  Globe,
+  MessageSquare
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { formatDistanceToNow } from "date-fns"
-
-interface KnowledgeFile {
-  id: string
-  name: string
-  type: string
-  size: number
-  status: "processing" | "ready" | "error"
-  uploadedAt: Date
-  chunks: number
-  embeddings: number
-}
+import { useRetellKnowledgeBase } from "@/hooks/useRetellKnowledgeBase"
+import { useUserOrganization } from "@/hooks/useUserOrganization"
 
 interface SearchResult {
   id: string
@@ -44,66 +45,48 @@ interface SearchResult {
   relevance: number
 }
 
-const mockFiles: KnowledgeFile[] = [
-  {
-    id: "1",
-    name: "Product Documentation.pdf",
-    type: "pdf",
-    size: 2400000,
-    status: "ready",
-    uploadedAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    chunks: 45,
-    embeddings: 45
-  },
-  {
-    id: "2",
-    name: "Sales Playbook.docx", 
-    type: "docx",
-    size: 1800000,
-    status: "processing",
-    uploadedAt: new Date(Date.now() - 1000 * 60 * 30),
-    chunks: 0,
-    embeddings: 0
-  },
-  {
-    id: "3",
-    name: "FAQ Database.txt",
-    type: "txt", 
-    size: 450000,
-    status: "ready",
-    uploadedAt: new Date(Date.now() - 1000 * 60 * 60 * 48),
-    chunks: 23,
-    embeddings: 23
-  }
-]
-
-const mockSearchResults: SearchResult[] = [
-  {
-    id: "1",
-    filename: "Product Documentation.pdf",
-    content: "Our AI-powered outreach platform helps sales teams automate personalized communications while maintaining authentic connections with prospects...",
-    relevance: 0.94
-  },
-  {
-    id: "2", 
-    filename: "Sales Playbook.docx",
-    content: "When reaching out to prospects, always start with personalization. Research their company, recent news, and identify specific pain points...",
-    relevance: 0.87
-  },
-  {
-    id: "3",
-    filename: "FAQ Database.txt",
-    content: "Q: How does the AI maintain personalization at scale? A: Our system analyzes prospect data, company information, and interaction history...",
-    relevance: 0.82
-  }
-]
-
 export function KnowledgeBase() {
-  const [files, setFiles] = useState(mockFiles)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [newKBTitle, setNewKBTitle] = useState("")
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [urlToAdd, setUrlToAdd] = useState("")
+  const [textToAdd, setTextToAdd] = useState("")
+  const [textName, setTextName] = useState("")
+  const [selectedKB, setSelectedKB] = useState<string>("")
   const { toast } = useToast()
+  
+  const { organization } = useUserOrganization()
+  const { 
+    knowledgeBases, 
+    loading, 
+    createKnowledgeBase, 
+    uploadFile, 
+    addSource, 
+    deleteSource,
+    getKBStatus 
+  } = useRetellKnowledgeBase(organization?.id)
+
+  // Auto-refresh status for processing items
+  useEffect(() => {
+    if (!knowledgeBases.length) return
+
+    const processingKBs = knowledgeBases.filter(kb => kb.state === 'processing')
+    const processingSources = knowledgeBases.flatMap(kb => 
+      kb.sources?.filter(source => source.status === 'processing') || []
+    )
+
+    if (processingKBs.length > 0 || processingSources.length > 0) {
+      const interval = setInterval(async () => {
+        for (const kb of processingKBs) {
+          await getKBStatus(kb.id)
+        }
+      }, 5000) // Check every 5 seconds
+
+      return () => clearInterval(interval)
+    }
+  }, [knowledgeBases, getKBStatus])
 
   const formatFileSize = (bytes: number) => {
     const sizes = ['Bytes', 'KB', 'MB', 'GB']
@@ -115,10 +98,13 @@ export function KnowledgeBase() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "ready":
+      case "completed":
         return "bg-success text-success-foreground"
       case "processing":
+      case "pending":
         return "bg-warning text-warning-foreground"
       case "error":
+      case "failed":
         return "bg-destructive text-destructive-foreground"
       default:
         return "bg-muted text-muted-foreground"
@@ -128,66 +114,79 @@ export function KnowledgeBase() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "ready":
+      case "completed":
         return <CheckCircle className="h-4 w-4" />
       case "processing":
+      case "pending":
         return <Clock className="h-4 w-4" />
       case "error":
+      case "failed":
         return <AlertCircle className="h-4 w-4" />
       default:
         return <File className="h-4 w-4" />
     }
   }
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+  const handleCreateKB = async () => {
+    if (!newKBTitle.trim()) return
 
-    const newFile: KnowledgeFile = {
-      id: Date.now().toString(),
-      name: file.name,
-      type: file.name.split('.').pop() || 'unknown',
-      size: file.size,
-      status: "processing",
-      uploadedAt: new Date(),
-      chunks: 0,
-      embeddings: 0
+    const result = await createKnowledgeBase(newKBTitle)
+    if (result) {
+      setNewKBTitle("")
+      setCreateDialogOpen(false)
     }
+  }
 
-    setFiles(prev => [newFile, ...prev])
-    
-    toast({
-      title: "File Uploaded",
-      description: `${file.name} is being processed and will be available shortly.`,
-    })
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !selectedKB) return
 
-    // Simulate processing
-    setTimeout(() => {
-      setFiles(prev => prev.map(f => 
-        f.id === newFile.id 
-          ? { ...f, status: "ready", chunks: 32, embeddings: 32 }
-          : f
-      ))
-    }, 3000)
+    await uploadFile(selectedKB, file)
+    // Clear the input
+    event.target.value = ""
+  }
+
+  const handleAddUrl = async () => {
+    if (!urlToAdd.trim() || !selectedKB) return
+
+    await addSource(selectedKB, 'url', urlToAdd, urlToAdd)
+    setUrlToAdd("")
+  }
+
+  const handleAddText = async () => {
+    if (!textToAdd.trim() || !textName.trim() || !selectedKB) return
+
+    await addSource(selectedKB, 'text', textToAdd, textName)
+    setTextToAdd("")
+    setTextName("")
   }
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return
 
     setIsSearching(true)
-    
-    // Simulate search delay
+    // TODO: Implement search functionality with Retell API
+    // For now, just clear results
     setTimeout(() => {
-      setSearchResults(mockSearchResults)
+      setSearchResults([])
       setIsSearching(false)
     }, 1000)
   }
 
-  const handleDeleteFile = (fileId: string) => {
-    setFiles(prev => prev.filter(f => f.id !== fileId))
-    toast({
-      title: "File Deleted",
-      description: "The file has been removed from your knowledge base.",
-    })
+  const handleDeleteSource = async (sourceId: string) => {
+    await deleteSource(sourceId)
+  }
+
+  // Get all sources from all KBs for the table
+  const allSources = knowledgeBases.flatMap(kb => 
+    (kb.sources || []).map(source => ({
+      ...source,
+      kb_title: kb.title
+    }))
+  )
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64">Loading...</div>
   }
 
   return (
@@ -201,17 +200,29 @@ export function KnowledgeBase() {
         </div>
         
         <div className="flex gap-2">
-          <input
-            type="file"
-            id="file-upload"
-            className="hidden"
-            accept=".pdf,.doc,.docx,.txt,.md"
-            onChange={handleFileUpload}
-          />
-          <Button onClick={() => document.getElementById('file-upload')?.click()}>
-            <Upload className="h-4 w-4 mr-2" />
-            Upload Document
-          </Button>
+          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Knowledge Base
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create Knowledge Base</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input
+                  placeholder="Knowledge base title"
+                  value={newKBTitle}
+                  onChange={(e) => setNewKBTitle(e.target.value)}
+                />
+                <Button onClick={handleCreateKB} className="w-full">
+                  Create
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -256,91 +267,219 @@ export function KnowledgeBase() {
         </CardContent>
       </Card>
 
-      {/* Upload Progress */}
-      {files.some(f => f.status === "processing") && (
+      {/* Knowledge Bases Management */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {knowledgeBases.map((kb) => (
+          <Card key={kb.id}>
+            <CardHeader>
+              <CardTitle className="text-lg">{kb.title}</CardTitle>
+              <Badge className={getStatusColor(kb.state)}>
+                <div className="flex items-center gap-1">
+                  {getStatusIcon(kb.state)}
+                  {kb.state}
+                </div>
+              </Badge>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Sources:</span>
+                  <span>{kb.source_count}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Chunks:</span>
+                  <span>{kb.chunks}</span>
+                </div>
+                {kb.last_indexed_at && (
+                  <div className="flex justify-between">
+                    <span>Indexed:</span>
+                    <span>{formatDistanceToNow(new Date(kb.last_indexed_at), { addSuffix: true })}</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-4 space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="file"
+                    id={`file-upload-${kb.id}`}
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.txt,.md"
+                    onChange={(e) => {
+                      setSelectedKB(kb.id)
+                      handleFileUpload(e)
+                    }}
+                  />
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => document.getElementById(`file-upload-${kb.id}`)?.click()}
+                  >
+                    <Upload className="h-3 w-3 mr-1" />
+                    File
+                  </Button>
+                  
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button size="sm" variant="outline" onClick={() => setSelectedKB(kb.id)}>
+                        <Globe className="h-3 w-3 mr-1" />
+                        URL
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add URL to {kb.title}</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <Input
+                          placeholder="https://example.com"
+                          value={urlToAdd}
+                          onChange={(e) => setUrlToAdd(e.target.value)}
+                        />
+                        <Button onClick={handleAddUrl} className="w-full">
+                          Add URL
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button size="sm" variant="outline" onClick={() => setSelectedKB(kb.id)}>
+                        <MessageSquare className="h-3 w-3 mr-1" />
+                        Text
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Text to {kb.title}</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <Input
+                          placeholder="Text name"
+                          value={textName}
+                          onChange={(e) => setTextName(e.target.value)}
+                        />
+                        <textarea
+                          className="w-full h-32 p-2 border rounded"
+                          placeholder="Enter your text content here..."
+                          value={textToAdd}
+                          onChange={(e) => setTextToAdd(e.target.value)}
+                        />
+                        <Button onClick={handleAddText} className="w-full">
+                          Add Text
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Processing Status */}
+      {knowledgeBases.some(kb => 
+        kb.state === 'processing' || kb.sources?.some(s => s.status === 'processing')
+      ) && (
         <Card>
           <CardHeader>
-            <CardTitle>Processing Files</CardTitle>
+            <CardTitle>Processing Items</CardTitle>
           </CardHeader>
           <CardContent>
-            {files.filter(f => f.status === "processing").map((file) => (
-              <div key={file.id} className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>{file.name}</span>
-                  <span>Processing...</span>
-                </div>
-                <Progress value={65} className="w-full" />
-              </div>
-            ))}
+            <div className="space-y-2">
+              {knowledgeBases
+                .filter(kb => kb.state === 'processing')
+                .map(kb => (
+                  <div key={kb.id} className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Knowledge Base: {kb.title}</span>
+                      <span>Processing...</span>
+                    </div>
+                    <Progress value={65} className="w-full" />
+                  </div>
+                ))}
+              {knowledgeBases
+                .flatMap(kb => kb.sources?.filter(s => s.status === 'processing') || [])
+                .map(source => (
+                  <div key={source.id} className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>{source.name}</span>
+                      <span>Processing...</span>
+                    </div>
+                    <Progress value={45} className="w-full" />
+                  </div>
+                ))}
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Files Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Uploaded Documents</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Chunks</TableHead>
-                <TableHead>Uploaded</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {files.map((file) => (
-                <TableRow key={file.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      {file.name}
-                    </div>
-                  </TableCell>
-                  <TableCell className="uppercase text-xs font-mono">
-                    {file.type}
-                  </TableCell>
-                  <TableCell>{formatFileSize(file.size)}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(file.status)}>
-                      <div className="flex items-center gap-1">
-                        {getStatusIcon(file.status)}
-                        {file.status}
+      {/* All Sources Table */}
+      {allSources.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>All Sources</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Knowledge Base</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Size</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Added</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allSources.map((source) => (
+                  <TableRow key={source.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        {source.name}
                       </div>
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {file.chunks > 0 ? `${file.chunks} chunks` : '-'}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDistanceToNow(file.uploadedAt, { addSuffix: true })}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Download className="h-3 w-3" />
-                      </Button>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {source.kb_title}
+                    </TableCell>
+                    <TableCell className="uppercase text-xs font-mono">
+                      {source.type}
+                    </TableCell>
+                    <TableCell>
+                      {source.size ? formatFileSize(source.size) : '-'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(source.status)}>
+                        <div className="flex items-center gap-1">
+                          {getStatusIcon(source.status)}
+                          {source.status}
+                        </div>
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDistanceToNow(new Date(source.created_at), { addSuffix: true })}
+                    </TableCell>
+                    <TableCell>
                       <Button 
                         variant="ghost" 
                         size="sm"
-                        onClick={() => handleDeleteFile(file.id)}
+                        onClick={() => handleDeleteSource(source.id)}
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
