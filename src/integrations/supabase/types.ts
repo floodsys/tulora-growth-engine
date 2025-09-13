@@ -1841,6 +1841,194 @@ export type Database = {
           },
         ]
       }
+      sms_brands: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          brand_id: string | null
+          brand_name: string
+          city: string | null
+          company_name: string
+          country: string | null
+          created_at: string
+          id: string
+          industry: string | null
+          metadata: Json | null
+          organization_id: string
+          phone_number: string | null
+          postal_code: string | null
+          registration_status: string
+          rejection_reason: string | null
+          state: string | null
+          tax_id: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          brand_id?: string | null
+          brand_name: string
+          city?: string | null
+          company_name: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          industry?: string | null
+          metadata?: Json | null
+          organization_id: string
+          phone_number?: string | null
+          postal_code?: string | null
+          registration_status?: string
+          rejection_reason?: string | null
+          state?: string | null
+          tax_id?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          brand_id?: string | null
+          brand_name?: string
+          city?: string | null
+          company_name?: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          industry?: string | null
+          metadata?: Json | null
+          organization_id?: string
+          phone_number?: string | null
+          postal_code?: string | null
+          registration_status?: string
+          rejection_reason?: string | null
+          state?: string | null
+          tax_id?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      sms_campaigns: {
+        Row: {
+          brand_id: string
+          campaign_id: string | null
+          campaign_name: string
+          campaign_type: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          monthly_volume: number | null
+          organization_id: string
+          registration_status: string
+          rejection_reason: string | null
+          sample_messages: string[] | null
+          updated_at: string
+          use_case: string
+        }
+        Insert: {
+          brand_id: string
+          campaign_id?: string | null
+          campaign_name: string
+          campaign_type?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          monthly_volume?: number | null
+          organization_id: string
+          registration_status?: string
+          rejection_reason?: string | null
+          sample_messages?: string[] | null
+          updated_at?: string
+          use_case: string
+        }
+        Update: {
+          brand_id?: string
+          campaign_id?: string | null
+          campaign_name?: string
+          campaign_type?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          monthly_volume?: number | null
+          organization_id?: string
+          registration_status?: string
+          rejection_reason?: string | null
+          sample_messages?: string[] | null
+          updated_at?: string
+          use_case?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_sms_campaigns_brand"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "sms_brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_messages: {
+        Row: {
+          campaign_id: string | null
+          cost_cents: number | null
+          created_at: string
+          delivery_status: string
+          delivery_timestamp: string | null
+          direction: string
+          error_code: string | null
+          error_message: string | null
+          from_number: string
+          id: string
+          message_body: string
+          metadata: Json | null
+          number_id: string | null
+          organization_id: string
+          provider_message_id: string | null
+          to_number: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          cost_cents?: number | null
+          created_at?: string
+          delivery_status?: string
+          delivery_timestamp?: string | null
+          direction: string
+          error_code?: string | null
+          error_message?: string | null
+          from_number: string
+          id?: string
+          message_body: string
+          metadata?: Json | null
+          number_id?: string | null
+          organization_id: string
+          provider_message_id?: string | null
+          to_number: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          cost_cents?: number | null
+          created_at?: string
+          delivery_status?: string
+          delivery_timestamp?: string | null
+          direction?: string
+          error_code?: string | null
+          error_message?: string | null
+          from_number?: string
+          id?: string
+          message_body?: string
+          metadata?: Json | null
+          number_id?: string | null
+          organization_id?: string
+          provider_message_id?: string | null
+          to_number?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       step_up_sessions: {
         Row: {
           created_at: string
