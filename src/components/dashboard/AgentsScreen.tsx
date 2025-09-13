@@ -158,8 +158,8 @@ const AllAgentsTab = () => {
   }
 
   const handleOpenSettings = (agent: Agent) => {
-    console.log('Navigating to agent settings for agent:', agent.id, agent.name)
-    navigate(`/app/agents/${agent.id}`)
+    console.log('Agent settings functionality will be reimplemented with Retell focus')
+    // TODO: Navigate to new Retell-focused agent settings page
   }
 
   const handleSetDefault = (agentId: string) => {
