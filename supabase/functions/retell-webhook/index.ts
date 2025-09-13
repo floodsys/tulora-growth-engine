@@ -1,9 +1,46 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
+import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RETELL_WEBHOOK_SECRET } from '../_shared/env.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-retell-signature',
+}
+
+// Helper function to verify webhook signature
+async function verifyWebhookSignature(
+  signature: string,
+  body: string,
+  secret: string
+): Promise<boolean> {
+  try {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    
+    const expectedSignature = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      encoder.encode(body)
+    );
+    
+    const expectedHex = Array.from(new Uint8Array(expectedSignature))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    
+    // Remove 'sha256=' prefix if present
+    const cleanSignature = signature.replace('sha256=', '');
+    
+    return cleanSignature === expectedHex;
+  } catch (error) {
+    console.error('Error verifying webhook signature:', error);
+    return false;
+  }
 }
 
 interface RetellWebhookEvent {
@@ -254,8 +291,8 @@ serve(async (req) => {
   try {
     // Create Supabase client with service role for webhook processing
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      SUPABASE_URL(),
+      SUPABASE_SERVICE_ROLE_KEY(),
     );
 
     if (req.method !== 'POST') {
@@ -268,12 +305,34 @@ serve(async (req) => {
       );
     }
 
-    // Parse the webhook body
-    const webhookBody: RetellWebhookEvent = await req.json();
-    console.log("Webhook body:", JSON.stringify(webhookBody, null, 2));
+    // Get raw body for signature verification
+    const rawBody = await req.text();
+    console.log("Raw body length:", rawBody.length);
 
-    // Verify webhook signature if needed
-    // TODO: Add webhook signature verification for security
+    // Verify webhook signature
+    const signature = req.headers.get('x-retell-signature');
+    if (signature) {
+      const webhookSecret = RETELL_WEBHOOK_SECRET();
+      const isValidSignature = await verifyWebhookSignature(signature, rawBody, webhookSecret);
+      
+      if (!isValidSignature) {
+        console.error('Invalid webhook signature');
+        return new Response(
+          JSON.stringify({ error: 'Invalid webhook signature' }),
+          { 
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+      console.log('Webhook signature verified successfully');
+    } else {
+      console.warn('No webhook signature provided');
+    }
+
+    // Parse the webhook body after signature verification
+    const webhookBody: RetellWebhookEvent = JSON.parse(rawBody);
+    console.log("Webhook body:", JSON.stringify(webhookBody, null, 2));
 
     // Process the webhook event
     const result = await processWebhookEvent(supabase, webhookBody);
