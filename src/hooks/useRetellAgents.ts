@@ -264,6 +264,39 @@ export const useRetellAgents = (organizationId?: string) => {
     }
   }, [organizationId])
 
+  // Attach knowledge bases to agents
+  const attachKBToAgent = async (agentId: string, kbIds: string[]) => {
+    try {
+      const { data, error } = await supabase
+        .from('retell_agents')
+        .update({ kb_ids: kbIds })
+        .eq('id', agentId)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      setAgents(prev => prev.map(agent => 
+        agent.id === agentId ? { ...agent, kb_ids: kbIds } : agent
+      ))
+
+      toast({
+        title: "Knowledge Base Attached",
+        description: "Knowledge base has been attached to the agent.",
+      })
+
+      return data
+    } catch (error) {
+      console.error('Error attaching KB to agent:', error)
+      toast({
+        title: "Error",
+        description: "Failed to attach knowledge base to agent.",
+        variant: "destructive"
+      })
+      return null
+    }
+  }
+
   return {
     agents,
     voices,
@@ -275,5 +308,6 @@ export const useRetellAgents = (organizationId?: string) => {
     updateAgent,
     publishAgent,
     deleteAgent,
+    attachKBToAgent,
   }
 }
