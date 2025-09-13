@@ -1,22 +1,13 @@
+import { RETELL_API_KEY, RETELL_WEBHOOK_SECRET } from './env.ts';
+
 // Environment-aware API key retrieval for edge functions
+// Now uses centralized env access with simplified logic
 function getRetellApiKeyForEnv(): string {
-  const hostname = globalThis?.location?.hostname || ''
-  
-  if (hostname.includes('localhost') || hostname.includes('staging') || hostname.includes('preview')) {
-    return Deno.env.get('RETELL_API_KEY_DEV') || Deno.env.get('RETELL_API_KEY') || ''
-  }
-  
-  return Deno.env.get('RETELL_API_KEY_PROD') || Deno.env.get('RETELL_API_KEY') || ''
+  return RETELL_API_KEY();
 }
 
 function getRetellWebhookSecretForEnv(): string {
-  const hostname = globalThis?.location?.hostname || ''
-  
-  if (hostname.includes('localhost') || hostname.includes('staging') || hostname.includes('preview')) {
-    return Deno.env.get('RETELL_WEBHOOK_SECRET_DEV') || Deno.env.get('RETELL_WEBHOOK_SECRET') || ''
-  }
-  
-  return Deno.env.get('RETELL_WEBHOOK_SECRET_PROD') || Deno.env.get('RETELL_WEBHOOK_SECRET') || ''
+  return RETELL_WEBHOOK_SECRET();
 }
 
 export { getRetellApiKeyForEnv, getRetellWebhookSecretForEnv }

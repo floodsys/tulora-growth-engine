@@ -61,7 +61,8 @@ Deno.serve(async (req) => {
     }
 
     // Get Retell API key
-    const retellApiKey = Deno.env.get('RETELL_API_KEY')
+    const { RETELL_API_KEY } = await import('../_shared/env.ts')
+    const retellApiKey = RETELL_API_KEY()
     if (!retellApiKey) {
       return new Response(
         JSON.stringify({ error: 'Retell API key not configured' }),
