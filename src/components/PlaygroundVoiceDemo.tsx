@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 
 const voiceAgents = [
   {
+    id: "paul-demo",
     slug: "paul",
     name: "Paul",
     category: "Real Estate",
@@ -21,6 +22,7 @@ const voiceAgents = [
     tags: ["#Real-Time Booking", "#Lead Qualification"],
   },
   {
+    id: "laura-demo",
     slug: "laura",
     name: "Laura", 
     category: "Hospitality",
@@ -29,6 +31,7 @@ const voiceAgents = [
     tags: ["#Real-Time Booking", "#Front-of-house"],
   },
   {
+    id: "jessica-demo",
     slug: "jessica",
     name: "Jessica",
     category: "Healthcare",
