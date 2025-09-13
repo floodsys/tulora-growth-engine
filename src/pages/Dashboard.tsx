@@ -16,10 +16,12 @@ import SettingsOrganization from "@/pages/SettingsOrganization"
 
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
+import { useUserOrganization } from "@/hooks/useUserOrganization"
 
 const Dashboard = () => {
   const [activeScreen, setActiveScreen] = useState("overview")
   const { toast } = useToast()
+  const { organizationId } = useUserOrganization()
 
   // Handle checkout success/cancel redirects and tab parameter
   useEffect(() => {
@@ -73,7 +75,7 @@ const Dashboard = () => {
       case "scheduling":
         return <Scheduling />
       case "billing":
-        return <UsageBilling />
+        return <UsageBilling organizationId={organizationId || ""} />
       case "teams":
         return <SettingsOrganization />
       case "organization":
