@@ -335,147 +335,313 @@ const RetellAgentSettings = () => {
       {/* Main Content */}
       <div className="container max-w-6xl mx-auto px-4 py-8">
         <form>
-          <Accordion type="single" collapsible className="space-y-4" defaultValue="basic">
+          {/* Action Bar */}
+          <div className="mb-6 flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+            <div className="flex items-center space-x-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleSave}
+                disabled={saving || !hasUnsavedChanges}
+              >
+                {saving ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-current mr-2" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Save Changes
+              </Button>
+              
+              {hasUnsavedChanges && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    form.reset(agent)
+                    setHasUnsavedChanges(false)
+                  }}
+                >
+                  <Undo2 className="h-4 w-4 mr-2" />
+                  Reset
+                </Button>
+              )}
+            </div>
             
-            {/* Basic Settings */}
-            <AccordionItem value="basic" className="border rounded-lg">
+            {hasUnsavedChanges && (
+              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                Unsaved Changes
+              </Badge>
+            )}
+          </div>
+
+          <Accordion type="single" collapsible className="space-y-4" defaultValue="basics">
+            
+            {/* A) Basics */}
+            <AccordionItem value="basics" className="border rounded-lg">
               <AccordionTrigger className="px-6 py-4 hover:no-underline">
                 <div className="flex items-center">
                   <Settings className="h-5 w-5 mr-3 text-primary" />
-                  <span className="font-semibold">Basic Settings</span>
+                  <span className="font-semibold">A) Basics</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="name">Agent Name</Label>
-                    <Input
-                      id="name"
-                      {...form.register("name")}
-                      placeholder="Enter agent name"
-                    />
+                <div className="space-y-6">
+                  {/* Agent Name & Type */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="name">Agent Name</Label>
+                      <Input
+                        id="name"
+                        {...form.register("name")}
+                        placeholder="Enter agent name"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="agent_type">Agent Type</Label>
+                      <Select 
+                        value="prompt-based" 
+                        onValueChange={() => {}}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select agent type" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-md">
+                          <SelectItem value="prompt-based">Prompt-based</SelectItem>
+                          <SelectItem value="flow-based" disabled>Flow-based (Coming Soon)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">Currently only Prompt-based agents are supported</p>
+                    </div>
                   </div>
 
+                  {/* Language Settings */}
                   <div>
-                    <Label htmlFor="language">Language</Label>
+                    <Label htmlFor="language">Language Detection</Label>
                     <Select 
                       value={form.watch("language")} 
                       onValueChange={(value) => form.setValue("language", value)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select language" />
+                        <SelectValue placeholder="Select language mode" />
                       </SelectTrigger>
                       <SelectContent className="bg-background border shadow-md">
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                        <SelectItem value="fr">French</SelectItem>
-                        <SelectItem value="de">German</SelectItem>
-                        <SelectItem value="it">Italian</SelectItem>
-                        <SelectItem value="pt">Portuguese</SelectItem>
-                        <SelectItem value="zh">Chinese</SelectItem>
-                        <SelectItem value="ja">Japanese</SelectItem>
-                        <SelectItem value="ko">Korean</SelectItem>
+                        <SelectItem value="en">English Only</SelectItem>
+                        <SelectItem value="es">Spanish Only</SelectItem>
+                        <SelectItem value="fr">French Only</SelectItem>
+                        <SelectItem value="de">German Only</SelectItem>
+                        <SelectItem value="it">Italian Only</SelectItem>
+                        <SelectItem value="pt">Portuguese Only</SelectItem>
+                        <SelectItem value="zh">Chinese Only</SelectItem>
+                        <SelectItem value="ja">Japanese Only</SelectItem>
+                        <SelectItem value="ko">Korean Only</SelectItem>
+                        <SelectItem value="multi" disabled>Multi-language Auto-detect (Coming Soon)</SelectItem>
                       </SelectContent>
                     </Select>
+                    <p className="text-xs text-muted-foreground mt-1">Choose the primary language your agent will understand</p>
+                  </div>
+
+                  {/* Response Engine Settings */}
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Response Engine</Label>
+                      <Select 
+                        value="openai-gpt-4" 
+                        onValueChange={() => {}}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select LLM model" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-md">
+                          <SelectItem value="openai-gpt-4">OpenAI GPT-4</SelectItem>
+                          <SelectItem value="openai-gpt-3.5" disabled>OpenAI GPT-3.5</SelectItem>
+                          <SelectItem value="anthropic-claude" disabled>Anthropic Claude</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>LLM Temperature: {(0.7).toFixed(1)}</Label>
+                      <Slider
+                        value={[0.7]}
+                        onValueChange={() => {}}
+                        min={0.0}
+                        max={2.0}
+                        step={0.1}
+                        className="mt-2"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Controls creativity vs consistency (0.0 = very consistent, 2.0 = very creative)</p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="system_prompt">Global Prompt/Persona</Label>
+                      <Textarea
+                        id="system_prompt"
+                        placeholder="Enter the agent's personality, role, and behavior instructions..."
+                        className="min-h-[120px] mt-2"
+                        defaultValue="You are a helpful and professional AI assistant. Be concise, friendly, and always try to provide accurate information."
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Define your agent's personality, role, and how it should behave in conversations</p>
+                    </div>
                   </div>
                 </div>
               </AccordionContent>
             </AccordionItem>
 
-            {/* Voice Settings */}
+            {/* B) Voice */}
             <AccordionItem value="voice" className="border rounded-lg">
               <AccordionTrigger className="px-6 py-4 hover:no-underline">
                 <div className="flex items-center">
                   <Volume2 className="h-5 w-5 mr-3 text-primary" />
-                  <span className="font-semibold">Voice & Audio Settings</span>
+                  <span className="font-semibold">B) Voice</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
                 <div className="space-y-6">
-                  {/* Voice Selection */}
+                  {/* Voice Selection with Preview */}
                   <div>
                     <Label>Voice Selection</Label>
-                    <Select 
-                      value={form.watch("voice_id") || ""} 
-                      onValueChange={(value) => form.setValue("voice_id", value)}
-                      disabled={voicesLoading}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={voicesLoading ? "Loading voices..." : "Select a voice"} />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border shadow-md max-h-60">
-                        {voices.map((voice) => (
-                          <SelectItem key={voice.voice_id} value={voice.voice_id}>
-                            <div className="flex items-center justify-between w-full">
-                              <div>
-                                <span className="font-medium">{voice.voice_name}</span>
-                                <span className="text-muted-foreground ml-2">({voice.gender}, {voice.accent})</span>
+                    <div className="space-y-3">
+                      <Select 
+                        value={form.watch("voice_id") || ""} 
+                        onValueChange={(value) => form.setValue("voice_id", value)}
+                        disabled={voicesLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={voicesLoading ? "Loading voices..." : "Select a voice"} />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-md max-h-60">
+                          {voices.map((voice) => (
+                            <SelectItem key={voice.voice_id} value={voice.voice_id}>
+                              <div className="flex items-center justify-between w-full">
+                                <div>
+                                  <span className="font-medium">{voice.voice_name}</span>
+                                  <span className="text-muted-foreground ml-2">({voice.gender}, {voice.accent})</span>
+                                </div>
                               </div>
-                              {voice.preview_url && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    playVoicePreview(voice.voice_id, voice.preview_url)
-                                  }}
-                                >
-                                  <Play className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Voice Controls */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                      <Label>Voice Speed: {form.watch("voice_speed")?.toFixed(1)}x</Label>
-                      <Slider
-                        value={[form.watch("voice_speed") || 1.0]}
-                        onValueChange={([value]) => form.setValue("voice_speed", value)}
-                        min={0.5}
-                        max={2.0}
-                        step={0.1}
-                        className="mt-2"
-                      />
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      {/* Voice Preview Button */}
+                      {form.watch("voice_id") && (
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const selectedVoice = voices.find(v => v.voice_id === form.watch("voice_id"))
+                              if (selectedVoice?.preview_url) {
+                                playVoicePreview(selectedVoice.voice_id, selectedVoice.preview_url)
+                              }
+                            }}
+                          >
+                            <Play className="h-4 w-4 mr-2" />
+                            Preview Voice
+                          </Button>
+                          <p className="text-xs text-muted-foreground">Listen to a sample of the selected voice</p>
+                        </div>
+                      )}
                     </div>
 
-                    <div>
-                      <Label>Voice Temperature: {form.watch("voice_temperature")?.toFixed(1)}</Label>
-                      <Slider
-                        value={[form.watch("voice_temperature") || 1.0]}
-                        onValueChange={([value]) => form.setValue("voice_temperature", value)}
-                        min={0.0}
-                        max={2.0}
-                        step={0.1}
-                        className="mt-2"
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Volume: {form.watch("volume")?.toFixed(1)}</Label>
-                      <Slider
-                        value={[form.watch("volume") || 1.0]}
-                        onValueChange={([value]) => form.setValue("volume", value)}
-                        min={0.0}
-                        max={2.0}
-                        step={0.1}
-                        className="mt-2"
-                      />
+                    {/* Voice Model Selection */}
+                    <div className="mt-4">
+                      <Label>Voice Model</Label>
+                      <Select 
+                        value={form.watch("voice_model") || "eleven_turbo_v2"} 
+                        onValueChange={(value) => form.setValue("voice_model", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select voice model" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-md">
+                          <SelectItem value="eleven_turbo_v2">Eleven Turbo v2 (Fast)</SelectItem>
+                          <SelectItem value="eleven_multilingual_v2">Eleven Multilingual v2 (Quality)</SelectItem>
+                          <SelectItem value="eleven_turbo_v2_5">Eleven Turbo v2.5 (Balanced)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">Choose between speed and quality</p>
                     </div>
                   </div>
 
-                  {/* Voice Toggles */}
+                  {/* Voice Tuning */}
+                  <div className="space-y-6">
+                    <h4 className="font-medium">Voice Tuning</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <Label>Voice Speed: {form.watch("voice_speed")?.toFixed(1)}x</Label>
+                        <Slider
+                          value={[form.watch("voice_speed") || 1.0]}
+                          onValueChange={([value]) => form.setValue("voice_speed", value)}
+                          min={0.5}
+                          max={2.0}
+                          step={0.1}
+                          className="mt-2"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">How fast the agent speaks</p>
+                      </div>
+
+                      <div>
+                        <Label>Voice Temperature: {form.watch("voice_temperature")?.toFixed(1)}</Label>
+                        <Slider
+                          value={[form.watch("voice_temperature") || 1.0]}
+                          onValueChange={([value]) => form.setValue("voice_temperature", value)}
+                          min={0.0}
+                          max={2.0}
+                          step={0.1}
+                          className="mt-2"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Voice expressiveness and variation</p>
+                      </div>
+
+                      <div>
+                        <Label>Volume: {form.watch("volume")?.toFixed(1)}</Label>
+                        <Slider
+                          value={[form.watch("volume") || 1.0]}
+                          onValueChange={([value]) => form.setValue("volume", value)}
+                          min={0.0}
+                          max={2.0}
+                          step={0.1}
+                          className="mt-2"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Audio output volume level</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pronunciation Dictionary */}
+                  <div>
+                    <Label>Pronunciation Dictionary</Label>
+                    <Textarea
+                      placeholder="Enter custom pronunciations (IPA/CMU format)&#10;Example:&#10;API: /eɪ piː aɪ/&#10;SQL: /ˈsiːkwəl/"
+                      value={JSON.stringify(form.watch("pronunciation_dict") || {}, null, 2)}
+                      onChange={(e) => {
+                        try {
+                          const parsed = JSON.parse(e.target.value || '{}')
+                          form.setValue("pronunciation_dict", parsed)
+                        } catch {
+                          // Invalid JSON, ignore
+                        }
+                      }}
+                      className="mt-2 font-mono text-sm"
+                      rows={4}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Define custom pronunciations for technical terms, names, or acronyms. 
+                      Available for eligible ElevenLabs English voices with IPA or CMU phoneme notation.
+                    </p>
+                  </div>
+
+                  {/* Speech Processing Options */}
                   <div className="space-y-4">
+                    <h4 className="font-medium">Speech Processing</h4>
+                    
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label>Normalize for Speech</Label>
-                        <p className="text-sm text-muted-foreground">Optimize audio for spoken content</p>
+                        <Label>Speech Normalization</Label>
+                        <p className="text-sm text-muted-foreground">Convert numbers, currency, dates to spoken form (e.g., "$100" → "one hundred dollars")</p>
                       </div>
                       <Switch
                         checked={form.watch("normalize_for_speech")}
@@ -486,7 +652,7 @@ const RetellAgentSettings = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <Label>Enable Backchannel</Label>
-                        <p className="text-sm text-muted-foreground">Allow "mm-hmm" responses during conversation</p>
+                        <p className="text-sm text-muted-foreground">Allow "mm-hmm" and "uh-huh" responses during user speech</p>
                       </div>
                       <Switch
                         checked={form.watch("backchannel_enabled")}
