@@ -1,9 +1,0 @@
-      <SeatSyncDialog
-        isOpen={syncSeatOpen}
-        onClose={() => setSyncSeatOpen(false)}
-        onConfirm={loadBillingData}
-        data={syncSeatData}
-      />
-    </div>
-  );
-}

@@ -30,7 +30,7 @@ import { OrgSwitcherTests } from "./OrgSwitcherTests"
 import { ProfileUpdateTests } from "./ProfileUpdateTests"
 import { DemoArtifactLinter } from "./DemoArtifactLinter"
 import { OrganizationProfileTests } from "./OrganizationProfileTests"
-
+import { TeamsConsolidationTests } from "./TeamsConsolidationTests"
 import { HiddenTestsRunner } from "./HiddenTestsRunner"
 import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
 import { OrganizationsDirectory } from "@/components/admin/OrganizationsDirectory";
@@ -441,6 +441,7 @@ export function TestDashboard() {
               <CardContent>
                 <div className="grid gap-6">
                   <OrganizationProfileTests />
+                  <TeamsConsolidationTests />
                   <HiddenTestsRunner />
                   <OrgSwitcherTests />
                   <ProfileUpdateTests />

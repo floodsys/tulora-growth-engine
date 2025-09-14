@@ -29,18 +29,17 @@ export function UpgradeModal({ open, onOpenChange, limitType, hasPendingBilling 
 
   const handleUpgradeNow = () => {
     onOpenChange(false);
-    // Navigate to contact sales since settings routes removed
-    navigate('/contact/sales');
+    // Navigate to billing with recommended plan preselected
+    navigate('/settings/organization?tab=billing&plan=starter');
   };
 
   const handleContactSales = () => {
-    onOpenChange(false);
-    navigate('/contact/sales');
+    window.location.href = 'mailto:sales@yourcompany.com?subject=Enterprise Plan Inquiry';
   };
 
   const handleResumeCheckout = () => {
     onOpenChange(false);
-    navigate('/contact/sales');
+    navigate('/settings/organization?tab=billing&resume=true');
   };
 
   const getContent = () => {
