@@ -31,8 +31,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { ArrowLeft, Save, Undo2, Play, Upload, Volume2, Settings, Shield, Phone } from "lucide-react"
+import { ArrowLeft, Save, Undo2, Play, Upload, Volume2, Settings, Shield, Phone, Code } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { PrivacySecuritySettings } from "@/components/PrivacySecuritySettings"
+import { WidgetEmbedGenerator } from "@/components/WidgetEmbedGenerator"
+import { WebCallTester } from "@/components/WebCallTester"
 import { supabase } from "@/integrations/supabase/client"
 
 interface RetellAgent {
@@ -616,53 +619,68 @@ const RetellAgentSettings = () => {
 
             {/* Privacy & Storage */}
             <AccordionItem value="privacy" className="border rounded-lg">
-              <AccordionTrigger className="px-6 py-4 hover:no-underline">
-                <div className="flex items-center">
-                  <Shield className="h-5 w-5 mr-3 text-primary" />
-                  <span className="font-semibold">Privacy & Data Storage</span>
+              <AccordionTrigger className="p-4 hover:no-underline">
+                <div className="flex items-center gap-3">
+                  <Shield className="w-5 h-5 text-blue-600" />
+                  <span className="font-semibold">Privacy & Security</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                <div className="space-y-6">
-                  <div>
-                    <Label htmlFor="data_storage_setting">Data Storage Setting</Label>
-                    <Select 
-                      value={form.watch("data_storage_setting")} 
-                      onValueChange={(value) => form.setValue("data_storage_setting", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select storage setting" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border shadow-md">
-                        <SelectItem value="standard">Standard Storage</SelectItem>
-                        <SelectItem value="encrypted">Encrypted Storage</SelectItem>
-                        <SelectItem value="minimal">Minimal Storage</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <AccordionContent className="p-4 pt-0">
+                <PrivacySecuritySettings 
+                  agent={agent}
+                  onUpdate={(updates) => {
+                    Object.entries(updates).forEach(([key, value]) => {
+                      form.setValue(key as any, value)
+                    })
+                  }}
+                />
+              </AccordionContent>
+            </AccordionItem>
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Opt-in Signed URLs</Label>
-                      <p className="text-sm text-muted-foreground">Require user consent for recording access</p>
+            {/* Widget & Embed */}
+            <AccordionItem value="widget" className="border rounded-lg">
+              <AccordionTrigger className="p-4 hover:no-underline">
+                <div className="flex items-center gap-3">
+                  <Code className="w-5 h-5 text-purple-600" />
+                  <span className="font-semibold">Website Widget</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="p-4 pt-0">
+                <WidgetEmbedGenerator 
+                  agent={agent}
+                  organizationId={organizationId}
+                />
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Test & Preview */}
+            <AccordionItem value="testing" className="border rounded-lg">
+              <AccordionTrigger className="p-4 hover:no-underline">
+                <div className="flex items-center gap-3">
+                  <Play className="w-5 h-5 text-green-600" />
+                  <span className="font-semibold">Test & Preview</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="p-4 pt-0">
+                <div className="space-y-4">
+                  {agent.status === 'published' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <WebCallTester agent={agent} className="w-full" />
+                      <Button variant="outline" disabled>
+                        <Phone className="h-4 w-4 mr-2" />
+                        Phone Test (Coming Soon)
+                      </Button>
                     </div>
-                    <Switch
-                      checked={form.watch("opt_in_signed_url")}
-                      onCheckedChange={(checked) => form.setValue("opt_in_signed_url", checked)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="webhook_url">Webhook URL</Label>
-                    <Input
-                      id="webhook_url"
-                      {...form.register("webhook_url")}
-                      placeholder="https://your-domain.com/webhook"
-                    />
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Optional webhook URL for call events and transcripts
-                    </p>
-                  </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground mb-4">
+                        Publish this agent to enable testing features
+                      </p>
+                      <Button onClick={handlePublish} disabled={publishing}>
+                        {publishing ? "Publishing..." : "Publish Agent"}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>
