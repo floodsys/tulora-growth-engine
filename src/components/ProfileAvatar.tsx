@@ -84,12 +84,11 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
           </div>
           <DropdownMenuSeparator />
           <DropdownMenuItem 
-            onClick={() => console.log("Profile settings removed")}
+            onClick={() => setActiveScreen("profile-settings")}
             className="cursor-pointer"
-            disabled
           >
             <User className="mr-2 h-4 w-4" />
-            <span>Profile Settings (Removed)</span>
+            <span>Profile Settings</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem 
