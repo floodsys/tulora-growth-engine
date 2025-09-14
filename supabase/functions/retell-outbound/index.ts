@@ -36,9 +36,10 @@ serve(async (req) => {
   
   // Handle /health for health checks
   if (new URL(req.url).pathname.endsWith('/health')) {
-    const apiKey = Deno.env.get("RETELL_API_KEY");
-    const phoneUrl = Deno.env.get("RETELL_PHONE_CREATE_URL");
-    const webUrl = Deno.env.get("RETELL_WEB_CREATE_URL");
+    const { getOptionalEnv } = await import('../_shared/env.ts')
+    const apiKey = getOptionalEnv("RETELL_API_KEY");
+    const phoneUrl = getOptionalEnv("RETELL_PHONE_CREATE_URL");
+    const webUrl = getOptionalEnv("RETELL_WEB_CREATE_URL");
     
     const url = new URL(req.url);
     const agent = url.searchParams.get("agent");
@@ -46,7 +47,7 @@ serve(async (req) => {
     
     if (agent) {
       const up = agent.toUpperCase();
-      const agentId = Deno.env.get(`AGENT_${up}_ID`);
+      const agentId = getOptionalEnv(`AGENT_${up}_ID`);
       agentMapped = !!agentId;
     }
     
@@ -92,8 +93,9 @@ serve(async (req) => {
   
   try {
     // Read environment variables inside the request handler
-    const apiKey = Deno.env.get("RETELL_API_KEY");
-    const phoneUrl = Deno.env.get("RETELL_PHONE_CREATE_URL") ?? "https://api.retellai.com/v2/create-phone-call";
+    const { RETELL_API_KEY, getOptionalEnv } = await import('../_shared/env.ts')
+    const apiKey = RETELL_API_KEY();
+    const phoneUrl = getOptionalEnv("RETELL_PHONE_CREATE_URL") ?? "https://api.retellai.com/v2/create-phone-call";
     
     console.log(`[${traceId}] Environment check: API Key exists: ${!!apiKey}, Phone URL: ${phoneUrl}`);
     
@@ -142,8 +144,8 @@ serve(async (req) => {
     
     // Agent resolution
     const up = agentSlug.toUpperCase();
-    const agentId = Deno.env.get(`AGENT_${up}_ID`) ?? null;
-    const fromNumber = Deno.env.get(`AGENT_${up}_FROM`) ?? Deno.env.get("RETELL_FROM_NUMBER") ?? null;
+    const agentId = getOptionalEnv(`AGENT_${up}_ID`) ?? null;
+    const fromNumber = getOptionalEnv(`AGENT_${up}_FROM`) ?? getOptionalEnv("RETELL_FROM_NUMBER") ?? null;
     
     console.log(`[${traceId}] Agent resolution: slug=${agentSlug}, agentId exists: ${!!agentId}, fromNumber exists: ${!!fromNumber}`);
     

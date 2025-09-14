@@ -51,10 +51,10 @@ serve(async (req) => {
   // Check environment variables presence (boolean only)
   const healthCheck = {
     retell: {
-      apiKey: Boolean(Deno.env.get('RETELL_API_KEY')),
-      phoneUrl: Boolean(Deno.env.get('RETELL_PHONE_CREATE_URL')),
-      webUrl: Boolean(Deno.env.get('RETELL_WEB_CREATE_URL')),
-      fromNumber: Boolean(Deno.env.get('RETELL_FROM_NUMBER'))
+      apiKey: Boolean((await import('../_shared/env.ts')).getOptionalEnv('RETELL_API_KEY')),
+      phoneUrl: Boolean((await import('../_shared/env.ts')).getOptionalEnv('RETELL_PHONE_CREATE_URL')),
+      webUrl: Boolean((await import('../_shared/env.ts')).getOptionalEnv('RETELL_WEB_CREATE_URL')),
+      fromNumber: Boolean((await import('../_shared/env.ts')).getOptionalEnv('RETELL_FROM_NUMBER'))
     },
     booking: {
       enabled: false,

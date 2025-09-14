@@ -66,7 +66,7 @@ export function TeamManagement() {
   };
 
   const handleOpenTeamSettings = () => {
-    navigate('/settings/organization/team');
+    navigate('/dashboard?tab=team-settings');
   };
 
   if (loading || roleLoading) {
