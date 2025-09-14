@@ -83,6 +83,10 @@ const Dashboard = () => {
         return <AbusePreventionSettings />
       case "access-control":
         return <AccessControl />
+      case "team-settings":
+        return <div className="p-6"><h2 className="text-2xl font-semibold">Team Settings</h2><p className="text-muted-foreground mt-2">Team management features coming soon.</p></div>
+      case "organization-settings":
+        return <div className="p-6"><h2 className="text-2xl font-semibold">Organization Settings</h2><p className="text-muted-foreground mt-2">Organization settings coming soon.</p></div>
       case "organization":
         return <TeamManagement />
       default:
