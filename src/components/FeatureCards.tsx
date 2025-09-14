@@ -121,7 +121,7 @@ const FeatureCards = () => {
 
         {/* Cards Container */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-[1600px] mx-auto">
-          {agents.map((agent, index) => <div key={index} className="bg-white rounded-2xl p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-[2fr_250px] gap-8 lg:gap-12 items-center transition-all duration-300 border border-border shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-primary min-h-[280px]">
+          {agents.map((agent, index) => <div key={index} className="bg-white rounded-2xl p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-[3fr_200px] gap-6 lg:gap-8 items-center transition-all duration-300 border border-border shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-primary min-h-[280px]">
               {/* Agent Content */}
               <div className="flex flex-col gap-2">
                 <div className="mb-2">
@@ -152,7 +152,7 @@ const FeatureCards = () => {
               </div>
               
               {/* Agent Avatar */}
-              <div className="lg:order-last order-first">
+              <div className="lg:order-last order-first flex justify-center items-center">
                 <div className="w-full lg:w-48 h-24 lg:h-36 bg-gradient-to-br from-primary to-purple-600 rounded-xl flex items-center justify-center relative overflow-hidden">
                   <div className="text-4xl lg:text-5xl drop-shadow-lg">
                     {agent.emoji}

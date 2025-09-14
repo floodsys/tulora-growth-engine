@@ -1385,6 +1385,183 @@ export type Database = {
         }
         Relationships: []
       }
+      retell_agents: {
+        Row: {
+          agent_id: string
+          backchannel_enabled: boolean
+          backchannel_frequency: number | null
+          begin_message_delay_ms: number | null
+          created_at: string
+          data_storage_setting: string | null
+          end_call_after_silence_ms: number | null
+          id: string
+          is_active: boolean
+          kb_ids: string[] | null
+          language: string
+          max_call_duration_ms: number | null
+          name: string
+          normalize_for_speech: boolean
+          opt_in_signed_url: boolean
+          organization_id: string
+          pronunciation_dict: Json | null
+          published_at: string | null
+          status: string
+          transfer_mode: string | null
+          transfer_number: string | null
+          updated_at: string
+          version: number
+          voice_id: string | null
+          voice_model: string | null
+          voice_speed: number | null
+          voice_temperature: number | null
+          voicemail_option: string | null
+          volume: number | null
+          webhook_url: string | null
+        }
+        Insert: {
+          agent_id: string
+          backchannel_enabled?: boolean
+          backchannel_frequency?: number | null
+          begin_message_delay_ms?: number | null
+          created_at?: string
+          data_storage_setting?: string | null
+          end_call_after_silence_ms?: number | null
+          id?: string
+          is_active?: boolean
+          kb_ids?: string[] | null
+          language?: string
+          max_call_duration_ms?: number | null
+          name: string
+          normalize_for_speech?: boolean
+          opt_in_signed_url?: boolean
+          organization_id: string
+          pronunciation_dict?: Json | null
+          published_at?: string | null
+          status?: string
+          transfer_mode?: string | null
+          transfer_number?: string | null
+          updated_at?: string
+          version?: number
+          voice_id?: string | null
+          voice_model?: string | null
+          voice_speed?: number | null
+          voice_temperature?: number | null
+          voicemail_option?: string | null
+          volume?: number | null
+          webhook_url?: string | null
+        }
+        Update: {
+          agent_id?: string
+          backchannel_enabled?: boolean
+          backchannel_frequency?: number | null
+          begin_message_delay_ms?: number | null
+          created_at?: string
+          data_storage_setting?: string | null
+          end_call_after_silence_ms?: number | null
+          id?: string
+          is_active?: boolean
+          kb_ids?: string[] | null
+          language?: string
+          max_call_duration_ms?: number | null
+          name?: string
+          normalize_for_speech?: boolean
+          opt_in_signed_url?: boolean
+          organization_id?: string
+          pronunciation_dict?: Json | null
+          published_at?: string | null
+          status?: string
+          transfer_mode?: string | null
+          transfer_number?: string | null
+          updated_at?: string
+          version?: number
+          voice_id?: string | null
+          voice_model?: string | null
+          voice_speed?: number | null
+          voice_temperature?: number | null
+          voicemail_option?: string | null
+          volume?: number | null
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
+      retell_calls: {
+        Row: {
+          agent_id: string | null
+          analysis_json: Json | null
+          call_id: string
+          created_at: string
+          direction: string
+          duration_ms: number | null
+          ended_at: string | null
+          from_e164: string
+          id: string
+          lead_score: number | null
+          organization_id: string
+          outcome: string | null
+          owner_user_id: string | null
+          raw_webhook_data: Json | null
+          recording_signed_url: string | null
+          sentiment: string | null
+          started_at: string | null
+          status: string
+          tags: string[] | null
+          to_e164: string
+          topics: string[] | null
+          transcript_summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id?: string | null
+          analysis_json?: Json | null
+          call_id: string
+          created_at?: string
+          direction: string
+          duration_ms?: number | null
+          ended_at?: string | null
+          from_e164: string
+          id?: string
+          lead_score?: number | null
+          organization_id: string
+          outcome?: string | null
+          owner_user_id?: string | null
+          raw_webhook_data?: Json | null
+          recording_signed_url?: string | null
+          sentiment?: string | null
+          started_at?: string | null
+          status: string
+          tags?: string[] | null
+          to_e164: string
+          topics?: string[] | null
+          transcript_summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string | null
+          analysis_json?: Json | null
+          call_id?: string
+          created_at?: string
+          direction?: string
+          duration_ms?: number | null
+          ended_at?: string | null
+          from_e164?: string
+          id?: string
+          lead_score?: number | null
+          organization_id?: string
+          outcome?: string | null
+          owner_user_id?: string | null
+          raw_webhook_data?: Json | null
+          recording_signed_url?: string | null
+          sentiment?: string | null
+          started_at?: string | null
+          status?: string
+          tags?: string[] | null
+          to_e164?: string
+          topics?: string[] | null
+          transcript_summary?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sales_invoices: {
         Row: {
           amount: number
@@ -1716,12 +1893,14 @@ export type Database = {
         Returns: Json
       }
       admin_change_member_role: {
-        Args: {
-          p_admin_user_id?: string
-          p_new_role: Database["public"]["Enums"]["org_role"]
-          p_organization_id: string
-          p_user_id: string
-        }
+        Args:
+          | {
+              p_admin_user_id?: string
+              p_new_role: Database["public"]["Enums"]["org_role"]
+              p_organization_id: string
+              p_user_id: string
+            }
+          | { p_new_role: string; p_organization_id: string; p_user_id: string }
         Returns: Json
       }
       admin_destructive_action: {
@@ -1759,12 +1938,18 @@ export type Database = {
         Returns: Json
       }
       admin_toggle_member_seat: {
-        Args: {
-          p_admin_user_id?: string
-          p_organization_id: string
-          p_seat_active: boolean
-          p_user_id: string
-        }
+        Args:
+          | {
+              p_admin_user_id?: string
+              p_organization_id: string
+              p_seat_active: boolean
+              p_user_id: string
+            }
+          | {
+              p_organization_id: string
+              p_seat_active: boolean
+              p_user_id: string
+            }
         Returns: Json
       }
       backfill_audit_logs: {

@@ -27,7 +27,7 @@ export async function getOrgEntitlements(orgId: string): Promise<OrgLimits> {
     // Get organization data including cached entitlements
     const { data: org, error } = await supabase
       .from('organizations')
-      .select('entitlements, billing_status, billing_tier')
+      .select('entitlements, billing_status, plan_key')
       .eq('id', orgId)
       .single()
 
@@ -36,13 +36,26 @@ export async function getOrgEntitlements(orgId: string): Promise<OrgLimits> {
       return getFreePlanLimits()
     }
 
-    // For now, return default values since entitlements and billing_status don't exist yet
-    const entitlements: Entitlements = { plan_key: 'free' }
-    const isActive = true // Default to active for now
+    // Check for manual activation
+    const manualActivation = (org as any).entitlements?.manual_activation
+    const isManuallyActive = manualActivation?.active === true && 
+      new Date(manualActivation.ends_at) > new Date()
+
+    // Determine if organization is active (either through billing or manual activation)
+    const billingStatus = (org as any).billing_status || 'trialing'
+    const isPaidActive = billingStatus === 'active' || billingStatus === 'trialing'
+    const isActive = isPaidActive || isManuallyActive
     
     // If not active, return free plan limits
     if (!isActive) {
       return getFreePlanLimits()
+    }
+
+    // Use actual plan_key from database
+    const planKey = (org as any).plan_key || 'trial'
+    const entitlements: Entitlements = { 
+      plan_key: planKey,
+      ...((org as any).entitlements || {})
     }
 
     // Get current usage counts
@@ -85,7 +98,12 @@ function getFreePlanLimits(): OrgLimits {
 }
 
 function getPlanDisplayName(planKey?: string): string {
-  // Only handle leadgen and support plans now
+  // Handle standard plan keys first
+  if (planKey === 'pro') return 'Starter';
+  if (planKey === 'business') return 'Business';
+  if (planKey === 'trial') return 'Trial';
+  
+  // Handle legacy product line plans
   if (planKey?.includes('leadgen')) return 'Lead Generation';
   if (planKey?.includes('support')) return 'Customer Service';
   if (planKey?.includes('enterprise')) return 'Enterprise';

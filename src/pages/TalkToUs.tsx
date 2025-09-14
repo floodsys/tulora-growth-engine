@@ -339,16 +339,16 @@ const TalkToUs = () => {
                         <Label htmlFor="project" className="text-foreground font-medium">
                           What would you like to build in Tulora? *
                         </Label>
-                        <Textarea
-                          id="project"
-                          name="project"
-                          placeholder="We'll use this to show relevant examples and templates during the demo"
-                          value={formData.project}
-                          onChange={handleInputChange}
-                          required
-                          className="min-h-[120px] resize-none"
-                          disabled={isSubmitting}
-                        />
+                         <Textarea
+                           id="project"
+                           name="project"
+                           placeholder="Tell us what you want to build—we'll tailor examples and templates to match"
+                           value={formData.project}
+                           onChange={handleInputChange}
+                           required
+                           className="min-h-[120px] resize-none"
+                           disabled={isSubmitting}
+                         />
                       </div>
 
                        {/* Honeypot field - hidden from users */}

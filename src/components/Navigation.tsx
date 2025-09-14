@@ -23,13 +23,13 @@ const Navigation = () => {
           <div className="hidden md:flex items-center justify-between flex-1 ml-8">
             {/* Main Navigation Links - Centered */}
             <div className="flex items-center space-x-8 mx-auto">
-              <a href="#features" className="text-foreground hover:text-brand transition-colors duration-200">
+              <a href="/#features" className="text-foreground hover:text-brand transition-colors duration-200">
                 Features
               </a>
-              <a href="#voice-demo" className="text-foreground hover:text-brand transition-colors duration-200">
+              <a href="/#voice-demo" className="text-foreground hover:text-brand transition-colors duration-200">
                 Voice Demo
               </a>
-              <a href="#pricing" className="text-foreground hover:text-brand transition-colors duration-200">
+              <a href="/#pricing" className="text-foreground hover:text-brand transition-colors duration-200">
                 Pricing
               </a>
               <Link to="/talk-to-us" className="text-foreground hover:text-brand transition-colors duration-200">
@@ -53,9 +53,9 @@ const Navigation = () => {
                   <Link to="/auth" className="text-foreground hover:text-brand transition-colors duration-200">
                     Sign in
                   </Link>
-                  <Link to="/auth">
+                  <Link to="/talk-to-us">
                     <Button className="btn-primary px-6">
-                      Get started
+                      Contact Us
                     </Button>
                   </Link>
                   {/* Temporary test link */}
@@ -78,13 +78,13 @@ const Navigation = () => {
         {/* Mobile menu */}
         {isMenuOpen && <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-card border border-border rounded-lg mt-2">
-              <a href="#features" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
+              <a href="/#features" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
                 Features
               </a>
-              <a href="#voice-demo" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
+              <a href="/#voice-demo" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
                 Voice Demo
               </a>
-              <a href="#pricing" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
+              <a href="/#pricing" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
                 Pricing
               </a>
               <Link to="/talk-to-us" className="block px-3 py-2 text-foreground hover:text-brand transition-colors duration-200" onClick={() => setIsMenuOpen(false)}>
@@ -104,9 +104,9 @@ const Navigation = () => {
                     Sign in
                   </Link>
                   <div className="px-3 py-2">
-                    <Link to="/auth">
+                    <Link to="/talk-to-us">
                       <Button className="btn-primary w-full" onClick={() => setIsMenuOpen(false)}>
-                        Get started
+                        Contact Us
                       </Button>
                     </Link>
                   </div>
