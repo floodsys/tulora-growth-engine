@@ -56,11 +56,10 @@ export function BillingSettings({ organizationId }: BillingSettingsProps) {
       const { data, error } = await supabase
         .from('organizations')
         .select(`
-          subscription_plan,
-          subscription_status,
-          billing_info,
-          seat_count,
-          subscription_seats
+          plan_key,
+          billing_status,
+          trial_ends_at,
+          trial_started_at
         `)
         .eq('id', organizationId)
         .single();
@@ -69,13 +68,13 @@ export function BillingSettings({ organizationId }: BillingSettingsProps) {
 
       // Mock billing info since actual Stripe integration would be more complex
       const mockBillingInfo: BillingInfo = {
-        plan: data.subscription_plan || 'free',
-        status: data.subscription_status || 'active',
-        current_period_start: new Date().toISOString(),
-        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        seats_used: data.seat_count || 1,
-        seats_total: data.subscription_seats || 1,
-        monthly_cost: data.subscription_plan === 'pro' ? 99 : 0,
+        plan: data.plan_key || 'free',
+        status: data.billing_status || 'active',
+        current_period_start: data.trial_started_at || new Date().toISOString(),
+        current_period_end: data.trial_ends_at || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        seats_used: 1,
+        seats_total: 1,
+        monthly_cost: data.plan_key === 'pro' ? 99 : 0,
         usage_this_month: {
           calls: 1250,
           minutes: 2840,

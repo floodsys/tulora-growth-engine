@@ -81,15 +81,15 @@ export function AlertsSettings({ organizationId }: AlertsSettingsProps) {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('organization_settings')
-        .select('alert_config')
-        .eq('organization_id', organizationId)
+        .from('organizations')
+        .select('analytics_config')
+        .eq('id', organizationId)
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
 
-      if (data?.alert_config) {
-        setAlerts(data.alert_config as AlertConfig[]);
+      if (data?.analytics_config && typeof data.analytics_config === 'object' && 'alert_config' in data.analytics_config) {
+        setAlerts((data.analytics_config as any).alert_config as AlertConfig[]);
       }
     } catch (error) {
       console.error('Error loading alert settings:', error);
@@ -109,12 +109,11 @@ export function AlertsSettings({ organizationId }: AlertsSettingsProps) {
     setSaving(true);
     try {
       const { error } = await supabase
-        .from('organization_settings')
-        .upsert({
-          organization_id: organizationId,
-          alert_config: alerts,
-          updated_at: new Date().toISOString()
-        });
+        .from('organizations')
+        .update({
+          analytics_config: { alert_config: alerts } as any
+        })
+        .eq('id', organizationId);
 
       if (error) throw error;
 
