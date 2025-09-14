@@ -22,10 +22,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Bot, Phone, Star, Play, Pause, Settings, Plus, BarChart3, FileText, Zap } from "lucide-react"
+import { Bot, Phone, Star, Play, Pause, Settings, Plus, BarChart3, FileText, Zap, MessageSquare } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { AgentCatalog } from "@/components/AgentCatalog"
+import SMSView from "@/components/SMSView"
 
 interface Agent {
   id: string
@@ -364,6 +365,12 @@ const AutomationTab = () => (
   </div>
 )
 
+const SMSTab = () => (
+  <div className="space-y-6">
+    <SMSView />
+  </div>
+)
+
 export function AgentsScreen() {
   return (
     <div className="h-full max-h-[calc(100vh-8rem)]">
@@ -373,8 +380,9 @@ export function AgentsScreen() {
       </div>
       
       <Tabs defaultValue="agents" className="h-full flex flex-col">
-        <TabsList className="grid w-full max-w-lg grid-cols-4">
+        <TabsList className="grid w-full max-w-2xl grid-cols-5">
           <TabsTrigger value="agents">AGENTS</TabsTrigger>
+          <TabsTrigger value="sms">SMS</TabsTrigger>
           <TabsTrigger value="performance">PERFORMANCE</TabsTrigger>
           <TabsTrigger value="templates">TEMPLATES</TabsTrigger>
           <TabsTrigger value="automation">AUTOMATION</TabsTrigger>
@@ -382,6 +390,10 @@ export function AgentsScreen() {
         
         <TabsContent value="agents" className="flex-1 mt-6">
           <AllAgentsTab />
+        </TabsContent>
+        
+        <TabsContent value="sms" className="flex-1 mt-6">
+          <SMSTab />
         </TabsContent>
         
         <TabsContent value="performance" className="flex-1 mt-6">
