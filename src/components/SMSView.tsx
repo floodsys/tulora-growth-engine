@@ -151,7 +151,7 @@ export default function SMSView() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">SMS / 10DLC</h1>
+          <h1 className="text-3xl font-bold">SMS</h1>
         </div>
         <div className="grid gap-4">
           {[1, 2, 3].map((i) => (
@@ -165,7 +165,7 @@ export default function SMSView() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">SMS / 10DLC</h1>
+        <h1 className="text-3xl font-bold">SMS</h1>
         <div className="flex gap-2">
           <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
             <DialogTrigger asChild>
@@ -411,7 +411,7 @@ export default function SMSView() {
                   <Building2 className="w-12 h-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No brands registered</h3>
                   <p className="text-muted-foreground text-center mb-4">
-                    Register your brand to start sending SMS messages with 10DLC compliance.
+                    Register your brand to start sending SMS messages with carrier compliance.
                   </p>
                 </CardContent>
               </Card>
