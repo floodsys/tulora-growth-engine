@@ -66,8 +66,7 @@ export function TeamManagement() {
   };
 
   const handleOpenTeamSettings = () => {
-    // Settings routes removed - team management is now available directly in dashboard
-    console.log('Team settings feature has been removed');
+    navigate('/dashboard?tab=team-settings');
   };
 
   if (loading || roleLoading) {
