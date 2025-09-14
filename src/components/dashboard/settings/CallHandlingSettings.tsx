@@ -102,15 +102,15 @@ export function CallHandlingSettings({ organizationId }: CallHandlingSettingsPro
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('organization_settings')
-        .select('call_handling_config')
-        .eq('organization_id', organizationId)
+        .from('organizations')
+        .select('webhook_config')
+        .eq('id', organizationId)
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
 
-      if (data?.call_handling_config) {
-        setConfig({ ...defaultConfig, ...data.call_handling_config });
+      if (data?.webhook_config && typeof data.webhook_config === 'object' && 'call_handling' in data.webhook_config) {
+        setConfig({ ...defaultConfig, ...(data.webhook_config as any).call_handling });
       }
     } catch (error) {
       console.error('Error loading call handling settings:', error);
@@ -130,12 +130,11 @@ export function CallHandlingSettings({ organizationId }: CallHandlingSettingsPro
     setSaving(true);
     try {
       const { error } = await supabase
-        .from('organization_settings')
-        .upsert({
-          organization_id: organizationId,
-          call_handling_config: config,
-          updated_at: new Date().toISOString()
-        });
+        .from('organizations')
+        .update({
+          webhook_config: { call_handling: config } as any
+        })
+        .eq('id', organizationId);
 
       if (error) throw error;
 
