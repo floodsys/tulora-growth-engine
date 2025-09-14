@@ -36,20 +36,28 @@ export async function getOrgFeatureFlags(orgId: string): Promise<FeatureFlags> {
       return getTrialPlanFlags()
     }
 
-    // For now, return basic limits based on plan key or default to trial
+    // Check for manual activation first
+    const manualActivation = (org as any).entitlements?.manual_activation
+    const isManuallyActive = manualActivation?.active === true && 
+      new Date(manualActivation.ends_at) > new Date()
+
+    // Use billing_status and plan_key, considering manual activation
     const planKey = (org as any).plan_key || 'trial'
+    const billingStatus = (org as any).billing_status || 'trialing'
+    const isPaidActive = billingStatus === 'active' || billingStatus === 'trialing'
+    
     let limits, features, planName, isActive
     
     if (planKey === 'pro') {
       limits = { agents: 10, seats: 20, calls_per_month: 5000, storage_gb: 100 }
       features = ['advanced_analytics', 'voice_sms', 'crm_integrations', 'email_support']
-      planName = 'Pro'
-      isActive = true
+      planName = 'Starter' // Changed from 'Pro' to 'Starter'
+      isActive = isPaidActive || isManuallyActive
     } else if (planKey === 'business') {
       limits = { agents: null, seats: null, calls_per_month: null, storage_gb: 500 }
       features = ['advanced_analytics', 'voice_sms', 'crm_integrations', 'email_support', 'white_label', 'api_access', 'account_manager', 'priority_support']
       planName = 'Business'
-      isActive = true
+      isActive = isPaidActive || isManuallyActive
     } else {
       limits = { agents: 1, seats: 1, calls_per_month: 100, storage_gb: 5 }
       features = ['basic_calendar', 'email_support']

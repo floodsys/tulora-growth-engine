@@ -46,19 +46,19 @@ serve(async (req) => {
       }
     );
 
-    // Check if user is superadmin using USER context (not service role)
-    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin', { user_id: userData.user.id });
-    if (superadminError || !isSuperadmin) {
-      logStep("Superadmin check failed", { error: superadminError, isSuperadmin });
+    // Get user info for logging and auth
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: "forbidden" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 403,
       });
     }
 
-    // Get user info for logging
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
+    // Check if user is superadmin using USER context (not service role)
+    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin', { user_id: user.id });
+    if (superadminError || !isSuperadmin) {
+      logStep("Superadmin check failed", { error: superadminError, isSuperadmin });
       return new Response(JSON.stringify({ error: "forbidden" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 403,
