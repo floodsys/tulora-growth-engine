@@ -14,9 +14,6 @@ import ChatWidget from "@/pages/ChatWidget"
 import AbusePreventionSettings from "@/pages/AbusePrevention"
 import AccessControl from "@/pages/AccessControl"
 import OnboardingOrganization from "@/pages/OnboardingOrganization"
-import ProfileSettings from "@/pages/ProfileSettings"
-import OrganizationSettings from "@/pages/OrganizationSettings"
-import TeamSettings from "@/pages/TeamSettings"
 
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
@@ -88,12 +85,6 @@ const Dashboard = () => {
         return <AccessControl />
       case "organization":
         return <TeamManagement />
-      case "profile-settings":
-        return <ProfileSettings />
-      case "organization-settings": 
-        return <OrganizationSettings />
-      case "team-settings":
-        return <TeamSettings />
       default:
         return <DashboardOverview />
     }
