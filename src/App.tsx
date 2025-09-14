@@ -6,7 +6,6 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AdminSecurityWrapper } from "@/components/AdminSecurityWrapper";
 import { HelmetProvider } from "react-helmet-async";
 import { InviteAcceptRedirect } from "@/components/InviteAcceptRedirect";
-import { RedirectToOrganizationTeam } from "@/components/RedirectToOrganizationTeam";
 import Index from "@/pages/Index";
 import Dashboard from "@/pages/Dashboard";
 import Auth from "@/pages/Auth";
@@ -21,12 +20,8 @@ import NotFound from "@/pages/NotFound";
 import InviteAccept from "@/pages/InviteAccept";
 import Demo from "@/pages/Demo";
 import VoiceDemo from "@/pages/demos/voice";
-import SettingsLayout from "@/pages/SettingsLayout";
 import { TeamAccessGuard } from "@/components/guards/TeamAccessGuard";
 import ProgressiveProfilingGuard from "@/components/guards/ProgressiveProfilingGuard";
-
-import SettingsTeams from "@/pages/SettingsTeams";
-import SettingsOrganization from "@/pages/SettingsOrganization";
 import ActivityLogs from "@/pages/ActivityLogs";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AdminSetup from "@/pages/AdminSetup";
@@ -84,12 +79,6 @@ function App() {
               <Route path="/profile-test" element={<ProfileTest />} />
               <Route path="/talk-to-us" element={<TalkToUs />} />
               <Route path="/retell-agent/:agentId" element={<RetellAgentSettings />} />
-              <Route path="/settings" element={<SettingsLayout />}>
-                
-                <Route path="teams" element={<RedirectToOrganizationTeam />} />
-                <Route path="organization" element={<SettingsOrganization />} />
-                <Route path="organization/team" element={<SettingsOrganization />} />
-              </Route>
               <Route path="/invite/accept" element={<InviteAccept />} />
               <Route path="/invite/accept-new" element={<InviteAcceptRedirect />} />
               <Route path="/demo" element={<Demo />} />

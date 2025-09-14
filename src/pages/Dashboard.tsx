@@ -9,11 +9,7 @@ import { KnowledgeBase } from "@/components/dashboard/KnowledgeBase"
 import { Scheduling } from "@/components/dashboard/Scheduling"
 import { UsageBilling } from "@/components/dashboard/UsageBilling"
 import { TeamManagement } from "@/components/dashboard/TeamManagement"
-import { UnifiedSettings } from "@/components/UnifiedSettings"
-import { ProfileSettingsScreen } from "@/components/dashboard/ProfileSettingsScreen"
 import { ProfileEditModal } from "@/components/ProfileEditModal"
-import SettingsTeams from "@/pages/SettingsTeams"
-import SettingsOrganization from "@/pages/SettingsOrganization"
 
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
@@ -79,14 +75,6 @@ const Dashboard = () => {
         return <Scheduling />
       case "billing":
         return <UsageBilling organizationId={organizationId || ""} />
-      case "teams":
-        return <SettingsOrganization />
-      case "organization":
-        return <SettingsOrganization />
-      case "settings":
-        return <UnifiedSettings organizationId="demo-org-id" />
-      case "profile-settings":
-        return <ProfileSettingsScreen />
       default:
         return <DashboardOverview />
     }
