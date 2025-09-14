@@ -26,6 +26,7 @@ import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { useToast } from "@/hooks/use-toast"
 import { ChatEmbedDialog } from "./ChatEmbedDialog"
 import { ChatTester } from "./ChatTester"
+import { WebCallTester } from "@/components/WebCallTester"
 
 interface RetellAgentsGridProps {
   className?: string
@@ -315,9 +316,12 @@ export const RetellAgentsGrid = ({ className = "" }: RetellAgentsGridProps) => {
                     </div>
                     
                     {agent.status === 'published' && (
-                      <div className="flex space-x-2">
-                        <ChatEmbedDialog agent={agent} />
-                        <ChatTester agent={agent} />
+                      <div className="flex flex-col space-y-2">
+                        <div className="flex space-x-2">
+                          <ChatEmbedDialog agent={agent} />
+                          <ChatTester agent={agent} />
+                        </div>
+                        <WebCallTester agent={agent} />
                       </div>
                     )}
                   </div>
