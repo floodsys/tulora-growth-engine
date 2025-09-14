@@ -22,9 +22,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Bot, Phone, Star, Play, Pause, Settings, Plus, BarChart3, FileText, Zap } from "lucide-react"
+import { Bot, Phone, Star, Play, Pause, Settings, Plus, BarChart3, FileText, Zap, Clock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
+import { useRetellAnalytics } from "@/hooks/useRetellAnalytics"
 import { AgentCatalog } from "@/components/AgentCatalog"
 
 interface Agent {
@@ -292,51 +293,158 @@ const AllAgentsTab = () => {
   )
 }
 
-const PerformanceTab = () => (
-  <div className="space-y-6">
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Agents</CardTitle>
-          <Bot className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">3</div>
-          <p className="text-xs text-muted-foreground">2 active, 1 paused</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
-          <BarChart3 className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">135</div>
-          <p className="text-xs text-muted-foreground">+15% from last week</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Avg Success Rate</CardTitle>
-          <BarChart3 className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">75%</div>
-          <p className="text-xs text-muted-foreground">+5% from last week</p>
-        </CardContent>
-      </Card>
-    </div>
+const PerformanceTab = () => {
+  const { organization } = useUserOrganization()
+  const { analytics, loading } = useRetellAnalytics(organization?.id)
 
-    <Card>
-      <CardHeader>
-        <CardTitle>Agent Performance Metrics</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-muted-foreground">Detailed performance analytics coming soon...</p>
-      </CardContent>
-    </Card>
-  </div>
-)
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map(i => (
+            <Card key={i}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="h-4 bg-muted rounded w-24 animate-pulse"></div>
+                <div className="h-4 w-4 bg-muted rounded animate-pulse"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-muted rounded w-16 mb-2 animate-pulse"></div>
+                <div className="h-3 bg-muted rounded w-32 animate-pulse"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (!analytics) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">No Analytics Data</h3>
+              <p className="text-muted-foreground">
+                Performance metrics will appear here once you have call data
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
+            <Phone className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics.total_calls}</div>
+            <p className="text-xs text-muted-foreground">
+              {analytics.successful_calls} completed
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics.completion_rate.toFixed(1)}%</div>
+            <p className="text-xs text-muted-foreground">
+              Call success rate
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg Duration</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{Math.floor(analytics.average_duration / 60)}m</div>
+            <p className="text-xs text-muted-foreground">
+              {analytics.average_duration % 60}s average
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Positive Sentiment</CardTitle>
+            <Bot className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics.sentiment_breakdown.positive}</div>
+            <p className="text-xs text-muted-foreground">
+              calls with positive tone
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Agent Performance Table */}
+      {analytics.agent_performance.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Agent Performance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {analytics.agent_performance.map(agent => (
+                <div key={agent.agent_id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Bot className="h-8 w-8 text-primary" />
+                    <div>
+                      <h4 className="font-medium">{agent.agent_name}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {agent.call_count} calls • {agent.success_rate.toFixed(1)}% success
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-medium">{Math.floor(agent.avg_duration / 60)}m {agent.avg_duration % 60}s</div>
+                    <div className="text-xs text-muted-foreground">avg duration</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Peak Hours */}
+      {analytics.peak_hours.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Peak Call Hours</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+              {analytics.peak_hours.map(({ hour, count }) => (
+                <div key={hour} className="text-center">
+                  <div className="text-lg font-bold">{count}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {hour}:00
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
 
 const TemplatesTab = () => {
   const { organization } = useUserOrganization()
