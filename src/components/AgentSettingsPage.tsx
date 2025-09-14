@@ -22,6 +22,8 @@ import {
   Database, 
   PhoneCall, 
   Webhook,
+  Shield,
+  BarChart3,
   Save,
   ArrowLeft,
   Play,
@@ -33,6 +35,8 @@ import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { useRetellAgents } from "@/hooks/useRetellAgents"
 import { AgentKnowledgeManager } from "@/components/AgentKnowledgeManager"
 import { AgentTransferTools } from "@/components/AgentTransferTools"
+import { AgentPrivacySettings } from "@/components/AgentPrivacySettings"
+import { AgentAnalysisSettings } from "@/components/AgentAnalysisSettings"
 import { useToast } from "@/hooks/use-toast"
 
 export function AgentSettingsPage() {
@@ -142,6 +146,40 @@ export function AgentSettingsPage() {
 
     await updateAgentSettings(agent.id, updateData)
     setAgent(prev => ({ ...prev, ...updateData }))
+  }
+
+  const handlePrivacySettingsUpdated = async (privacySettings: any) => {
+    if (!agent) return
+
+    const updateData = {
+      data_storage_setting: privacySettings.storeRecordings ? 'standard' : 'minimal',
+      opt_in_signed_url: privacySettings.useSecureUrls,
+    }
+
+    await updateAgentSettings(agent.id, updateData)
+    
+    // Update local state with settings object
+    setAgent(prev => ({ 
+      ...prev, 
+      ...updateData,
+      settings: {
+        ...prev.settings,
+        privacySettings
+      }
+    }))
+  }
+
+  const handleAnalysisSettingsUpdated = async (analysisSettings: any) => {
+    if (!agent) return
+
+    // Update local state with settings object
+    setAgent(prev => ({ 
+      ...prev,
+      settings: {
+        ...prev.settings,
+        analysisSettings
+      }
+    }))
   }
 
   if (loading || !agent) {
@@ -447,6 +485,22 @@ export function AgentSettingsPage() {
               dynamicVariables: agent.settings?.dynamicVariables || []
             }}
             onSettingsUpdated={handleTransferToolsUpdated}
+          />
+        </TabsContent>
+
+        <TabsContent value="privacy">
+          <AgentPrivacySettings
+            agentId={agent.id}
+            currentSettings={agent.settings?.privacySettings}
+            onSettingsUpdated={handlePrivacySettingsUpdated}
+          />
+        </TabsContent>
+
+        <TabsContent value="analysis">
+          <AgentAnalysisSettings
+            agentId={agent.id}
+            currentSettings={agent.settings?.analysisSettings}
+            onSettingsUpdated={handleAnalysisSettingsUpdated}
           />
         </TabsContent>
 
