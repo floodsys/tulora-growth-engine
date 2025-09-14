@@ -65,9 +65,6 @@ export function TeamManagement() {
     }
   };
 
-  const handleOpenTeamSettings = () => {
-    navigate('/dashboard?tab=team-settings');
-  };
 
   if (loading || roleLoading) {
     return (
@@ -154,10 +151,9 @@ export function TeamManagement() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={handleOpenTeamSettings} size="lg" className="w-full sm:w-auto">
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Open Team Settings
-          </Button>
+          <div className="text-sm text-muted-foreground">
+            Full team management features will be available soon.
+          </div>
         </CardContent>
       </Card>
     </div>
