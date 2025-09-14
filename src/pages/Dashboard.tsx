@@ -84,7 +84,7 @@ const Dashboard = () => {
       case "access-control":
         return <AccessControl />
       case "organization":
-        return <OnboardingOrganization />
+        return <TeamManagement />
       default:
         return <DashboardOverview />
     }
