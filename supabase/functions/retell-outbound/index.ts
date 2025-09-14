@@ -36,7 +36,8 @@ serve(async (req) => {
   
   // Handle /health for health checks
   if (new URL(req.url).pathname.endsWith('/health')) {
-    const apiKey = Deno.env.get("RETELL_API_KEY");
+    const { getOptionalEnv } = await import('../_shared/env.ts')
+    const apiKey = getOptionalEnv("RETELL_API_KEY");
     const phoneUrl = Deno.env.get("RETELL_PHONE_CREATE_URL");
     const webUrl = Deno.env.get("RETELL_WEB_CREATE_URL");
     
@@ -92,7 +93,8 @@ serve(async (req) => {
   
   try {
     // Read environment variables inside the request handler
-    const apiKey = Deno.env.get("RETELL_API_KEY");
+    const { RETELL_API_KEY } = await import('../_shared/env.ts')
+    const apiKey = RETELL_API_KEY();
     const phoneUrl = Deno.env.get("RETELL_PHONE_CREATE_URL") ?? "https://api.retellai.com/v2/create-phone-call";
     
     console.log(`[${traceId}] Environment check: API Key exists: ${!!apiKey}, Phone URL: ${phoneUrl}`);

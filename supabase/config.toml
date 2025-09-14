@@ -84,3 +84,12 @@ verify_jwt = false
 [functions.contact-sales.env]
 SUITECRM_AUTO_CREATE_FIELDS = "false"
 CORS_DEBUG_WILDCARD = "false"
+
+[functions.generate-signed-url]
+verify_jwt = true
+
+[functions.secure-resource-access]
+verify_jwt = false
+
+[functions.verify-turnstile]
+verify_jwt = false

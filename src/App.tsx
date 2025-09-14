@@ -16,7 +16,6 @@ import CompleteProfile from "@/pages/CompleteProfile";
 import ProfileTest from "@/pages/ProfileTest";
 import TalkToUs from "@/pages/TalkToUs";
 import RetellAgentSettings from "@/pages/RetellAgentSettings";
-import { AgentSettings } from "@/components/dashboard/AgentSettings";
 import NotFound from "@/pages/NotFound";
 
 import InviteAccept from "@/pages/InviteAccept";
@@ -44,6 +43,7 @@ import AdminSelfCheck from "@/pages/AdminSelfCheck";
 import AdminContactSettings from "@/pages/AdminContactSettings";
 import AdminNotifications from "@/pages/AdminNotifications";
 import Pricing from "@/pages/Pricing";
+import { ObservabilityDashboard } from "@/pages/admin/ObservabilityDashboard";
 
 import { AdminGuard } from "@/components/admin/AdminGuard";
 
@@ -83,8 +83,7 @@ function App() {
               <Route path="/complete-profile" element={<CompleteProfile />} />
               <Route path="/profile-test" element={<ProfileTest />} />
               <Route path="/talk-to-us" element={<TalkToUs />} />
-               <Route path="/retell-agent/:agentId" element={<RetellAgentSettings />} />
-               <Route path="/agent/:agentId/settings" element={<AgentSettings />} />
+              <Route path="/retell-agent/:agentId" element={<RetellAgentSettings />} />
               <Route path="/settings" element={<SettingsLayout />}>
                 
                 <Route path="teams" element={<RedirectToOrganizationTeam />} />
@@ -101,7 +100,8 @@ function App() {
               <Route path="/admin-setup" element={<AdminSetup />} />
               <Route path="/admin/logs/org/:orgId" element={<AdminOrgLogs />} />
               <Route path="/admin/agents" element={<AdminGuard><AdminAgents /></AdminGuard>} />
-              <Route path="/admin/calls" element={<AdminGuard><AdminCalls /></AdminGuard>} />
+               <Route path="/admin/calls" element={<AdminGuard><AdminCalls /></AdminGuard>} />
+               <Route path="/admin/observability" element={<AdminGuard><ObservabilityDashboard /></AdminGuard>} />
               <Route path="/admin/contact-settings" element={<AdminGuard><AdminContactSettings /></AdminGuard>} />
               <Route path="/admin/notifications" element={<AdminGuard><AdminNotifications /></AdminGuard>} />
               <Route path="/admin/stripe-config" element={<AdminGuard><AdminStripeConfig /></AdminGuard>} />
