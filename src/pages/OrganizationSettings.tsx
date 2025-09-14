@@ -51,17 +51,17 @@ export default function OrganizationSettings() {
     try {
       const { data: orgData } = await supabase
         .from('organizations')
-        .select('name')
+        .select('name, website, industry, size_band')
         .eq('id', organizationId)
         .single();
 
       if (orgData) {
         setFormData({
           name: orgData.name || '',
-          website: '',
-          industry: '',
-          size: '',
-          customIndustry: '',
+          website: orgData.website || '',
+          industry: orgData.industry || '',
+          size: orgData.size_band || '',
+          customIndustry: orgData.industry && !['Technology', 'Healthcare', 'Financial Services', 'Education', 'Retail', 'Manufacturing', 'Professional Services', 'Real Estate', 'Media & Entertainment', 'Non-profit', 'Government', 'Agriculture', 'Energy', 'Transportation', 'Hospitality'].includes(orgData.industry) ? orgData.industry : '',
         });
       }
     } catch (error) {
@@ -127,6 +127,9 @@ export default function OrganizationSettings() {
         .from('organizations')
         .update({
           name: formData.name,
+          website: formData.website || null,
+          industry: industry,
+          size_band: formData.size,
         })
         .eq('id', organizationId);
 
