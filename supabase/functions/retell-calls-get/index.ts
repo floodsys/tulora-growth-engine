@@ -92,8 +92,7 @@ serve(async (req) => {
     }
 
     // Fetch additional details from Retell API if needed
-    const { RETELL_API_KEY } = await import('../_shared/env.ts')
-    const retellApiKey = RETELL_API_KEY()
+    const retellApiKey = Deno.env.get('RETELL_API_KEY')
     let retellCallData = null
     let transcriptDetails = null
     let recordingUrl = null

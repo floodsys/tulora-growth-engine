@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
     const retellResponse = await fetch(`https://api.retellai.com/v2/knowledge-base/${source.retell_kbs.kb_id}/delete-source/${source.source_id}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${(await import('../_shared/env.ts')).RETELL_API_KEY()}`,
+        'Authorization': `Bearer ${Deno.env.get('RETELL_API_KEY')}`,
       },
     })
 

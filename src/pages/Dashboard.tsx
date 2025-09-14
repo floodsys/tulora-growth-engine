@@ -3,29 +3,22 @@ import { AppSidebar } from "@/components/AppSidebar"
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview"
 import { CallsScreen } from "@/components/dashboard/CallsScreen"
 import { AgentsScreen } from "@/components/dashboard/AgentsScreen"
-import { NumbersView } from "@/components/NumbersView"
-import SMSView from "@/components/SMSView"
 import { KnowledgeBase } from "@/components/dashboard/KnowledgeBase"
 import { Scheduling } from "@/components/dashboard/Scheduling"
 import { UsageBilling } from "@/components/dashboard/UsageBilling"
 import { TeamManagement } from "@/components/dashboard/TeamManagement"
-import { TeamSettings } from "@/components/dashboard/settings/TeamSettings"
-import { OrganizationSettings } from "@/components/dashboard/settings/OrganizationSettings"
-import { ProfileSettings } from "@/components/dashboard/settings/ProfileSettings"
+import { UnifiedSettings } from "@/components/UnifiedSettings"
+import { ProfileSettingsScreen } from "@/components/dashboard/ProfileSettingsScreen"
 import { ProfileEditModal } from "@/components/ProfileEditModal"
-import ChatWidget from "@/pages/ChatWidget"
-import AbusePreventionSettings from "@/pages/AbusePrevention"
-import AccessControl from "@/pages/AccessControl"
-import OnboardingOrganization from "@/pages/OnboardingOrganization"
+import SettingsTeams from "@/pages/SettingsTeams"
+import SettingsOrganization from "@/pages/SettingsOrganization"
 
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
-import { useUserOrganization } from "@/hooks/useUserOrganization"
 
 const Dashboard = () => {
   const [activeScreen, setActiveScreen] = useState("overview")
   const { toast } = useToast()
-  const { organizationId } = useUserOrganization()
 
   // Handle checkout success/cancel redirects and tab parameter
   useEffect(() => {
@@ -72,24 +65,20 @@ const Dashboard = () => {
         return <CallsScreen />
       case "agents":
         return <AgentsScreen />
-      case "numbers":
-        return <NumbersView />
       case "knowledge":
         return <KnowledgeBase />
       case "scheduling":
         return <Scheduling />
       case "billing":
-        return <UsageBilling organizationId={organizationId || ""} />
-      case "chat-widget":
-        return <ChatWidget />
-      case "team-settings":
-        return <TeamSettings organizationId={organizationId || ""} />
-      case "organization-settings":
-        return <OrganizationSettings organizationId={organizationId || ""} />
-      case "profile-settings":
-        return <ProfileSettings userId="mock-user-id" />
+        return <UsageBilling />
+      case "teams":
+        return <SettingsOrganization />
       case "organization":
-        return <TeamManagement />
+        return <SettingsOrganization />
+      case "settings":
+        return <UnifiedSettings organizationId="demo-org-id" />
+      case "profile-settings":
+        return <ProfileSettingsScreen />
       default:
         return <DashboardOverview />
     }

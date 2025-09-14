@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
     const retellResponse = await fetch(`https://api.retellai.com/v2/knowledge-base/${kb.kb_id}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${(await import('../_shared/env.ts')).RETELL_API_KEY()}`,
+        'Authorization': `Bearer ${Deno.env.get('RETELL_API_KEY')}`,
         'Content-Type': 'application/json',
       },
     })
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
           const sourceResponse = await fetch(`https://api.retellai.com/v2/knowledge-base/${kb.kb_id}/source/${source.source_id}`, {
             method: 'GET',
             headers: {
-              'Authorization': `Bearer ${(await import('../_shared/env.ts')).RETELL_API_KEY()}`,
+              'Authorization': `Bearer ${Deno.env.get('RETELL_API_KEY')}`,
             },
           })
 
