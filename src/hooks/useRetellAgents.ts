@@ -297,6 +297,14 @@ export const useRetellAgents = (organizationId?: string) => {
     }
   }
 
+  // Get agent by ID
+  const getAgent = (agentId: string) => {
+    return agents.find(agent => agent.id === agentId)
+  }
+
+  // Update agent settings (alias for updateAgent)
+  const updateAgentSettings = updateAgent
+
   return {
     agents,
     voices,
@@ -306,8 +314,10 @@ export const useRetellAgents = (organizationId?: string) => {
     loadVoices,
     createAgent,
     updateAgent,
+    updateAgentSettings,
     publishAgent,
     deleteAgent,
     attachKBToAgent,
+    getAgent,
   }
 }
