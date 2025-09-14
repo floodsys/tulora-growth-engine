@@ -678,62 +678,334 @@ const RetellAgentSettings = () => {
               </AccordionContent>
             </AccordionItem>
 
-            {/* Call Behavior */}
-            <AccordionItem value="behavior" className="border rounded-lg">
+            {/* C) Interaction */}
+            <AccordionItem value="interaction" className="border rounded-lg">
               <AccordionTrigger className="px-6 py-4 hover:no-underline">
                 <div className="flex items-center">
-                  <Phone className="h-5 w-5 mr-3 text-primary" />
-                  <span className="font-semibold">Call Behavior & Timing</span>
+                  <Volume2 className="h-5 w-5 mr-3 text-primary" />
+                  <span className="font-semibold">C) Interaction</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="max_call_duration_ms">Max Call Duration (minutes)</Label>
-                    <Input
-                      id="max_call_duration_ms"
-                      type="number"
-                      value={Math.round((form.watch("max_call_duration_ms") || 1800000) / 60000)}
-                      onChange={(e) => form.setValue("max_call_duration_ms", parseInt(e.target.value) * 60000)}
-                      placeholder="30"
-                    />
+                <div className="space-y-6">
+                  {/* Backchanneling */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Backchanneling</h4>
+                    
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Enable Backchanneling</Label>
+                        <p className="text-sm text-muted-foreground">Allow "mm-hmm" and "uh-huh" responses during user speech</p>
+                      </div>
+                      <Switch
+                        checked={form.watch("backchannel_enabled")}
+                        onCheckedChange={(checked) => form.setValue("backchannel_enabled", checked)}
+                      />
+                    </div>
+
+                    {form.watch("backchannel_enabled") && (
+                      <>
+                        <div>
+                          <Label>Backchannel Frequency: {form.watch("backchannel_frequency")?.toFixed(2)}</Label>
+                          <Slider
+                            value={[form.watch("backchannel_frequency") || 0.8]}
+                            onValueChange={([value]) => form.setValue("backchannel_frequency", value)}
+                            min={0.0}
+                            max={1.0}
+                            step={0.01}
+                            className="mt-2"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">How often the agent provides backchanneling responses</p>
+                        </div>
+
+                        <div>
+                          <Label>Custom Backchannel Words</Label>
+                          <Input
+                            placeholder="mm-hmm, uh-huh, I see, right"
+                            className="mt-2"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">Comma-separated list of custom backchannel responses</p>
+                        </div>
+                      </>
+                    )}
                   </div>
 
-                  <div>
-                    <Label htmlFor="end_call_after_silence_ms">End Call After Silence (seconds)</Label>
-                    <Input
-                      id="end_call_after_silence_ms"
-                      type="number"
-                      value={Math.round((form.watch("end_call_after_silence_ms") || 10000) / 1000)}
-                      onChange={(e) => form.setValue("end_call_after_silence_ms", parseInt(e.target.value) * 1000)}
-                      placeholder="10"
-                    />
+                  {/* Responsiveness & Interruption */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Responsiveness & Interruption</h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label>Response Speed: Normal</Label>
+                        <Slider
+                          value={[0.5]}
+                          onValueChange={() => {}}
+                          min={0.0}
+                          max={1.0}
+                          step={0.1}
+                          className="mt-2"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Slower responses (0) vs Faster responses (1)</p>
+                      </div>
+
+                      <div>
+                        <Label>Interruption Sensitivity: Medium</Label>
+                        <Slider
+                          value={[0.5]}
+                          onValueChange={() => {}}
+                          min={0.0}
+                          max={1.0}
+                          step={0.1}
+                          className="mt-2"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">How easily the agent yields to user interruptions</p>
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="begin_message_delay_ms">Begin Message Delay (ms)</Label>
-                    <Input
-                      id="begin_message_delay_ms"
-                      type="number"
-                      {...form.register("begin_message_delay_ms", { valueAsNumber: true })}
-                      placeholder="800"
-                    />
+                  {/* Background Sound */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Background Sound</h4>
+                    
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Enable Background Sound</Label>
+                        <p className="text-sm text-muted-foreground">Add optional ambient background sound during calls</p>
+                      </div>
+                      <Switch
+                        checked={false}
+                        onCheckedChange={() => {}}
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Background Sound Type</Label>
+                      <Select value="none" onValueChange={() => {}}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select background sound" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-md">
+                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="office">Office Ambience</SelectItem>
+                          <SelectItem value="cafe">Café Ambience</SelectItem>
+                          <SelectItem value="nature">Nature Sounds</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="voicemail_option">Voicemail Option</Label>
-                    <Select 
-                      value={form.watch("voicemail_option")} 
-                      onValueChange={(value) => form.setValue("voicemail_option", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select voicemail option" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border shadow-md">
-                        <SelectItem value="disabled">Disabled</SelectItem>
-                        <SelectItem value="enabled">Enabled</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  {/* Boosted Keywords */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Boosted Keywords</h4>
+                    
+                    <div>
+                      <Label>Keywords to Boost</Label>
+                      <Textarea
+                        placeholder="Enter brand names, technical terms, or specific words that the speech-to-text should recognize better...&#10;Example:&#10;Retell, API, webhook, authentication"
+                        className="mt-2"
+                        rows={3}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Help STT catch brand names, technical terms, and specific vocabulary</p>
+                    </div>
+                  </div>
+
+                  {/* Silence Reminders */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Silence Handling</h4>
+                    
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Reminders on Silence</Label>
+                        <p className="text-sm text-muted-foreground">Send gentle follow-ups during user inactivity</p>
+                      </div>
+                      <Switch
+                        checked={false}
+                        onCheckedChange={() => {}}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label>Reminder Delay (seconds)</Label>
+                        <Input
+                          type="number"
+                          placeholder="5"
+                          className="mt-2"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">How long to wait before sending a reminder</p>
+                      </div>
+
+                      <div>
+                        <Label>Reminder Message</Label>
+                        <Input
+                          placeholder="Are you still there?"
+                          className="mt-2"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Custom message for silence reminders</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* D) Call Handling */}
+            <AccordionItem value="call-handling" className="border rounded-lg">
+              <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                <div className="flex items-center">
+                  <Phone className="h-5 w-5 mr-3 text-primary" />
+                  <span className="font-semibold">D) Call Handling</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6">
+                <div className="space-y-6">
+                  {/* Voicemail Detection & Behavior */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Voicemail Detection & Behavior</h4>
+                    
+                    <div>
+                      <Label>Voicemail Detection</Label>
+                      <Select 
+                        value={form.watch("voicemail_option") || "disabled"} 
+                        onValueChange={(value) => form.setValue("voicemail_option", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select voicemail behavior" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-md">
+                          <SelectItem value="disabled">Disabled</SelectItem>
+                          <SelectItem value="hang_up">Hang Up on Voicemail</SelectItem>
+                          <SelectItem value="leave_message">Leave Message</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">How the agent should handle voicemail detection</p>
+                    </div>
+
+                    {form.watch("voicemail_option") === "leave_message" && (
+                      <>
+                        <div>
+                          <Label>Voicemail Message Type</Label>
+                          <Select value="static" onValueChange={() => {}}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select message type" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background border shadow-md">
+                              <SelectItem value="static">Static Message</SelectItem>
+                              <SelectItem value="generated">AI Generated</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label>Voicemail Message</Label>
+                          <Textarea
+                            placeholder="Hi, this is [Agent Name]. I was calling to follow up on your inquiry. Please call us back at your convenience."
+                            className="mt-2"
+                            rows={3}
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">Message to leave on voicemail (can use variables like [Agent Name])</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Call Timeouts */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Call Timeouts</h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label>End Call After Silence (seconds)</Label>
+                        <Input
+                          type="number"
+                          value={Math.round((form.watch("end_call_after_silence_ms") || 10000) / 1000)}
+                          onChange={(e) => form.setValue("end_call_after_silence_ms", parseInt(e.target.value) * 1000)}
+                          placeholder="10"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">How long to wait before ending due to silence</p>
+                      </div>
+
+                      <div>
+                        <Label>Max Call Duration (minutes)</Label>
+                        <Input
+                          type="number"
+                          value={Math.round((form.watch("max_call_duration_ms") || 1800000) / 60000)}
+                          onChange={(e) => form.setValue("max_call_duration_ms", parseInt(e.target.value) * 60000)}
+                          placeholder="30"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Maximum duration before automatically ending call</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Message Timing */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Message Timing</h4>
+                    
+                    <div>
+                      <Label>Pause Before First Message (ms)</Label>
+                      <Input
+                        type="number"
+                        {...form.register("begin_message_delay_ms", { valueAsNumber: true })}
+                        placeholder="800"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Delay before the agent speaks to avoid talking over the callee's "hello"</p>
+                    </div>
+                  </div>
+
+                  {/* DTMF Options */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">DTMF (Keypad) Options</h4>
+                    
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Enable DTMF Input</Label>
+                        <p className="text-sm text-muted-foreground">Allow users to provide keypad input during calls</p>
+                      </div>
+                      <Switch
+                        checked={false}
+                        onCheckedChange={() => {}}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <Label>Digit Limit</Label>
+                        <Input
+                          type="number"
+                          placeholder="10"
+                          min="1"
+                          max="20"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Maximum number of digits to collect</p>
+                      </div>
+
+                      <div>
+                        <Label>Termination Key</Label>
+                        <Select value="#" onValueChange={() => {}}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select key" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border shadow-md">
+                            <SelectItem value="#"># (Hash)</SelectItem>
+                            <SelectItem value="*">* (Star)</SelectItem>
+                            <SelectItem value="none">None</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground mt-1">Key to end DTMF input</p>
+                      </div>
+
+                      <div>
+                        <Label>Timeout (seconds)</Label>
+                        <Input
+                          type="number"
+                          placeholder="5"
+                          min="1"
+                          max="30"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Time to wait for input before timeout</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </AccordionContent>
