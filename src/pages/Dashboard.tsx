@@ -9,6 +9,9 @@ import { KnowledgeBase } from "@/components/dashboard/KnowledgeBase"
 import { Scheduling } from "@/components/dashboard/Scheduling"
 import { UsageBilling } from "@/components/dashboard/UsageBilling"
 import { TeamManagement } from "@/components/dashboard/TeamManagement"
+import { TeamSettings } from "@/components/dashboard/settings/TeamSettings"
+import { OrganizationSettings } from "@/components/dashboard/settings/OrganizationSettings"
+import { ProfileSettings } from "@/components/dashboard/settings/ProfileSettings"
 import { ProfileEditModal } from "@/components/ProfileEditModal"
 import ChatWidget from "@/pages/ChatWidget"
 import AbusePreventionSettings from "@/pages/AbusePrevention"
@@ -79,14 +82,12 @@ const Dashboard = () => {
         return <UsageBilling organizationId={organizationId || ""} />
       case "chat-widget":
         return <ChatWidget />
-      case "abuse-prevention":
-        return <AbusePreventionSettings />
-      case "access-control":
-        return <AccessControl />
       case "team-settings":
-        return <div className="p-6"><h2 className="text-2xl font-semibold">Team Settings</h2><p className="text-muted-foreground mt-2">Team management features coming soon.</p></div>
+        return <TeamSettings organizationId={organizationId || ""} />
       case "organization-settings":
-        return <div className="p-6"><h2 className="text-2xl font-semibold">Organization Settings</h2><p className="text-muted-foreground mt-2">Organization settings coming soon.</p></div>
+        return <OrganizationSettings organizationId={organizationId || ""} />
+      case "profile-settings":
+        return <ProfileSettings userId="mock-user-id" />
       case "organization":
         return <TeamManagement />
       default:
