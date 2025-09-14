@@ -10,6 +10,9 @@ import { Scheduling } from "@/components/dashboard/Scheduling"
 import { UsageBilling } from "@/components/dashboard/UsageBilling"
 import { TeamManagement } from "@/components/dashboard/TeamManagement"
 import { ProfileEditModal } from "@/components/ProfileEditModal"
+import ChatWidget from "@/pages/ChatWidget"
+import AbusePreventionSettings from "@/pages/AbusePrevention"
+import AccessControl from "@/pages/AccessControl"
 
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
@@ -73,6 +76,12 @@ const Dashboard = () => {
         return <Scheduling />
       case "billing":
         return <UsageBilling organizationId={organizationId || ""} />
+      case "chat-widget":
+        return <ChatWidget />
+      case "abuse-prevention":
+        return <AbusePreventionSettings />
+      case "access-control":
+        return <AccessControl />
       default:
         return <DashboardOverview />
     }
