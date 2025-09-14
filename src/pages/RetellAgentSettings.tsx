@@ -31,7 +31,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { ArrowLeft, Save, Undo2, Play, Upload, Volume2, Settings, Shield, Phone, MessageSquare } from "lucide-react"
+import { ArrowLeft, Save, Undo2, Play, Upload, Volume2, Settings, Shield, Phone, MessageSquare, Mic, Clock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 
@@ -60,6 +60,18 @@ interface RetellAgent {
   voice_temperature: number
   volume: number
   normalize_for_speech: boolean
+  // Interaction settings
+  responsiveness?: number
+  interruption_sensitivity?: number
+  background_sound?: string
+  boosted_keywords?: string[]
+  silence_reminders?: boolean
+  silence_reminder_interval?: number
+  custom_backchannel_words?: string[]
+  // DTMF settings
+  dtmf_digit_limit?: number
+  dtmf_termination_key?: string
+  dtmf_timeout_ms?: number
   // Prompts and behavior
   global_prompt?: string
   first_message?: string
@@ -736,62 +748,315 @@ const RetellAgentSettings = () => {
               </AccordionContent>
             </AccordionItem>
 
-            {/* Call Behavior */}
-            <AccordionItem value="behavior" className="border rounded-lg">
+            {/* Interaction Settings */}
+            <AccordionItem value="interaction" className="border rounded-lg">
               <AccordionTrigger className="px-6 py-4 hover:no-underline">
                 <div className="flex items-center">
-                  <Phone className="h-5 w-5 mr-3 text-primary" />
-                  <span className="font-semibold">Call Behavior & Timing</span>
+                  <Mic className="h-5 w-5 mr-3 text-primary" />
+                  <span className="font-semibold">Interaction</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="max_call_duration_ms">Max Call Duration (minutes)</Label>
-                    <Input
-                      id="max_call_duration_ms"
-                      type="number"
-                      value={Math.round((form.watch("max_call_duration_ms") || 1800000) / 60000)}
-                      onChange={(e) => form.setValue("max_call_duration_ms", parseInt(e.target.value) * 60000)}
-                      placeholder="30"
-                    />
+                <div className="space-y-6">
+                  
+                  {/* Backchanneling Configuration */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Backchanneling</h4>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Enable Backchannel</Label>
+                        <p className="text-sm text-muted-foreground">Allow "mm-hmm" responses during conversation</p>
+                      </div>
+                      <Switch
+                        checked={form.watch("backchannel_enabled")}
+                        onCheckedChange={(checked) => form.setValue("backchannel_enabled", checked)}
+                      />
+                    </div>
+
+                    {form.watch("backchannel_enabled") && (
+                      <div className="space-y-4 pl-4 border-l-2 border-muted">
+                        <div>
+                          <Label>Backchannel Frequency: {form.watch("backchannel_frequency")?.toFixed(2)}</Label>
+                          <Slider
+                            value={[form.watch("backchannel_frequency") || 0.8]}
+                            onValueChange={([value]) => form.setValue("backchannel_frequency", value)}
+                            min={0.0}
+                            max={1.0}
+                            step={0.01}
+                            className="mt-2"
+                          />
+                          <p className="text-sm text-muted-foreground mt-1">
+                            How often the agent produces backchannel responses (0 = never, 1 = very frequent)
+                          </p>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="custom_backchannel_words">Custom Backchannel Words</Label>
+                          <Input
+                            id="custom_backchannel_words"
+                            value={form.watch("custom_backchannel_words")?.join(", ") || ""}
+                            onChange={(e) => {
+                              const words = e.target.value.split(",").map(w => w.trim()).filter(w => w)
+                              form.setValue("custom_backchannel_words", words)
+                            }}
+                            placeholder="mm-hmm, uh-huh, I see, right"
+                          />
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Comma-separated list of custom backchannel words and phrases
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  <div>
-                    <Label htmlFor="end_call_after_silence_ms">End Call After Silence (seconds)</Label>
-                    <Input
-                      id="end_call_after_silence_ms"
-                      type="number"
-                      value={Math.round((form.watch("end_call_after_silence_ms") || 10000) / 1000)}
-                      onChange={(e) => form.setValue("end_call_after_silence_ms", parseInt(e.target.value) * 1000)}
-                      placeholder="10"
-                    />
+                  {/* Responsiveness and Interruption */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label>Responsiveness: {form.watch("responsiveness")?.toFixed(1) || "1.0"}</Label>
+                      <Slider
+                        value={[form.watch("responsiveness") || 1.0]}
+                        onValueChange={([value]) => form.setValue("responsiveness", value)}
+                        min={0.5}
+                        max={2.0}
+                        step={0.1}
+                        className="mt-2"
+                      />
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Lower = slower, more thoughtful replies. Higher = faster responses
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label>Interruption Sensitivity: {form.watch("interruption_sensitivity")?.toFixed(1) || "1.0"}</Label>
+                      <Slider
+                        value={[form.watch("interruption_sensitivity") || 1.0]}
+                        onValueChange={([value]) => form.setValue("interruption_sensitivity", value)}
+                        min={0.1}
+                        max={2.0}
+                        step={0.1}
+                        className="mt-2"
+                      />
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Lower = harder to interrupt. Higher = easily yields to user speech
+                      </p>
+                    </div>
                   </div>
 
+                  {/* Background Sound */}
                   <div>
-                    <Label htmlFor="begin_message_delay_ms">Begin Message Delay (ms)</Label>
-                    <Input
-                      id="begin_message_delay_ms"
-                      type="number"
-                      {...form.register("begin_message_delay_ms", { valueAsNumber: true })}
-                      placeholder="800"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="voicemail_option">Voicemail Option</Label>
+                    <Label htmlFor="background_sound">Background Sound</Label>
                     <Select 
-                      value={form.watch("voicemail_option")} 
-                      onValueChange={(value) => form.setValue("voicemail_option", value)}
+                      value={form.watch("background_sound") || "none"} 
+                      onValueChange={(value) => form.setValue("background_sound", value === "none" ? undefined : value)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select voicemail option" />
+                        <SelectValue placeholder="Select background sound" />
                       </SelectTrigger>
                       <SelectContent className="bg-background border shadow-md">
-                        <SelectItem value="disabled">Disabled</SelectItem>
-                        <SelectItem value="enabled">Enabled</SelectItem>
+                        <SelectItem value="none">No Background Sound</SelectItem>
+                        <SelectItem value="office">Office Ambience</SelectItem>
+                        <SelectItem value="cafe">Café Ambience</SelectItem>
+                        <SelectItem value="white_noise">White Noise</SelectItem>
+                        <SelectItem value="nature">Nature Sounds</SelectItem>
                       </SelectContent>
                     </Select>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Optional ambient background sound to enhance call atmosphere
+                    </p>
+                  </div>
+
+                  {/* Boosted Keywords */}
+                  <div>
+                    <Label htmlFor="boosted_keywords">Boosted Keywords</Label>
+                    <Textarea
+                      id="boosted_keywords"
+                      value={form.watch("boosted_keywords")?.join(", ") || ""}
+                      onChange={(e) => {
+                        const keywords = e.target.value.split(",").map(k => k.trim()).filter(k => k)
+                        form.setValue("boosted_keywords", keywords)
+                      }}
+                      placeholder="YourBrand, ProductName, TechnicalTerms"
+                      className="min-h-[80px]"
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Comma-separated brand names, product names, or technical terms to help speech-to-text accuracy
+                    </p>
+                  </div>
+
+                  {/* Silence Reminders */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Silence Reminders</Label>
+                        <p className="text-sm text-muted-foreground">Send gentle follow-ups during user inactivity</p>
+                      </div>
+                      <Switch
+                        checked={form.watch("silence_reminders")}
+                        onCheckedChange={(checked) => form.setValue("silence_reminders", checked)}
+                      />
+                    </div>
+
+                    {form.watch("silence_reminders") && (
+                      <div className="pl-4 border-l-2 border-muted">
+                        <Label>Reminder Interval: {form.watch("silence_reminder_interval") || 10}s</Label>
+                        <Slider
+                          value={[form.watch("silence_reminder_interval") || 10]}
+                          onValueChange={([value]) => form.setValue("silence_reminder_interval", value)}
+                          min={5}
+                          max={60}
+                          step={5}
+                          className="mt-2"
+                        />
+                        <p className="text-sm text-muted-foreground mt-1">
+                          How often to send gentle reminders when user is silent
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Call Handling Settings */}
+            <AccordionItem value="call-handling" className="border rounded-lg">
+              <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                <div className="flex items-center">
+                  <Clock className="h-5 w-5 mr-3 text-primary" />
+                  <span className="font-semibold">Call Handling</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6">
+                <div className="space-y-6">
+                  
+                  {/* Voicemail Settings */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Voicemail Detection & Behavior</h4>
+                    <div>
+                      <Label htmlFor="voicemail_option">Voicemail Behavior</Label>
+                      <Select 
+                        value={form.watch("voicemail_option") || "disabled"} 
+                        onValueChange={(value) => form.setValue("voicemail_option", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select voicemail behavior" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-md">
+                          <SelectItem value="disabled">Disabled</SelectItem>
+                          <SelectItem value="hang_up">Hang Up on Voicemail</SelectItem>
+                          <SelectItem value="leave_message">Leave Static Message</SelectItem>
+                          <SelectItem value="prompt_generated">Leave AI-Generated Message</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        How the agent should behave when voicemail is detected
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Call Duration & Timeout */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label>Max Call Duration: {Math.round((form.watch("max_call_duration_ms") || 1800000) / 60000)} min</Label>
+                      <Slider
+                        value={[form.watch("max_call_duration_ms") || 1800000]}
+                        onValueChange={([value]) => form.setValue("max_call_duration_ms", value)}
+                        min={60000}
+                        max={3600000}
+                        step={60000}
+                        className="mt-2"
+                      />
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Maximum duration before call is automatically ended
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label>End Call After Silence: {Math.round((form.watch("end_call_after_silence_ms") || 10000) / 1000)}s</Label>
+                      <Slider
+                        value={[form.watch("end_call_after_silence_ms") || 10000]}
+                        onValueChange={([value]) => form.setValue("end_call_after_silence_ms", value)}
+                        min={5000}
+                        max={60000}
+                        step={1000}
+                        className="mt-2"
+                      />
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Automatically end call after this much silence
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* First Message Delay */}
+                  <div>
+                    <Label>Pause Before First Message: {form.watch("begin_message_delay_ms") || 800}ms</Label>
+                    <Slider
+                      value={[form.watch("begin_message_delay_ms") || 800]}
+                      onValueChange={([value]) => form.setValue("begin_message_delay_ms", value)}
+                      min={0}
+                      max={3000}
+                      step={100}
+                      className="mt-2"
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Wait time before agent speaks to avoid talking over caller's "hello"
+                    </p>
+                  </div>
+
+                  {/* DTMF Options */}
+                  <div className="space-y-4 p-4 bg-muted/20 rounded-lg">
+                    <h4 className="font-medium">DTMF (Keypad Input) Settings</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="dtmf_digit_limit">Digit Limit</Label>
+                        <Input
+                          id="dtmf_digit_limit"
+                          type="number"
+                          value={form.watch("dtmf_digit_limit") || ""}
+                          onChange={(e) => form.setValue("dtmf_digit_limit", e.target.value ? parseInt(e.target.value) : undefined)}
+                          placeholder="10"
+                          min="1"
+                          max="20"
+                        />
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Maximum digits to collect
+                        </p>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="dtmf_termination_key">Termination Key</Label>
+                        <Select 
+                          value={form.watch("dtmf_termination_key") || ""} 
+                          onValueChange={(value) => form.setValue("dtmf_termination_key", value || undefined)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="None" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border shadow-md">
+                            <SelectItem value="">None</SelectItem>
+                            <SelectItem value="#"># (Hash)</SelectItem>
+                            <SelectItem value="*">* (Star)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Key to end input early
+                        </p>
+                      </div>
+
+                      <div>
+                        <Label>Timeout: {Math.round((form.watch("dtmf_timeout_ms") || 5000) / 1000)}s</Label>
+                        <Slider
+                          value={[form.watch("dtmf_timeout_ms") || 5000]}
+                          onValueChange={([value]) => form.setValue("dtmf_timeout_ms", value)}
+                          min={1000}
+                          max={30000}
+                          step={1000}
+                          className="mt-2"
+                        />
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Time to wait for input
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </AccordionContent>
