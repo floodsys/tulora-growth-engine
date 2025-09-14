@@ -7,14 +7,16 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { ArrowLeft, Bot, Mic, Play, Save, Settings, Volume2 } from 'lucide-react'
+import { ArrowLeft, Bot, Mic, Play, Save, Settings, Volume2, Database, PhoneCall, Plus, X, ExternalLink, Zap } from 'lucide-react'
 import { useRetellAgents } from '@/hooks/useRetellAgents'
 import { useUserOrganization } from '@/hooks/useUserOrganization'
 import { useToast } from '@/hooks/use-toast'
+import { KnowledgeBaseView } from '@/components/KnowledgeBaseView'
 
 export const AgentSettings = () => {
   const { agentId } = useParams()
@@ -68,9 +70,61 @@ export const AgentSettings = () => {
     dtmf_digit_limit: 10,
     dtmf_termination_key: '#',
     dtmf_timeout: 5,
+    
+    // Knowledge Base
+    kb_ids: [] as string[],
+    
+    // Transfer Settings
+    transfer_mode: 'disabled' as 'disabled' | 'warm' | 'cold',
+    transfer_number: '',
+    transfer_message: '',
+    
+    // Custom Functions/Tools
+    custom_tools: [] as Array<{
+      id: string
+      name: string
+      description: string
+      endpoint_url: string
+      http_method: 'GET' | 'POST' | 'PUT' | 'DELETE'
+      headers: Record<string, string>
+      parameters: Array<{
+        name: string
+        type: 'string' | 'number' | 'boolean'
+        required: boolean
+        description: string
+      }>
+    }>,
+    
+    // Dynamic Variables
+    dynamic_variables: [] as Array<{
+      id: string
+      name: string
+      type: 'greeting' | 'voicemail' | 'transfer_target' | 'custom'
+      value: string
+      description: string
+    }>,
   })
   const [saving, setSaving] = useState(false)
   const [newPronunciation, setNewPronunciation] = useState({ word: '', pronunciation: '' })
+  const [newTool, setNewTool] = useState({
+    name: '',
+    description: '',
+    endpoint_url: '',
+    http_method: 'POST' as const,
+    headers: {} as Record<string, string>,
+    parameters: [] as Array<{
+      name: string
+      type: 'string' | 'number' | 'boolean'
+      required: boolean
+      description: string
+    }>
+  })
+  const [newVariable, setNewVariable] = useState({
+    name: '',
+    type: 'custom' as const,
+    value: '',
+    description: ''
+  })
 
   useEffect(() => {
     if (agents && agentId) {
@@ -118,6 +172,20 @@ export const AgentSettings = () => {
           dtmf_digit_limit: 10,
           dtmf_termination_key: '#',
           dtmf_timeout: 5,
+          
+          // Knowledge Base
+          kb_ids: foundAgent.kb_ids || [],
+          
+          // Transfer Settings
+          transfer_mode: (foundAgent.transfer_mode as 'disabled' | 'warm' | 'cold') || 'disabled',
+          transfer_number: foundAgent.transfer_number || '',
+          transfer_message: '',
+          
+          // Custom Functions/Tools
+          custom_tools: [],
+          
+          // Dynamic Variables
+          dynamic_variables: [],
         })
       }
     }
@@ -192,6 +260,62 @@ export const AgentSettings = () => {
     })
   }
 
+  const handleAddTool = () => {
+    if (newTool.name && newTool.endpoint_url) {
+      const tool = {
+        id: Date.now().toString(),
+        ...newTool,
+        headers: newTool.headers || {},
+        parameters: newTool.parameters || []
+      }
+      setSettings(prev => ({
+        ...prev,
+        custom_tools: [...prev.custom_tools, tool]
+      }))
+      setNewTool({
+        name: '',
+        description: '',
+        endpoint_url: '',
+        http_method: 'POST',
+        headers: {},
+        parameters: []
+      })
+    }
+  }
+
+  const handleRemoveTool = (toolId: string) => {
+    setSettings(prev => ({
+      ...prev,
+      custom_tools: prev.custom_tools.filter(tool => tool.id !== toolId)
+    }))
+  }
+
+  const handleAddVariable = () => {
+    if (newVariable.name && newVariable.value) {
+      const variable = {
+        id: Date.now().toString(),
+        ...newVariable
+      }
+      setSettings(prev => ({
+        ...prev,
+        dynamic_variables: [...prev.dynamic_variables, variable]
+      }))
+      setNewVariable({
+        name: '',
+        type: 'custom',
+        value: '',
+        description: ''
+      })
+    }
+  }
+
+  const handleRemoveVariable = (variableId: string) => {
+    setSettings(prev => ({
+      ...prev,
+      dynamic_variables: prev.dynamic_variables.filter(variable => variable.id !== variableId)
+    }))
+  }
+
   if (!agent) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -230,7 +354,7 @@ export const AgentSettings = () => {
       </div>
 
       <Tabs defaultValue="basics" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="basics" className="flex items-center gap-2">
             <Bot className="h-4 w-4" />
             Basics
@@ -238,6 +362,14 @@ export const AgentSettings = () => {
           <TabsTrigger value="voice" className="flex items-center gap-2">
             <Mic className="h-4 w-4" />
             Voice
+          </TabsTrigger>
+          <TabsTrigger value="knowledge" className="flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            Knowledge
+          </TabsTrigger>
+          <TabsTrigger value="transfers" className="flex items-center gap-2">
+            <PhoneCall className="h-4 w-4" />
+            Transfers
           </TabsTrigger>
           <TabsTrigger value="interaction" className="flex items-center gap-2">
             <Volume2 className="h-4 w-4" />
@@ -605,6 +737,280 @@ export const AgentSettings = () => {
                     ))}
                   </div>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Knowledge Tab */}
+        <TabsContent value="knowledge" className="space-y-6">
+          {agent && (
+            <KnowledgeBaseView 
+              agent={{
+                id: agent.id,
+                slug: agent.agent_id,
+                name: agent.name,
+                category: 'voice-agent',
+                subtitle: 'AI Voice Agent',
+                description: agent.name,
+                tags: [],
+                kb_ids: settings.kb_ids
+              }}
+            />
+          )}
+        </TabsContent>
+
+        {/* Transfers Tab */}
+        <TabsContent value="transfers" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Human Transfer Settings</CardTitle>
+              <CardDescription>
+                Configure how calls are transferred to human agents.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="transfer-mode">Transfer Mode</Label>
+                <Select value={settings.transfer_mode} onValueChange={(value) => setSettings(prev => ({ ...prev, transfer_mode: value as any }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="disabled">Disabled</SelectItem>
+                    <SelectItem value="warm">Warm Transfer</SelectItem>
+                    <SelectItem value="cold">Cold Transfer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {settings.transfer_mode !== 'disabled' && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="transfer-number">Transfer Number</Label>
+                    <Input
+                      id="transfer-number"
+                      value={settings.transfer_number}
+                      onChange={(e) => setSettings(prev => ({ ...prev, transfer_number: e.target.value }))}
+                      placeholder="+1234567890"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="transfer-message">Transfer Message</Label>
+                    <Textarea
+                      id="transfer-message"
+                      value={settings.transfer_message}
+                      onChange={(e) => setSettings(prev => ({ ...prev, transfer_message: e.target.value }))}
+                      placeholder="Let me connect you with a human agent who can better assist you..."
+                      rows={3}
+                    />
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Custom Functions & Tools</CardTitle>
+              <CardDescription>
+                Add custom HTTP endpoints that your agent can call during conversations.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {settings.custom_tools.length === 0 ? (
+                <div className="text-center py-8">
+                  <Zap className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No Custom Tools Configured</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Custom tools allow your agent to perform actions like API calls, database queries, or webhook notifications.
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Custom Tool
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Add Custom Tool</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="tool-name">Tool Name</Label>
+                            <Input
+                              id="tool-name"
+                              value={newTool.name}
+                              onChange={(e) => setNewTool(prev => ({ ...prev, name: e.target.value }))}
+                              placeholder="e.g., Create Calendar Event"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="http-method">HTTP Method</Label>
+                            <Select value={newTool.http_method} onValueChange={(value) => setNewTool(prev => ({ ...prev, http_method: value as any }))}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="GET">GET</SelectItem>
+                                <SelectItem value="POST">POST</SelectItem>
+                                <SelectItem value="PUT">PUT</SelectItem>
+                                <SelectItem value="DELETE">DELETE</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="tool-description">Description</Label>
+                          <Textarea
+                            id="tool-description"
+                            value={newTool.description}
+                            onChange={(e) => setNewTool(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="Describe what this tool does..."
+                            rows={2}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="endpoint-url">Endpoint URL</Label>
+                          <Input
+                            id="endpoint-url"
+                            value={newTool.endpoint_url}
+                            onChange={(e) => setNewTool(prev => ({ ...prev, endpoint_url: e.target.value }))}
+                            placeholder="https://api.example.com/endpoint"
+                          />
+                        </div>
+                        
+                        <Button onClick={handleAddTool} className="w-full">
+                          Add Tool
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              ) : (
+                settings.custom_tools.map(tool => (
+                  <div key={tool.id} className="p-4 border rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-primary" />
+                        <span className="font-medium">{tool.name}</span>
+                        <Badge variant="outline">{tool.http_method}</Badge>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => handleRemoveTool(tool.id)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-2">{tool.description}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <ExternalLink className="h-3 w-3" />
+                      {tool.endpoint_url}
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Dynamic Variables</CardTitle>
+              <CardDescription>
+                Create variables for greetings, voicemail messages, transfer targets, and more.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {settings.dynamic_variables.length === 0 ? (
+                <div className="text-center py-6">
+                  <h3 className="text-lg font-medium mb-2">No Variables Defined</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Variables help personalize interactions and make maintenance easier.
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Variable
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Dynamic Variable</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="var-name">Variable Name</Label>
+                            <Input
+                              id="var-name"
+                              value={newVariable.name}
+                              onChange={(e) => setNewVariable(prev => ({ ...prev, name: e.target.value }))}
+                              placeholder="e.g., company_name"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="var-type">Type</Label>
+                            <Select value={newVariable.type} onValueChange={(value) => setNewVariable(prev => ({ ...prev, type: value as any }))}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="greeting">Greeting</SelectItem>
+                                <SelectItem value="voicemail">Voicemail</SelectItem>
+                                <SelectItem value="transfer_target">Transfer Target</SelectItem>
+                                <SelectItem value="custom">Custom</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="var-value">Value</Label>
+                          <Input
+                            id="var-value"
+                            value={newVariable.value}
+                            onChange={(e) => setNewVariable(prev => ({ ...prev, value: e.target.value }))}
+                            placeholder="Enter variable value..."
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="var-description">Description</Label>
+                          <Input
+                            id="var-description"
+                            value={newVariable.description}
+                            onChange={(e) => setNewVariable(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="Describe this variable..."
+                          />
+                        </div>
+                        
+                        <Button onClick={handleAddVariable} className="w-full">
+                          Add Variable
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              ) : (
+                settings.dynamic_variables.map(variable => (
+                  <div key={variable.id} className="p-4 border rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{variable.name}</span>
+                        <Badge variant="outline">{variable.type}</Badge>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => handleRemoveVariable(variable.id)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-1">{variable.description}</p>
+                    <p className="text-sm font-mono bg-muted px-2 py-1 rounded">{variable.value}</p>
+                  </div>
+                ))
               )}
             </CardContent>
           </Card>
