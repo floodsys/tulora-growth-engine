@@ -85,7 +85,7 @@ export function OrganizationActivityViewer() {
 
       // Build filters object, excluding channels not visible to user
       const visibleChannels = ['audit', 'internal', 'test_invites'].filter(channel => 
-        shouldShowChannel(channel, isOwner ? 'owner' : 'member', 'active') // Treating owner as superadmin for now
+        shouldShowChannel(channel, isOwner, isOwner) // Treating owner as superadmin for now
       );
 
       const auditFilters = { ...filters };
@@ -108,7 +108,7 @@ export function OrganizationActivityViewer() {
         // Filter out channels that shouldn't be visible in customer views
         const filteredLogs = data.filter(log => {
           // Always show channels the user can see
-          if (shouldShowChannel(log.channel, isOwner ? 'owner' : 'member', 'active')) {
+          if (shouldShowChannel(log.channel, isOwner, isOwner)) {
             return true;
           }
           

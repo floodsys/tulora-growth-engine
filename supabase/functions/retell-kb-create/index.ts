@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     const retellResponse = await fetch('https://api.retellai.com/v2/create-knowledge-base', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${(await import('../_shared/env.ts')).RETELL_API_KEY()}`,
+        'Authorization': `Bearer ${Deno.env.get('RETELL_API_KEY')}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

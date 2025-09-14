@@ -24,8 +24,6 @@ import { Bot, Plus, Settings, Upload, Volume2, Trash2 } from "lucide-react"
 import { useRetellAgents, type RetellAgent } from "@/hooks/useRetellAgents"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { useToast } from "@/hooks/use-toast"
-import { ChatEmbedDialog } from "./ChatEmbedDialog"
-import { ChatTester } from "./ChatTester"
 
 interface RetellAgentsGridProps {
   className?: string
@@ -282,43 +280,34 @@ export const RetellAgentsGrid = ({ className = "" }: RetellAgentsGridProps) => {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex space-x-2">
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/retell-agent/${agent.agent_id}`)}
+                      className="flex-1"
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Configure
+                    </Button>
+                    
+                    {agent.status === 'draft' ? (
                       <Button
-                        variant="outline"
                         size="sm"
-                        onClick={() => navigate(`/retell-agent/${agent.agent_id}`)}
+                        onClick={() => handlePublishAgent(agent)}
                         className="flex-1"
                       >
-                        <Settings className="h-4 w-4 mr-2" />
-                        Configure
+                        <Upload className="h-4 w-4 mr-2" />
+                        Publish
                       </Button>
-                      
-                      {agent.status === 'draft' ? (
-                        <Button
-                          size="sm"
-                          onClick={() => handlePublishAgent(agent)}
-                          className="flex-1"
-                        >
-                          <Upload className="h-4 w-4 mr-2" />
-                          Publish
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDeleteAgent(agent)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                    
-                    {agent.status === 'published' && (
-                      <div className="flex space-x-2">
-                        <ChatEmbedDialog agent={agent} />
-                        <ChatTester agent={agent} />
-                      </div>
+                    ) : (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteAgent(agent)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     )}
                   </div>
                 </div>

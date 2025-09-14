@@ -108,8 +108,8 @@ function InviteAccept() {
           description: `You have successfully joined ${invite.organizations.name}`,
         });
 
-        // Redirect to dashboard since settings routes removed
-        navigate('/dashboard');
+        // Redirect to team tab in organization settings
+        navigate('/settings/organization/team');
       } else {
         toast({
           title: "Error",

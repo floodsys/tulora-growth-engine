@@ -111,12 +111,11 @@ serve(async (req) => {
       )
     }
 
-    const { RETELL_API_KEY, getOptionalEnv } = await import('../_shared/env.ts')
-    const retellApiKey = RETELL_API_KEY()
-    const fromNumber = getOptionalEnv('RETELL_FROM_NUMBER')
+    const retellApiKey = Deno.env.get('RETELL_API_KEY')
+    const fromNumber = Deno.env.get('RETELL_FROM_NUMBER')
 
-    if (!fromNumber) {
-      console.error('Missing RETELL_FROM_NUMBER')
+    if (!retellApiKey || !fromNumber) {
+      console.error('Missing RETELL_API_KEY or RETELL_FROM_NUMBER')
       return new Response(
         JSON.stringify({ error: 'Retell configuration missing' }),
         { 

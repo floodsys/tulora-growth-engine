@@ -1,372 +1,611 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useUserOrganization } from "@/hooks/useUserOrganization";
+import { shouldShowChannel, getEnvironmentConfig } from "@/lib/environment";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useToast } from "@/hooks/use-toast";
-import { Download, FileText, Calendar, Database, Shield, ExternalLink } from "lucide-react";
-import { format } from "date-fns";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { Download, Webhook, BarChart3, Calendar, FileJson, FileText, TestTube } from "lucide-react";
 
-interface ExportAndIntegrationsSettingsProps {
-  organizationId?: string;
-}
+export function ExportAndIntegrationsSettings() {
+  const { organization, isOwner } = useUserOrganization();
+  const [loading, setLoading] = useState(false);
+  
+  // Export state
+  const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
+  const [exportDateFrom, setExportDateFrom] = useState('');
+  const [exportDateTo, setExportDateTo] = useState('');
+  const [exportChannel, setExportChannel] = useState('');
 
-interface ExportJob {
-  id: string;
-  type: 'calls' | 'transcripts' | 'analytics' | 'audit_logs';
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  created_at: string;
-  completed_at?: string;
-  download_url?: string;
-  file_size?: number;
-  record_count?: number;
-}
-
-const mockExportJobs: ExportJob[] = [
-  {
-    id: '1',
-    type: 'calls',
-    status: 'completed',
-    created_at: '2024-01-15T10:00:00Z',
-    completed_at: '2024-01-15T10:05:00Z',
-    download_url: '#',
-    file_size: 2.5 * 1024 * 1024, // 2.5MB
-    record_count: 1250
-  },
-  {
-    id: '2',
-    type: 'transcripts',
-    status: 'completed',
-    created_at: '2024-01-10T14:30:00Z',
-    completed_at: '2024-01-10T14:45:00Z',
-    download_url: '#',
-    file_size: 5.8 * 1024 * 1024, // 5.8MB
-    record_count: 890
-  },
-  {
-    id: '3',
-    type: 'analytics',
-    status: 'processing',
-    created_at: '2024-01-16T09:15:00Z'
-  }
-];
-
-export function ExportAndIntegrationsSettings({ organizationId }: ExportAndIntegrationsSettingsProps) {
-  const [exportJobs, setExportJobs] = useState<ExportJob[]>(mockExportJobs);
-  const [selectedExportType, setSelectedExportType] = useState<string>('calls');
-  const [selectedDateRange, setSelectedDateRange] = useState<string>('last_30_days');
-  const [exporting, setExporting] = useState(false);
-  const { toast } = useToast();
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'processing': return 'bg-blue-100 text-blue-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'failed': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  // Webhook state
+  const [webhookConfig, setWebhookConfig] = useState({
+    enabled: false,
+    url: '',
+    secret: '',
+    filters: {
+      channels: [] as string[],
+      actions: [] as string[]
+    },
+    retry_config: {
+      max_retries: 3,
+      initial_delay: 1000
     }
-  };
+  });
 
-  const getExportTypeIcon = (type: string) => {
-    switch (type) {
-      case 'calls': return FileText;
-      case 'transcripts': return FileText;
-      case 'analytics': return Database;
-      case 'audit_logs': return Shield;
-      default: return FileText;
+  // Analytics state
+  const [analyticsConfig, setAnalyticsConfig] = useState({
+    enabled: false,
+    opted_out: false,
+    posthog: {
+      enabled: false,
+      api_key: '',
+      host: 'https://app.posthog.com'
+    },
+    segment: {
+      enabled: false,
+      write_key: ''
     }
-  };
+  });
 
-  const formatFileSize = (bytes: number) => {
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    if (bytes === 0) return '0 Bytes';
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + ' ' + sizes[i];
-  };
+  // Zapier webhook state
+  const [zapierWebhookUrl, setZapierWebhookUrl] = useState('');
 
-  const handleExport = async () => {
-    if (!organizationId) return;
+  const exportAuditLogs = async () => {
+    if (!organization?.id) return;
 
-    setExporting(true);
-    
     try {
-      // Simulate export initiation
-      const newJob: ExportJob = {
-        id: Date.now().toString(),
-        type: selectedExportType as any,
-        status: 'pending',
-        created_at: new Date().toISOString()
+      setLoading(true);
+      
+      const exportData = {
+        organization_id: organization.id,
+        format: exportFormat,
+        ...(exportDateFrom && { date_from: exportDateFrom }),
+        ...(exportDateTo && { date_to: exportDateTo }),
+        ...(exportChannel && { channel: exportChannel })
       };
 
-      setExportJobs(prev => [newJob, ...prev]);
-
-      toast({
-        title: "Export started",
-        description: `Your ${selectedExportType} export has been queued and will be processed shortly.`,
+      const { data, error } = await supabase.functions.invoke('export-audit-logs', {
+        body: exportData
       });
 
-      // Simulate processing
-      setTimeout(() => {
-        setExportJobs(prev => prev.map(job => 
-          job.id === newJob.id 
-            ? { ...job, status: 'processing' }
-            : job
-        ));
-      }, 2000);
+      if (error) {
+        console.error('Export error:', error);
+        toast.error('Failed to export audit logs');
+        return;
+      }
 
-      // Simulate completion
-      setTimeout(() => {
-        setExportJobs(prev => prev.map(job => 
-          job.id === newJob.id 
-            ? {
-                ...job,
-                status: 'completed',
-                completed_at: new Date().toISOString(),
-                download_url: '#',
-                file_size: Math.random() * 10 * 1024 * 1024, // Random size up to 10MB
-                record_count: Math.floor(Math.random() * 2000) + 100
-              }
-            : job
-        ));
+      // Create and download file
+      const blob = new Blob([
+        exportFormat === 'json' ? JSON.stringify(data, null, 2) : data
+      ], {
+        type: exportFormat === 'json' ? 'application/json' : 'text/csv'
+      });
 
-        toast({
-          title: "Export completed",
-          description: "Your export is ready for download.",
-        });
-      }, 8000);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit-logs-${organization.id}-${new Date().toISOString().split('T')[0]}.${exportFormat}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
+      toast.success('Audit logs exported successfully');
     } catch (error) {
-      console.error('Error starting export:', error);
-      toast({
-        title: "Export failed",
-        description: "Failed to start export. Please try again.",
-        variant: "destructive",
-      });
+      console.error('Export error:', error);
+      toast.error('Failed to export audit logs');
     } finally {
-      setExporting(false);
+      setLoading(false);
     }
   };
 
-  const handleDownload = (job: ExportJob) => {
-    if (!job.download_url) return;
-    
-    toast({
-      title: "Download started",
-      description: `Downloading ${job.type} export...`,
-    });
-    
-    // In a real implementation, this would trigger the actual download
-    // window.open(job.download_url, '_blank');
+  const saveWebhookConfig = async () => {
+    if (!organization?.id) return;
+
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('organizations')
+        .update({ webhook_config: webhookConfig })
+        .eq('id', organization.id);
+
+      if (error) {
+        console.error('Webhook config error:', error);
+        toast.error('Failed to save webhook configuration');
+      } else {
+        toast.success('Webhook configuration saved successfully');
+      }
+    } catch (error) {
+      console.error('Webhook config error:', error);
+      toast.error('Failed to save webhook configuration');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const saveAnalyticsConfig = async () => {
+    if (!organization?.id) return;
+
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('organizations')
+        .update({ analytics_config: analyticsConfig })
+        .eq('id', organization.id);
+
+      if (error) {
+        console.error('Analytics config error:', error);
+        toast.error('Failed to save analytics configuration');
+      } else {
+        toast.success('Analytics configuration saved successfully');
+      }
+    } catch (error) {
+      console.error('Analytics config error:', error);
+      toast.error('Failed to save analytics configuration');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const testZapierWebhook = async () => {
+    if (!zapierWebhookUrl) {
+      toast.error('Please enter your Zapier webhook URL');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const response = await fetch(zapierWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        mode: 'no-cors',
+        body: JSON.stringify({
+          event_type: 'test',
+          organization_id: organization?.id,
+          timestamp: new Date().toISOString(),
+          message: 'Test webhook from audit log system',
+          triggered_from: window.location.origin,
+        }),
+      });
+
+      toast.success('Test webhook sent! Check your Zap history to confirm it was triggered.');
+    } catch (error) {
+      console.error('Zapier webhook error:', error);
+      toast.error('Failed to trigger the Zapier webhook. Please check the URL and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOwner) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">Only organization owners can manage exports and integrations.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Data Export */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Download className="h-5 w-5" />
-            Data Export
-          </CardTitle>
-          <CardDescription>
-            Export your data for backup, analysis, or migration purposes
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Data Type</label>
-              <Select value={selectedExportType} onValueChange={setSelectedExportType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="calls">Call Records</SelectItem>
-                  <SelectItem value="transcripts">Call Transcripts</SelectItem>
-                  <SelectItem value="analytics">Analytics Data</SelectItem>
-                  <SelectItem value="audit_logs">Audit Logs</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      <div>
+        <h3 className="text-lg font-medium">Exports & Integrations</h3>
+        <p className="text-sm text-muted-foreground">
+          Export audit data and configure integrations with external services
+        </p>
+      </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Date Range</label>
-              <Select value={selectedDateRange} onValueChange={setSelectedDateRange}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="last_7_days">Last 7 days</SelectItem>
-                  <SelectItem value="last_30_days">Last 30 days</SelectItem>
-                  <SelectItem value="last_90_days">Last 90 days</SelectItem>
-                  <SelectItem value="last_year">Last year</SelectItem>
-                  <SelectItem value="all_time">All time</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+      <Tabs defaultValue="export" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="export" className="flex items-center gap-2">
+            <Download className="h-4 w-4" />
+            Export
+          </TabsTrigger>
+          <TabsTrigger value="webhooks" className="flex items-center gap-2">
+            <Webhook className="h-4 w-4" />
+            Webhooks
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Analytics
+          </TabsTrigger>
+          <TabsTrigger value="zapier" className="flex items-center gap-2">
+            <TestTube className="h-4 w-4" />
+            Zapier
+          </TabsTrigger>
+        </TabsList>
 
-          <Alert>
-            <AlertDescription>
-              Exports are generated in CSV format and include all relevant metadata. 
-              Large exports may take several minutes to process.
-            </AlertDescription>
-          </Alert>
-
-          <Button onClick={handleExport} disabled={exporting} className="w-full md:w-auto">
-            {exporting ? "Starting Export..." : "Start Export"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Export History */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Export History</CardTitle>
-          <CardDescription>
-            Download and manage your recent data exports
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {exportJobs.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No exports found. Start your first export above.
-              </div>
-            ) : (
-              exportJobs.map((job) => {
-                const Icon = getExportTypeIcon(job.type);
-                return (
-                  <div key={job.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <Icon className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <div className="font-medium capitalize">
-                          {job.type.replace('_', ' ')} Export
+        <TabsContent value="export">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Download className="h-5 w-5" />
+                Export Audit Logs
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="export-format">Format</Label>
+                  <Select value={exportFormat} onValueChange={(value: 'csv' | 'json') => setExportFormat(value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select format" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="csv">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          CSV
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          Started {format(new Date(job.created_at), 'MMM d, yyyy h:mm a')}
-                          {job.completed_at && (
-                            <span> • Completed {format(new Date(job.completed_at), 'h:mm a')}</span>
-                          )}
+                      </SelectItem>
+                      <SelectItem value="json">
+                        <div className="flex items-center gap-2">
+                          <FileJson className="h-4 w-4" />
+                          JSON
                         </div>
-                        {job.status === 'completed' && job.record_count && (
-                          <div className="text-xs text-muted-foreground">
-                            {job.record_count.toLocaleString()} records • {formatFileSize(job.file_size || 0)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-3">
-                      <Badge className={getStatusColor(job.status)}>
-                        {job.status.toUpperCase()}
-                      </Badge>
-                      
-                      {job.status === 'completed' && job.download_url && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDownload(job)}
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          Download
-                        </Button>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="export-channel">Channel (optional)</Label>
+                  <Select value={exportChannel} onValueChange={setExportChannel}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All channels" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All channels</SelectItem>
+                      <SelectItem value="audit">Audit</SelectItem>
+                      {shouldShowChannel('internal', isOwner, isOwner) && (
+                        <SelectItem value="internal">Internal</SelectItem>
                       )}
+                      {shouldShowChannel('test_invites', isOwner, isOwner) && (
+                        <SelectItem value="test_invites">Test Invites</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="export-date-from">From Date (optional)</Label>
+                  <Input
+                    type="datetime-local"
+                    value={exportDateFrom}
+                    onChange={(e) => setExportDateFrom(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="export-date-to">To Date (optional)</Label>
+                  <Input
+                    type="datetime-local"
+                    value={exportDateTo}
+                    onChange={(e) => setExportDateTo(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <Button onClick={exportAuditLogs} disabled={loading}>
+                <Download className="h-4 w-4 mr-2" />
+                {loading ? 'Exporting...' : 'Export Logs'}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="webhooks">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Webhook className="h-5 w-5" />
+                Webhook Configuration
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Enable Webhooks</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Send audit events to external services like Slack or SIEM
+                  </p>
+                </div>
+                <Switch
+                  checked={webhookConfig.enabled}
+                  onCheckedChange={(enabled) => 
+                    setWebhookConfig(prev => ({ ...prev, enabled }))
+                  }
+                />
+              </div>
+
+              {webhookConfig.enabled && (
+                <>
+                  <div>
+                    <Label htmlFor="webhook-url">Webhook URL</Label>
+                    <Input
+                      placeholder="https://your-endpoint.com/webhook"
+                      value={webhookConfig.url}
+                      onChange={(e) => 
+                        setWebhookConfig(prev => ({ ...prev, url: e.target.value }))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="webhook-secret">Secret (for HMAC signing)</Label>
+                    <Input
+                      type="password"
+                      placeholder="Optional secret for signature verification"
+                      value={webhookConfig.secret}
+                      onChange={(e) => 
+                        setWebhookConfig(prev => ({ ...prev, secret: e.target.value }))
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Used to generate X-Signature-256 header for webhook verification
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Channel Filters</Label>
+                    <div className="flex gap-2">
+                      {['audit', 'internal'].map(channel => (
+                        shouldShowChannel(channel, isOwner, isOwner) && (
+                          <div key={channel} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={channel}
+                              checked={webhookConfig.filters.channels.includes(channel)}
+                              onChange={(e) => {
+                                const channels = e.target.checked
+                                  ? [...webhookConfig.filters.channels, channel]
+                                  : webhookConfig.filters.channels.filter(c => c !== channel);
+                                setWebhookConfig(prev => ({
+                                  ...prev,
+                                  filters: { ...prev.filters, channels }
+                                }));
+                              }}
+                            />
+                            <Label htmlFor={channel} className="text-sm">
+                              {channel}
+                            </Label>
+                          </div>
+                        )
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Note: Test channels are automatically excluded from webhooks
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Max Retries</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="10"
+                        value={webhookConfig.retry_config.max_retries}
+                        onChange={(e) => 
+                          setWebhookConfig(prev => ({
+                            ...prev,
+                            retry_config: {
+                              ...prev.retry_config,
+                              max_retries: parseInt(e.target.value) || 3
+                            }
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label>Initial Delay (ms)</Label>
+                      <Input
+                        type="number"
+                        min="100"
+                        value={webhookConfig.retry_config.initial_delay}
+                        onChange={(e) => 
+                          setWebhookConfig(prev => ({
+                            ...prev,
+                            retry_config: {
+                              ...prev.retry_config,
+                              initial_delay: parseInt(e.target.value) || 1000
+                            }
+                          }))
+                        }
+                      />
                     </div>
                   </div>
-                );
-              })
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                </>
+              )}
 
-      {/* Third-party Integrations */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ExternalLink className="h-5 w-5" />
-            Third-party Integrations
-          </CardTitle>
-          <CardDescription>
-            Connect your data to external platforms and services
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div>
-                <div className="font-medium">Salesforce CRM</div>
-                <div className="text-sm text-muted-foreground">
-                  Sync call data and leads
+              <Button onClick={saveWebhookConfig} disabled={loading}>
+                {loading ? 'Saving...' : 'Save Webhook Configuration'}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Analytics Integration
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Enable Analytics</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Send PII-safe audit events to analytics platforms
+                  </p>
                 </div>
+                <Switch
+                  checked={analyticsConfig.enabled && !analyticsConfig.opted_out}
+                  onCheckedChange={(enabled) => 
+                    setAnalyticsConfig(prev => ({ ...prev, enabled, opted_out: !enabled }))
+                  }
+                />
               </div>
-              <Badge variant="secondary">Coming Soon</Badge>
-            </div>
 
-            <div className="flex items-center justify-between p-4 border rounded-lg">
+              {analyticsConfig.enabled && !analyticsConfig.opted_out && (
+                <>
+                  <Separator />
+                  
+                  <div className="space-y-4">
+                    <h4 className="font-medium">PostHog Integration</h4>
+                    <div className="flex items-center justify-between">
+                      <Label>Enable PostHog</Label>
+                      <Switch
+                        checked={analyticsConfig.posthog.enabled}
+                        onCheckedChange={(enabled) => 
+                          setAnalyticsConfig(prev => ({
+                            ...prev,
+                            posthog: { ...prev.posthog, enabled }
+                          }))
+                        }
+                      />
+                    </div>
+                    
+                    {analyticsConfig.posthog.enabled && (
+                      <>
+                        <div>
+                          <Label>PostHog API Key</Label>
+                          <Input
+                            type="password"
+                            placeholder="phc_..."
+                            value={analyticsConfig.posthog.api_key}
+                            onChange={(e) => 
+                              setAnalyticsConfig(prev => ({
+                                ...prev,
+                                posthog: { ...prev.posthog, api_key: e.target.value }
+                              }))
+                            }
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label>PostHog Host</Label>
+                          <Input
+                            placeholder="https://app.posthog.com"
+                            value={analyticsConfig.posthog.host}
+                            onChange={(e) => 
+                              setAnalyticsConfig(prev => ({
+                                ...prev,
+                                posthog: { ...prev.posthog, host: e.target.value }
+                              }))
+                            }
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <Separator />
+                  
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Segment Integration</h4>
+                    <div className="flex items-center justify-between">
+                      <Label>Enable Segment</Label>
+                      <Switch
+                        checked={analyticsConfig.segment.enabled}
+                        onCheckedChange={(enabled) => 
+                          setAnalyticsConfig(prev => ({
+                            ...prev,
+                            segment: { ...prev.segment, enabled }
+                          }))
+                        }
+                      />
+                    </div>
+                    
+                    {analyticsConfig.segment.enabled && (
+                      <div>
+                        <Label>Segment Write Key</Label>
+                        <Input
+                          type="password"
+                          placeholder="Your Segment write key"
+                          value={analyticsConfig.segment.write_key}
+                          onChange={(e) => 
+                            setAnalyticsConfig(prev => ({
+                              ...prev,
+                              segment: { ...prev.segment, write_key: e.target.value }
+                            }))
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-muted p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">Privacy & Environment Notice</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Only non-PII metadata is sent to analytics platforms</li>
+                      <li>• Personal information like emails, IP addresses, and user agents are filtered out</li>
+                      <li>• Test channels (test_invites) are automatically excluded from analytics</li>
+                      <li>• Internal diagnostic data is only included when explicitly configured</li>
+                    </ul>
+                  </div>
+                </>
+              )}
+
+              <Button onClick={saveAnalyticsConfig} disabled={loading}>
+                {loading ? 'Saving...' : 'Save Analytics Configuration'}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="zapier">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TestTube className="h-5 w-5" />
+                Zapier Integration
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div>
-                <div className="font-medium">HubSpot</div>
-                <div className="text-sm text-muted-foreground">
-                  Integrate with HubSpot CRM
-                </div>
+                <Label htmlFor="zapier-webhook">Zapier Webhook URL</Label>
+                <Input
+                  placeholder="https://hooks.zapier.com/hooks/catch/..."
+                  value={zapierWebhookUrl}
+                  onChange={(e) => setZapierWebhookUrl(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Create a Zap with a webhook trigger and paste the URL here
+                </p>
               </div>
-              <Badge variant="secondary">Coming Soon</Badge>
-            </div>
 
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div>
-                <div className="font-medium">Zapier</div>
-                <div className="text-sm text-muted-foreground">
-                  Connect to 3000+ apps
-                </div>
+              <Button onClick={testZapierWebhook} disabled={loading || !zapierWebhookUrl}>
+                {loading ? 'Testing...' : 'Test Zapier Webhook'}
+              </Button>
+
+              <div className="bg-muted p-4 rounded-lg">
+                <h4 className="font-medium mb-2">Setup Instructions</h4>
+                <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                  <li>Go to Zapier and create a new Zap</li>
+                  <li>Choose "Webhooks by Zapier" as your trigger</li>
+                  <li>Select "Catch Hook" as the trigger event</li>
+                  <li>Copy the webhook URL and paste it above</li>
+                  <li>Click "Test Zapier Webhook" to verify the connection</li>
+                </ol>
               </div>
-              <Badge variant="secondary">Coming Soon</Badge>
-            </div>
-
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div>
-                <div className="font-medium">Webhooks</div>
-                <div className="text-sm text-muted-foreground">
-                  Real-time data streaming
-                </div>
-              </div>
-              <Badge variant="secondary">Coming Soon</Badge>
-            </div>
-          </div>
-
-          <Alert>
-            <AlertDescription>
-              Integration features are coming soon. Contact support to discuss custom integration requirements.
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
-
-      {/* API Access */}
-      <Card>
-        <CardHeader>
-          <CardTitle>API Access</CardTitle>
-          <CardDescription>
-            Programmatic access to your data via REST API
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Alert>
-            <AlertDescription>
-              API access is available for Pro and Enterprise plans. Generate API keys and view documentation in your account settings.
-            </AlertDescription>
-          </Alert>
-          
-          <Button variant="outline" className="w-full md:w-auto">
-            <ExternalLink className="h-4 w-4 mr-2" />
-            View API Documentation
-          </Button>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

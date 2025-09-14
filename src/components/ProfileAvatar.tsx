@@ -83,9 +83,12 @@ export function ProfileAvatar({ activeScreen, setActiveScreen }: ProfileAvatarPr
             <p className="text-sm font-medium">{user?.user_metadata?.full_name || "User"}</p>
           </div>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="cursor-pointer text-muted-foreground">
+          <DropdownMenuItem 
+            onClick={() => setActiveScreen("profile-settings")}
+            className="cursor-pointer"
+          >
             <User className="mr-2 h-4 w-4" />
-            <span>Profile Settings (Coming Soon)</span>
+            <span>Profile Settings</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem 

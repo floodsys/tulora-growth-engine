@@ -65,8 +65,17 @@ serve(async (req) => {
     }
 
     // Fetch voices from Retell API
-    const { RETELL_API_KEY } = await import('../_shared/env.ts')
-    const retellApiKey = RETELL_API_KEY()
+    const retellApiKey = Deno.env.get('RETELL_API_KEY')
+    if (!retellApiKey) {
+      console.error('RETELL_API_KEY not configured')
+      return new Response(
+        JSON.stringify({ error: 'Retell API not configured' }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
 
     console.log('Fetching voices from Retell API...')
     const retellResponse = await fetch('https://api.retellai.com/list-voices', {

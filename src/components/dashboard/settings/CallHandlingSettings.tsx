@@ -1,174 +1,49 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { Phone, Clock, VolumeX, MessageSquare, Settings } from "lucide-react";
+import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { useCallStatus } from '@/hooks/useCallStatus';
+import { useUserOrganization } from '@/hooks/useUserOrganization';
+import { Loader2, Phone, AlertTriangle } from 'lucide-react';
 
-interface CallHandlingSettingsProps {
-  organizationId?: string;
-}
-
-interface CallHandlingConfig {
-  // Call Routing
-  routing_strategy: 'round_robin' | 'priority' | 'longest_idle' | 'random';
-  max_queue_time: number;
-  queue_music_enabled: boolean;
-  queue_message: string;
-  
-  // Call Recording
-  recording_enabled: boolean;
-  recording_retention_days: number;
-  recording_consent_required: boolean;
-  
-  // Voicemail
-  voicemail_enabled: boolean;
-  voicemail_greeting: string;
-  voicemail_transcription: boolean;
-  
-  // Call Timeouts
-  ring_timeout: number;
-  max_call_duration: number;
-  
-  // Advanced Features
-  call_whisper_enabled: boolean;
-  call_monitoring_enabled: boolean;
-  call_barging_enabled: boolean;
-  
-  // Business Hours
-  business_hours_enabled: boolean;
-  business_hours: {
-    [key: string]: { start: string; end: string; enabled: boolean };
-  };
-  after_hours_message: string;
-}
-
-const defaultConfig: CallHandlingConfig = {
-  routing_strategy: 'round_robin',
-  max_queue_time: 300,
-  queue_music_enabled: true,
-  queue_message: "Thank you for calling. You are currently in queue. Please hold while we connect you to the next available agent.",
-  
-  recording_enabled: true,
-  recording_retention_days: 30,
-  recording_consent_required: true,
-  
-  voicemail_enabled: true,
-  voicemail_greeting: "Thank you for calling. Please leave a detailed message and we'll get back to you as soon as possible.",
-  voicemail_transcription: true,
-  
-  ring_timeout: 30,
-  max_call_duration: 3600,
-  
-  call_whisper_enabled: false,
-  call_monitoring_enabled: false,
-  call_barging_enabled: false,
-  
-  business_hours_enabled: false,
-  business_hours: {
-    monday: { start: '09:00', end: '17:00', enabled: true },
-    tuesday: { start: '09:00', end: '17:00', enabled: true },
-    wednesday: { start: '09:00', end: '17:00', enabled: true },
-    thursday: { start: '09:00', end: '17:00', enabled: true },
-    friday: { start: '09:00', end: '17:00', enabled: true },
-    saturday: { start: '09:00', end: '13:00', enabled: false },
-    sunday: { start: '09:00', end: '13:00', enabled: false }
-  },
-  after_hours_message: "Thank you for calling. We are currently closed. Please leave a voicemail or call back during business hours."
-};
-
-export function CallHandlingSettings({ organizationId }: CallHandlingSettingsProps) {
-  const [config, setConfig] = useState<CallHandlingConfig>(defaultConfig);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+export default function CallHandlingSettings() {
   const { toast } = useToast();
+  const { organization } = useUserOrganization();
+  const { config, isLoading, updateConfig } = useCallStatus(organization?.id);
+  const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    if (organizationId) {
-      loadCallHandlingSettings();
-    }
-  }, [organizationId]);
+  const [localConfig, setLocalConfig] = useState({
+    suspended_fallback: config.suspended_fallback || 'polite_end',
+    canceled_fallback: config.canceled_fallback || 'polite_end',
+    suspended_message: config.suspended_message || "We're unable to take your call right now. Please try again later or leave a message.",
+    canceled_message: config.canceled_message || "We're sorry, but this service is no longer available. Thank you for calling."
+  });
 
-  const loadCallHandlingSettings = async () => {
-    if (!organizationId) return;
-
-    setLoading(true);
+  const handleSave = async () => {
     try {
-      const { data, error } = await supabase
-        .from('organizations')
-        .select('webhook_config')
-        .eq('id', organizationId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
-
-      if (data?.webhook_config && typeof data.webhook_config === 'object' && 'call_handling' in data.webhook_config) {
-        setConfig({ ...defaultConfig, ...(data.webhook_config as any).call_handling });
-      }
-    } catch (error) {
-      console.error('Error loading call handling settings:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load call handling settings",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveCallHandlingSettings = async () => {
-    if (!organizationId) return;
-
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from('organizations')
-        .update({
-          webhook_config: { call_handling: config } as any
-        })
-        .eq('id', organizationId);
-
-      if (error) throw error;
-
+      setIsSaving(true);
+      await updateConfig(localConfig);
+      
       toast({
         title: "Settings saved",
         description: "Call handling settings have been updated successfully.",
       });
     } catch (error) {
-      console.error('Error saving call handling settings:', error);
+      console.error('Error saving call settings:', error);
       toast({
         title: "Error",
-        description: "Failed to save call handling settings",
+        description: "Failed to save call handling settings. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
   };
 
-  const updateConfig = (updates: Partial<CallHandlingConfig>) => {
-    setConfig(prev => ({ ...prev, ...updates }));
-  };
-
-  const updateBusinessHours = (day: string, updates: Partial<{ start: string; end: string; enabled: boolean }>) => {
-    setConfig(prev => ({
-      ...prev,
-      business_hours: {
-        ...prev.business_hours,
-        [day]: { ...prev.business_hours[day], ...updates }
-      }
-    }));
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
@@ -176,350 +51,153 @@ export function CallHandlingSettings({ organizationId }: CallHandlingSettingsPro
             <Phone className="h-5 w-5" />
             Call Handling
           </CardTitle>
+          <CardDescription>
+            Configure how inbound calls are handled when your organization status changes
+          </CardDescription>
         </CardHeader>
-        <CardContent>Loading...</CardContent>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        </CardContent>
       </Card>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Call Routing */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Phone className="h-5 w-5" />
-            Call Routing
-          </CardTitle>
-          <CardDescription>
-            Configure how incoming calls are distributed to agents
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label>Routing Strategy</Label>
-              <Select
-                value={config.routing_strategy}
-                onValueChange={(value) => updateConfig({ routing_strategy: value as any })}
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Phone className="h-5 w-5" />
+          Call Handling
+        </CardTitle>
+        <CardDescription>
+          Configure how inbound calls are handled when your organization status changes
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Suspended Organization Handling */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <Label className="text-base font-medium">When Organization is Suspended</Label>
+          </div>
+          
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="suspended_fallback">Fallback Action</Label>
+              <Select 
+                value={localConfig.suspended_fallback} 
+                onValueChange={(value) => setLocalConfig(prev => ({ 
+                  ...prev, 
+                  suspended_fallback: value as 'voicemail' | 'polite_end'
+                }))}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="round_robin">Round Robin</SelectItem>
-                  <SelectItem value="priority">Priority Based</SelectItem>
-                  <SelectItem value="longest_idle">Longest Idle</SelectItem>
-                  <SelectItem value="random">Random</SelectItem>
+                  <SelectItem value="polite_end">End call politely</SelectItem>
+                  <SelectItem value="voicemail">Route to voicemail</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Max Queue Time (seconds)</Label>
-              <Input
-                type="number"
-                value={config.max_queue_time}
-                onChange={(e) => updateConfig({ max_queue_time: parseInt(e.target.value) })}
-                min="30"
-                max="1800"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Queue Music</Label>
-                <p className="text-sm text-muted-foreground">Play music while customers wait</p>
-              </div>
-              <Switch
-                checked={config.queue_music_enabled}
-                onCheckedChange={(queue_music_enabled) => updateConfig({ queue_music_enabled })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Queue Message</Label>
+            <div>
+              <Label htmlFor="suspended_message">Message to Caller</Label>
               <Textarea
-                value={config.queue_message}
-                onChange={(e) => updateConfig({ queue_message: e.target.value })}
-                placeholder="Message played to customers in queue"
+                id="suspended_message"
+                value={localConfig.suspended_message}
+                onChange={(e) => setLocalConfig(prev => ({ 
+                  ...prev, 
+                  suspended_message: e.target.value 
+                }))}
+                placeholder="Message played to callers when organization is suspended"
                 rows={3}
               />
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Call Recording */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <VolumeX className="h-5 w-5" />
-            Call Recording
-          </CardTitle>
-          <CardDescription>
-            Configure call recording and retention policies
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
+        {/* Canceled Organization Handling */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-500" />
+            <Label className="text-base font-medium">When Organization is Canceled</Label>
+          </div>
+          
+          <div className="space-y-3">
             <div>
-              <Label>Enable Call Recording</Label>
-              <p className="text-sm text-muted-foreground">Record all calls for quality and training purposes</p>
+              <Label htmlFor="canceled_fallback">Fallback Action</Label>
+              <Select 
+                value={localConfig.canceled_fallback} 
+                onValueChange={(value) => setLocalConfig(prev => ({ 
+                  ...prev, 
+                  canceled_fallback: value as 'polite_end'
+                }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="polite_end">End call politely</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Canceled organizations can only end calls politely
+              </p>
             </div>
-            <Switch
-              checked={config.recording_enabled}
-              onCheckedChange={(recording_enabled) => updateConfig({ recording_enabled })}
-            />
-          </div>
 
-          {config.recording_enabled && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Retention Period (days)</Label>
-                  <Input
-                    type="number"
-                    value={config.recording_retention_days}
-                    onChange={(e) => updateConfig({ recording_retention_days: parseInt(e.target.value) })}
-                    min="1"
-                    max="365"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Consent Required</Label>
-                    <p className="text-sm text-muted-foreground">Announce recording to callers</p>
-                  </div>
-                  <Switch
-                    checked={config.recording_consent_required}
-                    onCheckedChange={(recording_consent_required) => updateConfig({ recording_consent_required })}
-                  />
-                </div>
-              </div>
-
-              <Alert>
-                <AlertDescription>
-                  Recording laws vary by jurisdiction. Ensure compliance with local regulations.
-                </AlertDescription>
-              </Alert>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Voicemail */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" />
-            Voicemail
-          </CardTitle>
-          <CardDescription>
-            Configure voicemail settings and greetings
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
             <div>
-              <Label>Enable Voicemail</Label>
-              <p className="text-sm text-muted-foreground">Allow callers to leave voicemail messages</p>
-            </div>
-            <Switch
-              checked={config.voicemail_enabled}
-              onCheckedChange={(voicemail_enabled) => updateConfig({ voicemail_enabled })}
-            />
-          </div>
-
-          {config.voicemail_enabled && (
-            <>
-              <div className="space-y-2">
-                <Label>Voicemail Greeting</Label>
-                <Textarea
-                  value={config.voicemail_greeting}
-                  onChange={(e) => updateConfig({ voicemail_greeting: e.target.value })}
-                  placeholder="Message played before voicemail recording"
-                  rows={3}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Voicemail Transcription</Label>
-                  <p className="text-sm text-muted-foreground">Automatically transcribe voicemail messages</p>
-                </div>
-                <Switch
-                  checked={config.voicemail_transcription}
-                  onCheckedChange={(voicemail_transcription) => updateConfig({ voicemail_transcription })}
-                />
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Call Timeouts */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Call Timeouts
-          </CardTitle>
-          <CardDescription>
-            Configure call timing and duration limits
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <Label>Ring Timeout: {config.ring_timeout} seconds</Label>
-              <Slider
-                value={[config.ring_timeout]}
-                onValueChange={(value) => updateConfig({ ring_timeout: value[0] })}
-                min={10}
-                max={120}
-                step={5}
-                className="w-full"
-              />
-            </div>
-
-            <div className="space-y-4">
-              <Label>Max Call Duration: {Math.floor(config.max_call_duration / 60)} minutes</Label>
-              <Slider
-                value={[config.max_call_duration]}
-                onValueChange={(value) => updateConfig({ max_call_duration: value[0] })}
-                min={300}
-                max={7200}
-                step={300}
-                className="w-full"
+              <Label htmlFor="canceled_message">Message to Caller</Label>
+              <Textarea
+                id="canceled_message"
+                value={localConfig.canceled_message}
+                onChange={(e) => setLocalConfig(prev => ({ 
+                  ...prev, 
+                  canceled_message: e.target.value 
+                }))}
+                placeholder="Message played to callers when organization is canceled"
+                rows={3}
               />
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Advanced Features */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            Advanced Features
-          </CardTitle>
-          <CardDescription>
-            Configure advanced call monitoring and management features
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Call Whisper</Label>
-                <p className="text-sm text-muted-foreground">Supervisors can whisper to agents during calls</p>
-              </div>
-              <Switch
-                checked={config.call_whisper_enabled}
-                onCheckedChange={(call_whisper_enabled) => updateConfig({ call_whisper_enabled })}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Call Monitoring</Label>
-                <p className="text-sm text-muted-foreground">Supervisors can monitor live calls</p>
-              </div>
-              <Switch
-                checked={config.call_monitoring_enabled}
-                onCheckedChange={(call_monitoring_enabled) => updateConfig({ call_monitoring_enabled })}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Call Barging</Label>
-                <p className="text-sm text-muted-foreground">Supervisors can join calls as participants</p>
-              </div>
-              <Switch
-                checked={config.call_barging_enabled}
-                onCheckedChange={(call_barging_enabled) => updateConfig({ call_barging_enabled })}
-              />
+        {/* Information Box */}
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <div className="flex items-start gap-2">
+            <Phone className="h-4 w-4 text-blue-600 mt-0.5" />
+            <div className="text-sm text-blue-800">
+              <p className="font-medium mb-1">How Call Blocking Works</p>
+              <ul className="space-y-1 text-xs">
+                <li>• <strong>Active:</strong> Calls proceed normally to your agents</li>
+                <li>• <strong>Suspended:</strong> Calls are blocked with your custom message</li>
+                <li>• <strong>Canceled:</strong> Calls are immediately ended with a polite message</li>
+                <li>• All blocked calls are logged for audit purposes</li>
+              </ul>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Business Hours */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Business Hours</CardTitle>
-          <CardDescription>
-            Configure when your business is available to receive calls
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Enable Business Hours</Label>
-              <p className="text-sm text-muted-foreground">Route calls differently outside business hours</p>
-            </div>
-            <Switch
-              checked={config.business_hours_enabled}
-              onCheckedChange={(business_hours_enabled) => updateConfig({ business_hours_enabled })}
-            />
-          </div>
-
-          {config.business_hours_enabled && (
-            <>
-              <div className="space-y-4">
-                {Object.entries(config.business_hours).map(([day, hours]) => (
-                  <div key={day} className="flex items-center gap-4">
-                    <div className="w-20">
-                      <Switch
-                        checked={hours.enabled}
-                        onCheckedChange={(enabled) => updateBusinessHours(day, { enabled })}
-                      />
-                    </div>
-                    <div className="w-24 text-sm font-medium capitalize">{day}</div>
-                    <Input
-                      type="time"
-                      value={hours.start}
-                      onChange={(e) => updateBusinessHours(day, { start: e.target.value })}
-                      disabled={!hours.enabled}
-                      className="w-32"
-                    />
-                    <span className="text-sm text-muted-foreground">to</span>
-                    <Input
-                      type="time"
-                      value={hours.end}
-                      onChange={(e) => updateBusinessHours(day, { end: e.target.value })}
-                      disabled={!hours.enabled}
-                      className="w-32"
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-2">
-                <Label>After Hours Message</Label>
-                <Textarea
-                  value={config.after_hours_message}
-                  onChange={(e) => updateConfig({ after_hours_message: e.target.value })}
-                  placeholder="Message played to callers outside business hours"
-                  rows={3}
-                />
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="flex justify-end">
-        <Button onClick={saveCallHandlingSettings} disabled={saving}>
-          {saving ? "Saving..." : "Save Call Handling Settings"}
-        </Button>
-      </div>
-    </div>
+        {/* Save Button */}
+        <div className="flex justify-end">
+          <Button 
+            onClick={handleSave} 
+            disabled={isSaving}
+            className="min-w-[120px]"
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Saving...
+              </>
+            ) : (
+              'Save Settings'
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

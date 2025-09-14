@@ -1,275 +1,305 @@
-import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { Building2, Settings, Shield, Trash2 } from "lucide-react";
-import { AlertsSettings } from "./AlertsSettings";
-import { BillingSettings } from "./BillingSettings";
-import { CallHandlingSettings } from "./CallHandlingSettings";
-import { ExportAndIntegrationsSettings } from "./ExportAndIntegrationsSettings";
-import { IntegrationsSettings } from "./IntegrationsSettings";
+import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Building2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { useUserOrganization } from "@/hooks/useUserOrganization"
+import { useOrganizationRole } from "@/hooks/useOrganizationRole"
+import { supabase } from "@/integrations/supabase/client"
+import { SaveFailureDiagnostics } from "@/components/ui/SaveFailureDiagnostics"
+import CallHandlingSettings from "./CallHandlingSettings"
 
-interface OrganizationSettingsProps {
-  organizationId?: string;
-}
+const INDUSTRY_OPTIONS = [
+  "Technology",
+  "Healthcare", 
+  "Finance",
+  "Education",
+  "Retail",
+  "Manufacturing",
+  "Real Estate",
+  "Consulting",
+  "Marketing",
+  "Other"
+]
 
-interface OrganizationInfo {
-  name: string;
-  website: string;
-  industry: string;
-  size_band: string;
-  status: string;
-}
+const SIZE_OPTIONS = [
+  { value: "1-10", label: "1-10 employees" },
+  { value: "11-50", label: "11-50 employees" },
+  { value: "51-200", label: "51-200 employees" },
+  { value: "201-1000", label: "201-1000 employees" },
+  { value: "1000+", label: "1000+ employees" }
+]
 
-export function OrganizationSettings({ organizationId }: OrganizationSettingsProps) {
-  const [orgInfo, setOrgInfo] = useState<OrganizationInfo>({
+export function OrganizationSettings() {
+  const { toast } = useToast()
+  const { organization, isOwner, loading } = useUserOrganization()
+  const { role, isAdmin: isRoleAdmin, isEditor } = useOrganizationRole(organization?.id)
+  const [formData, setFormData] = useState({
     name: "",
     website: "",
     industry: "",
-    size_band: "",
-    status: "active"
-  });
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const { toast } = useToast();
+    size_band: ""
+  })
+  const [originalData, setOriginalData] = useState(formData)
+  const [saving, setSaving] = useState(false)
+  const [showDiagnostics, setShowDiagnostics] = useState(false)
+  
+  // Compute combined permissions: Owner OR Admin role can edit organization profile
+  const isOwnerOrAdmin = isOwner || isRoleAdmin
 
-  const loadOrganizationInfo = async () => {
-    if (!organizationId) return;
+  useEffect(() => {
+    async function loadOrganizationData() {
+      if (!organization) return
 
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('organizations')
-        .select('name, website, industry, size_band, status')
-        .eq('id', organizationId)
-        .single();
+      try {
+        const { data: orgData } = await supabase
+          .from('organizations')
+          .select('name, website, industry, size_band')
+          .eq('id', organization.id)
+          .single()
 
-      if (error) throw error;
+        if (orgData) {
+          const data = {
+            name: orgData.name || "",
+            website: orgData.website || "",
+            industry: orgData.industry || "",
+            size_band: orgData.size_band || ""
+          }
+          setFormData(data)
+          setOriginalData(data)
+        }
+      } catch (error) {
+        console.error('Error loading organization data:', error)
+        toast({
+          title: "Error loading data",
+          description: "Failed to load organization settings.",
+          variant: "destructive"
+        })
+      }
+    }
 
-      setOrgInfo({
-        name: data.name || "",
-        website: data.website || "",
-        industry: data.industry || "",
-        size_band: data.size_band || "",
-        status: data.status || "active"
-      });
-    } catch (error) {
-      console.error('Error loading organization info:', error);
+    loadOrganizationData()
+  }, [organization, toast])
+
+  const hasChanges = JSON.stringify(formData) !== JSON.stringify(originalData)
+
+  const normalizeWebsite = (url: string): string => {
+    if (!url.trim()) return ""
+    let normalized = url.trim().toLowerCase()
+    if (normalized && !normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+      normalized = 'https://' + normalized
+    }
+    return normalized
+  }
+
+  const handleUpdateOrganization = async () => {
+    if (!organization) {
       toast({
         title: "Error",
-        description: "Failed to load organization information",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+        description: "Organization not found.",
+        variant: "destructive"
+      })
+      return
     }
-  };
 
-  const saveOrganizationInfo = async () => {
-    if (!organizationId) return;
+    if (!isOwnerOrAdmin) {
+      toast({
+        title: "Access denied",
+        description: "Only owners and admins can update organization settings.",
+        variant: "destructive"
+      })
+      return
+    }
 
-    setSaving(true);
+    setSaving(true)
     try {
+      const updateData = {
+        name: formData.name.trim(),
+        website: normalizeWebsite(formData.website),
+        industry: formData.industry,
+        size_band: formData.size_band || null
+      }
+
       const { error } = await supabase
         .from('organizations')
-        .update({
-          name: orgInfo.name,
-          website: orgInfo.website,
-          industry: orgInfo.industry,
-          size_band: orgInfo.size_band
+        .update(updateData)
+        .eq('id', organization.id)
+
+      if (error) throw error
+
+      setOriginalData(formData)
+      toast({
+        title: "Organization updated",
+        description: "Organization settings have been updated successfully.",
+      })
+    } catch (error: any) {
+      console.error('Error updating organization:', error)
+      
+      // Check if this is a permissions error (403, RLS denial, etc.)
+      if (error.code === 'PGRST301' || 
+          error.code === '42501' || 
+          error.message?.includes('access denied') ||
+          error.message?.includes('permission denied') ||
+          error.message?.includes('new row violates row-level security')) {
+        
+        // Log the denied access attempt with diagnostics
+        try {
+          await supabase.rpc('log_org_update_attempt', {
+            p_org_id: organization.id,
+            p_action: 'org.settings_update_denied',
+            p_function_path: 'organization_settings_ui',
+            p_additional_metadata: { 
+              path: '/settings/organization/profile', 
+              role: role,
+              error_code: error.code,
+              error_message: error.message
+            }
+          })
+        } catch (logError) {
+          console.error('Failed to log access denied:', logError)
+        }
+        
+        // Show diagnostics for 403 errors
+        setShowDiagnostics(true)
+        
+        toast({
+          title: "Save blocked - Access denied",
+          description: "Your organization settings couldn't be saved. Check the diagnostics below for details and fixes.",
+          variant: "destructive"
         })
-        .eq('id', organizationId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Organization information updated successfully",
-      });
-    } catch (error) {
-      console.error('Error saving organization info:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save organization information",
-        variant: "destructive",
-      });
+      } else {
+        toast({
+          title: "Update failed",
+          description: error.message || "Failed to update organization settings.",
+          variant: "destructive"
+        })
+      }
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
-  const updateOrgInfo = (updates: Partial<OrganizationInfo>) => {
-    setOrgInfo(prev => ({ ...prev, ...updates }));
-  };
-
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'suspended': return 'bg-red-100 text-red-800';
-      case 'trial': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold">Organization Settings</h1>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Organization Settings</h1>
-          <p className="text-muted-foreground">
-            Manage your organization's information and configuration
-          </p>
-        </div>
-        <Badge className={getStatusBadgeColor(orgInfo.status)}>
-          {orgInfo.status.toUpperCase()}
-        </Badge>
+      <div>
+        <h1 className="text-2xl font-semibold">Organization Settings</h1>
+        <p className="text-muted-foreground">Manage your organization information</p>
       </div>
 
-      <Tabs defaultValue="general" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="billing">Billing</TabsTrigger>
-          <TabsTrigger value="alerts">Alerts</TabsTrigger>
-          <TabsTrigger value="calls">Call Handling</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
-          <TabsTrigger value="danger">Danger Zone</TabsTrigger>
-        </TabsList>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Building2 className="h-5 w-5" />
+            <span>Organization Information</span>
+          </CardTitle>
+          <CardDescription>Update your organization profile and settings</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="orgName">Organization Name</Label>
+            <Input
+              id="orgName"
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Enter organization name"
+              disabled={!isOwnerOrAdmin}
+            />
+          </div>
 
-        <TabsContent value="general" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                Organization Information
-              </CardTitle>
-              <CardDescription>
-                Basic information about your organization
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="orgName">Organization Name</Label>
-                  <Input
-                    id="orgName"
-                    value={orgInfo.name}
-                    onChange={(e) => updateOrgInfo({ name: e.target.value })}
-                    placeholder="Enter organization name"
-                  />
-                </div>
+          <div>
+            <Label htmlFor="website">Website</Label>
+            <Input
+              id="website"
+              value={formData.website}
+              onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
+              placeholder="https://example.com"
+              disabled={!isOwnerOrAdmin}
+            />
+          </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="website">Website</Label>
-                  <Input
-                    id="website"
-                    type="url"
-                    value={orgInfo.website}
-                    onChange={(e) => updateOrgInfo({ website: e.target.value })}
-                    placeholder="https://example.com"
-                  />
-                </div>
+          <div>
+            <Label htmlFor="industry">Industry</Label>
+            <Select 
+              value={formData.industry} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, industry: value }))}
+              disabled={!isOwnerOrAdmin}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select industry" />
+              </SelectTrigger>
+              <SelectContent>
+                {INDUSTRY_OPTIONS.map((industry) => (
+                  <SelectItem key={industry} value={industry}>
+                    {industry}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="industry">Industry</Label>
-                  <Select
-                    value={orgInfo.industry}
-                    onValueChange={(industry) => updateOrgInfo({ industry })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select industry" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="technology">Technology</SelectItem>
-                      <SelectItem value="healthcare">Healthcare</SelectItem>
-                      <SelectItem value="finance">Finance</SelectItem>
-                      <SelectItem value="education">Education</SelectItem>
-                      <SelectItem value="retail">Retail</SelectItem>
-                      <SelectItem value="manufacturing">Manufacturing</SelectItem>
-                      <SelectItem value="real_estate">Real Estate</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+          <div>
+            <Label htmlFor="size">Organization Size</Label>
+            <Select 
+              value={formData.size_band} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, size_band: value }))}
+              disabled={!isOwnerOrAdmin}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select organization size" />
+              </SelectTrigger>
+              <SelectContent>
+                {SIZE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="size">Organization Size</Label>
-                  <Select
-                    value={orgInfo.size_band}
-                    onValueChange={(size_band) => updateOrgInfo({ size_band })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1-10">1-10 employees</SelectItem>
-                      <SelectItem value="11-50">11-50 employees</SelectItem>
-                      <SelectItem value="51-200">51-200 employees</SelectItem>
-                      <SelectItem value="201-500">201-500 employees</SelectItem>
-                      <SelectItem value="501+">501+ employees</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+          {!isOwnerOrAdmin && (
+            <div className="p-3 bg-muted/50 rounded-md">
+              <p className="text-sm text-muted-foreground">
+                <strong>Admins only.</strong> {isEditor 
+                  ? "Editors have read-only access to the organization profile." 
+                  : "You have read-only access."}
+              </p>
+            </div>
+          )}
 
-              <div className="flex justify-end pt-4">
-                <Button onClick={saveOrganizationInfo} disabled={saving}>
-                  {saving ? "Saving..." : "Save Changes"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+          <Button 
+            onClick={handleUpdateOrganization}
+            disabled={!hasChanges || !isOwnerOrAdmin || saving}
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="billing">
-          <BillingSettings organizationId={organizationId} />
-        </TabsContent>
+      {/* Save Failure Diagnostics */}
+      {organization && (
+        <SaveFailureDiagnostics 
+          organizationId={organization.id}
+          show={showDiagnostics}
+          onClose={() => setShowDiagnostics(false)}
+        />
+      )}
 
-        <TabsContent value="alerts">
-          <AlertsSettings organizationId={organizationId} />
-        </TabsContent>
-
-        <TabsContent value="calls">
-          <CallHandlingSettings organizationId={organizationId} />
-        </TabsContent>
-
-        <TabsContent value="integrations" className="space-y-6">
-          <IntegrationsSettings organizationId={organizationId} />
-          <ExportAndIntegrationsSettings organizationId={organizationId} />
-        </TabsContent>
-
-        <TabsContent value="danger">
-          <Card className="border-red-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-red-600">
-                <Trash2 className="h-5 w-5" />
-                Danger Zone
-              </CardTitle>
-              <CardDescription>
-                Irreversible and destructive actions
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 border border-red-200 rounded-lg bg-red-50">
-                <h4 className="font-medium text-red-800 mb-2">Delete Organization</h4>
-                <p className="text-sm text-red-600 mb-4">
-                  Once you delete an organization, there is no going back. This will permanently delete 
-                  all data, including calls, agents, and settings.
-                </p>
-                <Button variant="destructive" disabled>
-                  Delete Organization
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <CallHandlingSettings />
     </div>
-  );
+  )
 }
