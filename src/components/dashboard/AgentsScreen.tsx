@@ -159,10 +159,9 @@ const AllAgentsTab = () => {
   }
 
   const handleOpenSettings = (agent: Agent) => {
-    console.log('Navigating to Retell agent settings for agent:', agent.id, agent.name)
-    // Use the agent's retell_agent_id if available, otherwise use the agent id
-    const agentId = (agent as any).retell_agent_id || agent.id
-    navigate(`/retell-agent/${agentId}`)
+    console.log('Navigating to agent settings for agent:', agent.id, agent.name)
+    // Use the new agent settings page
+    navigate(`/agent/${agent.id}/settings`)
   }
 
   const handleSetDefault = (agentId: string) => {
