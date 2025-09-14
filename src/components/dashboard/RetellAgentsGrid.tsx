@@ -284,11 +284,11 @@ export const RetellAgentsGrid = ({ className = "" }: RetellAgentsGridProps) => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigate(`/retell-agent/${agent.agent_id}`)}
+                      onClick={() => navigate(`/agent/${agent.id}/settings`)}
                       className="flex-1"
                     >
                       <Settings className="h-4 w-4 mr-2" />
-                      Configure
+                      Settings
                     </Button>
                     
                     {agent.status === 'draft' ? (
