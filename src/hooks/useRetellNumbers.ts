@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '@/integrations/supabase/client'
+import { useState } from 'react'
 import { useToast } from '@/hooks/use-toast'
+import { supabase } from '@/integrations/supabase/client'
 
 export interface RetellNumber {
   id: string
@@ -8,142 +8,242 @@ export interface RetellNumber {
   number_id: string
   e164: string
   country: string
-  inbound_agent_id?: string
-  outbound_agent_id?: string
   sms_enabled: boolean
   is_active: boolean
   is_byoc: boolean
   byoc_provider?: string
+  inbound_agent_id?: string
+  outbound_agent_id?: string
   metadata?: any
   created_at: string
   updated_at: string
 }
 
-export interface PurchaseNumberParams {
+export interface AvailableNumber {
+  id: string
+  number: string
   country: string
+  type: string
+  usage?: {
+    inbound?: boolean
+    outbound?: boolean
+  }
+}
+
+export interface BuyNumberParams {
   area_code?: string
+  country?: string
+}
+
+export interface UpdateNumberParams {
+  number_id: string
+  inbound_agent_id?: string
+  outbound_agent_id?: string
+  sms_enabled?: boolean
 }
 
 export interface ImportNumberParams {
   e164: string
-  provider: string
+  country?: string
+  byoc_provider: string
+  sms_enabled?: boolean
 }
 
-export const useRetellNumbers = (organizationId?: string) => {
-  const [numbers, setNumbers] = useState<RetellNumber[]>([])
-  const [loading, setLoading] = useState(true)
+export const useRetellNumbers = () => {
+  const [loading, setLoading] = useState(false)
+  const [ownedNumbers, setOwnedNumbers] = useState<RetellNumber[]>([])
+  const [availableNumbers, setAvailableNumbers] = useState<AvailableNumber[]>([])
   const { toast } = useToast()
 
-  // Load numbers
-  const loadNumbers = async () => {
-    if (!organizationId) return
-
+  const listNumbers = async () => {
+    setLoading(true)
     try {
-      setLoading(true)
-      // For now, return empty array since retell_numbers table doesn't exist yet
-      setNumbers([])
+      const { data, error } = await supabase.functions.invoke('retell-numbers-list')
+      
+      if (error) {
+        console.error('Error listing numbers:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load numbers",
+          variant: "destructive",
+        })
+        return
+      }
+
+      setOwnedNumbers(data.owned_numbers || [])
+      setAvailableNumbers(data.available_numbers || [])
     } catch (error) {
-      console.error('Error loading numbers:', error)
+      console.error('Unexpected error:', error)
       toast({
         title: "Error",
-        description: "Failed to load phone numbers.",
-        variant: "destructive"
+        description: "An unexpected error occurred",
+        variant: "destructive",
       })
     } finally {
       setLoading(false)
     }
   }
 
-  // Purchase number
-  const purchaseNumber = async (params: PurchaseNumberParams) => {
-    if (!organizationId) return null
-
+  const buyNumber = async (params: BuyNumberParams) => {
+    setLoading(true)
     try {
-      const { data, error } = await supabase.functions.invoke('retell-numbers-purchase', {
-        body: { organizationId, ...params }
+      const { data, error } = await supabase.functions.invoke('retell-numbers-buy', {
+        body: params
       })
-
-      if (error) throw error
-
-      // Refresh numbers list
-      await loadNumbers()
-
-      return data
-    } catch (error) {
-      console.error('Error purchasing number:', error)
-      throw error
-    }
-  }
-
-  // Import BYOC number
-  const importNumber = async (params: ImportNumberParams) => {
-    if (!organizationId) return null
-
-    try {
-      const { data, error } = await supabase.functions.invoke('retell-numbers-import', {
-        body: { organizationId, ...params }
-      })
-
-      if (error) throw error
-
-      // Refresh numbers list
-      await loadNumbers()
-
-      return data
-    } catch (error) {
-      console.error('Error importing number:', error)
-      throw error
-    }
-  }
-
-  // Update number
-  const updateNumber = async (numberId: string, updates: Partial<RetellNumber>) => {
-    try {
-      // Placeholder implementation
-      setNumbers(prev => prev.map(number => 
-        number.id === numberId ? { ...number, ...updates } : number
-      ))
-
-      return updates
-    } catch (error) {
-      console.error('Error updating number:', error)
-      throw error
-    }
-  }
-
-  // Delete number
-  const deleteNumber = async (numberId: string) => {
-    try {
-      // Placeholder implementation
-      setNumbers(prev => prev.filter(number => number.id !== numberId))
       
+      if (error) {
+        console.error('Error buying number:', error)
+        toast({
+          title: "Error",
+          description: "Failed to purchase number",
+          variant: "destructive",
+        })
+        return null
+      }
+
       toast({
-        title: "Number deleted",
-        description: "Phone number has been deleted successfully.",
+        title: "Success",
+        description: `Number ${data.number.e164} purchased successfully`,
       })
+      
+      // Refresh the list
+      await listNumbers()
+      return data.number
     } catch (error) {
-      console.error('Error deleting number:', error)
+      console.error('Unexpected error:', error)
       toast({
         title: "Error",
-        description: "Failed to delete phone number.",
-        variant: "destructive"
+        description: "An unexpected error occurred",
+        variant: "destructive",
       })
+      return null
+    } finally {
+      setLoading(false)
     }
   }
 
-  useEffect(() => {
-    if (organizationId) {
-      loadNumbers()
+  const updateNumber = async (params: UpdateNumberParams) => {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('retell-numbers-update', {
+        body: params
+      })
+      
+      if (error) {
+        console.error('Error updating number:', error)
+        toast({
+          title: "Error",
+          description: "Failed to update number",
+          variant: "destructive",
+        })
+        return null
+      }
+
+      toast({
+        title: "Success",
+        description: "Number updated successfully",
+      })
+      
+      // Refresh the list
+      await listNumbers()
+      return data.number
+    } catch (error) {
+      console.error('Unexpected error:', error)
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      })
+      return null
+    } finally {
+      setLoading(false)
     }
-  }, [organizationId])
+  }
+
+  const releaseNumber = async (number_id: string) => {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('retell-numbers-release', {
+        body: { number_id }
+      })
+      
+      if (error) {
+        console.error('Error releasing number:', error)
+        toast({
+          title: "Error",
+          description: "Failed to release number",
+          variant: "destructive",
+        })
+        return false
+      }
+
+      toast({
+        title: "Success",
+        description: "Number released successfully",
+      })
+      
+      // Refresh the list
+      await listNumbers()
+      return true
+    } catch (error) {
+      console.error('Unexpected error:', error)
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      })
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const importNumber = async (params: ImportNumberParams) => {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('retell-numbers-import', {
+        body: params
+      })
+      
+      if (error) {
+        console.error('Error importing number:', error)
+        toast({
+          title: "Error",
+          description: "Failed to import number",
+          variant: "destructive",
+        })
+        return null
+      }
+
+      toast({
+        title: "Success",
+        description: `Number ${data.number.e164} imported successfully`,
+      })
+      
+      // Refresh the list
+      await listNumbers()
+      return data.number
+    } catch (error) {
+      console.error('Unexpected error:', error)
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      })
+      return null
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return {
-    numbers,
     loading,
-    loadNumbers,
-    purchaseNumber,
-    importNumber,
+    ownedNumbers,
+    availableNumbers,
+    listNumbers,
+    buyNumber,
     updateNumber,
-    deleteNumber,
+    releaseNumber,
+    importNumber,
   }
 }

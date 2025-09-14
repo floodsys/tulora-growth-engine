@@ -11,6 +11,7 @@ import {
   Bell,
   HelpCircle,
   MessageCircle,
+  MessageSquare,
   Users2,
   PlayCircle,
   ChevronRight
@@ -41,6 +42,8 @@ const items = [
   { title: "Overview", url: "overview", icon: BarChart3 },
   { title: "Calls", url: "calls", icon: Phone },
   { title: "Agents", url: "agents", icon: Bot },
+  { title: "Numbers", url: "numbers", icon: Phone },
+  { title: "SMS / 10DLC", url: "sms", icon: MessageSquare },
   { title: "Knowledge Base", url: "knowledge", icon: BookOpen },
   { title: "Scheduling", url: "scheduling", icon: Calendar },
   { title: "Organization", url: "organization", icon: Building2 },
