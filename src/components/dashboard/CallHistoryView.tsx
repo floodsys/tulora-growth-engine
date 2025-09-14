@@ -179,7 +179,7 @@ export const CallHistoryView = () => {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Direction</label>
-              <Select value={filters.direction} onValueChange={(value) => setFilters(prev => ({ ...prev, direction: value }))}>
+              <Select value={filters.direction || ''} onValueChange={(value) => setFilters(prev => ({ ...prev, direction: value === '' ? undefined : value as 'inbound' | 'outbound' }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="All directions" />
                 </SelectTrigger>
