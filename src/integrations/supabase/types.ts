@@ -2264,6 +2264,97 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_events: {
+        Row: {
+          agent_id: string | null
+          call_id: string | null
+          created_at: string | null
+          event_data: Json
+          event_type: string
+          id: string
+          organization_id: string
+          processed_at: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          call_id?: string | null
+          created_at?: string | null
+          event_data?: Json
+          event_type: string
+          id?: string
+          organization_id: string
+          processed_at?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          call_id?: string | null
+          created_at?: string | null
+          event_data?: Json
+          event_type?: string
+          id?: string
+          organization_id?: string
+          processed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_webhook_events_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      widget_configs: {
+        Row: {
+          agent_id: string
+          allowed_domains: string[] | null
+          config_data: Json
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          organization_id: string
+          public_key: string
+          require_recaptcha: boolean | null
+          updated_at: string | null
+          widget_type: string
+        }
+        Insert: {
+          agent_id: string
+          allowed_domains?: string[] | null
+          config_data?: Json
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          organization_id: string
+          public_key: string
+          require_recaptcha?: boolean | null
+          updated_at?: string | null
+          widget_type?: string
+        }
+        Update: {
+          agent_id?: string
+          allowed_domains?: string[] | null
+          config_data?: Json
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          organization_id?: string
+          public_key?: string
+          require_recaptcha?: boolean | null
+          updated_at?: string | null
+          widget_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_widget_configs_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       org_subscriptions: {
