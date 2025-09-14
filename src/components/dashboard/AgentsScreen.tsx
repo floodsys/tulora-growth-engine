@@ -25,88 +25,18 @@ import {
 import { Bot, Phone, Star, Play, Pause, Settings, Plus, BarChart3, FileText, Zap, MessageSquare } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
+import { useRetellAgents } from "@/hooks/useRetellAgents"
 import { AgentCatalog } from "@/components/AgentCatalog"
 import SMSView from "@/components/SMSView"
+import { supabase } from "@/integrations/supabase/client"
 
-interface Agent {
-  id: string
-  name: string
-  retellId: string
-  status: "active" | "inactive" | "training"
-  calls: number
-  avgDuration: number
-  successRate: number
-  isDefault: boolean
-  prompt?: string
-  voice?: string
-  language?: string
-  temperature?: number
-  maxTokens?: number
-  enableTransfer?: boolean
-  transferNumber?: string
-  enableRecording?: boolean
-}
-
-const mockAgents: Agent[] = [
-  {
-    id: "00000000-0000-0000-0000-000000000001",
-    name: "Sales Agent Pro",
-    retellId: "agent_12345abcde",
-    status: "active",
-    calls: 156,
-    avgDuration: 180,
-    successRate: 68,
-    isDefault: true,
-    prompt: "You are a professional sales agent. Be friendly, persuasive, and focus on identifying customer needs.",
-    voice: "alloy",
-    language: "en",
-    temperature: 0.7,
-    maxTokens: 150,
-    enableTransfer: true,
-    transferNumber: "+1-555-0100",
-    enableRecording: true
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000002", 
-    name: "Lead Qualifier",
-    retellId: "agent_67890fghij",
-    status: "active", 
-    calls: 89,
-    avgDuration: 120,
-    successRate: 72,
-    isDefault: false,
-    prompt: "You are a lead qualification specialist. Ask targeted questions to determine if prospects are qualified leads.",
-    voice: "echo",
-    language: "en",
-    temperature: 0.5,
-    maxTokens: 100,
-    enableTransfer: false,
-    enableRecording: true
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000003",
-    name: "Follow-up Specialist",
-    retellId: "agent_klmno12345",
-    status: "inactive",
-    calls: 34,
-    avgDuration: 95,
-    successRate: 45,
-    isDefault: false,
-    prompt: "You are a follow-up specialist. Be persistent but polite in following up on previous conversations.",
-    voice: "fable",
-    language: "en",
-    temperature: 0.6,
-    maxTokens: 120,
-    enableTransfer: false,
-    enableRecording: false
-  }
-]
 
 const AllAgentsTab = () => {
   const navigate = useNavigate()
-  const [agents, setAgents] = useState(mockAgents)
+  const { organization } = useUserOrganization()
+  const { agents, loading, updateAgent } = useRetellAgents(organization?.id)
   const [testCallOpen, setTestCallOpen] = useState(false)
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
+  const [selectedAgent, setSelectedAgent] = useState<any>(null)
   const [phoneNumber, setPhoneNumber] = useState("")
   const { toast } = useToast()
 
@@ -139,7 +69,14 @@ const AllAgentsTab = () => {
     }
 
     try {
-      console.log("Dialing with agent:", selectedAgent.retellId, "to:", phoneNumber)
+      const { data, error } = await supabase.functions.invoke('retell-outbound', {
+        body: { 
+          agentSlug: selectedAgent.agent_id,
+          toNumber: phoneNumber 
+        }
+      })
+
+      if (error) throw error
       
       toast({
         title: "Test Call Initiated",
@@ -150,6 +87,7 @@ const AllAgentsTab = () => {
       setPhoneNumber("")
       setSelectedAgent(null)
     } catch (error) {
+      console.error('Test call error:', error)
       toast({
         title: "Error",
         description: "Failed to initiate test call",
@@ -158,23 +96,62 @@ const AllAgentsTab = () => {
     }
   }
 
-  const handleOpenSettings = (agent: Agent) => {
+  const handleOpenSettings = (agent: any) => {
     console.log('Navigating to Retell agent settings for agent:', agent.id, agent.name)
-    // Use the agent's retell_agent_id if available, otherwise use the agent id
-    const agentId = (agent as any).retell_agent_id || agent.id
-    navigate(`/retell-agent/${agentId}`)
+    navigate(`/retell-agent/${agent.agent_id}`)
   }
 
-  const handleSetDefault = (agentId: string) => {
-    setAgents(prev => prev.map(agent => ({
-      ...agent,
-      isDefault: agent.id === agentId
-    })))
+  const handleToggleStatus = async (agent: any) => {
+    const newStatus = agent.status === 'active' ? 'inactive' : 'active'
+    await updateAgent(agent.id, { status: newStatus })
     
     toast({
-      title: "Default Agent Updated",
-      description: "The default agent has been updated for your organization",
+      title: "Agent Status Updated",
+      description: `${agent.name} is now ${newStatus}`,
     })
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle>AI Agents</CardTitle>
+              <div className="flex gap-2">
+                <Button variant="outline" disabled>
+                  <Phone className="h-4 w-4 mr-2" />
+                  Test Call
+                </Button>
+                <Button disabled>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Agent
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center justify-between p-4 border rounded-lg animate-pulse">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 bg-muted rounded-full" />
+                    <div>
+                      <div className="h-4 w-32 bg-muted rounded mb-2" />
+                      <div className="h-3 w-48 bg-muted rounded" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 bg-muted rounded" />
+                    <div className="h-8 w-8 bg-muted rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -188,7 +165,7 @@ const AllAgentsTab = () => {
             <div className="flex gap-2">
               <Dialog open={testCallOpen} onOpenChange={setTestCallOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">
+                  <Button variant="outline" disabled={agents.length === 0}>
                     <Phone className="h-4 w-4 mr-2" />
                     Test Call
                   </Button>
@@ -211,7 +188,7 @@ const AllAgentsTab = () => {
                         <SelectContent>
                           {agents.filter(a => a.status === "active").map((agent) => (
                             <SelectItem key={agent.id} value={agent.id}>
-                              {agent.name} ({agent.retellId})
+                              {agent.name} ({agent.agent_id})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -241,7 +218,7 @@ const AllAgentsTab = () => {
                 </DialogContent>
               </Dialog>
               
-              <Button>
+              <Button onClick={() => navigate('/agents/templates')}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create Agent
               </Button>
@@ -249,95 +226,125 @@ const AllAgentsTab = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4">
-            {agents.map((agent) => (
-              <div key={agent.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-12 w-12">
-                    <AvatarFallback>
-                      <Bot className="h-6 w-6" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold">{agent.name}</h3>
-                      {agent.isDefault && (
-                        <Star className="h-4 w-4 text-warning fill-current" />
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Badge className={getStatusColor(agent.status)}>
-                        {agent.status}
-                      </Badge>
-                      <span>•</span>
-                      <span>{agent.calls} calls</span>
-                      <span>•</span>
-                      <span>{agent.successRate}% success rate</span>
+          {agents.length === 0 ? (
+            <div className="text-center py-12">
+              <Bot className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No agents yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Create your first AI agent to get started with voice automation
+              </p>
+              <Button onClick={() => navigate('/agents/templates')}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Your First Agent
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {agents.map((agent) => (
+                <div key={agent.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-12 w-12">
+                      <AvatarFallback>
+                        <Bot className="h-6 w-6" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold">{agent.name}</h3>
+                        {agent.is_active && (
+                          <Star className="h-4 w-4 text-warning fill-current" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Badge className={getStatusColor(agent.status)}>
+                          {agent.status}
+                        </Badge>
+                        <span>•</span>
+                        <span>ID: {agent.agent_id}</span>
+                        {agent.voice_id && (
+                          <>
+                            <span>•</span>
+                            <span>Voice: {agent.voice_id}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleToggleStatus(agent)}
+                    >
+                      {agent.status === "active" ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleOpenSettings(agent)}>
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm">
-                    {agent.status === "active" ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleOpenSettings(agent)}>
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
   )
 }
 
-const PerformanceTab = () => (
-  <div className="space-y-6">
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+const PerformanceTab = () => {
+  const { organization } = useUserOrganization()
+  const { agents } = useRetellAgents(organization?.id)
+  
+  const activeAgents = agents.filter(a => a.status === 'active').length
+  const totalAgents = agents.length
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Agents</CardTitle>
+            <Bot className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalAgents}</div>
+            <p className="text-xs text-muted-foreground">{activeAgents} active, {totalAgents - activeAgents} inactive</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">-</div>
+            <p className="text-xs text-muted-foreground">Coming soon</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg Success Rate</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">-</div>
+            <p className="text-xs text-muted-foreground">Coming soon</p>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Agents</CardTitle>
-          <Bot className="h-4 w-4 text-muted-foreground" />
+        <CardHeader>
+          <CardTitle>Agent Performance Metrics</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">3</div>
-          <p className="text-xs text-muted-foreground">2 active, 1 paused</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
-          <BarChart3 className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">135</div>
-          <p className="text-xs text-muted-foreground">+15% from last week</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Avg Success Rate</CardTitle>
-          <BarChart3 className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">75%</div>
-          <p className="text-xs text-muted-foreground">+5% from last week</p>
+          <p className="text-muted-foreground">Detailed performance analytics coming soon...</p>
         </CardContent>
       </Card>
     </div>
-
-    <Card>
-      <CardHeader>
-        <CardTitle>Agent Performance Metrics</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-muted-foreground">Detailed performance analytics coming soon...</p>
-      </CardContent>
-    </Card>
-  </div>
-)
+  )
+}
 
 const TemplatesTab = () => {
   const { organization } = useUserOrganization()
