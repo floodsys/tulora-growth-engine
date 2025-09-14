@@ -1,38 +1,48 @@
-export const getEnvironment = (): 'development' | 'staging' | 'production' => {
-  const hostname = globalThis?.location?.hostname || ''
+import { getTestLevel } from "@/lib/invite-tests";
+
+export function getEnvironmentConfig() {
+  const testLevel = getTestLevel();
   
-  if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
-    return 'development'
+  return {
+    testLevel,
+    isTestingEnabled: testLevel !== 'off',
+    showInternalChannels: testLevel !== 'off',
+    showTestChannels: testLevel !== 'off',
+    isProduction: testLevel === 'off',
+    // For admin testing - in a real app this would come from environment variables
+    // For now, return null to disable admin testing that requires a specific org ID
+    testOrgId: null as string | null
+  };
+}
+
+export function shouldShowChannel(channel: string, isOwner: boolean, isSuperAdmin?: boolean): boolean {
+  const config = getEnvironmentConfig();
+  
+  switch (channel) {
+    case 'audit':
+      return true; // Always visible to all org members
+      
+    case 'internal':
+      // Only visible to owners/admins when testing is enabled
+      return (isOwner || isSuperAdmin) && config.showInternalChannels;
+      
+    case 'test_invites':
+      // Only visible to owners/admins when testing is enabled
+      return (isOwner || isSuperAdmin) && config.showTestChannels;
+      
+    default:
+      return true;
   }
-  
-  if (hostname.includes('staging') || hostname.includes('preview')) {
-    return 'staging'
-  }
-  
-  return 'production'
 }
 
-export const getRetellApiKey = (): string => {
-  // This function is only used in edge functions where Deno is available
-  return ''
+export function shouldExcludeFromCustomerView(channel: string): boolean {
+  return ['internal', 'test_invites'].includes(channel);
 }
 
-export const getRetellWebhookSecret = (): string => {
-  // This function is only used in edge functions where Deno is available
-  return ''
+export function shouldExcludeFromAnalytics(channel: string): boolean {
+  return ['test_invites'].includes(channel);
 }
 
-export const isProduction = (): boolean => getEnvironment() === 'production'
-export const isDevelopment = (): boolean => getEnvironment() === 'development'
-export const isStaging = (): boolean => getEnvironment() === 'staging'
-
-// Legacy compatibility exports
-export const getEnvironmentConfig = () => ({ 
-  environment: getEnvironment(),
-  isProduction: isProduction(),
-  testLevel: isDevelopment() ? 'full' : 'minimal',
-  testOrgId: 'test-org-id',
-  isTestingEnabled: !isProduction()
-})
-export const shouldShowChannel = (channel: string, userRole: string, orgStatus: string) => true
-export const shouldExcludeFromCustomerView = (item: any) => false
+export function shouldExcludeFromEmails(channel: string): boolean {
+  return ['test_invites'].includes(channel);
+}

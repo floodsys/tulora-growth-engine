@@ -33,10 +33,9 @@ serve(async (req) => {
   
   // Handle /health for health checks
   if (new URL(req.url).pathname.endsWith('/health')) {
-    const { getOptionalEnv } = await import('../_shared/env.ts')
-    const apiKey = getOptionalEnv("RETELL_API_KEY");
-    const phoneUrl = getOptionalEnv("RETELL_PHONE_CREATE_URL");
-    const webUrl = getOptionalEnv("RETELL_WEB_CREATE_URL");
+    const apiKey = Deno.env.get("RETELL_API_KEY");
+    const phoneUrl = Deno.env.get("RETELL_PHONE_CREATE_URL");
+    const webUrl = Deno.env.get("RETELL_WEB_CREATE_URL");
     
     const url = new URL(req.url);
     const agent = url.searchParams.get("agent");
@@ -44,7 +43,7 @@ serve(async (req) => {
     
     if (agent) {
       const up = agent.toUpperCase();
-      const agentId = getOptionalEnv(`AGENT_${up}_ID`);
+      const agentId = Deno.env.get(`AGENT_${up}_ID`);
       agentMapped = !!agentId;
     }
     
@@ -93,9 +92,8 @@ serve(async (req) => {
   
   try {
     // Read environment variables inside the request handler
-    const { RETELL_API_KEY, getOptionalEnv } = await import('../_shared/env.ts')
-    const apiKey = RETELL_API_KEY();
-    const webUrl = getOptionalEnv("RETELL_WEB_CREATE_URL") ?? "https://api.retellai.com/v2/create-web-call";
+    const apiKey = Deno.env.get("RETELL_API_KEY");
+    const webUrl = Deno.env.get("RETELL_WEB_CREATE_URL") ?? "https://api.retellai.com/v2/create-web-call";
     
     console.log(`[${traceId}] Environment check: API Key exists: ${!!apiKey}, Web URL: ${webUrl}`);
     
@@ -131,7 +129,7 @@ serve(async (req) => {
     
     // Agent resolution
     const up = agentSlug.toUpperCase();
-    const agentId = getOptionalEnv(`AGENT_${up}_ID`) ?? null;
+    const agentId = Deno.env.get(`AGENT_${up}_ID`) ?? null;
     
     console.log(`[${traceId}] Agent resolution: slug=${agentSlug}, agentId exists: ${!!agentId}`);
     

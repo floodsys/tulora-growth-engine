@@ -5,7 +5,6 @@ import { BarBySource } from "./widgets/BarBySource"
 import { RecentCallsTable } from "./widgets/RecentCallsTable"
 import { DateRangePicker } from "./widgets/DateRangePicker"
 import { ActivityFeed } from "@/components/ActivityFeed"
-import { ManualAccessBannerContainer } from "@/components/ui/ManualAccessBannerContainer"
 import { DateRange } from "react-day-picker"
 import { Users, Phone, Calendar, Star } from "lucide-react"
 
@@ -83,9 +82,6 @@ export function DashboardOverview() {
           <DateRangePicker value={dateRange} onChange={setDateRange} />
         </div>
       </div>
-
-      {/* Manual Access Banner */}
-      <ManualAccessBannerContainer />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">

@@ -1,18 +1,14 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
-import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RETELL_WEBHOOK_SECRET } from '../_shared/env.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-retell-signature',
-}
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 // Helper function to verify webhook signature
-async function verifyWebhookSignature(
-  signature: string,
-  body: string,
-  secret: string
-): Promise<boolean> {
+async function verifySignature(payload: string, signature: string, secret: string): Promise<boolean> {
   try {
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
@@ -20,261 +16,56 @@ async function verifyWebhookSignature(
       encoder.encode(secret),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
-      ['sign']
+      ['verify']
     );
     
-    const expectedSignature = await crypto.subtle.sign(
-      'HMAC',
-      key,
-      encoder.encode(body)
-    );
-    
+    const expectedSignature = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
     const expectedHex = Array.from(new Uint8Array(expectedSignature))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
     
     // Remove 'sha256=' prefix if present
-    const cleanSignature = signature.replace('sha256=', '');
+    const providedSignature = signature.replace(/^sha256=/, '');
     
-    return cleanSignature === expectedHex;
+    return expectedHex === providedSignature;
   } catch (error) {
-    console.error('Error verifying webhook signature:', error);
+    console.error('Error verifying signature:', error);
     return false;
   }
 }
 
-interface RetellWebhookEvent {
-  event: string
-  call_id: string
-  agent_id?: string
-  call_type?: 'web_call' | 'phone_call'
-  call_status?: 'ongoing' | 'completed' | 'error'
-  direction?: 'inbound' | 'outbound'
-  from_number?: string
-  to_number?: string
-  start_timestamp?: number
-  end_timestamp?: number
-  call_length?: number
-  recording_url?: string
-  transcript?: string
-  transcript_summary?: string
-  call_analysis?: {
-    call_successful?: boolean
-    call_summary?: string
-    user_sentiment?: string
-    agent_summary?: string
-    inbound_phone_call_summary?: {
-      evaluation?: {
-        call_result?: string
-        call_summary?: string
-        extraction?: Record<string, any>
-      }
-    }
+// Helper function to determine call direction
+function getCallDirection(payload: any): string {
+  // Check for web call indicators
+  if (payload.channel === 'web' || payload.call_type === 'web_call') {
+    return 'web';
   }
-  metadata?: Record<string, any>
+  
+  // Check direction field
+  if (payload.direction) {
+    return payload.direction.toLowerCase();
+  }
+  
+  // Fallback logic based on phone numbers or other indicators
+  if (payload.from_number && payload.to_number) {
+    // Could implement logic to determine if this is inbound/outbound
+    // based on known agent numbers, but default to 'inbound' for now
+    return 'inbound';
+  }
+  
+  return 'inbound'; // Default fallback
 }
 
-// Helper function to determine organization from agent_id
-async function getOrganizationFromAgent(supabase: any, agentId: string): Promise<string | null> {
+// Helper function to parse timestamps
+function parseTimestamp(timestamp: string | number | null): string | null {
+  if (!timestamp) return null;
+  
   try {
-    const { data, error } = await supabase
-      .from('retell_agents')
-      .select('organization_id')
-      .eq('agent_id', agentId)
-      .single()
-    
-    if (error || !data) {
-      console.error('Could not find organization for agent:', agentId, error)
-      return null
-    }
-    
-    return data.organization_id
-  } catch (error) {
-    console.error('Error finding organization for agent:', error)
-    return null
-  }
-}
-
-// Helper function to extract analysis fields
-function extractAnalysisFields(callAnalysis: any) {
-  let outcome = null
-  let sentiment = null
-  let leadScore = null
-  let topics = []
-
-  if (callAnalysis) {
-    // Extract outcome from various possible fields
-    if (callAnalysis.call_successful !== undefined) {
-      outcome = callAnalysis.call_successful ? 'positive' : 'negative'
-    } else if (callAnalysis.inbound_phone_call_summary?.evaluation?.call_result) {
-      const result = callAnalysis.inbound_phone_call_summary.evaluation.call_result.toLowerCase()
-      if (result.includes('success') || result.includes('positive')) {
-        outcome = 'positive'
-      } else if (result.includes('fail') || result.includes('negative')) {
-        outcome = 'negative'
-      } else {
-        outcome = 'neutral'
-      }
-    }
-
-    // Extract sentiment
-    if (callAnalysis.user_sentiment) {
-      sentiment = callAnalysis.user_sentiment.toLowerCase()
-    }
-
-    // Extract lead score (0-100 based on analysis)
-    if (callAnalysis.inbound_phone_call_summary?.evaluation?.extraction) {
-      const extraction = callAnalysis.inbound_phone_call_summary.evaluation.extraction
-      // Try to compute a lead score from various factors
-      let score = 50 // Base score
-      
-      if (outcome === 'positive') score += 30
-      else if (outcome === 'negative') score -= 30
-      
-      if (sentiment === 'positive') score += 20
-      else if (sentiment === 'negative') score -= 20
-      
-      leadScore = Math.max(0, Math.min(100, score))
-    }
-
-    // Extract topics/keywords
-    if (callAnalysis.call_summary) {
-      // Simple keyword extraction - in production, you might use NLP
-      const keywords = callAnalysis.call_summary.toLowerCase()
-        .split(/\s+/)
-        .filter(word => word.length > 4)
-        .slice(0, 10) // Limit to 10 keywords
-      topics = keywords
-    }
-  }
-
-  return { outcome, sentiment, leadScore, topics }
-}
-
-async function handleCallStarted(supabase: any, event: RetellWebhookEvent, organizationId: string) {
-  const callData = {
-    call_id: event.call_id,
-    organization_id: organizationId,
-    agent_id: event.agent_id,
-    direction: event.direction || 'inbound',
-    to_e164: event.to_number || 'unknown',
-    from_e164: event.from_number || 'unknown',
-    status: 'started',
-    started_at: event.start_timestamp ? new Date(event.start_timestamp * 1000).toISOString() : new Date().toISOString(),
-    raw_webhook_data: event
-  }
-
-  const { data, error } = await supabase
-    .from('retell_calls')
-    .upsert(callData, { onConflict: 'call_id' })
-    .select()
-
-  if (error) {
-    console.error('Error creating call record:', error)
-    throw error
-  }
-
-  console.log('Call started record created:', data)
-  return data
-}
-
-async function handleCallEnded(supabase: any, event: RetellWebhookEvent, organizationId: string) {
-  const updateData = {
-    status: 'completed',
-    ended_at: event.end_timestamp ? new Date(event.end_timestamp * 1000).toISOString() : new Date().toISOString(),
-    duration_ms: event.call_length ? event.call_length * 1000 : null,
-    recording_signed_url: event.recording_url,
-    transcript_summary: event.transcript_summary,
-    raw_webhook_data: event
-  }
-
-  const { data, error } = await supabase
-    .from('retell_calls')
-    .update(updateData)
-    .eq('call_id', event.call_id)
-    .select()
-
-  if (error) {
-    console.error('Error updating call record:', error)
-    throw error
-  }
-
-  console.log('Call ended record updated:', data)
-  return data
-}
-
-async function handleCallAnalyzed(supabase: any, event: RetellWebhookEvent, organizationId: string) {
-  const analysisFields = extractAnalysisFields(event.call_analysis)
-  
-  const updateData = {
-    analysis_json: event.call_analysis || {},
-    outcome: analysisFields.outcome,
-    sentiment: analysisFields.sentiment,
-    lead_score: analysisFields.leadScore,
-    topics: analysisFields.topics,
-    raw_webhook_data: event
-  }
-
-  const { data, error } = await supabase
-    .from('retell_calls')
-    .update(updateData)
-    .eq('call_id', event.call_id)
-    .select()
-
-  if (error) {
-    console.error('Error updating call analysis:', error)
-    throw error
-  }
-
-  console.log('Call analysis updated:', data)
-  return data
-}
-
-async function handleGenericEvent(supabase: any, event: RetellWebhookEvent, organizationId: string) {
-  // For any other event types, just update the raw webhook data
-  const { data, error } = await supabase
-    .from('retell_calls')
-    .update({ 
-      raw_webhook_data: event,
-      updated_at: new Date().toISOString()
-    })
-    .eq('call_id', event.call_id)
-    .select()
-
-  if (error) {
-    console.error('Error updating call with generic event:', error)
-    throw error
-  }
-
-  console.log('Generic event processed:', data)
-  return data
-}
-
-// Helper function to process different event types
-async function processWebhookEvent(supabase: any, event: RetellWebhookEvent) {
-  const organizationId = event.agent_id ? await getOrganizationFromAgent(supabase, event.agent_id) : null
-  
-  if (!organizationId) {
-    console.error('Could not determine organization for event:', event)
-    return null
-  }
-
-  console.log(`Processing ${event.event} for call ${event.call_id}`)
-
-  switch (event.event) {
-    case 'call_started':
-      return await handleCallStarted(supabase, event, organizationId)
-    
-    case 'call_ended':
-      return await handleCallEnded(supabase, event, organizationId)
-    
-    case 'call_analyzed':
-    case 'analysis_completed':
-      return await handleCallAnalyzed(supabase, event, organizationId)
-    
-    default:
-      console.log('Unknown event type:', event.event)
-      return await handleGenericEvent(supabase, event, organizationId)
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return null;
+    return date.toISOString();
+  } catch {
+    return null;
   }
 }
 
@@ -284,83 +75,150 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log("=== Retell Webhook Received ===");
-  console.log("Method:", req.method);
-  console.log("Headers:", Object.fromEntries(req.headers));
+  // Method guard
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { 
+        status: 405, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
 
   try {
-    // Create Supabase client with service role for webhook processing
-    const supabase = createClient(
-      SUPABASE_URL(),
-      SUPABASE_SERVICE_ROLE_KEY(),
-    );
-
-    if (req.method !== 'POST') {
+    // Get raw body for signature verification
+    const rawBody = await req.text();
+    let payload: any;
+    
+    try {
+      payload = JSON.parse(rawBody);
+    } catch (error) {
+      console.error('Invalid JSON payload:', error);
       return new Response(
-        JSON.stringify({ error: 'Method not allowed' }),
+        JSON.stringify({ error: 'Invalid JSON payload' }),
         { 
-          status: 405,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       );
     }
 
-    // Get raw body for signature verification
-    const rawBody = await req.text();
-    console.log("Raw body length:", rawBody.length);
-
-    // Verify webhook signature
-    const signature = req.headers.get('x-retell-signature');
-    if (signature) {
-      const webhookSecret = RETELL_WEBHOOK_SECRET();
-      const isValidSignature = await verifyWebhookSignature(signature, rawBody, webhookSecret);
-      
+    // Verify webhook signature if secret is configured
+    const webhookSecret = Deno.env.get('RETELL_WEBHOOK_SECRET');
+    const signature = req.headers.get('x-retell-signature') || req.headers.get('x-signature');
+    
+    if (webhookSecret && signature) {
+      const isValidSignature = await verifySignature(rawBody, signature, webhookSecret);
       if (!isValidSignature) {
         console.error('Invalid webhook signature');
         return new Response(
-          JSON.stringify({ error: 'Invalid webhook signature' }),
+          JSON.stringify({ error: 'Invalid signature' }),
           { 
-            status: 401,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            status: 401, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         );
       }
-      console.log('Webhook signature verified successfully');
-    } else {
-      console.warn('No webhook signature provided');
+    } else if (webhookSecret) {
+      console.warn('Webhook secret configured but no signature provided');
     }
 
-    // Parse the webhook body after signature verification
-    const webhookBody: RetellWebhookEvent = JSON.parse(rawBody);
-    console.log("Webhook body:", JSON.stringify(webhookBody, null, 2));
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Process the webhook event
-    const result = await processWebhookEvent(supabase, webhookBody);
+    console.log('Received Retell webhook:', payload.event || 'unknown_event');
 
+    // Extract call information from payload
+    const callId = payload.call_id || payload.id;
+    if (!callId) {
+      console.warn('No call_id found in webhook payload');
+      return new Response(
+        JSON.stringify({ received: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Map webhook data to call_logs schema
+    const callLogData = {
+      call_id: callId,
+      direction: getCallDirection(payload),
+      to_e164: payload.to_number || payload.to || null,
+      from_e164: payload.from_number || payload.from || null,
+      status: payload.call_status || payload.status || 'unknown',
+      started_at: parseTimestamp(payload.start_timestamp || payload.started_at),
+      ended_at: parseTimestamp(payload.end_timestamp || payload.ended_at),
+      transcript_url: payload.recording_url || payload.transcript_url || null,
+      raw: payload,
+    };
+
+    // Try to find matching agent based on agent_id or phone numbers
+    let agentId: string | null = null;
+    
+    if (payload.agent_id) {
+      // Try to match by retell_agent_id
+      const { data: agentByRetellId } = await supabase
+        .from('voice_agents')
+        .select('id')
+        .eq('retell_agent_id', payload.agent_id)
+        .maybeSingle();
+      
+      if (agentByRetellId) {
+        agentId = agentByRetellId.id;
+      }
+    }
+    
+    if (!agentId && callLogData.from_e164) {
+      // Try to match by from_number
+      const { data: agentByFromNumber } = await supabase
+        .from('voice_agents')
+        .select('id')
+        .eq('from_number', callLogData.from_e164)
+        .maybeSingle();
+      
+      if (agentByFromNumber) {
+        agentId = agentByFromNumber.id;
+      }
+    }
+
+    // Upsert call log record
+    const { error: upsertError } = await supabase
+      .from('call_logs')
+      .upsert(
+        {
+          ...callLogData,
+          agent_id: agentId,
+        },
+        {
+          onConflict: 'call_id',
+        }
+      );
+
+    if (upsertError) {
+      console.error('Error upserting call log:', upsertError);
+    } else {
+      console.log(`Call log upserted for call_id: ${callId}, agent_id: ${agentId || 'none'}`);
+    }
+
+    // Return quick response
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Webhook processed successfully",
-        event: webhookBody.event,
-        call_id: webhookBody.call_id,
-        data: result
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      JSON.stringify({ received: true }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
 
   } catch (error) {
-    console.error("Error processing webhook:", error);
+    console.error('Error in retell-webhook function:', error.message);
     
+    // Return success even on errors to avoid Retell retrying
+    // Log errors for debugging but don't block webhook delivery
     return new Response(
-      JSON.stringify({ 
-        error: "Internal server error",
-        details: error.message
-      }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      JSON.stringify({ received: true }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
   }
