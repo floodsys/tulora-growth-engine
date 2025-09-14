@@ -31,7 +31,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { ArrowLeft, Save, Undo2, Play, Upload, Volume2, Settings, Shield, Phone, MessageSquare, Mic, Clock, Database, Zap, Globe } from "lucide-react"
+import { ArrowLeft, Save, Undo2, Play, Upload, Volume2, Settings, Shield, Phone, MessageSquare, Mic, Clock, Database, Zap, Globe, BarChart3, Lock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 
@@ -72,6 +72,20 @@ interface RetellAgent {
   dtmf_digit_limit?: number
   dtmf_termination_key?: string
   dtmf_timeout_ms?: number
+  // Privacy and Storage
+  secure_urls_enabled?: boolean
+  transcript_retention_days?: number
+  recording_retention_days?: number
+  // Post-call Analysis
+  analysis_enabled?: boolean
+  analysis_model?: string
+  custom_analysis_fields?: Array<{
+    name: string
+    type: 'boolean' | 'enum' | 'text' | 'json'
+    options?: string[]
+    description?: string
+  }>
+  analysis_webhook_url?: string
   // Prompts and behavior
   global_prompt?: string
   first_message?: string
@@ -1290,40 +1304,107 @@ Voicemail: "Hi {{user_name}}, I called at {{timestamp}} but missed you. Please c
             <AccordionItem value="privacy" className="border rounded-lg">
               <AccordionTrigger className="px-6 py-4 hover:no-underline">
                 <div className="flex items-center">
-                  <Shield className="h-5 w-5 mr-3 text-primary" />
-                  <span className="font-semibold">Privacy & Data Storage</span>
+                  <Lock className="h-5 w-5 mr-3 text-primary" />
+                  <span className="font-semibold">Privacy & Storage</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
                 <div className="space-y-6">
+                  
+                  {/* Data Storage Settings */}
                   <div>
-                    <Label htmlFor="data_storage_setting">Data Storage Setting</Label>
+                    <Label htmlFor="data_storage_setting">Data Storage Policy</Label>
                     <Select 
-                      value={form.watch("data_storage_setting")} 
+                      value={form.watch("data_storage_setting") || "standard"} 
                       onValueChange={(value) => form.setValue("data_storage_setting", value)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select storage setting" />
+                        <SelectValue placeholder="Select storage policy" />
                       </SelectTrigger>
                       <SelectContent className="bg-background border shadow-md">
                         <SelectItem value="standard">Standard Storage</SelectItem>
-                        <SelectItem value="encrypted">Encrypted Storage</SelectItem>
+                        <SelectItem value="opt_out">Opt-out Sensitive Data</SelectItem>
                         <SelectItem value="minimal">Minimal Storage</SelectItem>
                       </SelectContent>
                     </Select>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {form.watch("data_storage_setting") === "opt_out" 
+                        ? "Transcripts/recordings sent via webhook only, links expire quickly"
+                        : "Standard retention policy applies to all data"
+                      }
+                    </p>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Opt-in Signed URLs</Label>
-                      <p className="text-sm text-muted-foreground">Require user consent for recording access</p>
+                  {/* Secure URLs */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Secure URLs</Label>
+                        <p className="text-sm text-muted-foreground">Generate 24-hour signed links for recordings and logs</p>
+                      </div>
+                      <Switch
+                        checked={form.watch("secure_urls_enabled")}
+                        onCheckedChange={(checked) => form.setValue("secure_urls_enabled", checked)}
+                      />
                     </div>
-                    <Switch
-                      checked={form.watch("opt_in_signed_url")}
-                      onCheckedChange={(checked) => form.setValue("opt_in_signed_url", checked)}
-                    />
+                    {form.watch("secure_urls_enabled") && (
+                      <div className="pl-4 border-l-2 border-muted text-sm text-muted-foreground">
+                        <p>✓ Recording URLs will expire after 24 hours</p>
+                        <p>✓ Enhanced security for sensitive call data</p>
+                        <p>✓ Automatic URL regeneration on access</p>
+                      </div>
+                    )}
                   </div>
 
+                  {/* Retention Settings */}
+                  {form.watch("data_storage_setting") !== "opt_out" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label>Transcript Retention: {form.watch("transcript_retention_days") || 90} days</Label>
+                        <Slider
+                          value={[form.watch("transcript_retention_days") || 90]}
+                          onValueChange={([value]) => form.setValue("transcript_retention_days", value)}
+                          min={7}
+                          max={365}
+                          step={7}
+                          className="mt-2"
+                        />
+                        <p className="text-sm text-muted-foreground mt-1">
+                          How long to store call transcripts
+                        </p>
+                      </div>
+
+                      <div>
+                        <Label>Recording Retention: {form.watch("recording_retention_days") || 30} days</Label>
+                        <Slider
+                          value={[form.watch("recording_retention_days") || 30]}
+                          onValueChange={([value]) => form.setValue("recording_retention_days", value)}
+                          min={7}
+                          max={180}
+                          step={7}
+                          className="mt-2"
+                        />
+                        <p className="text-sm text-muted-foreground mt-1">
+                          How long to store call recordings
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Opt-out Information */}
+                  {form.watch("data_storage_setting") === "opt_out" && (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <h4 className="font-medium text-yellow-800 mb-2">Sensitive Data Opt-out Enabled</h4>
+                      <div className="text-sm text-yellow-700 space-y-1">
+                        <p>• Call recordings and transcripts are not stored long-term</p>
+                        <p>• Data is delivered immediately via webhook upon call completion</p>
+                        <p>• Temporary download links expire within 2 hours</p>
+                        <p>• You're responsible for capturing and storing data from webhooks</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Legacy Webhook URL */}
                   <div>
                     <Label htmlFor="webhook_url">Webhook URL</Label>
                     <Input
@@ -1335,6 +1416,196 @@ Voicemail: "Hi {{user_name}}, I called at {{timestamp}} but missed you. Please c
                       Optional webhook URL for call events and transcripts
                     </p>
                   </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Post-Call Analysis */}
+            <AccordionItem value="analysis" className="border rounded-lg">
+              <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                <div className="flex items-center">
+                  <BarChart3 className="h-5 w-5 mr-3 text-primary" />
+                  <span className="font-semibold">Post-Call Analysis</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6">
+                <div className="space-y-6">
+                  
+                  {/* Enable Analysis */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Enable Post-Call Analysis</Label>
+                      <p className="text-sm text-muted-foreground">Automatically analyze calls with AI after completion</p>
+                    </div>
+                    <Switch
+                      checked={form.watch("analysis_enabled")}
+                      onCheckedChange={(checked) => form.setValue("analysis_enabled", checked)}
+                    />
+                  </div>
+
+                  {form.watch("analysis_enabled") && (
+                    <div className="space-y-6">
+                      
+                      {/* Analysis Model */}
+                      <div>
+                        <Label htmlFor="analysis_model">Analysis Model</Label>
+                        <Select 
+                          value={form.watch("analysis_model") || "gpt-4o-mini"} 
+                          onValueChange={(value) => form.setValue("analysis_model", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select analysis model" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border shadow-md">
+                            <SelectItem value="gpt-4o-mini">GPT-4o Mini (Fast & Cost-effective)</SelectItem>
+                            <SelectItem value="gpt-4o">GPT-4o (Balanced)</SelectItem>
+                            <SelectItem value="gpt-5-nano-2025-08-07">GPT-5 Nano (Latest, Fast)</SelectItem>
+                            <SelectItem value="gpt-5-mini-2025-08-07">GPT-5 Mini (Latest, Balanced)</SelectItem>
+                            <SelectItem value="gpt-5-2025-08-07">GPT-5 (Latest, Most Capable)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Model used for analyzing call transcripts and generating insights
+                        </p>
+                      </div>
+
+                      {/* Analysis Webhook */}
+                      <div>
+                        <Label htmlFor="analysis_webhook_url">Analysis Results Webhook</Label>
+                        <Input
+                          id="analysis_webhook_url"
+                          value={form.watch("analysis_webhook_url") || ""}
+                          onChange={(e) => form.setValue("analysis_webhook_url", e.target.value)}
+                          placeholder="https://your-api.com/analysis-webhook"
+                        />
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Optional: Send analysis results to your analytics system
+                        </p>
+                      </div>
+
+                      {/* Custom Analysis Fields */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Label>Custom Analysis Fields</Label>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const currentFields = form.watch("custom_analysis_fields") || []
+                              form.setValue("custom_analysis_fields", [
+                                ...currentFields,
+                                { name: "", type: "text", description: "" }
+                              ])
+                            }}
+                          >
+                            Add Field
+                          </Button>
+                        </div>
+
+                        <div className="space-y-3">
+                          {form.watch("custom_analysis_fields")?.map((field, index) => (
+                            <div key={index} className="grid grid-cols-12 gap-3 items-end p-3 border rounded-lg">
+                              <div className="col-span-3">
+                                <Label>Field Name</Label>
+                                <Input
+                                  value={field.name}
+                                  onChange={(e) => {
+                                    const fields = [...(form.watch("custom_analysis_fields") || [])]
+                                    fields[index] = { ...fields[index], name: e.target.value }
+                                    form.setValue("custom_analysis_fields", fields)
+                                  }}
+                                  placeholder="e.g., sentiment"
+                                />
+                              </div>
+
+                              <div className="col-span-2">
+                                <Label>Type</Label>
+                                <Select
+                                  value={field.type}
+                                  onValueChange={(value: 'boolean' | 'enum' | 'text' | 'json') => {
+                                    const fields = [...(form.watch("custom_analysis_fields") || [])]
+                                    fields[index] = { ...fields[index], type: value }
+                                    form.setValue("custom_analysis_fields", fields)
+                                  }}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-background border shadow-md">
+                                    <SelectItem value="boolean">Boolean</SelectItem>
+                                    <SelectItem value="enum">Enum</SelectItem>
+                                    <SelectItem value="text">Text</SelectItem>
+                                    <SelectItem value="json">JSON</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              {field.type === 'enum' && (
+                                <div className="col-span-3">
+                                  <Label>Options</Label>
+                                  <Input
+                                    value={field.options?.join(", ") || ""}
+                                    onChange={(e) => {
+                                      const fields = [...(form.watch("custom_analysis_fields") || [])]
+                                      fields[index] = { 
+                                        ...fields[index], 
+                                        options: e.target.value.split(",").map(o => o.trim()).filter(o => o)
+                                      }
+                                      form.setValue("custom_analysis_fields", fields)
+                                    }}
+                                    placeholder="positive, neutral, negative"
+                                  />
+                                </div>
+                              )}
+
+                              <div className={field.type === 'enum' ? "col-span-3" : "col-span-6"}>
+                                <Label>Description</Label>
+                                <Input
+                                  value={field.description || ""}
+                                  onChange={(e) => {
+                                    const fields = [...(form.watch("custom_analysis_fields") || [])]
+                                    fields[index] = { ...fields[index], description: e.target.value }
+                                    form.setValue("custom_analysis_fields", fields)
+                                  }}
+                                  placeholder="What should this field analyze?"
+                                />
+                              </div>
+
+                              <div className="col-span-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const fields = form.watch("custom_analysis_fields") || []
+                                    form.setValue("custom_analysis_fields", fields.filter((_, i) => i !== index))
+                                  }}
+                                >
+                                  ×
+                                </Button>
+                              </div>
+                            </div>
+                          )) || (
+                            <div className="text-center py-6 text-muted-foreground">
+                              <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                              <p>No custom analysis fields defined</p>
+                              <p className="text-sm">Add fields to extract specific insights from calls</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="p-3 bg-muted/20 rounded-lg text-sm">
+                          <h5 className="font-medium mb-2">Analysis Field Examples:</h5>
+                          <ul className="space-y-1 text-muted-foreground">
+                            <li>• <strong>sentiment</strong> (enum): positive, neutral, negative</li>
+                            <li>• <strong>lead_quality</strong> (enum): hot, warm, cold</li>
+                            <li>• <strong>appointment_scheduled</strong> (boolean): true/false</li>
+                            <li>• <strong>pain_points</strong> (text): Identified customer challenges</li>
+                            <li>• <strong>contact_info</strong> (json): Structured contact details</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>
