@@ -13,6 +13,7 @@ import { ProfileEditModal } from "@/components/ProfileEditModal"
 import ChatWidget from "@/pages/ChatWidget"
 import AbusePreventionSettings from "@/pages/AbusePrevention"
 import AccessControl from "@/pages/AccessControl"
+import OnboardingOrganization from "@/pages/OnboardingOrganization"
 
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
@@ -82,6 +83,8 @@ const Dashboard = () => {
         return <AbusePreventionSettings />
       case "access-control":
         return <AccessControl />
+      case "organization":
+        return <OnboardingOrganization />
       default:
         return <DashboardOverview />
     }
