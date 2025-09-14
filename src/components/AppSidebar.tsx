@@ -11,9 +11,11 @@ import {
   Bell,
   HelpCircle,
   MessageCircle,
+  MessageSquare,
   Users2,
   PlayCircle,
-  ChevronRight
+  ChevronRight,
+  Key
 } from "lucide-react"
 
 import {
@@ -41,9 +43,14 @@ const items = [
   { title: "Overview", url: "overview", icon: BarChart3 },
   { title: "Calls", url: "calls", icon: Phone },
   { title: "Agents", url: "agents", icon: Bot },
+  { title: "Numbers", url: "numbers", icon: Phone },
   { title: "Knowledge Base", url: "knowledge", icon: BookOpen },
+  { title: "Chat Widget", url: "chat-widget", icon: MessageSquare },
   { title: "Scheduling", url: "scheduling", icon: Calendar },
-  { title: "Organization", url: "organization", icon: Building2 },
+  { title: "Team", url: "team-settings", icon: Users },
+  { title: "Organization", url: "organization-settings", icon: Building2 },
+  { title: "Abuse Prevention", url: "abuse-prevention", icon: Settings },
+  { title: "Access Control", url: "access-control", icon: Key },
   { title: "Usage & Billing", url: "billing", icon: CreditCard },
 ]
 

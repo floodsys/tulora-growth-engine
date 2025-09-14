@@ -3,22 +3,29 @@ import { AppSidebar } from "@/components/AppSidebar"
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview"
 import { CallsScreen } from "@/components/dashboard/CallsScreen"
 import { AgentsScreen } from "@/components/dashboard/AgentsScreen"
+import { NumbersView } from "@/components/NumbersView"
+import SMSView from "@/components/SMSView"
 import { KnowledgeBase } from "@/components/dashboard/KnowledgeBase"
 import { Scheduling } from "@/components/dashboard/Scheduling"
 import { UsageBilling } from "@/components/dashboard/UsageBilling"
 import { TeamManagement } from "@/components/dashboard/TeamManagement"
-import { UnifiedSettings } from "@/components/UnifiedSettings"
-import { ProfileSettingsScreen } from "@/components/dashboard/ProfileSettingsScreen"
 import { ProfileEditModal } from "@/components/ProfileEditModal"
-import SettingsTeams from "@/pages/SettingsTeams"
-import SettingsOrganization from "@/pages/SettingsOrganization"
+import ChatWidget from "@/pages/ChatWidget"
+import AbusePreventionSettings from "@/pages/AbusePrevention"
+import AccessControl from "@/pages/AccessControl"
+import OnboardingOrganization from "@/pages/OnboardingOrganization"
+import ProfileSettings from "@/pages/ProfileSettings"
+import OrganizationSettings from "@/pages/OrganizationSettings"
+import TeamSettings from "@/pages/TeamSettings"
 
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
+import { useUserOrganization } from "@/hooks/useUserOrganization"
 
 const Dashboard = () => {
   const [activeScreen, setActiveScreen] = useState("overview")
   const { toast } = useToast()
+  const { organizationId } = useUserOrganization()
 
   // Handle checkout success/cancel redirects and tab parameter
   useEffect(() => {
@@ -65,20 +72,28 @@ const Dashboard = () => {
         return <CallsScreen />
       case "agents":
         return <AgentsScreen />
+      case "numbers":
+        return <NumbersView />
       case "knowledge":
         return <KnowledgeBase />
       case "scheduling":
         return <Scheduling />
       case "billing":
-        return <UsageBilling />
-      case "teams":
-        return <SettingsOrganization />
+        return <UsageBilling organizationId={organizationId || ""} />
+      case "chat-widget":
+        return <ChatWidget />
+      case "abuse-prevention":
+        return <AbusePreventionSettings />
+      case "access-control":
+        return <AccessControl />
       case "organization":
-        return <SettingsOrganization />
-      case "settings":
-        return <UnifiedSettings organizationId="demo-org-id" />
+        return <TeamManagement />
       case "profile-settings":
-        return <ProfileSettingsScreen />
+        return <ProfileSettings />
+      case "organization-settings": 
+        return <OrganizationSettings />
+      case "team-settings":
+        return <TeamSettings />
       default:
         return <DashboardOverview />
     }

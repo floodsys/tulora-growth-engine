@@ -1562,6 +1562,223 @@ export type Database = {
         }
         Relationships: []
       }
+      retell_chat_messages: {
+        Row: {
+          chat_id: string
+          content: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          role: string
+        }
+        Insert: {
+          chat_id: string
+          content: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role: string
+        }
+        Update: {
+          chat_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role?: string
+        }
+        Relationships: []
+      }
+      retell_chats: {
+        Row: {
+          agent_id: string
+          chat_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          last_message_at: string | null
+          messages_count: number
+          metadata: Json | null
+          organization_id: string
+          started_at: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          chat_id: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          messages_count?: number
+          metadata?: Json | null
+          organization_id: string
+          started_at?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          chat_id?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          messages_count?: number
+          metadata?: Json | null
+          organization_id?: string
+          started_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      retell_kb_sources: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: string
+          kb_id: string
+          metadata: Json | null
+          name: string
+          size: number | null
+          source_id: string
+          status: string | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          kb_id: string
+          metadata?: Json | null
+          name: string
+          size?: number | null
+          source_id: string
+          status?: string | null
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          kb_id?: string
+          metadata?: Json | null
+          name?: string
+          size?: number | null
+          source_id?: string
+          status?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retell_kb_sources_kb_id_fkey"
+            columns: ["kb_id"]
+            isOneToOne: false
+            referencedRelation: "retell_kbs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      retell_kbs: {
+        Row: {
+          chunks: number | null
+          created_at: string | null
+          id: string
+          kb_id: string
+          last_indexed_at: string | null
+          organization_id: string
+          source_count: number | null
+          state: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          chunks?: number | null
+          created_at?: string | null
+          id?: string
+          kb_id: string
+          last_indexed_at?: string | null
+          organization_id: string
+          source_count?: number | null
+          state?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          chunks?: number | null
+          created_at?: string | null
+          id?: string
+          kb_id?: string
+          last_indexed_at?: string | null
+          organization_id?: string
+          source_count?: number | null
+          state?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retell_kbs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      retell_numbers: {
+        Row: {
+          byoc_provider: string | null
+          country: string
+          created_at: string
+          e164: string
+          id: string
+          inbound_agent_id: string | null
+          is_active: boolean
+          is_byoc: boolean
+          metadata: Json | null
+          number_id: string
+          organization_id: string
+          outbound_agent_id: string | null
+          sms_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          byoc_provider?: string | null
+          country?: string
+          created_at?: string
+          e164: string
+          id?: string
+          inbound_agent_id?: string | null
+          is_active?: boolean
+          is_byoc?: boolean
+          metadata?: Json | null
+          number_id: string
+          organization_id: string
+          outbound_agent_id?: string | null
+          sms_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          byoc_provider?: string | null
+          country?: string
+          created_at?: string
+          e164?: string
+          id?: string
+          inbound_agent_id?: string | null
+          is_active?: boolean
+          is_byoc?: boolean
+          metadata?: Json | null
+          number_id?: string
+          organization_id?: string
+          outbound_agent_id?: string | null
+          sms_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sales_invoices: {
         Row: {
           amount: number
@@ -1623,6 +1840,194 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sms_brands: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          brand_id: string | null
+          brand_name: string
+          city: string | null
+          company_name: string
+          country: string | null
+          created_at: string
+          id: string
+          industry: string | null
+          metadata: Json | null
+          organization_id: string
+          phone_number: string | null
+          postal_code: string | null
+          registration_status: string
+          rejection_reason: string | null
+          state: string | null
+          tax_id: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          brand_id?: string | null
+          brand_name: string
+          city?: string | null
+          company_name: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          industry?: string | null
+          metadata?: Json | null
+          organization_id: string
+          phone_number?: string | null
+          postal_code?: string | null
+          registration_status?: string
+          rejection_reason?: string | null
+          state?: string | null
+          tax_id?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          brand_id?: string | null
+          brand_name?: string
+          city?: string | null
+          company_name?: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          industry?: string | null
+          metadata?: Json | null
+          organization_id?: string
+          phone_number?: string | null
+          postal_code?: string | null
+          registration_status?: string
+          rejection_reason?: string | null
+          state?: string | null
+          tax_id?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      sms_campaigns: {
+        Row: {
+          brand_id: string
+          campaign_id: string | null
+          campaign_name: string
+          campaign_type: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          monthly_volume: number | null
+          organization_id: string
+          registration_status: string
+          rejection_reason: string | null
+          sample_messages: string[] | null
+          updated_at: string
+          use_case: string
+        }
+        Insert: {
+          brand_id: string
+          campaign_id?: string | null
+          campaign_name: string
+          campaign_type?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          monthly_volume?: number | null
+          organization_id: string
+          registration_status?: string
+          rejection_reason?: string | null
+          sample_messages?: string[] | null
+          updated_at?: string
+          use_case: string
+        }
+        Update: {
+          brand_id?: string
+          campaign_id?: string | null
+          campaign_name?: string
+          campaign_type?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          monthly_volume?: number | null
+          organization_id?: string
+          registration_status?: string
+          rejection_reason?: string | null
+          sample_messages?: string[] | null
+          updated_at?: string
+          use_case?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_sms_campaigns_brand"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "sms_brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_messages: {
+        Row: {
+          campaign_id: string | null
+          cost_cents: number | null
+          created_at: string
+          delivery_status: string
+          delivery_timestamp: string | null
+          direction: string
+          error_code: string | null
+          error_message: string | null
+          from_number: string
+          id: string
+          message_body: string
+          metadata: Json | null
+          number_id: string | null
+          organization_id: string
+          provider_message_id: string | null
+          to_number: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          cost_cents?: number | null
+          created_at?: string
+          delivery_status?: string
+          delivery_timestamp?: string | null
+          direction: string
+          error_code?: string | null
+          error_message?: string | null
+          from_number: string
+          id?: string
+          message_body: string
+          metadata?: Json | null
+          number_id?: string | null
+          organization_id: string
+          provider_message_id?: string | null
+          to_number: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          cost_cents?: number | null
+          created_at?: string
+          delivery_status?: string
+          delivery_timestamp?: string | null
+          direction?: string
+          error_code?: string | null
+          error_message?: string | null
+          from_number?: string
+          id?: string
+          message_body?: string
+          metadata?: Json | null
+          number_id?: string | null
+          organization_id?: string
+          provider_message_id?: string | null
+          to_number?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       step_up_sessions: {
         Row: {
@@ -1739,6 +2144,7 @@ export type Database = {
       }
       usage_events: {
         Row: {
+          concurrency_level: number | null
           cost_cents: number | null
           created_at: string | null
           event_type: string
@@ -1750,6 +2156,7 @@ export type Database = {
           resource_type: string | null
         }
         Insert: {
+          concurrency_level?: number | null
           cost_cents?: number | null
           created_at?: string | null
           event_type: string
@@ -1761,6 +2168,7 @@ export type Database = {
           resource_type?: string | null
         }
         Update: {
+          concurrency_level?: number | null
           cost_cents?: number | null
           created_at?: string | null
           event_type?: string
@@ -1780,6 +2188,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      usage_rollups: {
+        Row: {
+          calls: number
+          concurrency_peak: number
+          created_at: string
+          id: string
+          kb_ops: number
+          messages: number
+          minutes: number
+          organization_id: string
+          updated_at: string
+          year_month: string
+        }
+        Insert: {
+          calls?: number
+          concurrency_peak?: number
+          created_at?: string
+          id?: string
+          kb_ops?: number
+          messages?: number
+          minutes?: number
+          organization_id: string
+          updated_at?: string
+          year_month: string
+        }
+        Update: {
+          calls?: number
+          concurrency_peak?: number
+          created_at?: string
+          id?: string
+          kb_ops?: number
+          messages?: number
+          minutes?: number
+          organization_id?: string
+          updated_at?: string
+          year_month?: string
+        }
+        Relationships: []
       }
       voice_agents: {
         Row: {
@@ -1952,6 +2399,10 @@ export type Database = {
             }
         Returns: Json
       }
+      aggregate_usage_rollup: {
+        Args: { p_org_id: string; p_year_month: string }
+        Returns: Json
+      }
       backfill_audit_logs: {
         Args: {
           p_batch_size?: number
@@ -2088,6 +2539,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      get_current_concurrency: {
+        Args: { p_org_id: string }
+        Returns: number
+      }
       get_duplicate_org_members: {
         Args: Record<PropertyKey, never>
         Returns: number
@@ -2095,6 +2550,10 @@ export type Database = {
       get_effective_retention_config: {
         Args: { org_id: string }
         Returns: Json
+      }
+      get_or_create_usage_rollup: {
+        Args: { p_org_id: string; p_period?: string }
+        Returns: string
       }
       get_org_entitlements: {
         Args: { p_org_id: string }
@@ -2455,6 +2914,18 @@ export type Database = {
       trim_user_agent: {
         Args: { user_agent_string: string }
         Returns: string
+      }
+      update_usage_rollup: {
+        Args: {
+          p_calls?: number
+          p_concurrency_peak?: number
+          p_kb_ops?: number
+          p_messages?: number
+          p_minutes?: number
+          p_org_id: string
+          p_period: string
+        }
+        Returns: undefined
       }
       validate_role_constraint: {
         Args: { role_value: string }

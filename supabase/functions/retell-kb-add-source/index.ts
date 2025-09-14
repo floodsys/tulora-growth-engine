@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
       const retellResponse = await fetch(`https://api.retellai.com/v2/knowledge-base/${kb.kb_id}/add-file`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${Deno.env.get('RETELL_API_KEY')}`,
+          'Authorization': `Bearer ${(await import('../_shared/env.ts')).RETELL_API_KEY()}`,
         },
         body: formData,
       })
@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
       const retellResponse = await fetch(`https://api.retellai.com/v2/knowledge-base/${kb.kb_id}/add-url`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${Deno.env.get('RETELL_API_KEY')}`,
+          'Authorization': `Bearer ${(await import('../_shared/env.ts')).RETELL_API_KEY()}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
       const retellResponse = await fetch(`https://api.retellai.com/v2/knowledge-base/${kb.kb_id}/add-text`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${Deno.env.get('RETELL_API_KEY')}`,
+          'Authorization': `Bearer ${(await import('../_shared/env.ts')).RETELL_API_KEY()}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
