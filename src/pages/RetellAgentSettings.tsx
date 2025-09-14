@@ -31,7 +31,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { ArrowLeft, Save, Undo2, Play, Upload, Volume2, Settings, Shield, Phone } from "lucide-react"
+import { ArrowLeft, Save, Undo2, Play, Upload, Volume2, Settings, Shield, Phone, MessageSquare } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 
@@ -41,9 +41,18 @@ interface RetellAgent {
   agent_id: string
   name: string
   version: number
+  // Basic settings
+  agent_type?: 'prompt' | 'flow'
+  response_engine?: string
+  llm_model?: string
+  llm_temperature?: number
+  // Voice settings
   voice_id?: string
   voice_model?: string
   language: string
+  languages?: string[]  // for multi-language support
+  auto_detect_language?: boolean
+  // Audio tuning
   backchannel_enabled: boolean
   backchannel_frequency: number
   pronunciation_dict: any
@@ -51,10 +60,15 @@ interface RetellAgent {
   voice_temperature: number
   volume: number
   normalize_for_speech: boolean
+  // Prompts and behavior
+  global_prompt?: string
+  first_message?: string
+  // Call settings
   max_call_duration_ms: number
   end_call_after_silence_ms: number
   begin_message_delay_ms: number
   voicemail_option: string
+  // Privacy and integrations
   data_storage_setting: string
   opt_in_signed_url: boolean
   webhook_url?: string
@@ -70,8 +84,17 @@ interface Voice {
   voice_name: string
   gender: string
   accent: string
+  provider?: string
+  model?: string
   description?: string
   preview_url?: string
+}
+
+interface LLMModel {
+  id: string
+  name: string
+  provider: string
+  description?: string
 }
 
 const RetellAgentSettings = () => {
@@ -80,6 +103,13 @@ const RetellAgentSettings = () => {
   const { toast } = useToast()
   const [agent, setAgent] = useState<RetellAgent | null>(null)
   const [voices, setVoices] = useState<Voice[]>([])
+  const [llmModels] = useState<LLMModel[]>([
+    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI', description: 'Most capable model' },
+    { id: 'gpt-4', name: 'GPT-4', provider: 'OpenAI', description: 'High quality responses' },
+    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'OpenAI', description: 'Fast and efficient' },
+    { id: 'claude-3-opus', name: 'Claude 3 Opus', provider: 'Anthropic', description: 'Advanced reasoning' },
+    { id: 'claude-3-sonnet', name: 'Claude 3 Sonnet', provider: 'Anthropic', description: 'Balanced performance' }
+  ])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
@@ -343,37 +373,176 @@ const RetellAgentSettings = () => {
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-6">
+                  {/* Agent Type and Response Engine */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="agent_type">Agent Type</Label>
+                      <Select 
+                        value={form.watch("agent_type") || "prompt"} 
+                        onValueChange={(value: 'prompt' | 'flow') => form.setValue("agent_type", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select agent type" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-md">
+                          <SelectItem value="prompt">Prompt-based</SelectItem>
+                          <SelectItem value="flow">Conversation Flow</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Choose between AI prompt-based responses or structured conversation flows
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="name">Agent Name</Label>
+                      <Input
+                        id="name"
+                        {...form.register("name")}
+                        placeholder="Enter agent name"
+                      />
+                    </div>
+                  </div>
+
+                  {/* LLM Configuration (only for prompt-based agents) */}
+                  {form.watch("agent_type") === "prompt" && (
+                    <div className="space-y-4 p-4 bg-muted/20 rounded-lg">
+                      <h4 className="font-medium">Response Engine Configuration</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="llm_model">LLM Model</Label>
+                          <Select 
+                            value={form.watch("llm_model") || "gpt-4-turbo"} 
+                            onValueChange={(value) => form.setValue("llm_model", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select LLM model" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background border shadow-md">
+                              {llmModels.map((model) => (
+                                <SelectItem key={model.id} value={model.id}>
+                                  <div>
+                                    <div className="font-medium">{model.name}</div>
+                                    <div className="text-sm text-muted-foreground">{model.provider} • {model.description}</div>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label>LLM Temperature: {form.watch("llm_temperature")?.toFixed(1) || "0.7"}</Label>
+                          <Slider
+                            value={[form.watch("llm_temperature") || 0.7]}
+                            onValueChange={([value]) => form.setValue("llm_temperature", value)}
+                            min={0.0}
+                            max={2.0}
+                            step={0.1}
+                            className="mt-2"
+                          />
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Higher values make responses more creative, lower values more focused
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Language Settings */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Auto-detect Language</Label>
+                        <p className="text-sm text-muted-foreground">Automatically detect caller's language</p>
+                      </div>
+                      <Switch
+                        checked={form.watch("auto_detect_language")}
+                        onCheckedChange={(checked) => form.setValue("auto_detect_language", checked)}
+                      />
+                    </div>
+
+                    {!form.watch("auto_detect_language") ? (
+                      <div>
+                        <Label htmlFor="language">Primary Language</Label>
+                        <Select 
+                          value={form.watch("language")} 
+                          onValueChange={(value) => form.setValue("language", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select language" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border shadow-md">
+                            <SelectItem value="en">English</SelectItem>
+                            <SelectItem value="es">Spanish</SelectItem>
+                            <SelectItem value="fr">French</SelectItem>
+                            <SelectItem value="de">German</SelectItem>
+                            <SelectItem value="it">Italian</SelectItem>
+                            <SelectItem value="pt">Portuguese</SelectItem>
+                            <SelectItem value="zh">Chinese</SelectItem>
+                            <SelectItem value="ja">Japanese</SelectItem>
+                            <SelectItem value="ko">Korean</SelectItem>
+                            <SelectItem value="hi">Hindi</SelectItem>
+                            <SelectItem value="ar">Arabic</SelectItem>
+                            <SelectItem value="ru">Russian</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : (
+                      <div>
+                        <Label>Supported Languages</Label>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Agent will automatically detect and respond in these languages
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {['en', 'es', 'fr', 'de', 'it', 'pt', 'zh', 'ja', 'ko'].map((lang) => (
+                            <Badge key={lang} variant="outline">
+                              {lang.toUpperCase()}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Prompt & Persona */}
+            <AccordionItem value="prompt" className="border rounded-lg">
+              <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                <div className="flex items-center">
+                  <MessageSquare className="h-5 w-5 mr-3 text-primary" />
+                  <span className="font-semibold">Prompt & Persona</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6">
+                <div className="space-y-4">
                   <div>
-                    <Label htmlFor="name">Agent Name</Label>
-                    <Input
-                      id="name"
-                      {...form.register("name")}
-                      placeholder="Enter agent name"
+                    <Label htmlFor="global_prompt">Global Prompt</Label>
+                    <Textarea
+                      id="global_prompt"
+                      {...form.register("global_prompt")}
+                      placeholder="Define your agent's personality, role, and how it should behave during conversations..."
+                      className="min-h-[120px]"
                     />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      This prompt defines your agent's personality and behavior throughout the conversation
+                    </p>
                   </div>
 
                   <div>
-                    <Label htmlFor="language">Language</Label>
-                    <Select 
-                      value={form.watch("language")} 
-                      onValueChange={(value) => form.setValue("language", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select language" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border shadow-md">
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                        <SelectItem value="fr">French</SelectItem>
-                        <SelectItem value="de">German</SelectItem>
-                        <SelectItem value="it">Italian</SelectItem>
-                        <SelectItem value="pt">Portuguese</SelectItem>
-                        <SelectItem value="zh">Chinese</SelectItem>
-                        <SelectItem value="ja">Japanese</SelectItem>
-                        <SelectItem value="ko">Korean</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="first_message">First Message</Label>
+                    <Textarea
+                      id="first_message"
+                      {...form.register("first_message")}
+                      placeholder="Hi! How can I help you today?"
+                      className="min-h-[80px]"
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      The greeting message your agent will use to start conversations
+                    </p>
                   </div>
                 </div>
               </AccordionContent>
@@ -390,42 +559,69 @@ const RetellAgentSettings = () => {
               <AccordionContent className="px-6 pb-6">
                 <div className="space-y-6">
                   {/* Voice Selection */}
-                  <div>
-                    <Label>Voice Selection</Label>
-                    <Select 
-                      value={form.watch("voice_id") || ""} 
-                      onValueChange={(value) => form.setValue("voice_id", value)}
-                      disabled={voicesLoading}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={voicesLoading ? "Loading voices..." : "Select a voice"} />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border shadow-md max-h-60">
-                        {voices.map((voice) => (
-                          <SelectItem key={voice.voice_id} value={voice.voice_id}>
-                            <div className="flex items-center justify-between w-full">
-                              <div>
-                                <span className="font-medium">{voice.voice_name}</span>
-                                <span className="text-muted-foreground ml-2">({voice.gender}, {voice.accent})</span>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Voice Selection</Label>
+                      <Select 
+                        value={form.watch("voice_id") || ""} 
+                        onValueChange={(value) => form.setValue("voice_id", value)}
+                        disabled={voicesLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={voicesLoading ? "Loading voices..." : "Select a voice"} />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-md max-h-60">
+                          {voices.map((voice) => (
+                            <SelectItem key={voice.voice_id} value={voice.voice_id}>
+                              <div className="flex items-center justify-between w-full">
+                                <div>
+                                  <span className="font-medium">{voice.voice_name}</span>
+                                  <span className="text-muted-foreground ml-2">
+                                    ({voice.gender}, {voice.accent})
+                                    {voice.provider && ` • ${voice.provider}`}
+                                  </span>
+                                </div>
+                                {voice.preview_url && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      playVoicePreview(voice.voice_id, voice.preview_url)
+                                    }}
+                                  >
+                                    <Play className="h-3 w-3" />
+                                  </Button>
+                                )}
                               </div>
-                              {voice.preview_url && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    playVoicePreview(voice.voice_id, voice.preview_url)
-                                  }}
-                                >
-                                  <Play className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Voice Model Selection */}
+                    <div>
+                      <Label htmlFor="voice_model">Voice Model</Label>
+                      <Select 
+                        value={form.watch("voice_model") || ""} 
+                        onValueChange={(value) => form.setValue("voice_model", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select voice model" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-md">
+                          <SelectItem value="eleven_multilingual_v2">Eleven Multilingual v2 (High Quality)</SelectItem>
+                          <SelectItem value="eleven_turbo_v2_5">Eleven Turbo v2.5 (Low Latency)</SelectItem>
+                          <SelectItem value="eleven_turbo_v2">Eleven Turbo v2 (English Only)</SelectItem>
+                          <SelectItem value="eleven_multilingual_v1">Eleven Multilingual v1 (Legacy)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Choose the AI model for voice generation - impacts quality and latency
+                      </p>
+                    </div>
                   </div>
 
                   {/* Voice Controls */}
@@ -472,7 +668,7 @@ const RetellAgentSettings = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <Label>Normalize for Speech</Label>
-                        <p className="text-sm text-muted-foreground">Optimize audio for spoken content</p>
+                        <p className="text-sm text-muted-foreground">Convert numbers, currency, dates to spoken form</p>
                       </div>
                       <Switch
                         checked={form.watch("normalize_for_speech")}
@@ -504,6 +700,37 @@ const RetellAgentSettings = () => {
                         />
                       </div>
                     )}
+                  </div>
+
+                  {/* Pronunciation Dictionary */}
+                  <div className="p-4 bg-muted/20 rounded-lg">
+                    <h4 className="font-medium mb-3">Pronunciation Dictionary</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="pronunciation_dict">Custom Pronunciations (JSON)</Label>
+                        <Textarea
+                          id="pronunciation_dict"
+                          value={typeof form.watch("pronunciation_dict") === 'object' 
+                            ? JSON.stringify(form.watch("pronunciation_dict"), null, 2)
+                            : form.watch("pronunciation_dict") || ""
+                          }
+                          onChange={(e) => {
+                            try {
+                              const parsed = JSON.parse(e.target.value)
+                              form.setValue("pronunciation_dict", parsed)
+                            } catch {
+                              form.setValue("pronunciation_dict", e.target.value)
+                            }
+                          }}
+                          placeholder='{"API": "ay-pee-eye", "OAuth": "oh-auth"}'
+                          className="min-h-[80px] font-mono text-sm"
+                        />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Define custom pronunciations using IPA or CMU phonetic notation for better speech quality.
+                        Example: {"{"}"API": "ay-pee-eye", "SQL": "sequel"{"}"}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </AccordionContent>
