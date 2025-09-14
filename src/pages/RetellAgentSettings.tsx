@@ -31,7 +31,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { ArrowLeft, Save, Undo2, Play, Upload, Volume2, Settings, Shield, Phone, MessageSquare, Mic, Clock } from "lucide-react"
+import { ArrowLeft, Save, Undo2, Play, Upload, Volume2, Settings, Shield, Phone, MessageSquare, Mic, Clock, Database, Zap, Globe } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 
@@ -1062,46 +1062,226 @@ const RetellAgentSettings = () => {
               </AccordionContent>
             </AccordionItem>
 
-            {/* Transfer Settings */}
-            <AccordionItem value="transfer" className="border rounded-lg">
+            {/* Knowledge Base Settings */}
+            <AccordionItem value="knowledge" className="border rounded-lg">
               <AccordionTrigger className="px-6 py-4 hover:no-underline">
                 <div className="flex items-center">
-                  <Phone className="h-5 w-5 mr-3 text-primary" />
-                  <span className="font-semibold">Call Transfer Settings</span>
+                  <Database className="h-5 w-5 mr-3 text-primary" />
+                  <span className="font-semibold">Knowledge Base</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
-                <div className="space-y-4">
+                <div className="space-y-6">
+                  
+                  {/* Current Knowledge Bases */}
                   <div>
-                    <Label htmlFor="transfer_mode">Transfer Mode</Label>
-                    <Select 
-                      value={form.watch("transfer_mode")} 
-                      onValueChange={(value) => form.setValue("transfer_mode", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select transfer mode" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border shadow-md">
-                        <SelectItem value="disabled">Disabled</SelectItem>
-                        <SelectItem value="warm">Warm Transfer</SelectItem>
-                        <SelectItem value="cold">Cold Transfer</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <h4 className="font-medium mb-3">Attached Knowledge Bases</h4>
+                    <div className="space-y-3">
+                      {form.watch("kb_ids")?.length > 0 ? (
+                        form.watch("kb_ids").map((kbId, index) => (
+                          <div key={kbId} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className="h-8 w-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                <Database className="h-4 w-4 text-primary" />
+                              </div>
+                              <div>
+                                <p className="font-medium">Knowledge Base {index + 1}</p>
+                                <p className="text-sm text-muted-foreground">ID: {kbId}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                Active
+                              </Badge>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const updatedKbs = form.watch("kb_ids").filter(id => id !== kbId)
+                                  form.setValue("kb_ids", updatedKbs)
+                                }}
+                              >
+                                Detach
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Database className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                          <p>No knowledge bases attached</p>
+                          <p className="text-sm">Attach knowledge bases to provide context for your agent</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {form.watch("transfer_mode") !== "disabled" && (
-                    <div>
-                      <Label htmlFor="transfer_number">Transfer Number</Label>
+                  {/* Add Knowledge Base */}
+                  <div className="p-4 bg-muted/20 rounded-lg">
+                    <h4 className="font-medium mb-3">Attach Knowledge Base</h4>
+                    <div className="flex space-x-3">
                       <Input
-                        id="transfer_number"
-                        {...form.register("transfer_number")}
-                        placeholder="+1234567890"
+                        placeholder="Enter Knowledge Base ID"
+                        value=""
+                        onChange={() => {}}
                       />
+                      <Button variant="outline">
+                        Attach
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      You can create and manage knowledge bases in the Knowledge section of your dashboard
+                    </p>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Transfers & Tools */}
+            <AccordionItem value="transfers-tools" className="border rounded-lg">
+              <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                <div className="flex items-center">
+                  <Zap className="h-5 w-5 mr-3 text-primary" />
+                  <span className="font-semibold">Transfers & Tools</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6">
+                <div className="space-y-6">
+                  
+                  {/* Transfer Settings */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Human Transfer</h4>
+                    <div>
+                      <Label htmlFor="transfer_mode">Transfer Mode</Label>
+                      <Select 
+                        value={form.watch("transfer_mode") || "disabled"} 
+                        onValueChange={(value) => form.setValue("transfer_mode", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select transfer mode" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-md">
+                          <SelectItem value="disabled">Disabled</SelectItem>
+                          <SelectItem value="warm">Warm Transfer</SelectItem>
+                          <SelectItem value="cold">Cold Transfer</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Enter the phone number in E.164 format (e.g., +1234567890)
+                        Warm transfer = agent stays on call. Cold transfer = agent leaves
                       </p>
                     </div>
-                  )}
+
+                    {form.watch("transfer_mode") !== "disabled" && (
+                      <div>
+                        <Label htmlFor="transfer_number">Transfer Number</Label>
+                        <Input
+                          id="transfer_number"
+                          {...form.register("transfer_number")}
+                          placeholder="+1234567890"
+                        />
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Enter the phone number in E.164 format (e.g., +1234567890)
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Custom Functions/Web Calls */}
+                  <div className="space-y-4 p-4 bg-muted/20 rounded-lg">
+                    <h4 className="font-medium">Custom Functions & Web Calls</h4>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="webhook_url">Webhook URL</Label>
+                        <div className="flex space-x-2">
+                          <div className="flex-1">
+                            <Input
+                              id="webhook_url"
+                              {...form.register("webhook_url")}
+                              placeholder="https://your-api.com/webhook"
+                            />
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Globe className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          HTTP endpoint for custom function calls with HMAC signature headers
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label>HTTP Method</Label>
+                          <Select defaultValue="POST">
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background border shadow-md">
+                              <SelectItem value="POST">POST</SelectItem>
+                              <SelectItem value="PUT">PUT</SelectItem>
+                              <SelectItem value="PATCH">PATCH</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label>Authentication</Label>
+                          <Select defaultValue="hmac">
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background border shadow-md">
+                              <SelectItem value="hmac">HMAC Signature</SelectItem>
+                              <SelectItem value="bearer">Bearer Token</SelectItem>
+                              <SelectItem value="none">None</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Variables */}
+                  <div className="space-y-4 p-4 bg-muted/20 rounded-lg">
+                    <h4 className="font-medium">Dynamic Variables</h4>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Use these variables in greetings, voicemail messages, and transfer targets
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-2">
+                        <h5 className="font-medium">Call Variables</h5>
+                        <div className="space-y-1 font-mono text-xs">
+                          <div><code>{"{{caller_number}}"}</code> - Caller's phone number</div>
+                          <div><code>{"{{call_id}}"}</code> - Unique call identifier</div>
+                          <div><code>{"{{timestamp}}"}</code> - Call start time</div>
+                          <div><code>{"{{agent_name}}"}</code> - Agent's name</div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <h5 className="font-medium">User Variables</h5>
+                        <div className="space-y-1 font-mono text-xs">
+                          <div><code>{"{{user_name}}"}</code> - Identified user name</div>
+                          <div><code>{"{{user_email}}"}</code> - User's email address</div>
+                          <div><code>{"{{user_company}}"}</code> - User's company</div>
+                          <div><code>{"{{custom_field}}"}</code> - Custom data fields</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <Label htmlFor="variable_examples">Example Usage</Label>
+                      <Textarea
+                        id="variable_examples"
+                        value={`Hello {{user_name}}, this is {{agent_name}} calling from your company.
+
+Voicemail: "Hi {{user_name}}, I called at {{timestamp}} but missed you. Please call back at your convenience."`}
+                        readOnly
+                        className="min-h-[80px] font-mono text-sm bg-muted/50"
+                      />
+                    </div>
+                  </div>
                 </div>
               </AccordionContent>
             </AccordionItem>
