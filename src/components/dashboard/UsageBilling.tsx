@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AdminChecklistBanner } from "@/components/admin/AdminChecklistBanner";
 import { BillingTestPanel } from "@/components/dashboard/BillingTestPanel";
 import { useUsageData } from "@/hooks/useUsageData";
+import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import { ConcurrencyCard } from "@/components/dashboard/widgets/ConcurrencyCard";
 
 interface UsageData {
@@ -51,10 +52,7 @@ interface UsageBillingProps {
 
 export function UsageBilling({ organizationId }: UsageBillingProps) {
   const { toast } = useToast();
-  const [dateRange, setDateRange] = useState({
-    from: subDays(new Date(), 30),
-    to: new Date(),
-  });
+  const { dateRange, setDateRange } = useDashboardDateRange();
   
   const [isSyncing, setIsSyncing] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
@@ -292,21 +290,14 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
               <PopoverTrigger asChild>
                 <Button variant="outline" className="gap-2">
                   <CalendarIcon className="h-4 w-4" />
-                  {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd")}
+                  {dateRange?.from && dateRange?.to ? `${format(dateRange.from, "MMM dd")} - ${format(dateRange.to, "MMM dd")}` : "Select date range"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
                 <Calendar
                   mode="range"
-                  selected={{
-                    from: dateRange.from,
-                    to: dateRange.to,
-                  }}
-                  onSelect={(range) => {
-                    if (range?.from && range?.to) {
-                      setDateRange({ from: range.from, to: range.to });
-                    }
-                  }}
+                  selected={dateRange}
+                  onSelect={setDateRange}
                   numberOfMonths={2}
                 />
               </PopoverContent>

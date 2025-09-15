@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import { useDashboardDateRange } from "@/hooks/useDashboardDateRange"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -295,6 +296,7 @@ const AllAgentsTab = () => {
 const PerformanceTab = () => {
   const { organization } = useUserOrganization()
   const { analytics, loading, getByAgent } = useRetellAnalytics(organization?.id)
+  const { dateRange } = useDashboardDateRange()
   const [agentPerformance, setAgentPerformance] = useState<any[]>([])
   const [perfLoading, setPerfLoading] = useState(false)
 
@@ -305,7 +307,12 @@ const PerformanceTab = () => {
       
       setPerfLoading(true)
       try {
-        const agentData = await getByAgent()
+        const dateFilter = dateRange?.from && dateRange?.to ? {
+          start: dateRange.from.toISOString(),
+          end: dateRange.to.toISOString()
+        } : undefined
+        
+        const agentData = await getByAgent(dateFilter)
         setAgentPerformance(agentData)
       } catch (error) {
         console.error('Error loading agent performance:', error)
@@ -315,7 +322,7 @@ const PerformanceTab = () => {
     }
 
     loadAgentPerformance()
-  }, [organization?.id, getByAgent])
+  }, [organization?.id, dateRange, getByAgent])
 
   if (loading) {
     return (
