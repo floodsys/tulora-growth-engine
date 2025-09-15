@@ -42,6 +42,7 @@ import iconLogo from "@/assets/logo_icon_v2.svg"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { useCanonicalUserRole } from "@/hooks/useCanonicalUserRole"
 import { useRetellAgents } from "@/hooks/useRetellAgents"
+import { useAuth } from "@/contexts/AuthContext"
 
 
 const sidebarGroups = [
@@ -100,6 +101,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
   const { organizationId } = useUserOrganization()
   const { isOwner, isAdmin } = useCanonicalUserRole(organizationId)
   const { agents } = useRetellAgents(organizationId)
+  const { user } = useAuth()
 
   // Find which group contains the active screen
   const getActiveGroupIndex = () => {
@@ -110,7 +112,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
 
   // Initialize group expansion states - avoid initial flash by computing sync
   const [groupStates, setGroupStates] = useState<Record<number, boolean>>(() => {
-    const storageKey = `sidebar-groups-${organizationId || 'default'}`
+    const storageKey = `sidebar-groups-${user?.id || 'anon'}-${organizationId || 'default'}`
     const saved = localStorage.getItem(storageKey)
 
     if (saved) {
