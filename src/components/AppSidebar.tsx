@@ -37,6 +37,9 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { Link } from "react-router-dom"
 import logo from "@/assets/logo.svg"
 import iconLogo from "@/assets/logo_icon_v2.svg"
+import { useUserOrganization } from "@/hooks/useUserOrganization"
+import { useCanonicalUserRole } from "@/hooks/useCanonicalUserRole"
+import { useRetellAgents } from "@/hooks/useRetellAgents"
 
 
 const sidebarGroups = [
@@ -92,6 +95,28 @@ interface AppSidebarProps {
 export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
   const { state } = useSidebar()
   const isMobile = useIsMobile()
+  const { organizationId } = useUserOrganization()
+  const { isOwner, isAdmin } = useCanonicalUserRole(organizationId)
+  const { agents } = useRetellAgents(organizationId)
+
+  // Filter groups based on permissions and capabilities
+  const filteredGroups = sidebarGroups.map(group => {
+    if (group.label === "Admin" && !isOwner && !isAdmin) {
+      return null // Hide entire Admin group for non-admin users
+    }
+    
+    return {
+      ...group,
+      items: group.items.filter(item => {
+        // Keep SMS/10DLC visible for now (no SMS capability check available)
+        // Keep Widgets visible if agents exist, otherwise show anyway (fallback)
+        if (item.title === "Widgets" && agents && agents.length === 0) {
+          return false
+        }
+        return true
+      })
+    }
+  }).filter(Boolean)
 
   return (
     <Sidebar 
@@ -132,7 +157,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
             )}
             
             <SidebarGroupContent className={state === "collapsed" && !isMobile ? "pl-1 pr-4" : "px-3"}>
-              {sidebarGroups.map((group, groupIndex) => (
+              {filteredGroups.map((group, groupIndex) => (
                 <div key={groupIndex} className={groupIndex > 0 ? "mt-6" : ""}>
                   {group.label && (state !== "collapsed" || isMobile) && (
                     <div className="px-3 mb-2">
