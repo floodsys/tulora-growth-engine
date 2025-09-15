@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -294,7 +294,28 @@ const AllAgentsTab = () => {
 
 const PerformanceTab = () => {
   const { organization } = useUserOrganization()
-  const { analytics, loading } = useRetellAnalytics(organization?.id)
+  const { analytics, loading, getByAgent } = useRetellAnalytics(organization?.id)
+  const [agentPerformance, setAgentPerformance] = useState<any[]>([])
+  const [perfLoading, setPerfLoading] = useState(false)
+
+  // Load agent performance data
+  useEffect(() => {
+    const loadAgentPerformance = async () => {
+      if (!organization?.id) return
+      
+      setPerfLoading(true)
+      try {
+        const agentData = await getByAgent()
+        setAgentPerformance(agentData)
+      } catch (error) {
+        console.error('Error loading agent performance:', error)
+      } finally {
+        setPerfLoading(false)
+      }
+    }
+
+    loadAgentPerformance()
+  }, [organization?.id, getByAgent])
 
   if (loading) {
     return (
@@ -392,14 +413,14 @@ const PerformanceTab = () => {
       </div>
 
       {/* Agent Performance Table */}
-      {analytics.agent_performance.length > 0 && (
+      {(analytics?.agent_performance.length > 0 || agentPerformance.length > 0) && (
         <Card>
           <CardHeader>
             <CardTitle>Agent Performance</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {analytics.agent_performance.map(agent => (
+              {(agentPerformance.length > 0 ? agentPerformance : analytics?.agent_performance || []).map(agent => (
                 <div key={agent.agent_id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center gap-3">
                     <Bot className="h-8 w-8 text-primary" />
