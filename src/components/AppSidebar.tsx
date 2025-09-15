@@ -39,19 +39,49 @@ import logo from "@/assets/logo.svg"
 import iconLogo from "@/assets/logo_icon_v2.svg"
 
 
-const items = [
-  { title: "Overview", url: "overview", icon: BarChart3 },
-  { title: "Calls", url: "calls", icon: Phone },
-  { title: "Agents", url: "agents", icon: Bot },
-  { title: "Numbers", url: "numbers", icon: Hash },
-  { title: "SMS / 10DLC", url: "sms", icon: MessageSquare },
-  { title: "Knowledge Base", url: "knowledge", icon: BookOpen },
-  { title: "Scheduling", url: "scheduling", icon: Calendar },
-  { title: "Widgets", url: "widgets", icon: MessageCircle },
-  { title: "Security", url: "security", icon: Settings },
-  { title: "Access Control", url: "access-control", icon: Users },
-  { title: "Organization", url: "organization", icon: Building2 },
-  { title: "Usage & Billing", url: "billing", icon: CreditCard },
+const sidebarGroups = [
+  {
+    label: null,
+    items: [
+      { title: "Overview", url: "overview", icon: BarChart3 },
+    ]
+  },
+  {
+    label: "Build",
+    items: [
+      { title: "Agents", url: "agents", icon: Bot },
+      { title: "Knowledge Base", url: "knowledge", icon: BookOpen },
+    ]
+  },
+  {
+    label: "Run", 
+    items: [
+      { title: "Calls", url: "calls", icon: Phone },
+      { title: "Scheduling", url: "scheduling", icon: Calendar },
+    ]
+  },
+  {
+    label: "Channels",
+    items: [
+      { title: "Numbers", url: "numbers", icon: Hash },
+      { title: "SMS / 10DLC", url: "sms", icon: MessageSquare },
+      { title: "Widgets", url: "widgets", icon: MessageCircle },
+    ]
+  },
+  {
+    label: "Analyze",
+    items: [
+      { title: "Usage & Billing", url: "billing", icon: CreditCard },
+    ]
+  },
+  {
+    label: "Admin",
+    items: [
+      { title: "Organization", url: "organization", icon: Building2 },
+      { title: "Access Control", url: "access-control", icon: Users },
+      { title: "Security", url: "security", icon: Settings },
+    ]
+  }
 ]
 
 interface AppSidebarProps {
@@ -102,19 +132,30 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
             )}
             
             <SidebarGroupContent className={state === "collapsed" && !isMobile ? "pl-1 pr-4" : "px-3"}>
-              <SidebarMenu className="space-y-1">
-                {items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      onClick={() => setActiveScreen(item.url)}
-                      className={`h-10 ${state === "collapsed" && !isMobile ? "pl-1 pr-4" : "px-3"} ${activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {(state !== "collapsed" || isMobile) && <span className="ml-3">{item.title}</span>}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
+              {sidebarGroups.map((group, groupIndex) => (
+                <div key={groupIndex} className={groupIndex > 0 ? "mt-6" : ""}>
+                  {group.label && (state !== "collapsed" || isMobile) && (
+                    <div className="px-3 mb-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        {group.label}
+                      </p>
+                    </div>
+                  )}
+                  <SidebarMenu className="space-y-1">
+                    {group.items.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton 
+                          onClick={() => setActiveScreen(item.url)}
+                          className={`h-10 ${state === "collapsed" && !isMobile ? "pl-1 pr-4" : "px-3"} ${activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          {(state !== "collapsed" || isMobile) && <span className="ml-3">{item.title}</span>}
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </div>
+              ))}
             </SidebarGroupContent>
           </SidebarGroup>
         </div>
