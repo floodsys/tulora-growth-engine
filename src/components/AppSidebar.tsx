@@ -46,6 +46,9 @@ const items = [
   { title: "SMS / 10DLC", url: "sms", icon: MessageSquare },
   { title: "Knowledge Base", url: "knowledge", icon: BookOpen },
   { title: "Scheduling", url: "scheduling", icon: Calendar },
+  { title: "Widgets", url: "widgets", icon: MessageCircle },
+  { title: "Security", url: "security", icon: Settings },
+  { title: "Access Control", url: "access-control", icon: Users },
   { title: "Organization", url: "organization", icon: Building2 },
   { title: "Usage & Billing", url: "billing", icon: CreditCard },
 ]
