@@ -96,7 +96,7 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
-  const { state } = useSidebar()
+  const { state, setOpenMobile } = useSidebar()
   const isMobile = useIsMobile()
   const { organizationId } = useUserOrganization()
   const { isOwner, isAdmin } = useCanonicalUserRole(organizationId)
@@ -112,7 +112,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
 
   // Initialize group expansion states - avoid initial flash by computing sync
   const [groupStates, setGroupStates] = useState<Record<number, boolean>>(() => {
-    const storageKey = `sidebar-groups-${user?.id || 'anon'}-${organizationId || 'default'}`
+    const storageKey = `sidebar-groups-${user?.id || 'anon'}-${organizationId || 'default'}-${isMobile ? 'm' : 'd'}`
     const saved = localStorage.getItem(storageKey)
 
     if (saved) {
@@ -133,7 +133,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
 
   // Re-evaluate defaults when org or viewport changes (preserve explicit saves)
   useEffect(() => {
-    const storageKey = `sidebar-groups-${organizationId || 'default'}`
+    const storageKey = `sidebar-groups-${user?.id || 'anon'}-${organizationId || 'default'}-${isMobile ? 'm' : 'd'}`
     const saved = localStorage.getItem(storageKey)
     if (saved) {
       try {
@@ -147,7 +147,12 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
       defaultState[index] = !isMobile
     })
     setGroupStates(defaultState)
-  }, [organizationId, isMobile])
+  }, [organizationId, user?.id, isMobile])
+
+  // Ensure mobile sheet is closed by default
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false)
+  }, [isMobile, setOpenMobile])
 
   // Auto-expand group containing active route
   useEffect(() => {
@@ -162,9 +167,9 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
 
   // Persist group states to localStorage
   useEffect(() => {
-    const storageKey = `sidebar-groups-${organizationId || 'default'}`
+    const storageKey = `sidebar-groups-${user?.id || 'anon'}-${organizationId || 'default'}-${isMobile ? 'm' : 'd'}`
     localStorage.setItem(storageKey, JSON.stringify(groupStates))
-  }, [groupStates, organizationId])
+  }, [groupStates, organizationId, user?.id, isMobile])
 
   const toggleGroup = (groupIndex: number) => {
     setGroupStates(prev => ({
@@ -248,7 +253,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
                       </button>
                     </div>
                   )}
-                  {(groupStates[groupIndex] !== false || groupIndex === 0) && (
+                  {(groupStates[groupIndex] === true || groupIndex === 0) && (
                     <SidebarMenu className="space-y-1">
                       {group.items.map((item) => (
                         <SidebarMenuItem key={item.title}>
