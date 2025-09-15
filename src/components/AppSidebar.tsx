@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react"
 import { 
   BarChart3, 
   Phone, 
@@ -15,6 +16,7 @@ import {
   Users2,
   PlayCircle,
   ChevronRight,
+  ChevronDown,
   Hash
 } from "lucide-react"
 
@@ -99,6 +101,56 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
   const { isOwner, isAdmin } = useCanonicalUserRole(organizationId)
   const { agents } = useRetellAgents(organizationId)
 
+  // Find which group contains the active screen
+  const getActiveGroupIndex = () => {
+    return sidebarGroups.findIndex(group => 
+      group.items.some(item => item.url === activeScreen)
+    )
+  }
+
+  // Initialize group expansion states
+  const [groupStates, setGroupStates] = useState<Record<number, boolean>>(() => {
+    const storageKey = `sidebar-groups-${organizationId || 'default'}`
+    const saved = localStorage.getItem(storageKey)
+    
+    if (saved) {
+      // Returning user - restore saved state
+      return JSON.parse(saved)
+    } else {
+      // First visit - expand all on desktop, collapse on mobile
+      const defaultState: Record<number, boolean> = {}
+      sidebarGroups.forEach((_, index) => {
+        if (index === 0) return // Overview is always top-level, no group state needed
+        defaultState[index] = !isMobile
+      })
+      return defaultState
+    }
+  })
+
+  // Auto-expand group containing active route
+  useEffect(() => {
+    const activeGroupIndex = getActiveGroupIndex()
+    if (activeGroupIndex > 0 && !groupStates[activeGroupIndex]) {
+      setGroupStates(prev => ({
+        ...prev,
+        [activeGroupIndex]: true
+      }))
+    }
+  }, [activeScreen])
+
+  // Persist group states to localStorage
+  useEffect(() => {
+    const storageKey = `sidebar-groups-${organizationId || 'default'}`
+    localStorage.setItem(storageKey, JSON.stringify(groupStates))
+  }, [groupStates, organizationId])
+
+  const toggleGroup = (groupIndex: number) => {
+    setGroupStates(prev => ({
+      ...prev,
+      [groupIndex]: !prev[groupIndex]
+    }))
+  }
+
   // Filter groups based on permissions and capabilities
   const filteredGroups = sidebarGroups.map(group => {
     if (group.label === "Admin" && !isOwner && !isAdmin) {
@@ -161,24 +213,34 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
                 <div key={groupIndex} className={groupIndex > 0 ? "mt-6" : ""}>
                   {group.label && (state !== "collapsed" || isMobile) && (
                     <div className="px-3 mb-2">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        {group.label}
-                      </p>
+                      <button
+                        onClick={() => toggleGroup(groupIndex)}
+                        className="flex items-center justify-between w-full text-xs font-medium text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
+                      >
+                        <span>{group.label}</span>
+                        {groupStates[groupIndex] ? (
+                          <ChevronDown className="h-3 w-3" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3" />
+                        )}
+                      </button>
                     </div>
                   )}
-                  <SidebarMenu className="space-y-1">
-                    {group.items.map((item) => (
-                      <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton 
-                          onClick={() => setActiveScreen(item.url)}
-                          className={`h-10 ${state === "collapsed" && !isMobile ? "pl-1 pr-4" : "px-3"} ${activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
-                        >
-                          <item.icon className="h-4 w-4" />
-                          {(state !== "collapsed" || isMobile) && <span className="ml-3">{item.title}</span>}
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
+                  {(groupStates[groupIndex] !== false || groupIndex === 0) && (
+                    <SidebarMenu className="space-y-1">
+                      {group.items.map((item) => (
+                        <SidebarMenuItem key={item.title}>
+                          <SidebarMenuButton 
+                            onClick={() => setActiveScreen(item.url)}
+                            className={`h-10 ${state === "collapsed" && !isMobile ? "pl-1 pr-4" : "px-3"} ${activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
+                          >
+                            <item.icon className="h-4 w-4" />
+                            {(state !== "collapsed" || isMobile) && <span className="ml-3">{item.title}</span>}
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  )}
                 </div>
               ))}
             </SidebarGroupContent>
