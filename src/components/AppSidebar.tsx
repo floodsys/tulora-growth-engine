@@ -17,7 +17,8 @@ import {
   PlayCircle,
   ChevronRight,
   ChevronDown,
-  Hash
+  Hash,
+  User
 } from "lucide-react"
 
 import {
@@ -84,6 +85,8 @@ const sidebarGroups = [
     label: "Admin",
     items: [
       { title: "Organization", url: "organization", icon: Building2 },
+      { title: "Team", url: "team", icon: Users2 },
+      { title: "Profile", url: "profile", icon: User },
       { title: "Access Control", url: "access-control", icon: Users },
       { title: "Security", url: "security", icon: Settings },
     ]
