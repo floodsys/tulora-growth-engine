@@ -220,8 +220,6 @@ export default function AdminStripeConfig() {
 
         {/* Status Overview */}
         <StripeStatusCard 
-          status={status} 
-          onRefresh={handleRefresh}
           refreshing={refreshing}
         />
 
