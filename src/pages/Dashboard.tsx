@@ -3,7 +3,10 @@ import { AppSidebar } from "@/components/AppSidebar"
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview"
 import { CallsScreen } from "@/components/dashboard/CallsScreen"
 import { AgentsScreen } from "@/components/dashboard/AgentsScreen"
-import { NumbersView } from "@/components/NumbersView"
+import { NumbersManagement } from "@/components/dashboard/NumbersManagement"
+import { WidgetManagement } from "@/components/dashboard/WidgetManagement"
+import { AbusePreventionSettings } from "@/components/dashboard/AbusePreventionSettings"
+import { AccessControlSettings } from "@/components/dashboard/AccessControlSettings"
 import SMSView from "@/components/SMSView"
 import { KnowledgeBase } from "@/components/dashboard/KnowledgeBase"
 import { Scheduling } from "@/components/dashboard/Scheduling"
@@ -70,7 +73,13 @@ const Dashboard = () => {
       case "agents":
         return <AgentsScreen />
       case "numbers":
-        return <NumbersView />
+        return <NumbersManagement />
+      case "widgets":
+        return <WidgetManagement />
+      case "security":
+        return <AbusePreventionSettings />
+      case "access-control":
+        return <AccessControlSettings />
       case "sms":
         return <SMSView />
       case "knowledge":
