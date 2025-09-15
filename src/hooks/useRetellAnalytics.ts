@@ -93,6 +93,122 @@ export const useRetellAnalytics = (organizationId?: string) => {
     }
   }
 
+  // New method: Get KPIs for dashboard overview
+  const getKpis = async (dateRange?: { start: string; end: string }) => {
+    if (!organizationId) return null
+
+    try {
+      let query = supabase
+        .from('retell_calls')
+        .select('*')
+        .eq('organization_id', organizationId)
+
+      if (dateRange) {
+        query = query
+          .gte('started_at', dateRange.start)
+          .lte('started_at', dateRange.end)
+      }
+
+      const { data: calls, error } = await query
+
+      if (error) throw error
+
+      const totalCalls = calls?.length || 0
+      const completedCalls = calls?.filter(c => c.status === 'completed').length || 0
+      const avgDurationSec = calls?.length > 0 
+        ? calls.reduce((sum, call) => sum + (call.duration_ms || 0), 0) / calls.length / 1000
+        : 0
+      const activeAgents = new Set(calls?.map(c => c.agent_id).filter(Boolean)).size
+
+      return {
+        totalCalls,
+        completedCalls,
+        avgDurationMinutes: Math.round(avgDurationSec / 60),
+        activeAgents,
+      }
+    } catch (error) {
+      console.error('Error loading KPIs:', error)
+      return null
+    }
+  }
+
+  // New method: Get analytics by agent
+  const getByAgent = async (dateRange?: { start: string; end: string }) => {
+    if (!organizationId) return []
+
+    try {
+      // First get all calls
+      let callQuery = supabase
+        .from('retell_calls')
+        .select('*')
+        .eq('organization_id', organizationId)
+
+      if (dateRange) {
+        callQuery = callQuery
+          .gte('started_at', dateRange.start)
+          .lte('started_at', dateRange.end)
+      }
+
+      const { data: calls, error: callError } = await callQuery
+
+      if (callError) throw callError
+
+      // Get unique agent IDs
+      const agentIds = [...new Set(calls?.map(c => c.agent_id).filter(Boolean))]
+      
+      // Get agent names
+      const { data: agents, error: agentError } = await supabase
+        .from('retell_agents')
+        .select('agent_id, name')
+        .in('agent_id', agentIds)
+        .eq('organization_id', organizationId)
+
+      if (agentError) {
+        console.warn('Could not fetch agent names:', agentError)
+      }
+
+      // Create agent name lookup
+      const agentNames: { [key: string]: string } = {}
+      agents?.forEach(agent => {
+        agentNames[agent.agent_id] = agent.name
+      })
+
+      // Group by agent and calculate performance
+      const agentStats: { [agentId: string]: any } = {}
+      calls?.forEach(call => {
+        if (!call.agent_id) return
+        
+        if (!agentStats[call.agent_id]) {
+          agentStats[call.agent_id] = {
+            agent_id: call.agent_id,
+            agent_name: agentNames[call.agent_id] || 'Unknown',
+            calls: [],
+          }
+        }
+        agentStats[call.agent_id].calls.push(call)
+      })
+
+      return Object.values(agentStats).map((agent: any) => {
+        const calls = agent.calls
+        const successfulCalls = calls.filter((c: any) => c.status === 'completed')
+        const avgDuration = successfulCalls.length > 0
+          ? successfulCalls.reduce((sum: number, call: any) => sum + (call.duration_ms || 0), 0) / successfulCalls.length
+          : 0
+
+        return {
+          agent_id: agent.agent_id,
+          agent_name: agent.agent_name,
+          call_count: calls.length,
+          success_rate: calls.length > 0 ? (successfulCalls.length / calls.length) * 100 : 0,
+          avg_duration: Math.round(avgDuration / 1000), // Convert to seconds
+        }
+      }).sort((a, b) => b.call_count - a.call_count)
+    } catch (error) {
+      console.error('Error loading agent analytics:', error)
+      return []
+    }
+  }
+
   const processCallAnalytics = (calls: any[]): CallAnalytics => {
     const totalCalls = calls.length
     const successfulCalls = calls.filter(c => c.status === 'completed').length
@@ -187,5 +303,7 @@ export const useRetellAnalytics = (organizationId?: string) => {
     analytics,
     loading,
     loadAnalytics,
+    getKpis,
+    getByAgent,
   }
 }

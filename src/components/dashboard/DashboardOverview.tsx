@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { KpiCard } from "./widgets/KpiCard"
 import { TrendLine } from "./widgets/TrendLine"
 import { BarBySource } from "./widgets/BarBySource"
@@ -6,8 +6,11 @@ import { RecentCallsTable } from "./widgets/RecentCallsTable"
 import { DateRangePicker } from "./widgets/DateRangePicker"
 import { ActivityFeed } from "@/components/ActivityFeed"
 import { ManualAccessBannerContainer } from "@/components/ui/ManualAccessBannerContainer"
+import { useRetellAnalytics } from "@/hooks/useRetellAnalytics"
+import { useRetellCalls } from "@/hooks/useRetellCalls"
+import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { DateRange } from "react-day-picker"
-import { Users, Phone, Calendar, Star } from "lucide-react"
+import { Users, Phone, Calendar, Star, Bot } from "lucide-react"
 
 // Mock data
 const kpiData = {
@@ -68,6 +71,35 @@ const recentCalls = [
 export function DashboardOverview() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [loading, setLoading] = useState(false)
+  const [kpis, setKpis] = useState<any>(null)
+  
+  const { organization } = useUserOrganization()
+  const { getKpis } = useRetellAnalytics(organization?.id)
+  const { calls, getCallStats } = useRetellCalls(organization?.id)
+
+  // Load KPIs when date range changes
+  useEffect(() => {
+    const loadKpis = async () => {
+      if (!organization?.id) return
+      
+      setLoading(true)
+      try {
+        const dateFilter = dateRange?.from && dateRange?.to ? {
+          start: dateRange.from.toISOString(),
+          end: dateRange.to.toISOString()
+        } : undefined
+
+        const kpiData = await getKpis(dateFilter)
+        setKpis(kpiData)
+      } catch (error) {
+        console.error('Error loading KPIs:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadKpis()
+  }, [dateRange, organization?.id, getKpis])
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -90,31 +122,31 @@ export function DashboardOverview() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <KpiCard
-          title="New Leads"
-          value={kpiData.newLeads.value}
-          change={kpiData.newLeads.change}
-          icon={Users}
-          loading={loading}
-        />
-        <KpiCard
-          title="Calls Placed"
-          value={kpiData.callsPlaced.value}
-          change={kpiData.callsPlaced.change}
+          title="Total Calls"
+          value={kpis?.totalCalls || 0}
+          change={{ value: 0, isPositive: true }}
           icon={Phone}
           loading={loading}
         />
         <KpiCard
-          title="Meetings Booked"
-          value={kpiData.meetingsBooked.value}
-          change={kpiData.meetingsBooked.change}
+          title="Completed Calls"
+          value={kpis?.completedCalls || 0}
+          change={{ value: 0, isPositive: true }}
           icon={Calendar}
           loading={loading}
         />
         <KpiCard
-          title="CSAT Score"
-          value={kpiData.csat.value}
-          change={kpiData.csat.change}
+          title="Avg Duration"
+          value={`${kpis?.avgDurationMinutes || 0}m`}
+          change={{ value: 0, isPositive: true }}
           icon={Star}
+          loading={loading}
+        />
+        <KpiCard
+          title="Active Agents"
+          value={kpis?.activeAgents || 0}
+          change={{ value: 0, isPositive: true }}
+          icon={Bot}
           loading={loading}
         />
       </div>
@@ -137,7 +169,15 @@ export function DashboardOverview() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <RecentCallsTable
-            calls={recentCalls}
+            calls={calls.slice(0, 5).map(call => ({
+              id: call.id,
+              caller: call.from_e164 || 'Unknown',
+              outcome: call.outcome || 'Unknown',
+              sentiment: (call.sentiment === 'mixed' ? 'neutral' : call.sentiment) || 'neutral',
+              duration: Math.round((call.duration_ms || 0) / 1000),
+              owner: 'Agent',
+              timestamp: new Date(call.started_at || call.created_at)
+            }))}
             loading={loading}
             onCallSelect={(call) => console.log("View call:", call)}
             onRedial={(call) => console.log("Redial:", call)}
