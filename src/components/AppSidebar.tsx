@@ -108,24 +108,44 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
     )
   }
 
-  // Initialize group expansion states
+  // Initialize group expansion states - avoid initial flash by computing sync
   const [groupStates, setGroupStates] = useState<Record<number, boolean>>(() => {
     const storageKey = `sidebar-groups-${organizationId || 'default'}`
     const saved = localStorage.getItem(storageKey)
-    
+
     if (saved) {
-      // Returning user - restore saved state
-      return JSON.parse(saved)
-    } else {
-      // First visit - expand all on desktop, collapse on mobile
-      const defaultState: Record<number, boolean> = {}
-      sidebarGroups.forEach((_, index) => {
-        if (index === 0) return // Overview is always top-level, no group state needed
-        defaultState[index] = !isMobile
-      })
-      return defaultState
+      try {
+        return JSON.parse(saved)
+      } catch {
+        // ignore parse errors
+      }
     }
+    // First visit - expand all on desktop, collapse on mobile
+    const defaultState: Record<number, boolean> = {}
+    sidebarGroups.forEach((_, index) => {
+      if (index === 0) return // Overview is always top-level, no group state needed
+      defaultState[index] = !isMobile
+    })
+    return defaultState
   })
+
+  // Re-evaluate defaults when org or viewport changes (preserve explicit saves)
+  useEffect(() => {
+    const storageKey = `sidebar-groups-${organizationId || 'default'}`
+    const saved = localStorage.getItem(storageKey)
+    if (saved) {
+      try {
+        setGroupStates(JSON.parse(saved))
+        return
+      } catch {}
+    }
+    const defaultState: Record<number, boolean> = {}
+    sidebarGroups.forEach((_, index) => {
+      if (index === 0) return
+      defaultState[index] = !isMobile
+    })
+    setGroupStates(defaultState)
+  }, [organizationId, isMobile])
 
   // Auto-expand group containing active route
   useEffect(() => {
