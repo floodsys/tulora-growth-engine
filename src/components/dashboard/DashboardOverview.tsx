@@ -9,6 +9,7 @@ import { ManualAccessBannerContainer } from "@/components/ui/ManualAccessBannerC
 import { useRetellAnalytics } from "@/hooks/useRetellAnalytics"
 import { useRetellCalls } from "@/hooks/useRetellCalls"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
+import { useDashboardDateRange } from "@/hooks/useDashboardDateRange"
 import { DateRange } from "react-day-picker"
 import { Users, Phone, Calendar, Star, Bot } from "lucide-react"
 
@@ -69,7 +70,7 @@ const recentCalls = [
 ]
 
 export function DashboardOverview() {
-  const [dateRange, setDateRange] = useState<DateRange | undefined>()
+  const { dateRange, setDateRange } = useDashboardDateRange()
   const [loading, setLoading] = useState(false)
   const [kpis, setKpis] = useState<any>(null)
   
