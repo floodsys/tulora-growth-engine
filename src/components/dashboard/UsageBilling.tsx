@@ -218,7 +218,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   const handleManageBilling = async () => {
     try {
       setIsOpeningPortal(true);
-      const { data, error } = await supabase.functions.invoke('stripe-customer-portal', {
+      const { data, error } = await supabase.functions.invoke('org-customer-portal', {
         body: { orgId: organizationId }
       });
 
