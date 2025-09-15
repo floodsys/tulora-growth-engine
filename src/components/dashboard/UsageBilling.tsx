@@ -189,7 +189,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   const handleUpgrade = async () => {
     try {
       setIsUpgrading(true);
-      const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
+      const { data, error } = await supabase.functions.invoke('create-org-checkout', {
         body: { 
           orgId: organizationId,
           priceId: 'price_professional_monthly' // Dynamic based on plan selection
