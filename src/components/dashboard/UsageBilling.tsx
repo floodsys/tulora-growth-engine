@@ -387,9 +387,26 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
 
       if (error) throw error;
 
+      // Show detailed success information
+      const details = [];
+      if (data.customerId) details.push(`Customer: ${data.customerId}`);
+      if (data.planKey) details.push(`Plan: ${data.planKey}`);
+      if (data.subscriptionId) details.push(`Subscription: ${data.subscriptionId.substring(0, 12)}...`);
+      if (data.sessionId) details.push(`Session: ${data.sessionId.substring(0, 12)}...`);
+
       toast({
-        title: "Billing Reconciled",
-        description: `Updated billing status for plan: ${data.planKey}`,
+        title: "Billing Reconciled Successfully",
+        description: `Updated billing status. ${details.join(' | ')}${data.corr ? ` [${data.corr.substring(0, 8)}]` : ''}`,
+      });
+      
+      // Also log the full reconciliation details for debugging
+      console.log('Billing reconciliation successful:', {
+        correlationId: data.corr,
+        customerId: data.customerId,
+        planKey: data.planKey,
+        subscriptionId: data.subscriptionId,
+        sessionId: data.sessionId,
+        details: data.details
       });
       
       // Refresh billing status and usage data
@@ -413,9 +430,15 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       setReconcileError(parsedError);
       setReconcileDebugOpen(true);
       
+      // Show specific error hint if available
+      let description = parsedError?.message || "Failed to reconcile billing status";
+      if (parsedError?.hint) {
+        description += ` (${parsedError.hint})`;
+      }
+      
       toast({
-        title: "Error",
-        description: parsedError?.message || "Failed to reconcile billing status",
+        title: "Reconciliation Failed",
+        description,
         variant: "destructive",
       });
     } finally {
@@ -433,6 +456,14 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
         return 'Set stripe_price_id_monthly for this plan in Admin → Stripe Configuration.';
       case 'UNAUTHORIZED':
         return 'Sign in again / auth header missing.';
+      case 'NO_CHECKOUT_SESSIONS':
+        return 'No completed Stripe checkout found for this organization. Complete a checkout first.';
+      case 'INCOMPLETE_SESSION_DATA':
+        return 'Checkout session is missing customer or subscription data.';
+      case 'PLAN_KEY_MISSING':
+        return 'Cannot determine plan from Stripe subscription. Check subscription metadata.';
+      case 'INSUFFICIENT_STRIPE_PERMISSIONS':
+        return 'Stripe API key lacks required permissions.';
       default:
         return null;
     }
