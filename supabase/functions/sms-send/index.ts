@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { requireEntitlement } from '../_shared/entitlements.ts'
 
 interface SendSMSRequest {
   to_number: string
@@ -57,6 +58,22 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: to_number, message_body' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Check SMS entitlements
+    const entitlementCheck = await requireEntitlement(supabaseClient, membership.organization_id, {
+      feature: 'sms'
+    })
+
+    if (!entitlementCheck.success) {
+      console.log('SMS sending blocked by entitlements:', entitlementCheck.error)
+      return new Response(
+        JSON.stringify(entitlementCheck.error),
+        { 
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
       )
     }
 

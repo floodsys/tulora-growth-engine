@@ -1,5 +1,6 @@
-import { corsHeaders } from '../_shared/cors.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
+import { requireEntitlement, getCurrentCount } from '../_shared/entitlements.ts'
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -44,6 +45,25 @@ Deno.serve(async (req) => {
 
     const body = await req.json()
     const { agentId, widgetType = 'chat', config = {} } = body
+
+    // Check widget entitlements
+    const currentWidgetCount = await getCurrentCount(supabase, membership.organization_id, 'widgets')
+    const entitlementCheck = await requireEntitlement(supabase, membership.organization_id, {
+      feature: 'widgets',
+      limitKey: 'widgets',
+      currentCount: currentWidgetCount
+    })
+
+    if (!entitlementCheck.success) {
+      console.log('Widget creation blocked by entitlements:', entitlementCheck.error)
+      return new Response(
+        JSON.stringify(entitlementCheck.error),
+        { 
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
 
     // Verify agent belongs to organization
     const { data: agent } = await supabase
