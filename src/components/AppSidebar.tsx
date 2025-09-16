@@ -44,6 +44,8 @@ import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { useCanonicalUserRole } from "@/hooks/useCanonicalUserRole"
 import { useRetellAgents } from "@/hooks/useRetellAgents"
 import { useAuth } from "@/contexts/AuthContext"
+import { useEntitlements } from "@/lib/entitlements/ssot"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 
 const sidebarGroups = [
@@ -105,6 +107,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
   const { isOwner, isAdmin } = useCanonicalUserRole(organizationId)
   const { agents } = useRetellAgents(organizationId)
   const { user } = useAuth()
+  const { entitlements } = useEntitlements(organizationId)
 
   // Find which group contains the active screen
   const getActiveGroupIndex = () => {
@@ -181,6 +184,27 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
     }))
   }
 
+  // Helper to check if item should be disabled based on entitlements
+  const isItemDisabled = (itemTitle: string) => {
+    switch (itemTitle) {
+      case "Scheduling":
+        return !entitlements.features.scheduling
+      case "Numbers":
+        return !entitlements.features.numbers
+      case "SMS / 10DLC":
+        return !entitlements.features.sms
+      case "Widgets":
+        return !entitlements.features.widgets
+      default:
+        return false
+    }
+  }
+
+  // Helper to get upgrade tooltip message
+  const getUpgradeMessage = (itemTitle: string) => {
+    return `${itemTitle} requires a plan upgrade. Contact sales to unlock this feature.`
+  }
+
   // Filter groups based on permissions and capabilities
   const filteredGroups = sidebarGroups.map(group => {
     if (group.label === "Admin" && !isOwner && !isAdmin) {
@@ -190,11 +214,7 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
     return {
       ...group,
       items: group.items.filter(item => {
-        // Keep SMS/10DLC visible for now (no SMS capability check available)
-        // Keep Widgets visible if agents exist, otherwise show anyway (fallback)
-        if (item.title === "Widgets" && agents && agents.length === 0) {
-          return false
-        }
+        // Keep all items visible for now, just disable them if needed
         return true
       })
     }
@@ -258,17 +278,40 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
                   )}
                   {(groupStates[groupIndex] === true || groupIndex === 0) && (
                     <SidebarMenu className="space-y-1">
-                      {group.items.map((item) => (
-                        <SidebarMenuItem key={item.title}>
+                      {group.items.map((item) => {
+                        const disabled = isItemDisabled(item.title)
+                        const menuButton = (
                           <SidebarMenuButton 
-                            onClick={() => setActiveScreen(item.url)}
-                            className={`h-10 ${state === "collapsed" && !isMobile ? "pl-1 pr-4" : "px-3"} ${activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted"}`}
+                            onClick={() => !disabled && setActiveScreen(item.url)}
+                            className={`h-10 ${state === "collapsed" && !isMobile ? "pl-1 pr-4" : "px-3"} ${
+                              activeScreen === item.url ? "bg-muted text-primary font-medium" : "hover:bg-muted"
+                            } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                            disabled={disabled}
                           >
                             <item.icon className="h-4 w-4" />
                             {(state !== "collapsed" || isMobile) && <span className="ml-3">{item.title}</span>}
                           </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
+                        )
+
+                        return (
+                          <SidebarMenuItem key={item.title}>
+                            {disabled ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    {menuButton}
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{getUpgradeMessage(item.title)}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              menuButton
+                            )}
+                          </SidebarMenuItem>
+                        )
+                      })}
                     </SidebarMenu>
                   )}
                 </div>

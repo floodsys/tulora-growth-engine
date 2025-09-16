@@ -28,6 +28,8 @@ import { useToast } from "@/hooks/use-toast"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { useRetellAnalytics } from "@/hooks/useRetellAnalytics"
 import { AgentCatalog } from "@/components/AgentCatalog"
+import { useEntitlements } from "@/lib/entitlements/ssot"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface Agent {
   id: string
@@ -110,6 +112,8 @@ const AllAgentsTab = () => {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
   const [phoneNumber, setPhoneNumber] = useState("")
   const { toast } = useToast()
+  const { organization } = useUserOrganization()
+  const { entitlements } = useEntitlements(organization?.id)
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -241,10 +245,26 @@ const AllAgentsTab = () => {
                 </DialogContent>
               </Dialog>
               
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Agent
-              </Button>
+              {entitlements.limits.agents === null || agents.length < entitlements.limits.agents ? (
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Agent
+                </Button>
+              ) : (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button disabled>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Agent
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Agent limit reached ({entitlements.limits.agents}). Upgrade your plan to create more agents.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           </div>
         </CardHeader>

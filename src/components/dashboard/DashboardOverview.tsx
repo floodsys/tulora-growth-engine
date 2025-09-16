@@ -11,7 +11,8 @@ import { useRetellCalls } from "@/hooks/useRetellCalls"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange"
 import { DateRange } from "react-day-picker"
-import { Users, Phone, Calendar, Star, Bot } from "lucide-react"
+import { Users, Phone, Calendar, Star, Bot, TrendingUp } from "lucide-react"
+import { useEntitlements } from "@/lib/entitlements/ssot"
 
 // Mock data
 const kpiData = {
@@ -77,6 +78,7 @@ export function DashboardOverview() {
   const { organization } = useUserOrganization()
   const { getKpis } = useRetellAnalytics(organization?.id)
   const { calls, getCallStats } = useRetellCalls(organization?.id)
+  const { entitlements } = useEntitlements(organization?.id)
 
   // Load KPIs when date range changes
   useEffect(() => {
@@ -153,17 +155,34 @@ export function DashboardOverview() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">{/* ... keep existing code */}
-        <TrendLine
-          title="Conversions Over Time"
-          data={trendData}
-          loading={loading}
-        />
-        <BarBySource
-          title="Leads by Source"
-          data={sourceData}
-          loading={loading}
-        />
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
+        {entitlements.features.advancedAnalytics ? (
+          <>
+            <TrendLine
+              title="Conversions Over Time"
+              data={trendData}
+              loading={loading}
+            />
+            <BarBySource
+              title="Leads by Source"
+              data={sourceData}
+              loading={loading}
+            />
+          </>
+        ) : (
+          <div className="xl:col-span-2">
+            <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
+              <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">Advanced Analytics</h3>
+              <p className="text-muted-foreground mb-4">
+                Unlock detailed charts and insights with a Business plan or higher.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Available on Business+
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Bottom Row: Recent Activity */}

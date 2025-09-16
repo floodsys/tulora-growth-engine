@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { useSMS } from '@/hooks/useSMS'
 import { useRetellNumbers } from '@/hooks/useRetellNumbers'
+import { useEntitlements } from '@/lib/entitlements/ssot'
+import { useUserOrganization } from '@/hooks/useUserOrganization'
 import { MessageSquare, Building2, Target, Send, Plus, CheckCircle, XCircle, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -28,6 +30,8 @@ export default function SMSView() {
     sendSMS 
   } = useSMS()
   const { ownedNumbers, listNumbers } = useRetellNumbers()
+  const { organization } = useUserOrganization()
+  const { entitlements } = useEntitlements(organization?.id)
 
   const [brandDialogOpen, setBrandDialogOpen] = useState(false)
   const [campaignDialogOpen, setCampaignDialogOpen] = useState(false)
@@ -167,13 +171,23 @@ export default function SMSView() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">SMS / 10DLC</h1>
         <div className="flex gap-2">
-          <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <Send className="w-4 h-4" />
-                Send SMS
-              </Button>
-            </DialogTrigger>
+          {!entitlements.features.sms ? (
+            <div className="text-center py-4">
+              <p className="text-sm text-muted-foreground mb-2">
+                SMS features not available on your current plan.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Upgrade to unlock SMS capabilities
+              </p>
+            </div>
+          ) : (
+            <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <Send className="w-4 h-4" />
+                  Send SMS
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Send SMS</DialogTitle>
@@ -237,6 +251,7 @@ export default function SMSView() {
               </div>
             </DialogContent>
           </Dialog>
+          )}
         </div>
       </div>
 
