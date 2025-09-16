@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { requireEntitlement, getCurrentCount } from '../_shared/entitlements.ts'
 
 interface BuyNumberRequest {
   area_code?: string
@@ -58,6 +59,25 @@ Deno.serve(async (req) => {
 
     // Parse request body
     const requestData: BuyNumberRequest = await req.json()
+
+    // Check entitlements for number purchasing
+    const currentNumberCount = await getCurrentCount(supabaseClient, membership.organization_id, 'numbers')
+    const entitlementCheck = await requireEntitlement(supabaseClient, membership.organization_id, {
+      feature: 'numbers',
+      limitKey: 'numbers',
+      currentCount: currentNumberCount
+    })
+
+    if (!entitlementCheck.success) {
+      console.log('Number purchase blocked by entitlements:', entitlementCheck.error)
+      return new Response(
+        JSON.stringify(entitlementCheck.error),
+        { 
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
 
     // Call Retell API to purchase number
     const { RETELL_API_KEY } = await import('../_shared/env.ts')

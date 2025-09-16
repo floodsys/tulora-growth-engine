@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 import { requireOrgActive, createBlockedResponse } from '../_shared/org-guard.ts'
+import { requireEntitlement, getCurrentCount } from '../_shared/entitlements.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -65,6 +66,24 @@ serve(async (req) => {
 
     if (!guardResult.ok) {
       return createBlockedResponse(guardResult, corsHeaders)
+    }
+
+    // Check entitlements for agent publishing
+    const currentAgentCount = await getCurrentCount(supabase, organizationId, 'agents')
+    const entitlementCheck = await requireEntitlement(supabase, organizationId, {
+      limitKey: 'agents',
+      currentCount: currentAgentCount
+    })
+
+    if (!entitlementCheck.success) {
+      console.log('Agent publishing blocked by entitlements:', entitlementCheck.error)
+      return new Response(
+        JSON.stringify(entitlementCheck.error),
+        { 
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
 
     // Get agent configuration from database
