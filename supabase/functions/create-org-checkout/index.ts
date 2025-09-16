@@ -150,6 +150,28 @@ serve(async (req) => {
       }
     }
 
+    // Create customer if missing or invalid
+    if (!customerId) {
+      const created = await stripe.customers.create({
+        name: org?.name ?? "Organization",
+        // add email if you have it on org
+        // email: org?.billing_email ?? undefined,
+        metadata: { org_id: orgId }
+      });
+      customerId = created.id;
+
+      const { error: upErr } = await supabase
+        .from("organizations")
+        .update({ stripe_customer_id: customerId })
+        .eq("id", orgId);
+
+      if (upErr) {
+        console.log("[checkout:org_update_error]", { corr, upErr });
+        // do not throw; we can still proceed with checkout using in-memory customerId
+      }
+      console.log("[checkout:customer_repaired]", { corr, orgId, customerId });
+    }
+
     // Get plan configuration
     const { data: planConfig, error: planError } = await supabase
       .from('plan_configs')
