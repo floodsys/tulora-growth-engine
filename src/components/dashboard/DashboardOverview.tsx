@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { KpiCard } from "./widgets/KpiCard"
 import { TrendLine } from "./widgets/TrendLine"
 import { BarBySource } from "./widgets/BarBySource"
@@ -74,6 +74,7 @@ export function DashboardOverview() {
   const { dateRange, setDateRange } = useDashboardDateRange()
   const [loading, setLoading] = useState(false)
   const [kpis, setKpis] = useState<any>(null)
+  const latestReqRef = useRef<string | null>(null)
   
   const { organization } = useUserOrganization()
   const { getKpis } = useRetellAnalytics(organization?.id)
@@ -82,27 +83,39 @@ export function DashboardOverview() {
 
   // Load KPIs when date range changes
   useEffect(() => {
-    const loadKpis = async () => {
-      if (!organization?.id) return
-      
-      setLoading(true)
+    if (!organization?.id) return
+
+    const requestId = crypto.randomUUID()
+    latestReqRef.current = requestId
+    let cancelled = false
+
+    ;(async () => {
       try {
+        setLoading(true)
         const dateFilter = dateRange?.from && dateRange?.to ? {
           start: dateRange.from.toISOString(),
           end: dateRange.to.toISOString()
         } : undefined
 
-        const kpiData = await getKpis(dateFilter)
-        setKpis(kpiData)
+        const data = await getKpis(dateFilter)
+        if (!cancelled && latestReqRef.current === requestId) {
+          setKpis(data)
+        }
       } catch (error) {
-        console.error('Error loading KPIs:', error)
+        if (!cancelled && latestReqRef.current === requestId) {
+          console.error('Error loading KPIs:', error)
+        }
       } finally {
-        setLoading(false)
+        if (!cancelled && latestReqRef.current === requestId) {
+          setLoading(false)
+        }
       }
-    }
+    })()
 
-    loadKpis()
-  }, [dateRange, organization?.id, getKpis])
+    return () => {
+      cancelled = true
+    }
+  }, [organization?.id, dateRange, getKpis])
 
   return (
     <div className="space-y-4 md:space-y-6">
