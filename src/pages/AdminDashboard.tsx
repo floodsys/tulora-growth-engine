@@ -2,6 +2,7 @@ import { AdminGuard } from '@/components/admin/AdminGuard';
 import { TestDashboard } from '@/components/tests/TestDashboard';
 import { AdminSelfCheck } from '@/components/AdminSelfCheck';
 import { ProductLineGatingDemo } from '@/components/ProductLineGatingDemo';
+import { AdminBillingDiagnostics } from '@/components/admin/AdminBillingDiagnostics';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
@@ -124,6 +125,9 @@ export default function AdminDashboard() {
             
             {/* Product Line Gating Demo */}
             <ProductLineGatingDemo orgId={currentOrgId} />
+            
+            {/* Billing Diagnostics */}
+            <AdminBillingDiagnostics />
           </div>
           <TestDashboard />
         </div>
