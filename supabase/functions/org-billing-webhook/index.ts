@@ -211,8 +211,32 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
     }
 
     // Extract plan_key and product_line from metadata or subscription metadata
-    const planKey = priceMetadata.plan_key || subscription.metadata.plan_key || 'trial'
+    let planKey = priceMetadata.plan_key || subscription.metadata.plan_key
     const productLine = priceMetadata.product_line || subscription.metadata.product_line || 'leadgen'
+    
+    // Fallback: Map price ID to plan_key via plan_configs if metadata missing
+    if (!planKey && subscriptionItem?.price?.id) {
+      try {
+        const { data: planConfig } = await supabase
+          .from('plan_configs')
+          .select('plan_key')
+          .or(`stripe_price_id_monthly.eq.${subscriptionItem.price.id},stripe_price_id_yearly.eq.${subscriptionItem.price.id}`)
+          .single()
+        
+        if (planConfig) {
+          planKey = planConfig.plan_key
+          logStep('Plan key resolved via price mapping', { priceId: subscriptionItem.price.id, planKey })
+        }
+      } catch (error) {
+        logStep('Could not resolve plan key from price ID', { priceId: subscriptionItem.price.id, error })
+      }
+    }
+    
+    // Default fallback (only if no other method worked)
+    if (!planKey) {
+      planKey = 'trial'
+      logStep('Using fallback plan key', { planKey })
+    }
     
     logStep('Extracted plan info', { planKey, productLine })
 
