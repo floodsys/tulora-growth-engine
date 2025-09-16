@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireEntitlement } from '../_shared/entitlements.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,6 +19,11 @@ Deno.serve(async (req) => {
     )
 
     const { callId, organizationId, transcript, metadata, agentId } = await req.json()
+
+    // Check advancedAnalytics entitlement
+    const corr = crypto.randomUUID();
+    const gate = await requireEntitlement(supabase, organizationId, { feature: "advancedAnalytics" }, corr);
+    if (!gate.ok) return new Response(JSON.stringify(gate.body), { status: gate.status, headers: corsHeaders });
 
     // Get agent analysis settings
     const { data: agent, error: agentError } = await supabase

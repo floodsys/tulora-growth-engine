@@ -87,6 +87,20 @@ serve(async (req) => {
       )
     }
 
+    // Check advancedAnalytics feature for analytics capabilities
+    const analyticsCorr = crypto.randomUUID();
+    const analyticsGate = await requireEntitlement(supabase, organizationId, { feature: "advancedAnalytics" }, analyticsCorr);
+    if (!analyticsGate.ok) {
+      console.log(`[${analyticsCorr}] Advanced analytics blocked by entitlements:`, analyticsGate.body)
+      return new Response(
+        JSON.stringify(analyticsGate.body),
+        { 
+          status: analyticsGate.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
     // Get agent configuration from database
     const { data: agent, error: agentError } = await supabase
       .from('retell_agents')
