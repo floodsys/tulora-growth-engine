@@ -163,8 +163,8 @@ export function OrgSwitcher() {
   if (isNonPaying && organizations.length === 1) {
     return (
       <Button variant="outline" className="w-full justify-between" disabled>
-        <div className="flex items-center gap-2">
-          <Building2 className="h-4 w-4" />
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <Building2 className="h-4 w-4 shrink-0" />
           <span className="truncate">{selectedOrg.name}</span>
         </div>
       </Button>
@@ -181,8 +181,8 @@ export function OrgSwitcher() {
             aria-expanded={open}
             className="w-full justify-between"
           >
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Building2 className="h-4 w-4 shrink-0" />
               <span className="truncate">{selectedOrg.name}</span>
             </div>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
