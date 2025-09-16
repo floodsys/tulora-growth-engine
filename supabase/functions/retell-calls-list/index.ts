@@ -83,7 +83,7 @@ serve(async (req) => {
     // Build query with filters
     let query = supabase
       .from('retell_calls')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('organization_id', organizationId)
 
     // Apply filters
@@ -136,12 +136,6 @@ serve(async (req) => {
       )
     }
 
-    // Get total count for pagination
-    const { count: totalCount } = await supabase
-      .from('retell_calls')
-      .select('*', { count: 'exact', head: true })
-      .eq('organization_id', organizationId)
-
     console.log(`Successfully fetched ${calls?.length || 0} calls`)
 
     // Log the successful API call
@@ -154,7 +148,7 @@ serve(async (req) => {
       p_metadata: {
         calls_count: calls?.length || 0,
         filters_applied: Object.keys(filters).length,
-        total_count: totalCount,
+        total_count: count,
         timestamp: new Date().toISOString()
       }
     })
@@ -163,10 +157,10 @@ serve(async (req) => {
       JSON.stringify({ 
         calls: calls || [],
         pagination: {
-          total: totalCount || 0,
+          total: count || 0,
           limit,
           offset,
-          hasMore: (offset + limit) < (totalCount || 0)
+          hasMore: (offset + limit) < (count || 0)
         }
       }),
       { 
