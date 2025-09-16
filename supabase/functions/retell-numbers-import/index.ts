@@ -83,20 +83,29 @@ Deno.serve(async (req) => {
     const g1 = await requireEntitlement(supabaseClient, membership.organization_id, { feature: "numbers" }, corr)
     if (!g1.ok) return new Response(JSON.stringify(g1.body), { status: g1.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
-    // For single number import, check if it would exceed limit
+    // Parse request body first to determine how many numbers are being imported
+    const requestData: ImportNumberRequest = await req.json()
+
+    // Determine requested count - for single number import this is 1, but structured for future bulk support
+    const requestedCount = 1 // Single number import for now
+
+    // Check if import would exceed limit
     const currentCount = await getCurrentCount(supabaseClient, membership.organization_id, "numbers")
     const entitlementsResult = await getEntitlementsForOrg(supabaseClient, membership.organization_id, corr)
     
     if (entitlementsResult.ok) {
       const limit = entitlementsResult.entitlements.limits.numbers
-      if (limit !== null && currentCount + 1 > limit) {
-        const body = { code: "LIMIT_REACHED_NUMBERS", message: `Import exceeds plan limit (${limit}).`, hint: "Remove some numbers or upgrade.", corr }
+      const remaining = limit === null ? Infinity : Math.max(0, limit - currentCount)
+      if (limit !== null && currentCount + requestedCount > limit) {
+        const body = {
+          code: "LIMIT_REACHED_NUMBERS",
+          message: `Import exceeds plan limit (${limit}).`,
+          hint: `You can import up to ${remaining} more number${remaining === 1 ? "" : "s"} or upgrade your plan.`,
+          corr
+        }
         return new Response(JSON.stringify(body), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
     }
-
-    // Parse request body
-    const requestData: ImportNumberRequest = await req.json()
 
     // Validate required fields
     if (!requestData.e164 || !requestData.byoc_provider) {
