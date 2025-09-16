@@ -83,10 +83,7 @@ serve(async (req) => {
     // Build query with filters
     let query = supabase
       .from('retell_calls')
-      .select(`
-        *,
-        retell_agents!inner(name, voice_id)
-      `)
+      .select('*')
       .eq('organization_id', organizationId)
 
     // Apply filters
@@ -123,9 +120,15 @@ serve(async (req) => {
     const { data: calls, error, count } = await query
 
     if (error) {
-      console.error('Error fetching calls:', error)
+      const corr = crypto.randomUUID()
+      console.error(`[${corr}] Error fetching calls:`, error)
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch calls' }),
+        JSON.stringify({
+          code: 'DB_QUERY_FAILED',
+          message: 'Failed to fetch calls',
+          hint: 'Remove embedded joins or add a proper FK relationship.',
+          corr
+        }),
         { 
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
