@@ -243,11 +243,18 @@ serve(async (req) => {
     })
 
     return new Response(JSON.stringify({ 
+      corr,
       updated: true, 
       customerId: customer.id, 
       planKey,
       subscriptionId: subscription.id,
-      sessionId: latestSession.id
+      sessionId: latestSession.id,
+      message: `Successfully reconciled billing for organization ${orgId}`,
+      details: {
+        session_created: new Date(latestSession.created * 1000).toISOString(),
+        subscription_status: subscription.status,
+        customer_email: customer.email
+      }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
