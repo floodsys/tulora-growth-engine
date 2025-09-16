@@ -1,5 +1,10 @@
+/**
+ * @deprecated This module is now a compatibility wrapper over src/lib/entitlements/ssot.ts
+ * Please migrate to useEntitlements from the entitlements SSOT for new code.
+ */
 import React from 'react'
 import { supabase } from '@/integrations/supabase/client'
+import { useEntitlements, type Entitlements } from './entitlements/ssot'
 
 export interface PlanLimits {
   agents: number | null
@@ -18,71 +23,78 @@ export interface FeatureFlags {
   loading: boolean
 }
 
+// Feature name mapping for backwards compatibility
+const LEGACY_FEATURE_MAP: Record<string, keyof Entitlements['features']> = {
+  basic_calendar: 'scheduling',
+  appointment_scheduling: 'scheduling',
+  advanced_analytics: 'advancedAnalytics',
+  voice_sms: 'sms',
+  messaging: 'sms',
+  crm_integrations: 'widgets',
+  email_support: 'scheduling', // Map to a basic feature
+  white_label: 'advancedAnalytics',
+  api_access: 'advancedAnalytics',
+  account_manager: 'advancedAnalytics',
+  priority_support: 'advancedAnalytics'
+}
+
+let hasShownDeprecationWarning = false
+
 export async function getOrgFeatureFlags(orgId: string): Promise<FeatureFlags> {
+  if (!hasShownDeprecationWarning) {
+    console.warn('getOrgFeatureFlags is deprecated. Please use useEntitlements from src/lib/entitlements/ssot.ts')
+    hasShownDeprecationWarning = true
+  }
+
   try {
-    // Get organization data with plan info
-    const { data: org, error: orgError } = await supabase
+    // This is a simplified version that matches the hook behavior
+    // For a full async implementation, you'd need to replicate the SSOT logic
+    const { data: org } = await supabase
       .from('organizations')
-      .select('*')
+      .select('plan_key, billing_status')
       .eq('id', orgId)
       .maybeSingle()
-
-    if (orgError) {
-      console.error('Error fetching organization plan:', orgError)
-      return getTrialPlanFlags()
-    }
 
     if (!org) {
       return getTrialPlanFlags()
     }
 
-    // Check for manual activation first
-    const manualActivation = (org as any).entitlements?.manual_activation
-    const isManuallyActive = manualActivation?.active === true && 
-      new Date(manualActivation.ends_at) > new Date()
-
-    // Use billing_status and plan_key, considering manual activation
-    const planKey = (org as any).plan_key || 'trial'
-    const billingStatus = (org as any).billing_status || 'trialing'
-    const isPaidActive = billingStatus === 'active' || billingStatus === 'trialing'
+    const isActive = org.billing_status === 'active' || org.billing_status === 'trialing'
     
-    let limits, features, planName, isActive
-    
-    if (planKey === 'pro') {
-      limits = { agents: 10, seats: 20, calls_per_month: 5000, storage_gb: 100 }
-      features = ['advanced_analytics', 'voice_sms', 'crm_integrations', 'email_support']
-      planName = 'Starter' // Changed from 'Pro' to 'Starter'
-      isActive = isPaidActive || isManuallyActive
-    } else if (planKey === 'business') {
-      limits = { agents: null, seats: null, calls_per_month: null, storage_gb: 500 }
-      features = ['advanced_analytics', 'voice_sms', 'crm_integrations', 'email_support', 'white_label', 'api_access', 'account_manager', 'priority_support']
-      planName = 'Business'
-      isActive = isPaidActive || isManuallyActive
-    } else {
-      limits = { agents: 1, seats: 1, calls_per_month: 100, storage_gb: 5 }
-      features = ['basic_calendar', 'email_support']
-      planName = 'Trial'
-      isActive = false
-    }
-
-    // Get current usage counts
+    // Get usage counts
     const [agentCount, seatCount] = await Promise.all([
       getCurrentAgentCount(orgId),
       getCurrentSeatCount(orgId)
     ])
 
-    const planLimits: PlanLimits = {
-      agents: limits.agents,
-      seats: limits.seats,
-      calls_per_month: limits.calls_per_month,
-      storage_gb: limits.storage_gb
+    // Map basic plan data to legacy format
+    const planKey = org.plan_key || 'trial'
+    let limits, planName
+    
+    if (planKey === 'pro' || planKey === 'leadgen_starter') {
+      limits = { agents: 10, seats: 20, calls_per_month: 5000, storage_gb: 100 }
+      planName = 'Starter'
+    } else if (planKey === 'business' || planKey === 'leadgen_business') {
+      limits = { agents: null, seats: null, calls_per_month: null, storage_gb: 500 }
+      planName = 'Business'
+    } else {
+      limits = { agents: 1, seats: 1, calls_per_month: 100, storage_gb: 5 }
+      planName = 'Trial'
     }
 
     return {
-      hasFeature: (feature: string) => features.includes(feature),
+      hasFeature: (feature: string) => {
+        // Basic feature mapping for compatibility
+        if (feature === 'basic_calendar' || feature === 'email_support') return true
+        if (planKey === 'business' || planKey === 'leadgen_business') return true
+        if (planKey === 'pro' || planKey === 'leadgen_starter') {
+          return ['advanced_analytics', 'voice_sms', 'crm_integrations'].includes(feature)
+        }
+        return false
+      },
       canCreateAgent: limits.agents === null || agentCount < limits.agents,
       canAddSeat: limits.seats === null || seatCount < limits.seats,
-      planLimits,
+      planLimits: limits,
       planName,
       isActive,
       loading: false
@@ -130,27 +142,79 @@ async function getCurrentSeatCount(orgId: string): Promise<number> {
   return count || 0
 }
 
-// React hook for easier component usage
+// React hook that delegates to SSOT
 export function useOrgFeatureFlags(orgId: string | null) {
-  const [flags, setFlags] = React.useState<FeatureFlags | null>(null)
-  const [loading, setLoading] = React.useState(true)
+  if (!hasShownDeprecationWarning) {
+    console.warn('useOrgFeatureFlags is deprecated. Please use useEntitlements from src/lib/entitlements/ssot.ts')
+    hasShownDeprecationWarning = true
+  }
+
+  const { entitlements, isLoading } = useEntitlements(orgId)
+  const [agentCount, setAgentCount] = React.useState(0)
+  const [seatCount, setSeatCount] = React.useState(0)
+  const [countsLoading, setCountsLoading] = React.useState(true)
 
   React.useEffect(() => {
     if (!orgId) {
-      setFlags(getTrialPlanFlags())
-      setLoading(false)
+      setAgentCount(0)
+      setSeatCount(0)
+      setCountsLoading(false)
       return
     }
 
-    getOrgFeatureFlags(orgId).then(setFlags).finally(() => setLoading(false))
+    Promise.all([
+      getCurrentAgentCount(orgId),
+      getCurrentSeatCount(orgId)
+    ]).then(([agents, seats]) => {
+      setAgentCount(agents)
+      setSeatCount(seats)
+      setCountsLoading(false)
+    })
   }, [orgId])
 
-  const refresh = React.useCallback(() => {
+  const flags: FeatureFlags = React.useMemo(() => {
+    if (!orgId) {
+      return getTrialPlanFlags()
+    }
+
+    // Map SSOT limits to legacy format
+    const planLimits: PlanLimits = {
+      agents: entitlements.limits.agents,
+      seats: entitlements.limits.agents, // Use agents as seats for backwards compatibility
+      calls_per_month: null, // Not tracked in SSOT
+      storage_gb: null // Not tracked in SSOT
+    }
+
+    return {
+      hasFeature: (feature: string) => {
+        const canonicalFeature = LEGACY_FEATURE_MAP[feature]
+        if (canonicalFeature) {
+          return entitlements.features[canonicalFeature]
+        }
+        // Fallback to basic features
+        return ['basic_calendar', 'email_support'].includes(feature)
+      },
+      canCreateAgent: entitlements.limits.agents === null || agentCount < entitlements.limits.agents,
+      canAddSeat: entitlements.limits.agents === null || seatCount < entitlements.limits.agents,
+      planLimits,
+      planName: entitlements.planName,
+      isActive: entitlements.isActive,
+      loading: isLoading || countsLoading
+    }
+  }, [entitlements, agentCount, seatCount, isLoading, countsLoading, orgId])
+
+  const refresh = React.useCallback(async () => {
     if (orgId) {
-      setLoading(true)
-      getOrgFeatureFlags(orgId).then(setFlags).finally(() => setLoading(false))
+      setCountsLoading(true)
+      const [agents, seats] = await Promise.all([
+        getCurrentAgentCount(orgId),
+        getCurrentSeatCount(orgId)
+      ])
+      setAgentCount(agents)
+      setSeatCount(seats)
+      setCountsLoading(false)
     }
   }, [orgId])
 
-  return { flags, loading, refresh }
+  return { flags, loading: flags.loading, refresh }
 }
