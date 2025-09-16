@@ -33,6 +33,9 @@ export default function SMSView() {
   const { organization } = useUserOrganization()
   const { entitlements } = useEntitlements(organization?.id)
 
+  // SMS feature gating
+  const canSMS = entitlements.features.sms
+
   const [brandDialogOpen, setBrandDialogOpen] = useState(false)
   const [campaignDialogOpen, setCampaignDialogOpen] = useState(false)
   const [sendDialogOpen, setSendDialogOpen] = useState(false)
@@ -168,19 +171,22 @@ export default function SMSView() {
 
   return (
     <div className="space-y-6">
+      {/* Upgrade callout when SMS is locked */}
+      {!canSMS && (
+        <div className="bg-muted/50 border border-border rounded-lg p-4 text-center">
+          <p className="font-medium text-foreground mb-1">
+            SMS features not available on your plan
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Upgrade to unlock SMS / 10DLC capabilities and start sending messages
+          </p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">SMS / 10DLC</h1>
         <div className="flex gap-2">
-          {!entitlements.features.sms ? (
-            <div className="text-center py-4">
-              <p className="text-sm text-muted-foreground mb-2">
-                SMS features not available on your current plan.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Upgrade to unlock SMS capabilities
-              </p>
-            </div>
-          ) : (
+          {canSMS ? (
             <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="flex items-center gap-2">
@@ -249,18 +255,24 @@ export default function SMSView() {
                   Send SMS
                 </Button>
               </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          ) : (
+            <Button disabled className="flex items-center gap-2" title="SMS features require a plan upgrade">
+              <Send className="w-4 h-4" />
+              Send SMS
+            </Button>
           )}
         </div>
       </div>
 
-      <Tabs defaultValue="brands" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="brands">Brands</TabsTrigger>
-          <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-          <TabsTrigger value="messages">Messages</TabsTrigger>
-        </TabsList>
+      <fieldset disabled={!canSMS} className="space-y-4">
+        <Tabs defaultValue="brands" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="brands">Brands</TabsTrigger>
+            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+            <TabsTrigger value="messages">Messages</TabsTrigger>
+          </TabsList>
 
         <TabsContent value="brands" className="space-y-4">
           <div className="flex items-center justify-between">
@@ -630,7 +642,8 @@ export default function SMSView() {
             )}
           </div>
         </TabsContent>
-      </Tabs>
+        </Tabs>
+      </fieldset>
     </div>
   )
 }
