@@ -51,10 +51,16 @@ export async function callEF<T>(fnName: string, body?: Record<string, unknown>):
 
   // Handle error responses
   if (!res.ok) {
+    // Extract correlation ID from headers or response
+    const correlationId = res.headers.get('x-correlation-id') || 
+                         res.headers.get('x-corr-id') || 
+                         (isJsonResponse && (responseData?.corr || responseData?.correlationId));
+    
     const errorInfo = {
       status: res.status,
       statusText: res.statusText,
       traceId: isJsonResponse && responseData?.traceId ? responseData.traceId : undefined,
+      correlationId,
       originalPayload: responseData,
     };
     
@@ -79,6 +85,7 @@ export async function callEF<T>(fnName: string, body?: Record<string, unknown>):
     // Attach additional error info for components that need it
     (error as any).status = errorInfo.status;
     (error as any).traceId = errorInfo.traceId;
+    (error as any).correlationId = errorInfo.correlationId;
     (error as any).originalPayload = errorInfo.originalPayload;
     
     throw error;

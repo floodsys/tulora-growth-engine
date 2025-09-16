@@ -58,6 +58,12 @@ export const useRetellCalls = (organizationId?: string) => {
   })
   const { toast } = useToast()
 
+  // Constants
+  const MAX_LIMIT = 100
+
+  // Sleep helper for backoff
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
   // Load calls with filters
   const loadCalls = async (filters: CallFilters = {}) => {
     if (!organizationId) return
@@ -67,76 +73,94 @@ export const useRetellCalls = (organizationId?: string) => {
     try {
       setLoading(true)
       
-      // Primary: Use function invoke with 404 fallback
+      // Primary: Use function invoke with 404 fallback and backoff
       let data: any = {}
+      let attempts = 0
+      const maxAttempts = 3
       
-      try {
-        const response = await supabase.functions.invoke('retell-calls-list', {
-          body: {
-            organizationId,
-            filters: {
-              ...filters,
-              limit: filters.limit || pagination.limit,
-              offset: filters.offset || 0
+      const tryRequest = async (): Promise<void> => {
+        try {
+          const limit = Math.min(filters.limit || pagination.limit, MAX_LIMIT)
+          const response = await supabase.functions.invoke('retell-calls-list', {
+            body: {
+              organizationId,
+              filters: {
+                ...filters,
+                limit,
+                offset: filters.offset || 0
+              }
             }
-          }
-        })
-        
-        if (response.error) throw response.error
-        data = response.data
-      } catch (error: any) {
-        // Fallback on 404 only
-        if (error?.status === 404) {
-          let query = supabase
-            .from('retell_calls')
-            .select('*')
-            .eq('organization_id', organizationId)
-            .order('started_at', { ascending: false })
-            .limit(filters.limit || 50)
-
-          if (filters.dateRange) {
-            query = query
-              .gte('started_at', filters.dateRange.start)
-              .lte('started_at', filters.dateRange.end)
-          }
-
-          if (filters.agentId) {
-            query = query.eq('agent_id', filters.agentId)
-          }
-
-          if (filters.direction) {
-            query = query.eq('direction', filters.direction)
-          }
-
-          if (filters.status) {
-            query = query.eq('status', filters.status)
-          }
-
-          if (filters.outcome) {
-            query = query.eq('outcome', filters.outcome)
-          }
-
-          const { data: fallbackCalls, error: fallbackError } = await query
-          if (fallbackError) throw fallbackError
+          })
           
-          data = {
-            calls: fallbackCalls || [],
-            pagination: { total: (fallbackCalls || []).length, limit: 50, offset: 0, hasMore: false }
+          if (response.error) throw response.error
+          data = response.data
+        } catch (error: any) {
+          attempts++
+          
+          // Fallback on 404 only
+          if (error?.status === 404) {
+            const limit = Math.min(filters.limit || 50, MAX_LIMIT)
+            let query = supabase
+              .from('retell_calls')
+              .select('*')
+              .eq('organization_id', organizationId)
+              .order('started_at', { ascending: false })
+              .limit(limit)
+
+            if (filters.dateRange) {
+              query = query
+                .gte('started_at', filters.dateRange.start)
+                .lte('started_at', filters.dateRange.end)
+            }
+
+            if (filters.agentId) {
+              query = query.eq('agent_id', filters.agentId)
+            }
+
+            if (filters.direction) {
+              query = query.eq('direction', filters.direction)
+            }
+
+            if (filters.status) {
+              query = query.eq('status', filters.status)
+            }
+
+            if (filters.outcome) {
+              query = query.eq('outcome', filters.outcome)
+            }
+
+            const { data: fallbackCalls, error: fallbackError } = await query
+            if (fallbackError) throw fallbackError
+            
+            data = {
+              calls: fallbackCalls || [],
+              pagination: { total: (fallbackCalls || []).length, limit, offset: 0, hasMore: false }
+            }
+            return
           }
-        } else {
-          throw error
+          
+          // For other errors, implement exponential backoff
+          if (attempts < maxAttempts) {
+            const delay = Math.min(200 * Math.pow(2, attempts - 1), 800) // 200ms → 400ms → 800ms max
+            await sleep(delay)
+            await tryRequest()
+          } else {
+            throw error
+          }
         }
       }
+      
+      await tryRequest()
 
       setCalls(data.calls || [])
       setPagination(data.pagination || { total: 0, limit: 50, offset: 0, hasMore: false })
     } catch (error: any) {
       console.error('Error loading calls:', error)
       
-      // Surface structured errors
+      // Surface structured errors with correlation ID priority
       const errorMessage = error?.message || 'Failed to load calls.'
       const errorCode = error?.status || error?.code
-      const correlationId = error?.correlationId || error?.error_code
+      const correlationId = error?.correlationId || error?.traceId || error?.error_code
       
       toast({
         title: "Error",
