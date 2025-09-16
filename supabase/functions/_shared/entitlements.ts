@@ -247,4 +247,3 @@ export async function getCurrentCount(
     return 0
   }
 }
-}
