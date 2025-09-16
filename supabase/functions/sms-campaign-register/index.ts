@@ -55,23 +55,8 @@ Deno.serve(async (req) => {
 
     // Check SMS feature entitlement
     const corr = crypto.randomUUID()
-    const entitlementCheck = await requireEntitlement(
-      supabaseClient,
-      membership.organization_id,
-      { feature: 'sms' },
-      corr
-    )
-
-    if (!entitlementCheck.success) {
-      console.log(`[${corr}] SMS campaign registration denied:`, entitlementCheck.error)
-      return new Response(
-        JSON.stringify(entitlementCheck.error),
-        { 
-          status: entitlementCheck.status, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
+    const gate = await requireEntitlement(supabaseClient, membership.organization_id, { feature: "sms" }, corr)
+    if (!gate.ok) return new Response(JSON.stringify(gate.body), { status: gate.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
     const campaignData: CampaignRegistrationRequest = await req.json()
 

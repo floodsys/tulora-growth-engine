@@ -76,10 +76,10 @@ serve(async (req) => {
       currentCount: currentAgentCount
     }, corr)
 
-    if (!entitlementCheck.success) {
-      console.log(`[${corr}] Agent publishing blocked by entitlements:`, entitlementCheck.error)
+    if (!entitlementCheck.ok) {
+      console.log(`[${corr}] Agent publishing blocked by entitlements:`, entitlementCheck.body)
       return new Response(
-        JSON.stringify(entitlementCheck.error),
+        JSON.stringify(entitlementCheck.body),
         { 
           status: entitlementCheck.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }

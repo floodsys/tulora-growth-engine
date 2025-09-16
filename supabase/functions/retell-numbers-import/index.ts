@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
-import { requireEntitlement, getCurrentCount } from '../_shared/entitlements.ts'
+import { requireEntitlement, getCurrentCount, getEntitlementsForOrg } from '../_shared/entitlements.ts'
 
 interface ImportNumberRequest {
   e164: string
@@ -80,24 +80,19 @@ Deno.serve(async (req) => {
 
     // Check numbers feature and limit entitlements
     const corr = crypto.randomUUID()
-    const currentCount = await getCurrentCount(supabaseClient, membership.organization_id, 'numbers')
-    
-    const entitlementCheck = await requireEntitlement(
-      supabaseClient,
-      membership.organization_id,
-      { feature: 'numbers', limitKey: 'numbers', currentCount },
-      corr
-    )
+    const g1 = await requireEntitlement(supabaseClient, membership.organization_id, { feature: "numbers" }, corr)
+    if (!g1.ok) return new Response(JSON.stringify(g1.body), { status: g1.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
-    if (!entitlementCheck.success) {
-      console.log(`[${corr}] Number import denied:`, entitlementCheck.error)
-      return new Response(
-        JSON.stringify(entitlementCheck.error),
-        { 
-          status: entitlementCheck.status, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+    // For single number import, check if it would exceed limit
+    const currentCount = await getCurrentCount(supabaseClient, membership.organization_id, "numbers")
+    const entitlementsResult = await getEntitlementsForOrg(supabaseClient, membership.organization_id, corr)
+    
+    if (entitlementsResult.ok) {
+      const limit = entitlementsResult.entitlements.limits.numbers
+      if (limit !== null && currentCount + 1 > limit) {
+        const body = { code: "LIMIT_REACHED_NUMBERS", message: `Import exceeds plan limit (${limit}).`, hint: "Remove some numbers or upgrade.", corr }
+        return new Response(JSON.stringify(body), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
     }
 
     // Parse request body

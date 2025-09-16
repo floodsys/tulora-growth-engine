@@ -63,7 +63,7 @@ export async function requireEntitlement(
   orgId: string,
   check: EntitlementCheck,
   corr?: string
-): Promise<{ success: true } | { success: false; error: EntitlementError; status: number }> {
+): Promise<{ ok: true } | { ok: false; status: number; body: EntitlementError }> {
   const correlationId = corr || crypto.randomUUID()
   
   console.log(`[${correlationId}] Checking entitlements for org ${orgId}:`, check)
@@ -78,9 +78,9 @@ export async function requireEntitlement(
     if (orgError || !org) {
       console.log(`[${correlationId}] Organization not found:`, orgError)
       return {
-        success: false,
+        ok: false,
         status: 403,
-        error: {
+        body: {
           code: 'PLAN_NOT_FOUND',
           message: ERROR_MESSAGES.PLAN_NOT_FOUND,
           hint: UPGRADE_HINTS.PLAN_NOT_FOUND,
@@ -96,9 +96,9 @@ export async function requireEntitlement(
         const errorCode = canonicalFeature === 'sms' ? 'FEATURE_NOT_ENABLED_SMS' : 'FEATURE_NOT_ENABLED'
         console.log(`[${correlationId}] Billing inactive, denying feature:`, canonicalFeature)
         return {
-          success: false,
+          ok: false,
           status: 403,
-          error: {
+          body: {
             code: errorCode,
             message: ERROR_MESSAGES[errorCode],
             hint: UPGRADE_HINTS[errorCode],
@@ -122,9 +122,9 @@ export async function requireEntitlement(
       const errorCode = canonicalFeature === 'sms' ? 'FEATURE_NOT_ENABLED_SMS' : 'FEATURE_NOT_ENABLED'
       console.log(`[${correlationId}] No plan config found, denying feature:`, canonicalFeature)
       return {
-        success: false,
+        ok: false,
         status: 403,
-        error: {
+        body: {
           code: errorCode,
           message: ERROR_MESSAGES[errorCode],
           hint: UPGRADE_HINTS[errorCode],
@@ -148,9 +148,9 @@ export async function requireEntitlement(
                          'FEATURE_NOT_ENABLED'
         console.log(`[${correlationId}] Feature not enabled:`, wanted, 'Available:', Array.from(canonical))
         return {
-          success: false,
+          ok: false,
           status: 403,
-          error: {
+          body: {
             code: errorCode,
             message: ERROR_MESSAGES[errorCode],
             hint: UPGRADE_HINTS[errorCode],
@@ -170,9 +170,9 @@ export async function requireEntitlement(
         const errorCode = `LIMIT_REACHED_${check.limitKey.toUpperCase()}` as keyof typeof ERROR_MESSAGES
         console.log(`[${correlationId}] Limit reached:`, check.limitKey, `${check.currentCount}/${limit}`)
         return {
-          success: false,
+          ok: false,
           status: 409,
-          error: {
+          body: {
             code: errorCode,
             message: ERROR_MESSAGES[errorCode],
             hint: UPGRADE_HINTS[errorCode],
@@ -182,20 +182,69 @@ export async function requireEntitlement(
       }
     }
 
-    return { success: true }
+    return { ok: true }
 
   } catch (error) {
     console.error(`[${correlationId}] Entitlement check error:`, error)
     return {
-      success: false,
+      ok: false,
       status: 500,
-      error: {
+      body: {
         code: 'INTERNAL_ERROR',
         message: 'Failed to check entitlements',
         hint: 'Please try again or contact support',
         corr: correlationId
       }
     }
+  }
+}
+
+/**
+ * Get organization entitlements (features and limits)
+ */
+export async function getEntitlementsForOrg(
+  supabase: any,
+  orgId: string,
+  corr?: string
+): Promise<{ ok: true; entitlements: { features: Set<string>; limits: Record<string, number | null> } } | { ok: false; error: any }> {
+  const correlationId = corr || crypto.randomUUID()
+  
+  try {
+    // Get organization plan
+    const { data: org, error: orgError } = await supabase
+      .from('organizations')
+      .select('plan_key, billing_status')
+      .eq('id', orgId)
+      .single()
+
+    if (orgError || !org) {
+      return { ok: false, error: orgError }
+    }
+
+    // Get plan configuration
+    const { data: planConfig } = await supabase
+      .from('plan_configs')
+      .select('features, limits')
+      .eq('plan_key', org.plan_key)
+      .eq('is_active', true)
+      .single()
+
+    const rawFeatures = planConfig?.features || []
+    const canonical = new Set<string>()
+    rawFeatures.forEach((f: string) => canonical.add(toCanonicalFeature(f)))
+
+    const limits = planConfig?.limits || {}
+
+    return {
+      ok: true,
+      entitlements: {
+        features: canonical,
+        limits
+      }
+    }
+  } catch (error) {
+    console.error(`[${correlationId}] Failed to get entitlements:`, error)
+    return { ok: false, error }
   }
 }
 

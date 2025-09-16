@@ -67,10 +67,10 @@ Deno.serve(async (req) => {
       feature: 'sms'
     }, corr)
 
-    if (!entitlementCheck.success) {
-      console.log(`[${corr}] SMS sending blocked by entitlements:`, entitlementCheck.error)
+    if (!entitlementCheck.ok) {
+      console.log(`[${corr}] SMS sending blocked by entitlements:`, entitlementCheck.body)
       return new Response(
-        JSON.stringify(entitlementCheck.error),
+        JSON.stringify(entitlementCheck.body),
         { 
           status: entitlementCheck.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }

@@ -55,10 +55,10 @@ Deno.serve(async (req) => {
       currentCount: currentWidgetCount
     }, corr)
 
-    if (!entitlementCheck.success) {
-      console.log(`[${corr}] Widget creation blocked by entitlements:`, entitlementCheck.error)
+    if (!entitlementCheck.ok) {
+      console.log(`[${corr}] Widget creation blocked by entitlements:`, entitlementCheck.body)
       return new Response(
-        JSON.stringify(entitlementCheck.error),
+        JSON.stringify(entitlementCheck.body),
         { 
           status: entitlementCheck.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
