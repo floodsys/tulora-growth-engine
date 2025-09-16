@@ -17,6 +17,10 @@ import { toast } from "sonner"
 import { MessageSquare, Phone, Plus, Copy, Eye, Settings, Trash2 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
+// Additive helper: prefer normalized correlationId → corr → traceId
+const getCorrId = (err: any) =>
+  err?.correlationId ?? err?.corr ?? err?.traceId ?? null;
+
 interface WidgetConfig {
   id: string
   agent_id: string
@@ -51,7 +55,13 @@ export function WidgetManagement() {
       if (error) throw error
       setWidgets((data || []) as WidgetConfig[])
     } catch (error) {
-      toast.error("Failed to load widgets")
+      const corr = getCorrId(error);
+      const baseMessage = "Failed to load widgets";
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      toast.error(message);
+      
+      console.error("WidgetManagement error", { corrId: corr, error });
     } finally {
       setLoading(false)
     }
@@ -69,7 +79,13 @@ export function WidgetManagement() {
       setIsDialogOpen(false)
       loadWidgets()
     } catch (error) {
-      toast.error("Failed to create widget")
+      const corr = getCorrId(error);
+      const baseMessage = "Failed to create widget";
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      toast.error(message);
+      
+      console.error("WidgetManagement error", { corrId: corr, error });
     }
   }
 
@@ -85,7 +101,13 @@ export function WidgetManagement() {
       toast.success(isActive ? "Widget activated" : "Widget deactivated")
       loadWidgets()
     } catch (error) {
-      toast.error("Failed to update widget")
+      const corr = getCorrId(error);
+      const baseMessage = "Failed to update widget";
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      toast.error(message);
+      
+      console.error("WidgetManagement error", { corrId: corr, error });
     }
   }
 
@@ -101,7 +123,13 @@ export function WidgetManagement() {
       toast.success("Widget deleted")
       loadWidgets()
     } catch (error) {
-      toast.error("Failed to delete widget")
+      const corr = getCorrId(error);
+      const baseMessage = "Failed to delete widget";
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      toast.error(message);
+      
+      console.error("WidgetManagement error", { corrId: corr, error });
     }
   }
 

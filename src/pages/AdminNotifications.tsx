@@ -16,6 +16,10 @@ import { SUPABASE_URL, SUPABASE_ANON } from "@/config/publicConfig"
 import { AdminGuard } from "@/components/admin/AdminGuard"
 import { ApiErrorPanel } from "@/components/ui/ApiErrorPanel"
 
+// Additive helper: prefer normalized correlationId → corr → traceId
+const getCorrId = (err: any) =>
+  err?.correlationId ?? err?.corr ?? err?.traceId ?? null;
+
 // Helper function to parse validation errors into user-friendly messages
 const parseValidationErrors = (details: string[]): string => {
   const messages: string[] = [];
@@ -207,11 +211,17 @@ export default function AdminNotifications() {
         throw new Error(`Status ${response.status}: ${JSON.stringify(data)}`)
       }
     } catch (error) {
+      const corr = getCorrId(error);
+      const baseDescription = error instanceof Error ? error.message : "Unknown error occurred";
+      const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+      
       toast({
         title: "Email Test Failed",
-        description: error instanceof Error ? error.message : "Unknown error occurred",
+        description,
         variant: "destructive"
-      })
+      });
+      
+      console.error("AdminNotifications error", { corrId: corr, error });
     } finally {
       setTesting(prev => ({ ...prev, [testKey]: false }))
     }
@@ -254,12 +264,17 @@ export default function AdminNotifications() {
         throw new Error(`Status ${response.status}: ${data.error || JSON.stringify(data)}`)
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
+      const corr = getCorrId(error);
+      const baseDescription = error instanceof Error ? error.message : "Unknown error occurred";
+      const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+      
       toast({
-        title: "❌ SuiteCRM Connection Failed", 
-        description: errorMessage,
+        title: "❌ SuiteCRM Connection Failed",
+        description,
         variant: "destructive"
-      })
+      });
+      
+      console.error("AdminNotifications error", { corrId: corr, error });
     } finally {
       setTesting(prev => ({ ...prev, crm_connection: false }))
     }
@@ -324,7 +339,9 @@ export default function AdminNotifications() {
         variant: "default"
       })
     } catch (error) {
-      console.error('Admin test lead error:', error);
+      const corr = getCorrId(error);
+      
+      console.error('AdminNotifications error', { corrId: corr, error });
       setTestError(error);
     } finally {
       setTesting(prev => ({ ...prev, crm_lead: false }))
@@ -412,12 +429,16 @@ export default function AdminNotifications() {
       })
 
     } catch (error) {
-      console.error('Ping functions error:', error)
+      const corr = getCorrId(error);
+      const baseDescription = error instanceof Error ? error.message : "Unknown error occurred";
+      const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+      
+      console.error('AdminNotifications error', { corrId: corr, error });
       toast({
         title: "Ping Functions Failed",
-        description: error instanceof Error ? error.message : "Unknown error occurred",
+        description,
         variant: "destructive"
-      })
+      });
     } finally {
       setTesting(prev => ({ ...prev, ping_functions: false }))
     }
@@ -506,7 +527,11 @@ export default function AdminNotifications() {
       }
       
     } catch (error) {
-      console.error('🔍 Direct ping error:', error);
+      const corr = getCorrId(error);
+      const baseDescription = error instanceof Error ? error.message : "Network error";
+      const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+      
+      console.error('AdminNotifications error', { corrId: corr, error });
       const result = {
         success: false,
         http_status: 'error',
@@ -519,7 +544,7 @@ export default function AdminNotifications() {
       
       toast({
         title: "Direct Ping Error",
-        description: error instanceof Error ? error.message : "Network error",
+        description,
         variant: "destructive"
       });
     } finally {
@@ -756,6 +781,10 @@ export default function AdminNotifications() {
       }
 
     } catch (error) {
+      const corr = getCorrId(error);
+      const baseDescription = error instanceof Error ? error.message : "Unknown error occurred";
+      const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+      
       setE2eResults({
         connection: { status: 'error', message: 'E2E test failed to start', function: '', version: '' },
         contact: { status: 'error', message: 'Not executed', function: '', version: '', response_status: 0 },
@@ -765,9 +794,11 @@ export default function AdminNotifications() {
       
       toast({
         title: "E2E Test Error",
-        description: error instanceof Error ? error.message : "Unknown error occurred",
+        description,
         variant: "destructive"
-      })
+      });
+      
+      console.error("AdminNotifications error", { corrId: corr, error });
     } finally {
       setE2eTesting(false)
     }

@@ -20,6 +20,10 @@ import { TeamAccessGuard } from "@/components/guards/TeamAccessGuard";
 import { getBuildInfo, clearAllCaches, forceReload } from "@/lib/build-info";
 import { OrgConstraintTester } from "@/components/debug/OrgConstraintTester";
 
+// Additive helper: prefer normalized correlationId → corr → traceId
+const getCorrId = (err: any) =>
+  err?.correlationId ?? err?.corr ?? err?.traceId ?? null;
+
 export default function SettingsOrganization() {
   const { toast } = useToast();
   const { organization, isOwner } = useUserOrganization();
@@ -61,10 +65,14 @@ export default function SettingsOrganization() {
           setOriginalData(data);
         }
       } catch (error) {
-        console.error('Error loading organization data:', error);
+        const corr = getCorrId(error);
+        const baseDescription = "Failed to load organization settings.";
+        const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+        
+        console.error('SettingsOrganization error', { corrId: corr, error });
         toast({
           title: "Error loading data",
-          description: "Failed to load organization settings.",
+          description,
           variant: "destructive"
         });
       }
@@ -170,9 +178,13 @@ export default function SettingsOrganization() {
       try {
         normalizedWebsite = normalizeWebsite(formData.website);
       } catch (error) {
+        const corr = getCorrId(error);
+        const baseDescription = error instanceof Error ? error.message : "Please enter a valid website URL";
+        const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+        
         toast({
           title: "Invalid Website URL",
-          description: error instanceof Error ? error.message : "Please enter a valid website URL",
+          description,
           variant: "destructive",
         });
         setLoading(false);
@@ -210,19 +222,27 @@ export default function SettingsOrganization() {
         description: "Organization settings have been updated successfully.",
       });
     } catch (error: any) {
-      console.error('Error updating organization:', error);
+      const corr = getCorrId(error);
+      
+      console.error('SettingsOrganization error', { corrId: corr, error });
       
       // Check if this is a permissions error
       if (error.code === 'PGRST301' || error.message?.includes('access denied')) {
+        const baseDescription = "Only organization owners can update organization profile.";
+        const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+        
         toast({
           title: "Access denied",
-          description: "Only organization owners can update organization profile.",
+          description,
           variant: "destructive"
         });
       } else {
+        const baseDescription = error.message || "Failed to update organization settings.";
+        const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+        
         toast({
           title: "Update failed",
-          description: error.message || "Failed to update organization settings.",
+          description,
           variant: "destructive"
         });
       }

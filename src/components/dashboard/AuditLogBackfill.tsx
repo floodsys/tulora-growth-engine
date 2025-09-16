@@ -29,6 +29,10 @@ import {
   BarChart3
 } from "lucide-react"
 
+// Additive helper: prefer normalized correlationId → corr → traceId
+const getCorrId = (err: any) =>
+  err?.correlationId ?? err?.corr ?? err?.traceId ?? null;
+
 interface BackfillResult {
   success: boolean;
   dry_run: boolean;
@@ -158,8 +162,12 @@ export function AuditLogBackfill() {
         );
       }
     } catch (error: any) {
-      console.error('Backfill error:', error);
-      toast.error(`Backfill failed: ${error.message}`);
+      const corr = getCorrId(error);
+      const baseMessage = `Backfill failed: ${error.message}`;
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      console.error('AuditLogBackfill error', { corrId: corr, error });
+      toast.error(message);
       setLastResult({
         success: false,
         dry_run: dryRun,

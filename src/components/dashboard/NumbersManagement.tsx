@@ -16,6 +16,10 @@ import { toast } from "sonner"
 import { Phone, Plus, Upload, Settings, Trash2 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
+// Additive helper: prefer normalized correlationId → corr → traceId
+const getCorrId = (err: any) =>
+  err?.correlationId ?? err?.corr ?? err?.traceId ?? null;
+
 export function NumbersManagement() {
   const { ownedNumbers, availableNumbers, loading, listNumbers, buyNumber, updateNumber, releaseNumber, importNumber } = useRetellNumbers()
   const { agents } = useRetellAgents()
@@ -35,7 +39,13 @@ export function NumbersManagement() {
       setIsDialogOpen(false)
       listNumbers()
     } catch (error) {
-      toast.error("Failed to purchase number")
+      const corr = getCorrId(error);
+      const baseMessage = "Failed to purchase number";
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      toast.error(message);
+      
+      console.error("NumbersManagement error", { corrId: corr, error });
     }
   }
 
@@ -46,7 +56,13 @@ export function NumbersManagement() {
       setIsImportDialogOpen(false)
       listNumbers()
     } catch (error) {
-      toast.error("Failed to import number")
+      const corr = getCorrId(error);
+      const baseMessage = "Failed to import number";
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      toast.error(message);
+      
+      console.error("NumbersManagement error", { corrId: corr, error });
     }
   }
 
@@ -56,7 +72,13 @@ export function NumbersManagement() {
       toast.success("Number updated successfully")
       listNumbers()
     } catch (error) {
-      toast.error("Failed to update number")
+      const corr = getCorrId(error);
+      const baseMessage = "Failed to update number";
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      toast.error(message);
+      
+      console.error("NumbersManagement error", { corrId: corr, error });
     }
   }
 
@@ -66,7 +88,13 @@ export function NumbersManagement() {
       toast.success("Number released successfully")
       listNumbers()
     } catch (error) {
-      toast.error("Failed to release number")
+      const corr = getCorrId(error);
+      const baseMessage = "Failed to release number";
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      toast.error(message);
+      
+      console.error("NumbersManagement error", { corrId: corr, error });
     }
   }
 

@@ -8,6 +8,10 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle, Clock, Eye, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+
+// Additive helper: prefer normalized correlationId → corr → traceId
+const getCorrId = (err: any) =>
+  err?.correlationId ?? err?.corr ?? err?.traceId ?? null;
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Alert {
@@ -62,8 +66,12 @@ export function AlertsSettings() {
         .order('created_at', { ascending: false });
 
       if (alertsError) {
-        console.error('Error loading alerts:', alertsError);
-        toast.error('Failed to load alerts');
+        const corr = getCorrId(alertsError);
+        const baseMessage = "Failed to load alerts";
+        const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+        
+        console.error('AlertsSettings error', { corrId: corr, error: alertsError });
+        toast.error(message);
       } else {
         setAlerts(alertsData || []);
       }
@@ -76,15 +84,23 @@ export function AlertsSettings() {
         .order('rule_name');
 
       if (rulesError) {
-        console.error('Error loading alert rules:', rulesError);
-        toast.error('Failed to load alert rules');
+        const corr = getCorrId(rulesError);
+        const baseMessage = "Failed to load alert rules";
+        const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+        
+        console.error('AlertsSettings error', { corrId: corr, error: rulesError });
+        toast.error(message);
       } else {
         setAlertRules(rulesData || []);
       }
 
     } catch (error) {
-      console.error('Error in loadAlertsData:', error);
-      toast.error('Failed to load alerts data');
+      const corr = getCorrId(error);
+      const baseMessage = "Failed to load alerts data";
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      console.error('AlertsSettings error', { corrId: corr, error });
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -102,15 +118,23 @@ export function AlertsSettings() {
         .eq('id', alertId);
 
       if (error) {
-        console.error('Error resolving alert:', error);
-        toast.error('Failed to resolve alert');
+        const corr = getCorrId(error);
+        const baseMessage = "Failed to resolve alert";
+        const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+        
+        console.error('AlertsSettings error', { corrId: corr, error });
+        toast.error(message);
       } else {
         toast.success('Alert resolved successfully');
         loadAlertsData();
       }
     } catch (error) {
-      console.error('Error resolving alert:', error);
-      toast.error('Failed to resolve alert');
+      const corr = getCorrId(error);
+      const baseMessage = "Failed to resolve alert";
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      console.error('AlertsSettings error', { corrId: corr, error });
+      toast.error(message);
     }
   };
 
@@ -122,15 +146,23 @@ export function AlertsSettings() {
         .eq('id', ruleId);
 
       if (error) {
-        console.error('Error updating rule:', error);
-        toast.error('Failed to update rule');
+        const corr = getCorrId(error);
+        const baseMessage = "Failed to update rule";
+        const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+        
+        console.error('AlertsSettings error', { corrId: corr, error });
+        toast.error(message);
       } else {
         toast.success(`Rule ${enabled ? 'enabled' : 'disabled'} successfully`);
         loadAlertsData();
       }
     } catch (error) {
-      console.error('Error updating rule:', error);
-      toast.error('Failed to update rule');
+      const corr = getCorrId(error);
+      const baseMessage = "Failed to update rule";
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      console.error('AlertsSettings error', { corrId: corr, error });
+      toast.error(message);
     }
   };
 
@@ -143,15 +175,23 @@ export function AlertsSettings() {
       });
 
       if (error) {
-        console.error('Error checking alerts:', error);
-        toast.error('Failed to check alerts');
+        const corr = getCorrId(error);
+        const baseMessage = "Failed to check alerts";
+        const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+        
+        console.error('AlertsSettings error', { corrId: corr, error });
+        toast.error(message);
       } else {
         toast.success('Alert check completed');
         loadAlertsData();
       }
     } catch (error) {
-      console.error('Error checking alerts:', error);
-      toast.error('Failed to check alerts');
+      const corr = getCorrId(error);
+      const baseMessage = "Failed to check alerts";
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      console.error('AlertsSettings error', { corrId: corr, error });
+      toast.error(message);
     }
   };
 

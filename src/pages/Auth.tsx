@@ -16,6 +16,10 @@ import { CheckCircle2 } from "lucide-react";
 import logo from "@/assets/logo.svg";
 import saasAuth from "@/assets/saas-auth.svg";
 
+// Additive helper: prefer normalized correlationId → corr → traceId
+const getCorrId = (err: any) =>
+  err?.correlationId ?? err?.corr ?? err?.traceId ?? null;
+
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -184,11 +188,15 @@ const Auth = () => {
       telemetry.signupStepCompleted('organization', 'email');
       setShowEmailSent(true);
     } catch (error: any) {
-      console.error('Authentication error:', error);
+      const corr = getCorrId(error);
+      const baseDescription = error.message || "An unexpected error occurred. Please try again.";
+      const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+      
+      console.error('Auth error', { corrId: corr, error });
       
       toast({
         title: "Couldn't create your account",
-        description: error.message || "An unexpected error occurred. Please try again.",
+        description,
         variant: "destructive",
       });
     } finally {
@@ -236,11 +244,15 @@ const Auth = () => {
 
       navigate('/dashboard');
     } catch (error: any) {
-      console.error('Sign in error:', error);
+      const corr = getCorrId(error);
+      const baseDescription = error.message || "Please check your credentials and try again.";
+      const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+      
+      console.error('Auth error', { corrId: corr, error });
       
       toast({
         title: "Sign in failed",
-        description: error.message || "Please check your credentials and try again.",
+        description,
         variant: "destructive",
       });
     } finally {
@@ -262,11 +274,17 @@ const Auth = () => {
       // Track Google auth initiation (completion will be tracked in callback/onboarding)
       telemetry.track('google_auth_initiated', { action: isSignUp ? 'signup' : 'signin' });
     } catch (error: any) {
+      const corr = getCorrId(error);
+      const baseDescription = error.message || "Failed to sign in with Google";
+      const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to sign in with Google",
+        description,
         variant: "destructive",
       });
+      
+      console.error('Auth error', { corrId: corr, error });
     } finally {
       setIsLoading(false);
     }
@@ -290,10 +308,14 @@ const Auth = () => {
         description: "We've sent you another verification link.",
       });
     } catch (error: any) {
-      console.error('Resend email error:', error);
+      const corr = getCorrId(error);
+      const baseDescription = "Failed to resend verification email. Please try again.";
+      const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+      
+      console.error('Auth error', { corrId: corr, error });
       toast({
         title: "Error",
-        description: "Failed to resend verification email. Please try again.",
+        description,
         variant: "destructive",
       });
     } finally {
@@ -318,10 +340,14 @@ const Auth = () => {
         description: "Check your email for a link to reset your password.",
       });
     } catch (error: any) {
-      console.error('Password reset error:', error);
+      const corr = getCorrId(error);
+      const baseDescription = error.message || "Failed to send password reset email.";
+      const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+      
+      console.error('Auth error', { corrId: corr, error });
       toast({
         title: "Error",
-        description: error.message || "Failed to send password reset email.",
+        description,
         variant: "destructive",
       });
     } finally {
