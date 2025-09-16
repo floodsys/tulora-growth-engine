@@ -102,7 +102,7 @@ export function DashboardOverview() {
     }
 
     loadKpis()
-  }, [dateRange, organization?.id])
+  }, [dateRange, organization?.id, getKpis])
 
   return (
     <div className="space-y-4 md:space-y-6">

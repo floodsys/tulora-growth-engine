@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 
@@ -94,7 +94,7 @@ export const useRetellAnalytics = (organizationId?: string) => {
   }
 
   // New method: Get KPIs for dashboard overview
-  const getKpis = async (dateRange?: { start: string; end: string }) => {
+  const getKpis = useCallback(async (dateRange?: { start: string; end: string }) => {
     if (!organizationId) return null
 
     try {
@@ -130,10 +130,10 @@ export const useRetellAnalytics = (organizationId?: string) => {
       console.error('Error loading KPIs:', error)
       return null
     }
-  }
+  }, [organizationId])
 
   // New method: Get analytics by agent
-  const getByAgent = async (dateRange?: { start: string; end: string }) => {
+  const getByAgent = useCallback(async (dateRange?: { start: string; end: string }) => {
     if (!organizationId) return []
 
     try {
@@ -207,7 +207,7 @@ export const useRetellAnalytics = (organizationId?: string) => {
       console.error('Error loading agent analytics:', error)
       return []
     }
-  }
+  }, [organizationId])
 
   const processCallAnalytics = (calls: any[]): CallAnalytics => {
     const totalCalls = calls.length
