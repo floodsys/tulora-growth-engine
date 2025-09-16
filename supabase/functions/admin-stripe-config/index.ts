@@ -264,8 +264,16 @@ serve(async (req) => {
           throw new Error(`Plan ${plan_key} is not allowed - only leadgen and support plans are permitted`);
         }
 
+        // Get the existing plan config to preserve display_name
+        const { data: existingPlan } = await supabaseClient
+          .from('plan_configs')
+          .select('display_name')
+          .eq('plan_key', plan_key)
+          .single();
+
         const updateData: any = {
           plan_key,
+          display_name: existingPlan?.display_name || plan_key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
           stripe_price_id_monthly,
           stripe_setup_price_id,
           updated_at: new Date().toISOString()
