@@ -36,15 +36,15 @@ export function StripeStatusCard({ refreshing = false }: StripeStatusCardProps) 
 
       if (error) throw error;
 
-      // Calculate overview from subscription data
-      const subscriptions = data.subscriptions || [];
+      // Calculate overview from subscription data - null-safe parsing
+      const subscriptions = Array.isArray(data?.subscriptions) ? data.subscriptions : [];
       const overview: BillingOverview = {
         total_subscriptions: subscriptions.length,
-        total_mrr: subscriptions.reduce((sum: number, sub: any) => sum + (sub.mrr || 0), 0),
-        trial_count: subscriptions.filter((sub: any) => sub.status === 'trialing').length,
-        active_count: subscriptions.filter((sub: any) => sub.status === 'active').length,
-        past_due_count: subscriptions.filter((sub: any) => sub.status === 'past_due').length,
-        canceled_count: subscriptions.filter((sub: any) => sub.status === 'canceled').length,
+        total_mrr: subscriptions.reduce((sum: number, sub: any) => sum + (Number(sub?.mrr) || 0), 0),
+        trial_count: subscriptions.filter((sub: any) => sub?.status === 'trialing').length,
+        active_count: subscriptions.filter((sub: any) => sub?.status === 'active').length,
+        past_due_count: subscriptions.filter((sub: any) => sub?.status === 'past_due').length,
+        canceled_count: subscriptions.filter((sub: any) => sub?.status === 'canceled').length,
       };
 
       setOverview(overview);
@@ -101,7 +101,14 @@ export function StripeStatusCard({ refreshing = false }: StripeStatusCardProps) 
           </Button>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">{error}</p>
+          <p className="text-sm text-muted-foreground">
+            {error || 'No billing data available'}
+          </p>
+          {!overview && !error && (
+            <p className="text-xs text-muted-foreground mt-2">
+              The admin-billing-overview function may have returned empty data.
+            </p>
+          )}
         </CardContent>
       </Card>
     );

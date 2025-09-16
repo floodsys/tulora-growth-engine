@@ -58,6 +58,9 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   const { dateRange, setDateRange } = useDashboardDateRange();
   const { isAdmin } = useOrganizationRole(organizationId);
   
+  const [availablePlans, setAvailablePlans] = useState<any[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<string>('leadgen_starter');
+  
   const [isSyncing, setIsSyncing] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isOpeningPortal, setIsOpeningPortal] = useState(false);
@@ -74,6 +77,32 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   const [reconcileError, setReconcileError] = useState<any>(null);
   const [refreshDebugOpen, setRefreshDebugOpen] = useState(false);
   const [reconcileDebugOpen, setReconcileDebugOpen] = useState(false);
+
+  // Fetch available plans on component mount
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('plan_configs')
+          .select('plan_key, display_name, stripe_price_id_monthly')
+          .eq('is_active', true)
+          .not('stripe_price_id_monthly', 'is', null);
+        
+        if (error) throw error;
+        
+        setAvailablePlans(data || []);
+        // Set default to first available plan if current selection is not available
+        if (data && data.length > 0 && !data.find(p => p.plan_key === selectedPlan)) {
+          setSelectedPlan(data[0].plan_key);
+        }
+      } catch (error) {
+        console.error('Error fetching plans:', error);
+        // Keep default fallback
+      }
+    };
+    
+    fetchPlans();
+  }, []);
 
   // Use real usage data instead of mocks
   const { 
@@ -229,7 +258,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       const { data, error } = await supabase.functions.invoke('billing-preflight', {
         body: { 
           orgId: organizationId,
-          planKey: 'leadgen_starter'
+          planKey: selectedPlan
         }
       });
 
@@ -286,7 +315,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       const { data, error } = await supabase.functions.invoke('create-org-checkout', {
         body: { 
           orgId: organizationId,
-          planKey: 'leadgen_starter'
+          planKey: selectedPlan
         }
       });
 
@@ -325,6 +354,15 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   };
 
   const handleManageBilling = async () => {
+    if (!organizationId) {
+      toast({
+        title: "Error",
+        description: "Organization not loaded. Please refresh the page.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       setIsOpeningPortal(true);
       const { data, error } = await supabase.functions.invoke('org-customer-portal', {
@@ -349,6 +387,15 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   };
 
   const handleSyncSeats = async () => {
+    if (!organizationId) {
+      toast({
+        title: "Error", 
+        description: "Organization not loaded. Please refresh the page.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       setIsSyncing(true);
       const { data, error } = await supabase.functions.invoke('org-update-seats', {
@@ -377,6 +424,15 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   };
 
   const handleReconcileBilling = async () => {
+    if (!organizationId) {
+      toast({
+        title: "Error",
+        description: "Organization not loaded. Please refresh the page.", 
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       setIsReconciling(true);
       setReconcileError(null);
@@ -464,6 +520,10 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
         return 'Cannot determine plan from Stripe subscription. Check subscription metadata.';
       case 'INSUFFICIENT_STRIPE_PERMISSIONS':
         return 'Stripe API key lacks required permissions.';
+      case 'ORG_ID_MISSING':
+        return 'Organization ID is missing from request.';
+      case 'NO_CUSTOMER':
+        return 'No Stripe customer found for this organization. Complete a checkout first.';
       default:
         return null;
     }
@@ -733,7 +793,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                     </>
                   )}
                 </Button>
-              ) : (
+                ) : (
                 <div className="space-y-4">
                   {!organizationId ? (
                     <Alert variant="destructive">
@@ -742,6 +802,24 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                       </AlertDescription>
                     </Alert>
                   ) : null}
+                  
+                  {/* Plan Selection */}
+                  {availablePlans.length > 1 && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Select Plan</label>
+                      <select
+                        value={selectedPlan}
+                        onChange={(e) => setSelectedPlan(e.target.value)}
+                        className="w-full p-2 border border-input bg-background rounded-md text-sm"
+                      >
+                        {availablePlans.map((plan) => (
+                          <option key={plan.plan_key} value={plan.plan_key}>
+                            {plan.display_name} ({plan.plan_key})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   
                   {/* Billing Preflight Results */}
                   {preflightResults && (
@@ -832,23 +910,23 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                       )}
                     </Button>
                     
-                    <Button 
-                      onClick={handleUpgrade}
-                      disabled={isUpgrading || !organizationId || (preflightResults && !preflightResults.canProceed)}
-                      className="flex-1"
-                    >
-                      {isUpgrading ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                          Starting...
-                        </>
-                      ) : (
-                        <>
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          Upgrade Now
-                        </>
-                      )}
-                    </Button>
+                     <Button 
+                       onClick={handleUpgrade}
+                       disabled={isUpgrading || !organizationId || !selectedPlan || (preflightResults && !preflightResults.canProceed)}
+                       className="flex-1"
+                     >
+                       {isUpgrading ? (
+                         <>
+                           <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                           Starting...
+                         </>
+                       ) : (
+                         <>
+                           <ExternalLink className="h-4 w-4 mr-2" />
+                           Upgrade Now {selectedPlan && `(${selectedPlan})`}
+                         </>
+                       )}
+                     </Button>
                   </div>
                 </div>
               )}

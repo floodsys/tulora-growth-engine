@@ -21,11 +21,23 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  const corr = crypto.randomUUID();
+
+  const fail = (status: number, code: string, message: string, hint?: string, details?: any) => {
+    logStep("ERROR", { corr, code, message, hint, details, status });
+    return new Response(JSON.stringify({ corr, code, message, hint, details }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status,
+    });
+  };
+
   try {
-    logStep('Function started')
+    logStep('Function started', { corr })
 
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
-    if (!stripeKey) throw new Error('STRIPE_SECRET_KEY is not set')
+    if (!stripeKey) {
+      return fail(500, 'INTERNAL_ERROR', 'STRIPE_SECRET_KEY not configured', 'Configure Stripe secret key in environment');
+    }
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -34,14 +46,22 @@ serve(async (req) => {
     )
 
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) throw new Error('No authorization header provided')
+    if (!authHeader) {
+      return fail(401, 'UNAUTHORIZED', 'No authorization header provided', 'Include Authorization header with Bearer token');
+    }
 
     const token = authHeader.replace('Bearer ', '')
     const { data: userData, error: userError } = await supabase.auth.getUser(token)
-    if (userError || !userData.user) throw new Error('User not authenticated')
+    if (userError || !userData.user) {
+      return fail(401, 'UNAUTHORIZED', 'User not authenticated', 'Invalid or expired token');
+    }
 
     const { orgId }: PortalRequest = await req.json()
-    logStep('Request data', { orgId })
+    if (!orgId) {
+      return fail(400, 'ORG_ID_MISSING', 'Organization ID is required', 'Include orgId in request body');
+    }
+    
+    logStep('Request data', { corr, orgId, userId: userData.user.id })
 
     // Verify user has admin access to this org
     const { data: membership } = await supabase
@@ -52,7 +72,7 @@ serve(async (req) => {
       .single()
 
     if (!membership || !['owner', 'admin'].includes(membership.role)) {
-      throw new Error('Insufficient permissions')
+      return fail(401, 'UNAUTHORIZED', 'Insufficient permissions', 'User must be organization owner or admin');
     }
 
     // Get organization with Stripe customer ID
@@ -63,7 +83,7 @@ serve(async (req) => {
       .single()
 
     if (!org || !org.stripe_customer_id) {
-      throw new Error('Organization has no Stripe customer ID')
+      return fail(400, 'NO_CUSTOMER', 'Organization has no Stripe customer ID', 'Complete a checkout session first to create Stripe customer');
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
@@ -76,21 +96,24 @@ serve(async (req) => {
     })
 
     logStep('Customer portal session created', { 
+      corr,
       sessionId: portalSession.id, 
-      url: portalSession.url 
+      url: portalSession.url,
+      customerId: org.stripe_customer_id
     })
 
-    return new Response(JSON.stringify({ url: portalSession.url }), {
+    return new Response(JSON.stringify({ 
+      corr,
+      url: portalSession.url,
+      customerId: org.stripe_customer_id
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    logStep('ERROR', { message: errorMessage })
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    })
+    logStep('ERROR', { corr, message: errorMessage })
+    return fail(500, 'INTERNAL_ERROR', errorMessage, 'Unexpected error occurred');
   }
 })

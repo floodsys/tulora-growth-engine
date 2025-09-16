@@ -25,7 +25,7 @@ import { useUserOrganization } from "@/hooks/useUserOrganization"
 const Dashboard = () => {
   const [activeScreen, setActiveScreen] = useState("overview")
   const { toast } = useToast()
-  const { organizationId } = useUserOrganization()
+  const { organizationId, loading: orgLoading } = useUserOrganization()
 
   // Handle checkout success/cancel redirects and tab parameter
   useEffect(() => {
@@ -87,7 +87,32 @@ const Dashboard = () => {
       case "scheduling":
         return <Scheduling />
       case "billing":
-        return <UsageBilling organizationId={organizationId || ""} />
+        // Gate billing UI until org is loaded and exists
+        if (orgLoading) {
+          return (
+            <div className="flex items-center justify-center h-64">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <p className="text-sm text-muted-foreground">Loading organization...</p>
+              </div>
+            </div>
+          );
+        }
+        
+        if (!organizationId) {
+          return (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center space-y-4">
+                <h3 className="text-lg font-semibold">No Organization Selected</h3>
+                <p className="text-sm text-muted-foreground">
+                  Please select or create an organization to access billing features.
+                </p>
+              </div>
+            </div>
+          );
+        }
+        
+        return <UsageBilling organizationId={organizationId} />
       case "teams":
         return <SettingsOrganization />
       case "organization":
