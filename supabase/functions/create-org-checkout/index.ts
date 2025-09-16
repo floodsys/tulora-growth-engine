@@ -296,7 +296,7 @@ serve(async (req) => {
       }
     })
 
-    console.log('[checkout:ok]', { corr, isLiveKey, orgId, planKey, priceId, sessionId: session.id })
+    console.log("[checkout:ok]", { corr, sessionId: session.id, orgId, planKey })
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
