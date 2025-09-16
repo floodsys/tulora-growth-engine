@@ -75,6 +75,14 @@ export async function requireEntitlement(
       .eq('id', orgId)
       .single()
 
+    // Get plan configuration for display name
+    const { data: planConfig } = await supabase
+      .from('plan_configs')
+      .select('features, limits, display_name')
+      .eq('plan_key', org?.plan_key)
+      .eq('is_active', true)
+      .single()
+
     if (orgError || !org) {
       console.log(`[${correlationId}] Organization not found:`, orgError)
       return {
@@ -84,7 +92,9 @@ export async function requireEntitlement(
           code: 'PLAN_NOT_FOUND',
           message: ERROR_MESSAGES.PLAN_NOT_FOUND,
           hint: UPGRADE_HINTS.PLAN_NOT_FOUND,
-          corr: correlationId
+          corr: correlationId,
+          planKey: org?.plan_key || null,
+          planName: planConfig?.display_name || org?.plan_key || 'Unknown'
         }
       }
     }
@@ -102,19 +112,14 @@ export async function requireEntitlement(
             code: errorCode,
             message: ERROR_MESSAGES[errorCode],
             hint: UPGRADE_HINTS[errorCode],
-            corr: correlationId
+            corr: correlationId,
+            planKey: org.plan_key,
+            planName: planConfig?.display_name || org.plan_key
           }
         }
       }
     }
 
-    // Get plan configuration
-    const { data: planConfig } = await supabase
-      .from('plan_configs')
-      .select('features, limits')
-      .eq('plan_key', org.plan_key)
-      .eq('is_active', true)
-      .single()
 
     if (!planConfig && check.feature) {
       // No plan config found, deny premium features
@@ -128,7 +133,9 @@ export async function requireEntitlement(
           code: errorCode,
           message: ERROR_MESSAGES[errorCode],
           hint: UPGRADE_HINTS[errorCode],
-          corr: correlationId
+          corr: correlationId,
+          planKey: org.plan_key,
+          planName: org.plan_key
         }
       }
     }
@@ -154,7 +161,9 @@ export async function requireEntitlement(
             code: errorCode,
             message: ERROR_MESSAGES[errorCode],
             hint: UPGRADE_HINTS[errorCode],
-            corr: correlationId
+            corr: correlationId,
+            planKey: org.plan_key,
+            planName: planConfig?.display_name || org.plan_key
           }
         }
       }
@@ -176,7 +185,9 @@ export async function requireEntitlement(
             code: errorCode,
             message: ERROR_MESSAGES[errorCode],
             hint: UPGRADE_HINTS[errorCode],
-            corr: correlationId
+            corr: correlationId,
+            planKey: org.plan_key,
+            planName: planConfig?.display_name || org.plan_key
           }
         }
       }
@@ -224,7 +235,7 @@ export async function getEntitlementsForOrg(
     // Get plan configuration
     const { data: planConfig } = await supabase
       .from('plan_configs')
-      .select('features, limits')
+      .select('features, limits, display_name')
       .eq('plan_key', org.plan_key)
       .eq('is_active', true)
       .single()
