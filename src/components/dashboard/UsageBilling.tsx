@@ -117,28 +117,28 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
     refreshConcurrency 
   } = useUsageData(organizationId);
 
-  // Convert usage rollup to expected format
+  // Convert usage rollup to expected format with SSOT limits
   const usageData: UsageData | null = currentUsage ? {
     minutes: { 
       used: currentUsage.minutes, 
-      limit: 5000 // Get from entitlements
+      limit: entitlements.limits.agents ? (entitlements.limits.agents * 500) : 5000 // Rough estimation: 500 min per agent
     },
     calls: { 
       used: currentUsage.calls, 
-      limit: 1000 // Get from entitlements
+      limit: entitlements.limits.agents ? (entitlements.limits.agents * 200) : 1000 // Rough estimation: 200 calls per agent
     },
     tokens: { 
       used: currentUsage.messages * 100, // Estimate tokens from messages
-      limit: 250000 // Get from entitlements
+      limit: entitlements.limits.agents ? (entitlements.limits.agents * 50000) : 250000 // Rough estimation: 50k tokens per agent
     },
     plan: {
-      name: "Professional", // Get from billing status
+      name: entitlements.planName || "Professional",
       billing_cycle: "monthly",
-      next_billing_date: "2024-02-15" // Get from billing status
+      next_billing_date: billingStatus?.current_period_end || "2024-02-15"
     },
     spend: { 
       current: (currentUsage.calls * 0.12) + (currentUsage.minutes * 0.05), // Calculate from usage
-      limit: 150 // Get from entitlements
+      limit: entitlements.limits.agents ? (entitlements.limits.agents * 30) : 150 // Rough estimation: $30 per agent
     }
   } : null;
 
@@ -728,14 +728,56 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold mb-2">Current Plan</h2>
-              <p className="text-muted-foreground">
-                {billingStatus?.plan_name || 'Loading...'}
-                {billingStatus?.status === 'trialing' && billingStatus.trial_end && (
-                  <span className="ml-2 text-warning">
-                    (Trial ends {format(new Date(billingStatus.trial_end), "MMM dd, yyyy")})
-                  </span>
-                )}
-              </p>
+              <div className="space-y-2">
+                <p className="text-muted-foreground">
+                  {entitlements.planName}
+                  {billingStatus?.status === 'trialing' && billingStatus.trial_end && (
+                    <span className="ml-2 text-warning">
+                      (Trial ends {format(new Date(billingStatus.trial_end), "MMM dd, yyyy")})
+                    </span>
+                  )}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant={entitlements.isActive ? "secondary" : "outline"}>
+                    {entitlements.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                  {entitlements.features.scheduling && (
+                    <Badge variant="outline">Scheduling</Badge>
+                  )}
+                  {entitlements.features.numbers && (
+                    <Badge variant="outline">Numbers</Badge>
+                  )}
+                  {entitlements.features.sms && (
+                    <Badge variant="outline">SMS</Badge>
+                  )}
+                  {entitlements.features.widgets && (
+                    <Badge variant="outline">Widgets</Badge>
+                  )}
+                  {entitlements.features.advancedAnalytics && (
+                    <Badge variant="outline">Advanced Analytics</Badge>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-4 mt-3 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Agents:</span>
+                    <span className="ml-1 font-medium">
+                      {entitlements.limits.agents === null ? "Unlimited" : entitlements.limits.agents}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Numbers:</span>
+                    <span className="ml-1 font-medium">
+                      {entitlements.limits.numbers === null ? "Unlimited" : entitlements.limits.numbers}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Widgets:</span>
+                    <span className="ml-1 font-medium">
+                      {entitlements.limits.widgets === null ? "Unlimited" : entitlements.limits.widgets}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button 
