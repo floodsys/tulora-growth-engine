@@ -22,15 +22,15 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  try {
-    logStep('Function started')
+  const corr = crypto.randomUUID();
 
+  try {
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
     if (!stripeKey) throw new Error('STRIPE_SECRET_KEY is not set')
 
     // Detect Stripe key mode
     const isLiveKey = stripeKey.startsWith('sk_live_')
-    logStep('Stripe key mode detected', { isLive: isLiveKey })
+    console.log('[checkout:start]', { corr, isLiveKey })
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -46,7 +46,10 @@ serve(async (req) => {
     if (userError || !userData.user) throw new Error('User not authenticated')
 
     let { orgId, planKey }: CheckoutRequest = await req.json()
-    logStep('Request data', { orgId, planKey })
+    
+    // Early capture of key context for debugging
+    let priceId: string | undefined = undefined;
+    console.log('[checkout:request]', { corr, orgId, planKey })
 
     // Require non-empty orgId with fallback
     if (!orgId || orgId.trim() === '') {
@@ -73,10 +76,13 @@ serve(async (req) => {
           orgId = memberships[0].organization_id
           logStep('Using fallback orgId from membership', { orgId })
         } else {
+          console.log('[checkout:error]', { corr, error: 'ORG_ID_MISSING', orgId, planKey, priceId })
           return new Response(JSON.stringify({ 
             error: 'Organization ID required',
             code: 'ORG_ID_MISSING',
-            hint: 'Select an organization before checkout.'
+            hint: 'Select an organization before checkout.',
+            correlationId: corr,
+            context: { orgId, planKey, stripeMode: isLiveKey ? 'live' : 'test' }
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400,
@@ -124,15 +130,19 @@ serve(async (req) => {
     })
 
     // Use monthly subscription price
-    const priceId = planConfig.stripe_price_id_monthly
+    priceId = planConfig.stripe_price_id_monthly
+    console.log('[checkout:plan-resolved]', { corr, orgId, planKey, priceId, productLine: planConfig.product_line })
     const isDevelopment = Deno.env.get('NODE_ENV') !== 'production'
     
     // Verify plan & price mapping before creating a Session
     if (!priceId && !isDevelopment) {
+      console.log('[checkout:error]', { corr, error: 'PRICE_NOT_CONFIGURED', orgId, planKey, priceId })
       return new Response(JSON.stringify({
         error: 'Price not configured',
         code: 'PRICE_NOT_CONFIGURED',
-        hint: 'Configure live Price ID in Admin → Stripe Configuration.'
+        hint: 'Configure live Price ID in Admin → Stripe Configuration.',
+        correlationId: corr,
+        context: { orgId, planKey, priceId, stripeMode: isLiveKey ? 'live' : 'test' }
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
@@ -148,10 +158,13 @@ serve(async (req) => {
         logStep('Verified price exists in Stripe', { priceId })
       } catch (stripeError: any) {
         if (stripeError.code === 'resource_missing') {
+          console.log('[checkout:error]', { corr, error: 'NO_SUCH_PRICE', orgId, planKey, priceId, stripeError: stripeError.message })
           return new Response(JSON.stringify({
             error: 'Price ID not found',
             code: 'NO_SUCH_PRICE',
-            hint: 'Price ID and Stripe key are in different modes (test vs live).'
+            hint: 'Price ID and Stripe key are in different modes (test vs live).',
+            correlationId: corr,
+            context: { orgId, planKey, priceId, stripeMode: isLiveKey ? 'live' : 'test' }
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400,
@@ -244,7 +257,7 @@ serve(async (req) => {
       }
     })
 
-    logStep('Checkout session created', { sessionId: session.id, url: session.url })
+    console.log('[checkout:success]', { corr, sessionId: session.id, orgId, planKey, priceId })
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -253,8 +266,13 @@ serve(async (req) => {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    logStep('ERROR', { message: errorMessage })
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    console.log('[checkout:error]', { corr, error: errorMessage, orgId, planKey, priceId })
+    return new Response(JSON.stringify({ 
+      error: errorMessage,
+      code: 'INTERNAL_ERROR',
+      correlationId: corr,
+      context: { orgId, planKey, priceId }
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })

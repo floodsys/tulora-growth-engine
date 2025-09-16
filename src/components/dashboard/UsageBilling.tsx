@@ -63,6 +63,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   const [isReconciling, setIsReconciling] = useState(false);
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [isLoadingBilling, setIsLoadingBilling] = useState(true);
+  const [checkoutError, setCheckoutError] = useState<any>(null);
 
   // Use real usage data instead of mocks
   const { 
@@ -193,10 +194,12 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   const handleUpgrade = async () => {
     try {
       setIsUpgrading(true);
+      setCheckoutError(null);
+      
       const { data, error } = await supabase.functions.invoke('create-org-checkout', {
         body: { 
           orgId: organizationId,
-          priceId: 'price_professional_monthly' // Dynamic based on plan selection
+          planKey: 'leadgen_starter' // Dynamic based on plan selection
         }
       });
 
@@ -205,11 +208,17 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       if (data.url) {
         window.open(data.url, '_blank');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating checkout:', error);
+      
+      // Store structured error for detailed display
+      setCheckoutError(error);
+      
+      // Show user-friendly toast
+      const errorMsg = error?.message || "Failed to start upgrade process";
       toast({
-        title: "Error",
-        description: "Failed to start upgrade process",
+        title: "Checkout Failed",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -420,6 +429,34 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                       </AlertDescription>
                     </Alert>
                   ) : null}
+                  
+                  {/* Checkout Debug Panel */}
+                  {checkoutError && (
+                    <Alert variant="destructive">
+                      <AlertDescription>
+                        <div className="space-y-2">
+                          <div className="font-medium">Checkout Failed</div>
+                          <div className="text-sm space-y-1">
+                            <div><strong>Error:</strong> {checkoutError.message}</div>
+                            {checkoutError.code && <div><strong>Code:</strong> {checkoutError.code}</div>}
+                            {checkoutError.correlationId && <div><strong>Correlation ID:</strong> {checkoutError.correlationId}</div>}
+                            {checkoutError.context && (
+                              <div><strong>Context:</strong> orgId={checkoutError.context.orgId}, planKey={checkoutError.context.planKey}, priceId={checkoutError.context.priceId}, mode={checkoutError.context.stripeMode}</div>
+                            )}
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setCheckoutError(null)}
+                            className="mt-2"
+                          >
+                            Dismiss
+                          </Button>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
                   <Button 
                     onClick={handleUpgrade}
                     disabled={isUpgrading || !organizationId}
