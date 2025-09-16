@@ -44,6 +44,9 @@ serve(async (req) => {
   };
 
   try {
+    const corr = crypto.randomUUID();
+    console.log("[checkout:start]", { corr });
+    
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
     if (!stripeKey) return fail(500, 'INTERNAL_ERROR', 'STRIPE_SECRET_KEY is not set')
 
@@ -125,6 +128,28 @@ serve(async (req) => {
 
     if (!org) return fail(400, 'ORG_NOT_FOUND', 'Organization not found')
 
+    // Create Stripe instance for customer validation
+    const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
+
+    // Validate and normalize stored customer ID
+    let customerId = org?.stripe_customer_id ?? null;
+    try {
+      if (customerId) {
+        const existing = await stripe.customers.retrieve(customerId as string);
+        // If deleted/flagged, treat as missing
+        // @ts-ignore
+        if ((existing as any)?.deleted === true) customerId = null;
+      }
+    } catch (err: any) {
+      // Stripe "No such customer" → treat as missing
+      if (err?.statusCode === 404 || err?.code === "resource_missing") {
+        customerId = null;
+      } else {
+        console.log("[checkout:customer_retrieve_error]", { corr, code: err?.code, msg: err?.message });
+        // fall through; we'll let checkout continue if we can
+      }
+    }
+
     // Get plan configuration
     const { data: planConfig, error: planError } = await supabase
       .from('plan_configs')
@@ -152,7 +177,7 @@ serve(async (req) => {
       return fail(400, 'PRICE_NOT_CONFIGURED', 'Configure live Price ID in Admin → Stripe Configuration.')
     }
 
-    const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
+    // Stripe instance already created above for customer validation
 
     // Verify price exists in Stripe if we have a priceId
     if (priceId) {
@@ -167,8 +192,7 @@ serve(async (req) => {
       }
     }
 
-    // Create or get Stripe customer
-    let customerId = org.stripe_customer_id
+    // Create or get Stripe customer (using validated customerId from above)
     if (!customerId) {
       const customer = await stripe.customers.create({
         name: org.name,
