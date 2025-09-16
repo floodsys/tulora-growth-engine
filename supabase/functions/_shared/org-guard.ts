@@ -7,7 +7,7 @@ export interface OrgGuardResult {
   organization?: {
     id: string;
     name: string;
-    suspension_status: string;
+    status: string;
     suspension_reason?: string;
   };
 }
@@ -33,7 +33,7 @@ export async function requireOrgActive(context: OrgGuardContext): Promise<OrgGua
     // Fetch organization status
     const { data: org, error } = await supabase
       .from('organizations')
-      .select('id, name, suspension_status, suspension_reason, suspended_at, canceled_at')
+      .select('id, name, status, suspension_reason, suspended_at, canceled_at')
       .eq('id', organizationId)
       .single();
 
@@ -47,7 +47,7 @@ export async function requireOrgActive(context: OrgGuardContext): Promise<OrgGua
     }
 
     // Check organization status
-    switch (org.suspension_status) {
+    switch (org.status) {
       case 'active':
         return {
           ok: true,
@@ -97,7 +97,7 @@ export async function requireOrgActive(context: OrgGuardContext): Promise<OrgGua
         };
 
       default:
-        console.warn('Unknown suspension status:', org.suspension_status);
+        console.warn('Unknown suspension status:', org.status);
         return {
           ok: false,
           status: 500,
@@ -216,7 +216,7 @@ export function createBlockedResponse(result: OrgGuardResult, corsHeaders: Recor
     JSON.stringify({
       error: message,
       code: result.reason,
-      status: result.organization?.suspension_status,
+      status: result.organization?.status,
       suspended_reason: result.organization?.suspension_reason
     }),
     {
