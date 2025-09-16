@@ -66,6 +66,8 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   const [isLoadingBilling, setIsLoadingBilling] = useState(true);
   const [checkoutError, setCheckoutError] = useState<any>(null);
   const [debugPanelOpen, setDebugPanelOpen] = useState(false);
+  const [preflightResults, setPreflightResults] = useState<any>(null);
+  const [isRunningPreflight, setIsRunningPreflight] = useState(false);
 
   // Use real usage data instead of mocks
   const { 
@@ -193,15 +195,56 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
     return billingStatus?.status !== 'active' && billingStatus?.status !== 'trialing';
   };
 
+  const runPreflightCheck = async () => {
+    if (!organizationId) return null;
+    
+    try {
+      setIsRunningPreflight(true);
+      const { data, error } = await supabase.functions.invoke('billing-preflight', {
+        body: { 
+          orgId: organizationId,
+          planKey: 'leadgen_starter'
+        }
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error: any) {
+      console.error('Preflight check failed:', error);
+      return {
+        success: false,
+        overallStatus: 'fail',
+        canProceed: false,
+        error: error.message
+      };
+    } finally {
+      setIsRunningPreflight(false);
+    }
+  };
+
   const handleUpgrade = async () => {
     try {
       setIsUpgrading(true);
       setCheckoutError(null);
+      setPreflightResults(null);
+      
+      // Run preflight check first
+      const preflightResult = await runPreflightCheck();
+      setPreflightResults(preflightResult);
+      
+      if (!preflightResult?.canProceed) {
+        toast({
+          title: "Checkout Blocked",
+          description: "Please fix the issues below before proceeding",
+          variant: "destructive",
+        });
+        return;
+      }
       
       const { data, error } = await supabase.functions.invoke('create-org-checkout', {
         body: { 
           orgId: organizationId,
-          planKey: 'leadgen_starter' // Dynamic based on plan selection
+          planKey: 'leadgen_starter'
         }
       });
 
@@ -217,22 +260,17 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       let parsedError = null;
       try {
         if (error?.message && typeof error.message === 'string') {
-          // Try to parse if it's a JSON string
           parsedError = JSON.parse(error.message);
         } else if (error && typeof error === 'object') {
-          // Use the error object directly if it has the expected structure
           parsedError = error;
         }
       } catch (parseError) {
-        // Fallback to simple error
         parsedError = { message: error?.message || "Failed to start upgrade process" };
       }
       
-      // Store structured error for detailed display
       setCheckoutError(parsedError);
       setDebugPanelOpen(true);
       
-      // Show user-friendly toast
       const errorMsg = parsedError?.message || error?.message || "Failed to start upgrade process";
       toast({
         title: "Checkout Failed",
@@ -337,6 +375,32 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
         return 'Sign in again / auth header missing.';
       default:
         return null;
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pass':
+        return '✅';
+      case 'warning':
+        return '⚠️';
+      case 'fail':
+        return '❌';
+      default:
+        return '❓';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pass':
+        return 'text-green-600';
+      case 'warning':
+        return 'text-yellow-600';
+      case 'fail':
+        return 'text-red-600';
+      default:
+        return 'text-gray-600';
     }
   };
 
@@ -471,6 +535,58 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                     </Alert>
                   ) : null}
                   
+                  {/* Billing Preflight Results */}
+                  {preflightResults && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium">Checkout Readiness Check</h4>
+                        <Badge variant={
+                          preflightResults.overallStatus === 'pass' ? 'secondary' :
+                          preflightResults.overallStatus === 'warning' ? 'secondary' : 'destructive'
+                        }>
+                          {getStatusIcon(preflightResults.overallStatus)} {preflightResults.overallStatus}
+                        </Badge>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {preflightResults.checks?.map((check: any, index: number) => (
+                          <div key={check.id || index} className="flex items-start gap-3 p-3 border rounded-lg">
+                            <span className="text-lg">{getStatusIcon(check.status)}</span>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium">{check.name}</span>
+                                <Badge variant="outline" className={getStatusColor(check.status)}>
+                                  {check.status}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1">{check.message}</p>
+                              {check.hint && (
+                                <p className="text-sm text-orange-600 mt-1">💡 {check.hint}</p>
+                              )}
+                              {check.details && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {Object.entries(check.details).map(([key, value]) => (
+                                    <span key={key} className="mr-3">
+                                      {key}: {String(value)}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {!preflightResults.canProceed && (
+                        <Alert variant="destructive">
+                          <AlertDescription>
+                            Fix the issues above before proceeding with checkout.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
+                  )}
+                  
                   {/* Checkout Debug Panel */}
                   {checkoutError && (
                     <div className="space-y-2">
@@ -580,22 +696,43 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                     </div>
                   )}
                   
-                  <Button 
-                    onClick={handleUpgrade}
-                    disabled={isUpgrading || !organizationId}
-                  >
-                    {isUpgrading ? (
-                      <>
-                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                        Starting...
-                      </>
-                    ) : (
-                      <>
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        Upgrade Now
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline"
+                      onClick={runPreflightCheck}
+                      disabled={isRunningPreflight || !organizationId}
+                    >
+                      {isRunningPreflight ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Checking...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="h-4 w-4 mr-2" />
+                          Run Preflight Check
+                        </>
+                      )}
+                    </Button>
+                    
+                    <Button 
+                      onClick={handleUpgrade}
+                      disabled={isUpgrading || !organizationId || (preflightResults && !preflightResults.canProceed)}
+                      className="flex-1"
+                    >
+                      {isUpgrading ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Starting...
+                        </>
+                      ) : (
+                        <>
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Upgrade Now
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
