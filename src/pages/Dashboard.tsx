@@ -24,7 +24,7 @@ import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { useEntitlements } from "@/lib/entitlements/ssot"
 
 const Dashboard = () => {
-  const [activeScreen, setActiveScreen] = useState("overview")
+  const [activeScreen, setActiveScreen] = useState("agents")
   const { toast } = useToast()
   const { organizationId, loading: orgLoading } = useUserOrganization()
   const { entitlements, refresh: refreshEntitlements } = useEntitlements(organizationId)
