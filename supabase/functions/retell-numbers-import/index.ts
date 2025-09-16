@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { requireEntitlement, getCurrentCount } from '../_shared/entitlements.ts'
 
 interface ImportNumberRequest {
   e164: string
@@ -74,6 +75,28 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'No active organization membership' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Check numbers feature and limit entitlements
+    const corr = crypto.randomUUID()
+    const currentCount = await getCurrentCount(supabaseClient, membership.organization_id, 'numbers')
+    
+    const entitlementCheck = await requireEntitlement(
+      supabaseClient,
+      membership.organization_id,
+      { feature: 'numbers', limitKey: 'numbers', currentCount },
+      corr
+    )
+
+    if (!entitlementCheck.success) {
+      console.log(`[${corr}] Number import denied:`, entitlementCheck.error)
+      return new Response(
+        JSON.stringify(entitlementCheck.error),
+        { 
+          status: entitlementCheck.status, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       )
     }
 

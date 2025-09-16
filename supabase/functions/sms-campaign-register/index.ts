@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { requireEntitlement } from '../_shared/entitlements.ts'
 
 interface CampaignRegistrationRequest {
   brand_id: string
@@ -49,6 +50,26 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'No active organization membership' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Check SMS feature entitlement
+    const corr = crypto.randomUUID()
+    const entitlementCheck = await requireEntitlement(
+      supabaseClient,
+      membership.organization_id,
+      { feature: 'sms' },
+      corr
+    )
+
+    if (!entitlementCheck.success) {
+      console.log(`[${corr}] SMS campaign registration denied:`, entitlementCheck.error)
+      return new Response(
+        JSON.stringify(entitlementCheck.error),
+        { 
+          status: entitlementCheck.status, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       )
     }
 
