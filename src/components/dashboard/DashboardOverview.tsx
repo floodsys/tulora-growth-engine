@@ -122,7 +122,7 @@ export function DashboardOverview() {
       {/* Header with Date Range Picker */}
       <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold">Dashboard Overview</h2>
+          <h2 className="text-xl md:text-2xl font-bold">Analytics</h2>
           <p className="text-sm md:text-base text-muted-foreground">
             Track your outreach performance and results
           </p>

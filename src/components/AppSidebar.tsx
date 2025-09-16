@@ -50,12 +50,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 const sidebarGroups = [
   {
-    label: null,
-    items: [
-      { title: "Overview", url: "overview", icon: BarChart3 },
-    ]
-  },
-  {
     label: "Build",
     items: [
       { title: "Agents", url: "agents", icon: Bot },
@@ -80,6 +74,7 @@ const sidebarGroups = [
   {
     label: "Analyze",
     items: [
+      { title: "Analytics", url: "overview", icon: BarChart3 },
       { title: "Usage & Billing", url: "billing", icon: CreditCard },
     ]
   },
