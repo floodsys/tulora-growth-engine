@@ -39,6 +39,10 @@ import { AgentPrivacySettings } from "@/components/AgentPrivacySettings"
 import { AgentAnalysisSettings } from "@/components/AgentAnalysisSettings"
 import { useToast } from "@/hooks/use-toast"
 
+// Additive helper: prefer normalized correlationId → corr → traceId
+const getCorrId = (err: any) =>
+  err?.correlationId ?? err?.corr ?? err?.traceId ?? null;
+
 export function AgentSettingsPage() {
   const { agentId } = useParams()
   const navigate = useNavigate()
@@ -104,6 +108,22 @@ export function AgentSettingsPage() {
     try {
       await updateAgentSettings(agent.id, agentSettings)
       setAgent(prev => ({ ...prev, ...agentSettings }))
+      toast({
+        title: "Success",
+        description: "Agent settings saved successfully.",
+      })
+    } catch (error) {
+      const corr = getCorrId(error);
+      const baseDescription = "Failed to save agent settings. Please try again.";
+      const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description,
+      });
+
+      console.error("AgentSettingsPage error", { corrId: corr, error });
     } finally {
       setSaving(false)
     }
@@ -117,6 +137,22 @@ export function AgentSettingsPage() {
       await publishAgent(agent.id)
       setAgent(prev => ({ ...prev, status: 'published' }))
       setAgentSettings(prev => ({ ...prev, status: 'published' }))
+      toast({
+        title: "Success",
+        description: "Agent published successfully.",
+      })
+    } catch (error) {
+      const corr = getCorrId(error);
+      const baseDescription = "Failed to publish agent. Please try again.";
+      const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description,
+      });
+
+      console.error("AgentSettingsPage error", { corrId: corr, error });
     } finally {
       setPublishing(false)
     }
@@ -125,8 +161,22 @@ export function AgentSettingsPage() {
   const handleKBsUpdated = async (kbIds: string[]) => {
     if (!agent) return
 
-    await updateAgentSettings(agent.id, { kb_ids: kbIds })
-    setAgent(prev => ({ ...prev, kb_ids: kbIds }))
+    try {
+      await updateAgentSettings(agent.id, { kb_ids: kbIds })
+      setAgent(prev => ({ ...prev, kb_ids: kbIds }))
+    } catch (error) {
+      const corr = getCorrId(error);
+      const baseDescription = "Failed to update knowledge base settings.";
+      const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description,
+      });
+
+      console.error("AgentSettingsPage error", { corrId: corr, error });
+    }
   }
 
   const handleTransferToolsUpdated = async (settings: any) => {
@@ -144,8 +194,22 @@ export function AgentSettingsPage() {
       }
     }
 
-    await updateAgentSettings(agent.id, updateData)
-    setAgent(prev => ({ ...prev, ...updateData }))
+    try {
+      await updateAgentSettings(agent.id, updateData)
+      setAgent(prev => ({ ...prev, ...updateData }))
+    } catch (error) {
+      const corr = getCorrId(error);
+      const baseDescription = "Failed to update transfer and tools settings.";
+      const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description,
+      });
+
+      console.error("AgentSettingsPage error", { corrId: corr, error });
+    }
   }
 
   const handlePrivacySettingsUpdated = async (privacySettings: any) => {
@@ -156,17 +220,31 @@ export function AgentSettingsPage() {
       opt_in_signed_url: privacySettings.useSecureUrls,
     }
 
-    await updateAgentSettings(agent.id, updateData)
-    
-    // Update local state with settings object
-    setAgent(prev => ({ 
-      ...prev, 
-      ...updateData,
-      settings: {
-        ...prev.settings,
-        privacySettings
-      }
-    }))
+    try {
+      await updateAgentSettings(agent.id, updateData)
+      
+      // Update local state with settings object
+      setAgent(prev => ({ 
+        ...prev, 
+        ...updateData,
+        settings: {
+          ...prev.settings,
+          privacySettings
+        }
+      }))
+    } catch (error) {
+      const corr = getCorrId(error);
+      const baseDescription = "Failed to update privacy settings.";
+      const description = corr ? `${baseDescription} (Corr ID: ${corr})` : baseDescription;
+
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description,
+      });
+
+      console.error("AgentSettingsPage error", { corrId: corr, error });
+    }
   }
 
   const handleAnalysisSettingsUpdated = async (analysisSettings: any) => {
