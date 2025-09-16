@@ -10,9 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useRetellAgents } from "@/hooks/useRetellAgents"
+import { useEntitlements } from "@/lib/entitlements/ssot"
+import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { supabase } from "@/integrations/supabase/client"
 import { toast } from "sonner"
 import { MessageSquare, Phone, Plus, Copy, Eye, Settings, Trash2 } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface WidgetConfig {
   id: string
@@ -31,6 +34,8 @@ export function WidgetManagement() {
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const { agents } = useRetellAgents()
+  const { organization } = useUserOrganization()
+  const { entitlements } = useEntitlements(organization?.id)
 
   useEffect(() => {
     loadWidgets()
@@ -162,23 +167,49 @@ export function WidgetManagement() {
             Create embeddable chat and callback widgets for your website
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Widget
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Create Widget</DialogTitle>
-              <DialogDescription>
-                Configure a new chat or callback widget for your website
-              </DialogDescription>
-            </DialogHeader>
-            <CreateWidgetForm agents={agents} onSubmit={handleCreateWidget} />
-          </DialogContent>
-        </Dialog>
+        
+        {!entitlements.features.widgets ? (
+          <div className="text-center py-4">
+            <p className="text-sm text-muted-foreground mb-2">
+              Widget features not available on your current plan.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Upgrade to unlock website widgets
+            </p>
+          </div>
+        ) : entitlements.limits.widgets === null || widgets.length < entitlements.limits.widgets ? (
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Widget
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Create Widget</DialogTitle>
+                <DialogDescription>
+                  Configure a new chat or callback widget for your website
+                </DialogDescription>
+              </DialogHeader>
+              <CreateWidgetForm agents={agents} onSubmit={handleCreateWidget} />
+            </DialogContent>
+          </Dialog>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button disabled>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Widget
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Widget limit reached ({entitlements.limits.widgets}). Upgrade to create more widgets.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
 
       {loading ? (

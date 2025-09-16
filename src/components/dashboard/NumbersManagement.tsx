@@ -10,12 +10,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { useRetellNumbers } from "@/hooks/useRetellNumbers"
 import { useRetellAgents } from "@/hooks/useRetellAgents"
+import { useEntitlements } from "@/lib/entitlements/ssot"
+import { useUserOrganization } from "@/hooks/useUserOrganization"
 import { toast } from "sonner"
 import { Phone, Plus, Upload, Settings, Trash2 } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 export function NumbersManagement() {
   const { ownedNumbers, availableNumbers, loading, listNumbers, buyNumber, updateNumber, releaseNumber, importNumber } = useRetellNumbers()
   const { agents } = useRetellAgents()
+  const { organization } = useUserOrganization()
+  const { entitlements } = useEntitlements(organization?.id)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
 
@@ -75,41 +80,70 @@ export function NumbersManagement() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Upload className="h-4 w-4 mr-2" />
-                Import BYOC
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Import BYOC Number</DialogTitle>
-                <DialogDescription>
-                  Import your own carrier number (BYOC - Bring Your Own Carrier)
-                </DialogDescription>
-              </DialogHeader>
-              <ImportNumberForm onSubmit={handleImportNumber} />
-            </DialogContent>
-          </Dialog>
-          
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Buy Number
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Buy Phone Number</DialogTitle>
-                <DialogDescription>
-                  Purchase a new phone number from our carrier
-                </DialogDescription>
-              </DialogHeader>
-              <BuyNumberForm onSubmit={handleBuyNumber} />
-            </DialogContent>
-          </Dialog>
+          {!entitlements.features.numbers ? (
+            <div className="text-center py-4">
+              <p className="text-sm text-muted-foreground mb-2">
+                Phone numbers feature not available on your current plan.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Upgrade to unlock phone numbers
+              </p>
+            </div>
+          ) : (
+            <>
+              <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import BYOC
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Import BYOC Number</DialogTitle>
+                    <DialogDescription>
+                      Import your own carrier number (BYOC - Bring Your Own Carrier)
+                    </DialogDescription>
+                  </DialogHeader>
+                  <ImportNumberForm onSubmit={handleImportNumber} />
+                </DialogContent>
+              </Dialog>
+              
+              {entitlements.limits.numbers === null || ownedNumbers.length < entitlements.limits.numbers ? (
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Buy Number
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Buy Phone Number</DialogTitle>
+                      <DialogDescription>
+                        Purchase a new phone number from our carrier
+                      </DialogDescription>
+                    </DialogHeader>
+                    <BuyNumberForm onSubmit={handleBuyNumber} />
+                  </DialogContent>
+                </Dialog>
+              ) : (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="sm" disabled>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Buy Number
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Number limit reached ({entitlements.limits.numbers}). Upgrade to get more numbers.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </>
+          )}
         </div>
       </div>
 

@@ -19,6 +19,7 @@ import { useUsageData } from "@/hooks/useUsageData";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import { ConcurrencyCard } from "@/components/dashboard/widgets/ConcurrencyCard";
 import { useOrganizationRole } from "@/hooks/useOrganizationRole";
+import { useEntitlements } from "@/lib/entitlements/ssot";
 
 interface UsageData {
   minutes: { used: number; limit: number };
@@ -57,6 +58,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   const { toast } = useToast();
   const { dateRange, setDateRange } = useDashboardDateRange();
   const { isAdmin } = useOrganizationRole(organizationId);
+  const { entitlements, refresh: refreshEntitlements } = useEntitlements(organizationId);
   
   const [availablePlans, setAvailablePlans] = useState<any[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<string>('leadgen_starter');
@@ -465,9 +467,10 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
         details: data.details
       });
       
-      // Refresh billing status and usage data
+      // Refresh billing status, usage data, and entitlements
       await fetchBillingStatus();
       await refreshUsage();
+      await refreshEntitlements();
     } catch (error: any) {
       console.error('Error reconciling billing:', error);
       

@@ -21,11 +21,13 @@ import SettingsOrganization from "@/pages/SettingsOrganization"
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
+import { useEntitlements } from "@/lib/entitlements/ssot"
 
 const Dashboard = () => {
   const [activeScreen, setActiveScreen] = useState("overview")
   const { toast } = useToast()
   const { organizationId, loading: orgLoading } = useUserOrganization()
+  const { entitlements, refresh: refreshEntitlements } = useEntitlements(organizationId)
 
   // Handle checkout success/cancel redirects and tab parameter
   useEffect(() => {
@@ -42,6 +44,9 @@ const Dashboard = () => {
         title: "Checkout successful!",
         description: sessionId ? `Session ID: ${sessionId}` : "Your subscription is now active.",
       })
+      
+      // Refresh entitlements to reflect new plan
+      refreshEntitlements()
       
       // Clean up URL parameters
       window.history.replaceState({}, '', '/dashboard')
@@ -124,6 +129,31 @@ const Dashboard = () => {
       default:
         return <DashboardOverview />
     }
+  }
+
+  // Gate child render until org is loaded and valid
+  if (orgLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p className="text-sm text-muted-foreground">Loading organization...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!organizationId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <h3 className="text-lg font-semibold">No Organization Selected</h3>
+          <p className="text-sm text-muted-foreground">
+            Please select or create an organization to access the dashboard.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
