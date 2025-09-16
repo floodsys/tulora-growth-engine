@@ -19,7 +19,13 @@ const logStep = (step: string, details?: any) => {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { 
+      headers: { 
+        ...corsHeaders, 
+        'Access-Control-Allow-Methods': 'POST, OPTIONS' 
+      },
+      status: 204
+    })
   }
 
   const corr = crypto.randomUUID();
@@ -41,13 +47,16 @@ serve(async (req) => {
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
     if (!stripeKey) return fail(500, 'INTERNAL_ERROR', 'STRIPE_SECRET_KEY is not set')
 
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!serviceRoleKey) return fail(500, 'SERVICE_ROLE_MISSING', 'Service role key not configured')
+
     // Detect Stripe key mode
     isLiveKey = stripeKey.startsWith('sk_live_')
     console.log('[checkout:start]', { corr, isLiveKey })
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      serviceRoleKey,
       { auth: { persistSession: false } }
     )
 
