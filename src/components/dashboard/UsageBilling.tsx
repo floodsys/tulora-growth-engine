@@ -68,6 +68,10 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   const [debugPanelOpen, setDebugPanelOpen] = useState(false);
   const [preflightResults, setPreflightResults] = useState<any>(null);
   const [isRunningPreflight, setIsRunningPreflight] = useState(false);
+  const [refreshStatusError, setRefreshStatusError] = useState<any>(null);
+  const [reconcileError, setReconcileError] = useState<any>(null);
+  const [refreshDebugOpen, setRefreshDebugOpen] = useState(false);
+  const [reconcileDebugOpen, setReconcileDebugOpen] = useState(false);
 
   // Use real usage data instead of mocks
   const { 
@@ -114,18 +118,36 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   const fetchBillingStatus = async () => {
     try {
       setIsLoadingBilling(true);
-      const { data, error } = await supabase.functions.invoke('check-org-billing', {
-        body: { orgId: organizationId }
+      setRefreshStatusError(null);
+      
+      const { data, error } = await supabase.functions.invoke('admin-billing-overview', {
+        body: { action: 'list_subscriptions', limit: 10 }
       });
 
       if (error) throw error;
 
       setBillingStatus(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching billing status:', error);
+      
+      // Try to parse structured error response
+      let parsedError = null;
+      try {
+        if (error?.message && typeof error.message === 'string') {
+          parsedError = JSON.parse(error.message);
+        } else if (error && typeof error === 'object') {
+          parsedError = error;
+        }
+      } catch (parseError) {
+        parsedError = { message: error?.message || "Failed to fetch billing status" };
+      }
+      
+      setRefreshStatusError(parsedError);
+      setRefreshDebugOpen(true);
+      
       toast({
         title: "Error",
-        description: "Failed to fetch billing status",
+        description: parsedError?.message || "Failed to fetch billing status",
         variant: "destructive",
       });
     } finally {
@@ -337,6 +359,8 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   const handleReconcileBilling = async () => {
     try {
       setIsReconciling(true);
+      setReconcileError(null);
+      
       const { data, error } = await supabase.functions.invoke('admin-billing-reconcile', {
         body: { orgId: organizationId }
       });
@@ -351,11 +375,27 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       // Refresh billing status and usage data
       await fetchBillingStatus();
       await refreshUsage();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error reconciling billing:', error);
+      
+      // Try to parse structured error response
+      let parsedError = null;
+      try {
+        if (error?.message && typeof error.message === 'string') {
+          parsedError = JSON.parse(error.message);
+        } else if (error && typeof error === 'object') {
+          parsedError = error;
+        }
+      } catch (parseError) {
+        parsedError = { message: error?.message || "Failed to reconcile billing status" };
+      }
+      
+      setReconcileError(parsedError);
+      setReconcileDebugOpen(true);
+      
       toast({
         title: "Error",
-        description: "Failed to reconcile billing status",
+        description: parsedError?.message || "Failed to reconcile billing status",
         variant: "destructive",
       });
     } finally {
@@ -412,6 +452,103 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
     });
   };
 
+  const renderDebugPanel = (error: any, isOpen: boolean, setIsOpen: (open: boolean) => void, title: string) => {
+    if (!error) return null;
+
+    return (
+      <div className="space-y-2">
+        {/* Inline Error Hint */}
+        {error.code && getErrorHint(error.code) && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              {getErrorHint(error.code)}
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {/* Collapsible Debug Panel */}
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" size="sm" className="w-full justify-between">
+              <span>{title}</span>
+              {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-3 mt-2 p-4 border rounded-lg bg-muted/50">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              {error.code && (
+                <div>
+                  <label className="font-medium text-muted-foreground">Error Code</label>
+                  <div className="mt-1">
+                    <Badge variant="destructive">{error.code}</Badge>
+                  </div>
+                </div>
+              )}
+              
+              {error.corr && (
+                <div>
+                  <label className="font-medium text-muted-foreground">Correlation ID</label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <code className="text-xs bg-background px-2 py-1 rounded border">{error.corr}</code>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => copyToClipboard(error.corr)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
+              {error.hint && (
+                <div className="col-span-2">
+                  <label className="font-medium text-muted-foreground">Hint</label>
+                  <div className="mt-1 p-3 bg-background border rounded text-sm text-orange-600">
+                    💡 {error.hint}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {error.message && (
+              <div>
+                <label className="font-medium text-muted-foreground">Error Message</label>
+                <div className="mt-1 p-3 bg-background border rounded text-sm">
+                  {error.message}
+                </div>
+              </div>
+            )}
+            
+            {error.details && (
+              <div>
+                <label className="font-medium text-muted-foreground">Details</label>
+                <div className="mt-1 p-3 bg-background border rounded text-xs font-mono">
+                  {JSON.stringify(error.details, null, 2)}
+                </div>
+              </div>
+            )}
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => {
+                if (title.includes('Refresh')) setRefreshStatusError(null);
+                if (title.includes('Reconcile')) setReconcileError(null);
+                if (title.includes('Checkout')) setCheckoutError(null);
+                setIsOpen(false);
+              }}
+              className="w-full"
+            >
+              Dismiss Debug Info
+            </Button>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-8">
       <AdminChecklistBanner />
@@ -431,7 +568,11 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
             </div>
             <Button variant="outline" size="sm" onClick={refreshUsage}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              Refresh Usage
+            </Button>
+            <Button variant="outline" size="sm" onClick={fetchBillingStatus}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh Status
             </Button>
             <Popover>
               <PopoverTrigger asChild>
@@ -451,6 +592,22 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
             </Popover>
           </div>
         </div>
+
+        {/* Refresh Status Debug Panel */}
+        {refreshStatusError && renderDebugPanel(
+          refreshStatusError, 
+          refreshDebugOpen, 
+          setRefreshDebugOpen, 
+          'Billing Status Debug'
+        )}
+
+        {/* Reconcile Debug Panel */}
+        {reconcileError && renderDebugPanel(
+          reconcileError, 
+          reconcileDebugOpen, 
+          setReconcileDebugOpen, 
+          'Reconcile Debug'
+        )}
 
         {/* Current Plan */}
         <Card className="p-6">
@@ -588,112 +745,11 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                   )}
                   
                   {/* Checkout Debug Panel */}
-                  {checkoutError && (
-                    <div className="space-y-2">
-                      {/* Inline Error Hint */}
-                      {checkoutError.code && getErrorHint(checkoutError.code) && (
-                        <Alert variant="destructive">
-                          <AlertDescription>
-                            {getErrorHint(checkoutError.code)}
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                      
-                      {/* Collapsible Debug Panel */}
-                      <Collapsible open={debugPanelOpen} onOpenChange={setDebugPanelOpen}>
-                        <CollapsibleTrigger asChild>
-                          <Button variant="outline" size="sm" className="w-full justify-between">
-                            <span>Checkout Debug Info</span>
-                            {debugPanelOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                          </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="space-y-3 mt-2 p-4 border rounded-lg bg-muted/50">
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            {checkoutError.code && (
-                              <div>
-                                <label className="font-medium text-muted-foreground">Error Code</label>
-                                <div className="mt-1">
-                                  <Badge variant="destructive">{checkoutError.code}</Badge>
-                                </div>
-                              </div>
-                            )}
-                            
-                            {checkoutError.corr && (
-                              <div>
-                                <label className="font-medium text-muted-foreground">Correlation ID</label>
-                                <div className="mt-1 flex items-center gap-2">
-                                  <code className="text-xs bg-background px-2 py-1 rounded border">{checkoutError.corr}</code>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => copyToClipboard(checkoutError.corr)}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Copy className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                            
-                            {typeof checkoutError.isLiveKey === 'boolean' && (
-                              <div>
-                                <label className="font-medium text-muted-foreground">Stripe Mode</label>
-                                <div className="mt-1">
-                                  <Badge variant={checkoutError.isLiveKey ? "default" : "secondary"}>
-                                    {checkoutError.isLiveKey ? "Live" : "Test"}
-                                  </Badge>
-                                </div>
-                              </div>
-                            )}
-                            
-                            {checkoutError.orgId && (
-                              <div>
-                                <label className="font-medium text-muted-foreground">Org ID</label>
-                                <div className="mt-1">
-                                  <code className="text-xs bg-background px-2 py-1 rounded border">{checkoutError.orgId}</code>
-                                </div>
-                              </div>
-                            )}
-                            
-                            {checkoutError.planKey && (
-                              <div>
-                                <label className="font-medium text-muted-foreground">Plan Key</label>
-                                <div className="mt-1">
-                                  <code className="text-xs bg-background px-2 py-1 rounded border">{checkoutError.planKey}</code>
-                                </div>
-                              </div>
-                            )}
-                            
-                            {checkoutError.priceId && (
-                              <div>
-                                <label className="font-medium text-muted-foreground">Price ID</label>
-                                <div className="mt-1">
-                                  <code className="text-xs bg-background px-2 py-1 rounded border">{checkoutError.priceId}</code>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          
-                          {checkoutError.message && (
-                            <div>
-                              <label className="font-medium text-muted-foreground">Error Message</label>
-                              <div className="mt-1 p-3 bg-background border rounded text-sm">
-                                {checkoutError.message}
-                              </div>
-                            </div>
-                          )}
-                          
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => setCheckoutError(null)}
-                            className="w-full"
-                          >
-                            Dismiss Debug Info
-                          </Button>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    </div>
+                  {checkoutError && renderDebugPanel(
+                    checkoutError, 
+                    debugPanelOpen, 
+                    setDebugPanelOpen, 
+                    'Checkout Debug'
                   )}
                   
                   <div className="flex gap-2">
