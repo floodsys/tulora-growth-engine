@@ -62,33 +62,92 @@ export const useRetellCalls = (organizationId?: string) => {
   const loadCalls = async (filters: CallFilters = {}) => {
     if (!organizationId) return
 
+    const controller = new AbortController()
+    
     try {
       setLoading(true)
-      const { data, error } = await supabase.functions.invoke('retell-calls-list', {
-        body: {
-          organizationId,
-          filters: {
-            ...filters,
-            limit: filters.limit || pagination.limit,
-            offset: filters.offset || 0
+      
+      // Primary: Use function invoke with 404 fallback
+      let data: any = {}
+      
+      try {
+        const response = await supabase.functions.invoke('retell-calls-list', {
+          body: {
+            organizationId,
+            filters: {
+              ...filters,
+              limit: filters.limit || pagination.limit,
+              offset: filters.offset || 0
+            }
           }
-        }
-      })
+        })
+        
+        if (response.error) throw response.error
+        data = response.data
+      } catch (error: any) {
+        // Fallback on 404 only
+        if (error?.status === 404) {
+          let query = supabase
+            .from('retell_calls')
+            .select('*')
+            .eq('organization_id', organizationId)
+            .order('created_at', { ascending: false })
+            .limit(filters.limit || 50)
 
-      if (error) throw error
+          if (filters.dateRange) {
+            query = query
+              .gte('started_at', filters.dateRange.start)
+              .lte('started_at', filters.dateRange.end)
+          }
+
+          if (filters.agentId) {
+            query = query.eq('agent_id', filters.agentId)
+          }
+
+          if (filters.direction) {
+            query = query.eq('direction', filters.direction)
+          }
+
+          if (filters.status) {
+            query = query.eq('status', filters.status)
+          }
+
+          if (filters.outcome) {
+            query = query.eq('outcome', filters.outcome)
+          }
+
+          const { data: fallbackCalls, error: fallbackError } = await query
+          if (fallbackError) throw fallbackError
+          
+          data = {
+            calls: fallbackCalls || [],
+            pagination: { total: (fallbackCalls || []).length, limit: 50, offset: 0, hasMore: false }
+          }
+        } else {
+          throw error
+        }
+      }
 
       setCalls(data.calls || [])
       setPagination(data.pagination || { total: 0, limit: 50, offset: 0, hasMore: false })
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading calls:', error)
+      
+      // Surface structured errors
+      const errorMessage = error?.message || 'Failed to load calls.'
+      const errorCode = error?.status || error?.code
+      const correlationId = error?.correlationId || error?.error_code
+      
       toast({
         title: "Error",
-        description: "Failed to load calls.",
+        description: `${errorMessage}${errorCode ? ` (${errorCode})` : ''}${correlationId ? ` - ${correlationId}` : ''}`,
         variant: "destructive"
       })
     } finally {
       setLoading(false)
     }
+
+    return () => controller.abort()
   }
 
   // Get call details

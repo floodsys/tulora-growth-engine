@@ -49,43 +49,70 @@ export const useRetellAnalytics = (organizationId?: string) => {
     try {
       setLoading(true)
       
-      // Base query
-      let query = supabase
-        .from('retell_calls')
-        .select(`
-          *,
-          retell_agents!inner(name)
-        `)
-        .eq('organization_id', organizationId)
+      // Primary: Use function invoke with 404 fallback
+      let calls: any[] = []
+      
+      try {
+        const { data, error } = await supabase.functions.invoke('retell-calls-list', {
+          body: {
+            organizationId,
+            filters: {
+              dateRange: filters.dateRange,
+              agentId: filters.agentId,
+              direction: filters.direction
+            }
+          }
+        })
+        
+        if (error) throw error
+        calls = data.calls || []
+      } catch (error: any) {
+        // Fallback on 404 only
+        if (error?.status === 404) {
+          let query = supabase
+            .from('retell_calls')
+            .select('*')
+            .eq('organization_id', organizationId)
+            .order('created_at', { ascending: false })
+            .limit(50)
 
-      // Apply filters
-      if (filters.dateRange) {
-        query = query
-          .gte('started_at', filters.dateRange.start)
-          .lte('started_at', filters.dateRange.end)
+          if (filters.dateRange) {
+            query = query
+              .gte('started_at', filters.dateRange.start)
+              .lte('started_at', filters.dateRange.end)
+          }
+
+          if (filters.agentId) {
+            query = query.eq('agent_id', filters.agentId)
+          }
+
+          if (filters.direction) {
+            query = query.eq('direction', filters.direction)
+          }
+
+          const { data: fallbackCalls, error: fallbackError } = await query
+          if (fallbackError) throw fallbackError
+          calls = fallbackCalls || []
+        } else {
+          throw error
+        }
       }
-
-      if (filters.agentId) {
-        query = query.eq('agent_id', filters.agentId)
-      }
-
-      if (filters.direction) {
-        query = query.eq('direction', filters.direction)
-      }
-
-      const { data: calls, error } = await query
-
-      if (error) throw error
 
       // Process analytics
-      const analytics = processCallAnalytics(calls || [])
+      const analytics = processCallAnalytics(calls)
       setAnalytics(analytics)
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading analytics:', error)
+      
+      // Surface structured errors
+      const errorMessage = error?.message || 'Failed to load call analytics.'
+      const errorCode = error?.status || error?.code
+      const correlationId = error?.correlationId || error?.error_code
+      
       toast({
         title: "Error",
-        description: "Failed to load call analytics.",
+        description: `${errorMessage}${errorCode ? ` (${errorCode})` : ''}${correlationId ? ` - ${correlationId}` : ''}`,
         variant: "destructive"
       })
     } finally {

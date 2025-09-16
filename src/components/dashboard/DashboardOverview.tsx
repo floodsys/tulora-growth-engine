@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { KpiCard } from "./widgets/KpiCard"
 import { TrendLine } from "./widgets/TrendLine"
 import { BarBySource } from "./widgets/BarBySource"
@@ -81,41 +81,53 @@ export function DashboardOverview() {
   const { calls, getCallStats } = useRetellCalls(organization?.id)
   const { entitlements } = useEntitlements(organization?.id)
 
-  // Load KPIs when date range changes
-  useEffect(() => {
+  // Stable callback to prevent re-render loops
+  const loadKpis = useCallback(async () => {
     if (!organization?.id) return
 
     const requestId = crypto.randomUUID()
     latestReqRef.current = requestId
     let cancelled = false
 
-    ;(async () => {
-      try {
-        setLoading(true)
-        const dateFilter = dateRange?.from && dateRange?.to ? {
-          start: dateRange.from.toISOString(),
-          end: dateRange.to.toISOString()
-        } : undefined
+    try {
+      setLoading(true)
+      const dateFilter = dateRange?.from && dateRange?.to ? {
+        start: dateRange.from.toISOString(),
+        end: dateRange.to.toISOString()
+      } : undefined
 
-        const data = await getKpis(dateFilter)
-        if (!cancelled && latestReqRef.current === requestId) {
+      const data = await getKpis(dateFilter)
+      if (!cancelled && latestReqRef.current === requestId) {
+        if (data && (data.totalCalls > 0 || data.completedCalls > 0 || data.activeAgents > 0)) {
+          setKpis(data)
+        } else if (data) {
+          // Empty state - show zeros but don't error
           setKpis(data)
         }
-      } catch (error) {
-        if (!cancelled && latestReqRef.current === requestId) {
-          console.error('Error loading KPIs:', error)
-        }
-      } finally {
-        if (!cancelled && latestReqRef.current === requestId) {
-          setLoading(false)
+      }
+    } catch (error: any) {
+      if (!cancelled && latestReqRef.current === requestId) {
+        console.error('Error loading KPIs:', error)
+        // Only toast on non-2xx responses
+        if (error?.status && (error.status < 200 || error.status >= 300)) {
+          // Handle error appropriately, but don't show toast for empty data
         }
       }
-    })()
+    } finally {
+      if (!cancelled && latestReqRef.current === requestId) {
+        setLoading(false)
+      }
+    }
 
     return () => {
       cancelled = true
     }
   }, [organization?.id, dateRange, getKpis])
+
+  // Load KPIs when date range changes
+  useEffect(() => {
+    loadKpis()
+  }, [loadKpis])
 
   return (
     <div className="space-y-4 md:space-y-6">
