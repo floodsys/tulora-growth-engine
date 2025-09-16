@@ -18,15 +18,29 @@ const logStep = (step: string, details?: any) => {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { 
+      headers: { 
+        ...corsHeaders, 
+        'Access-Control-Allow-Methods': 'POST, OPTIONS' 
+      },
+      status: 204
+    })
   }
 
   try {
     logStep('Function started')
 
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!serviceRoleKey) {
+      return new Response(JSON.stringify({ code: 'SERVICE_ROLE_MISSING', error: 'Service role key not configured' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      })
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      serviceRoleKey,
       { auth: { persistSession: false } }
     )
 

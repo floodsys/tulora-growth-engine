@@ -19,7 +19,13 @@ const logStep = (step: string, details?: any) => {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: { 
+        ...corsHeaders, 
+        'Access-Control-Allow-Methods': 'POST, OPTIONS' 
+      },
+      status: 204
+    });
   }
 
   try {
@@ -36,14 +42,19 @@ serve(async (req) => {
       });
     }
 
-    // Use ANON client with user's auth header
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+    if (!serviceRoleKey) {
+      return new Response(JSON.stringify({ code: "SERVICE_ROLE_MISSING", error: "Service role key not configured" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      })
+    }
+
+    // Use service role client for admin operations
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { 
-        auth: { persistSession: false },
-        global: { headers: { Authorization: authHeader } }
-      }
+      serviceRoleKey,
+      { auth: { persistSession: false } }
     );
 
     // Get user info for logging and auth
