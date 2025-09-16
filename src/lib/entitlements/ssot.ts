@@ -22,6 +22,19 @@ export interface Entitlements {
   isActive: boolean
 }
 
+// Feature alias normalization for plan_configs DB features
+const FEATURE_ALIASES: Record<string, keyof EntitlementFeatures> = {
+  appointment_scheduling: "scheduling",
+  voice_numbers: "numbers",
+  telephony_numbers: "numbers",
+  messaging: "sms",
+  voice_sms: "sms",
+  site_widgets: "widgets",
+  web_widgets: "widgets",
+  analytics_advanced: "advancedAnalytics",
+  advanced_analytics: "advancedAnalytics",
+}
+
 // Fallback plan definitions when plan_configs unavailable
 const PLAN_FALLBACKS: Record<string, Entitlements> = {
   // Legacy plans
@@ -92,6 +105,23 @@ const FREE_PLAN: Entitlements = {
   isActive: false
 }
 
+// Helper to get display name for a plan
+export function getPlanDisplayName(planKey?: string, planConfigRow?: any): string {
+  if (planConfigRow?.display_name) {
+    return planConfigRow.display_name
+  }
+  if (planKey && PLAN_FALLBACKS[planKey]) {
+    return PLAN_FALLBACKS[planKey].planName
+  }
+  if (planKey) {
+    // Title case the plan key as fallback
+    return planKey.split('_').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ')
+  }
+  return 'Unknown Plan'
+}
+
 export function computeEntitlements(
   planKey?: string, 
   planConfigRow?: any
@@ -102,23 +132,34 @@ export function computeEntitlements(
 
   // Use plan_configs data if available
   if (planConfigRow) {
-    const features = planConfigRow.features || []
-    const limits = planConfigRow.limits || {}
+    const rawFeatures = planConfigRow.features || []
+    const rawLimits = planConfigRow.limits || {}
+    
+    // Map DB feature names to canonical features using aliases
+    const canonicalFeatures: EntitlementFeatures = {
+      scheduling: false,
+      numbers: false,
+      sms: false,
+      widgets: false,
+      advancedAnalytics: false
+    }
+    
+    // Check each raw feature and map to canonical
+    rawFeatures.forEach((feature: string) => {
+      const canonicalKey = FEATURE_ALIASES[feature] || feature
+      if (canonicalKey in canonicalFeatures) {
+        canonicalFeatures[canonicalKey as keyof EntitlementFeatures] = true
+      }
+    })
     
     return {
-      features: {
-        scheduling: features.includes('scheduling'),
-        numbers: features.includes('numbers'),
-        sms: features.includes('sms'),
-        widgets: features.includes('widgets'),
-        advancedAnalytics: features.includes('advanced_analytics')
-      },
+      features: canonicalFeatures,
       limits: {
-        agents: limits.agents || null,
-        numbers: limits.numbers || null,
-        widgets: limits.widgets || null
+        agents: rawLimits.agents === 0 ? 0 : (rawLimits.agents || null), // 0 means zero, null means unlimited
+        numbers: rawLimits.numbers === 0 ? 0 : (rawLimits.numbers || null),
+        widgets: rawLimits.widgets === 0 ? 0 : (rawLimits.widgets || null)
       },
-      planName: planConfigRow.display_name || planKey,
+      planName: getPlanDisplayName(planKey, planConfigRow),
       isActive: true
     }
   }
