@@ -25,7 +25,7 @@ import {
 import { supabase } from "@/integrations/supabase/client"
 import { useAuth } from "@/contexts/AuthContext"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
-import { useOrgFeatureFlags } from "@/lib/feature-gating"
+import { useEntitlements } from "@/lib/entitlements/ssot"
 import { toast } from "@/hooks/use-toast"
 
 interface AgentTemplate {
@@ -139,16 +139,49 @@ interface AgentCatalogProps {
 export function AgentCatalog({ onAgentCreated }: AgentCatalogProps) {
   const { user } = useAuth()
   const { organization } = useUserOrganization()
-  const { flags } = useOrgFeatureFlags(organization?.id || null)
+  const { entitlements, isLoading } = useEntitlements(organization?.id ?? null)
   
   const [templates] = useState<AgentTemplate[]>(mockTemplates)
   const [selectedTemplate, setSelectedTemplate] = useState<AgentTemplate | null>(null)
   const [provisioningOpen, setProvisioningOpen] = useState(false)
   const [formData, setFormData] = useState<ProvisioningFormData>({ name: '' })
   const [loading, setLoading] = useState(false)
+  const [agents, setAgents] = useState<any[]>([])
 
-  const canCreateAgent = flags?.canCreateAgent ?? false
-  const hasFeature = (feature: string) => flags?.hasFeature(feature) ?? false
+  // SSOT-based feature checks
+  const canCreateAgent = entitlements.limits.agents === null || agents.length < (entitlements.limits.agents ?? 0)
+  const hasFeature = (feature: string) => {
+    // Map legacy feature names to SSOT features
+    switch (feature) {
+      case 'basic_calendar':
+        return entitlements.features.scheduling
+      case 'email_support':
+        return true // Basic feature available to all
+      case 'advanced_analytics':
+        return entitlements.features.advancedAnalytics
+      case 'voice_sms':
+        return entitlements.features.sms
+      default:
+        return false
+    }
+  }
+
+  // Load current agents for limit checking
+  useEffect(() => {
+    if (!organization?.id) return
+
+    const fetchAgents = async () => {
+      const { data } = await supabase
+        .from('agent_profiles')
+        .select('id')
+        .eq('organization_id', organization.id)
+        .eq('status', 'active')
+
+      setAgents(data || [])
+    }
+
+    fetchAgents()
+  }, [organization?.id])
 
   const handleProvisionAgent = async () => {
     if (!selectedTemplate || !organization) return
@@ -386,7 +419,7 @@ export function AgentCatalog({ onAgentCreated }: AgentCatalogProps) {
                     {!hasRequiredFeatures && (
                       <Badge variant="outline" className="gap-1">
                         <Crown className="h-3 w-3" />
-                        Requires {flags?.planName || 'Upgrade'}
+                        Requires {entitlements.planName || 'Upgrade'}
                       </Badge>
                     )}
                     <Button
