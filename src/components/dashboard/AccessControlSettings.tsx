@@ -12,6 +12,10 @@ import { supabase } from "@/integrations/supabase/client"
 import { toast } from "sonner"
 import { Key, Users, Shield, Plus, Copy, RotateCcw, Trash2, Eye, EyeOff } from "lucide-react"
 
+// Additive helper: prefer normalized correlationId → corr → traceId
+const getCorrId = (err: any) =>
+  err?.correlationId ?? err?.corr ?? err?.traceId ?? null;
+
 interface ApiKey {
   id: string
   name: string
@@ -84,7 +88,13 @@ export function AccessControlSettings() {
         }
       ])
     } catch (error) {
-      toast.error("Failed to load access control data")
+      const corr = getCorrId(error);
+      const baseMessage = "Failed to load access control data";
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      toast.error(message);
+      
+      console.error("AccessControlSettings error", { corrId: corr, error });
     } finally {
       setLoading(false)
     }
@@ -108,7 +118,13 @@ export function AccessControlSettings() {
       toast.success("API key created successfully")
       setIsKeyDialogOpen(false)
     } catch (error) {
-      toast.error("Failed to create API key")
+      const corr = getCorrId(error);
+      const baseMessage = "Failed to create API key";
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      toast.error(message);
+      
+      console.error("AccessControlSettings error", { corrId: corr, error });
     }
   }
 
@@ -117,7 +133,13 @@ export function AccessControlSettings() {
       setApiKeys(prev => prev.filter(key => key.id !== keyId))
       toast.success("API key revoked")
     } catch (error) {
-      toast.error("Failed to revoke API key")
+      const corr = getCorrId(error);
+      const baseMessage = "Failed to revoke API key";
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      toast.error(message);
+      
+      console.error("AccessControlSettings error", { corrId: corr, error });
     }
   }
 
@@ -135,7 +157,13 @@ export function AccessControlSettings() {
       toast.success("Role created successfully")
       setIsRoleDialogOpen(false)
     } catch (error) {
-      toast.error("Failed to create role")
+      const corr = getCorrId(error);
+      const baseMessage = "Failed to create role";
+      const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
+      
+      toast.error(message);
+      
+      console.error("AccessControlSettings error", { corrId: corr, error });
     }
   }
 
