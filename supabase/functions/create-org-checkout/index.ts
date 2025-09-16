@@ -23,13 +23,26 @@ serve(async (req) => {
   }
 
   const corr = crypto.randomUUID();
+  let isLiveKey = false;
+  let orgId: string | undefined;
+  let planKey: string | undefined;
+  let priceId: string | undefined;
+
+  const fail = (status: number, code: string, hint?: string) => {
+    const message = hint ?? "Checkout failed";
+    console.log("[checkout:fail]", { corr, code, message, isLiveKey, orgId, planKey, priceId, status });
+    return new Response(JSON.stringify({ corr, code, message, isLiveKey, orgId, planKey, priceId }), {
+      status,
+      headers: { ...corsHeaders, "content-type": "application/json" },
+    });
+  };
 
   try {
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
-    if (!stripeKey) throw new Error('STRIPE_SECRET_KEY is not set')
+    if (!stripeKey) return fail(500, 'INTERNAL_ERROR', 'STRIPE_SECRET_KEY is not set')
 
     // Detect Stripe key mode
-    const isLiveKey = stripeKey.startsWith('sk_live_')
+    isLiveKey = stripeKey.startsWith('sk_live_')
     console.log('[checkout:start]', { corr, isLiveKey })
 
     const supabase = createClient(
@@ -39,16 +52,17 @@ serve(async (req) => {
     )
 
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) throw new Error('No authorization header provided')
+    if (!authHeader) return fail(401, 'UNAUTHORIZED', 'No authorization header provided')
 
     const token = authHeader.replace('Bearer ', '')
     const { data: userData, error: userError } = await supabase.auth.getUser(token)
-    if (userError || !userData.user) throw new Error('User not authenticated')
+    if (userError || !userData.user) return fail(401, 'UNAUTHORIZED', 'User not authenticated')
 
-    let { orgId, planKey }: CheckoutRequest = await req.json()
+    let checkoutRequest: CheckoutRequest = await req.json()
+    orgId = checkoutRequest.orgId
+    planKey = checkoutRequest.planKey
     
     // Early capture of key context for debugging
-    let priceId: string | undefined = undefined;
     console.log('[checkout:request]', { corr, orgId, planKey })
 
     // Require non-empty orgId with fallback
@@ -76,17 +90,7 @@ serve(async (req) => {
           orgId = memberships[0].organization_id
           logStep('Using fallback orgId from membership', { orgId })
         } else {
-          console.log('[checkout:error]', { corr, error: 'ORG_ID_MISSING', orgId, planKey, priceId })
-          return new Response(JSON.stringify({ 
-            error: 'Organization ID required',
-            code: 'ORG_ID_MISSING',
-            hint: 'Select an organization before checkout.',
-            correlationId: corr,
-            context: { orgId, planKey, stripeMode: isLiveKey ? 'live' : 'test' }
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400,
-          })
+          return fail(400, 'ORG_ID_MISSING', 'Select an organization before checkout.')
         }
       }
     }
@@ -100,7 +104,7 @@ serve(async (req) => {
       .single()
 
     if (!membership || !['owner', 'admin'].includes(membership.role)) {
-      throw new Error('Insufficient permissions')
+      return fail(401, 'UNAUTHORIZED', 'Insufficient permissions')
     }
 
     // Get organization details
@@ -110,7 +114,7 @@ serve(async (req) => {
       .eq('id', orgId)
       .single()
 
-    if (!org) throw new Error('Organization not found')
+    if (!org) return fail(400, 'ORG_NOT_FOUND', 'Organization not found')
 
     // Get plan configuration
     const { data: planConfig, error: planError } = await supabase
@@ -121,7 +125,7 @@ serve(async (req) => {
       .single()
 
     if (planError || !planConfig) {
-      throw new Error(`Plan ${planKey} not found or inactive`)
+      return fail(400, 'PLAN_NOT_FOUND', `Plan ${planKey} not found or inactive`)
     }
 
     logStep('Found plan config', { 
@@ -136,17 +140,7 @@ serve(async (req) => {
     
     // Verify plan & price mapping before creating a Session
     if (!priceId && !isDevelopment) {
-      console.log('[checkout:error]', { corr, error: 'PRICE_NOT_CONFIGURED', orgId, planKey, priceId })
-      return new Response(JSON.stringify({
-        error: 'Price not configured',
-        code: 'PRICE_NOT_CONFIGURED',
-        hint: 'Configure live Price ID in Admin → Stripe Configuration.',
-        correlationId: corr,
-        context: { orgId, planKey, priceId, stripeMode: isLiveKey ? 'live' : 'test' }
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      })
+      return fail(400, 'PRICE_NOT_CONFIGURED', 'Configure live Price ID in Admin → Stripe Configuration.')
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
@@ -158,19 +152,9 @@ serve(async (req) => {
         logStep('Verified price exists in Stripe', { priceId })
       } catch (stripeError: any) {
         if (stripeError.code === 'resource_missing') {
-          console.log('[checkout:error]', { corr, error: 'NO_SUCH_PRICE', orgId, planKey, priceId, stripeError: stripeError.message })
-          return new Response(JSON.stringify({
-            error: 'Price ID not found',
-            code: 'NO_SUCH_PRICE',
-            hint: 'Price ID and Stripe key are in different modes (test vs live).',
-            correlationId: corr,
-            context: { orgId, planKey, priceId, stripeMode: isLiveKey ? 'live' : 'test' }
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400,
-          })
+          return fail(400, 'NO_SUCH_PRICE', 'Price ID and Stripe key are in different modes (test vs live).')
         }
-        throw stripeError // Re-throw other Stripe errors
+        return fail(502, 'STRIPE_ERROR', `Stripe API error: ${stripeError.message}`)
       }
     }
 
@@ -257,24 +241,20 @@ serve(async (req) => {
       }
     })
 
-    console.log('[checkout:success]', { corr, sessionId: session.id, orgId, planKey, priceId })
+    console.log('[checkout:ok]', { corr, isLiveKey, orgId, planKey, priceId, sessionId: session.id })
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    console.log('[checkout:error]', { corr, error: errorMessage, orgId, planKey, priceId })
-    return new Response(JSON.stringify({ 
-      error: errorMessage,
-      code: 'INTERNAL_ERROR',
-      correlationId: corr,
-      context: { orgId, planKey, priceId }
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    })
+  } catch (error: any) {
+    // Handle Stripe SDK errors
+    if (error.type && error.type.startsWith('Stripe')) {
+      return fail(502, 'STRIPE_ERROR', `Stripe API error: ${error.message}`)
+    }
+    
+    // Generic internal error fallback
+    return fail(500, 'INTERNAL_ERROR', error.message || 'Unknown error occurred')
   }
 })
