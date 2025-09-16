@@ -38,6 +38,10 @@ import { WidgetEmbedGenerator } from "@/components/WidgetEmbedGenerator"
 import { WebCallTester } from "@/components/WebCallTester"
 import { supabase } from "@/integrations/supabase/client"
 
+// Additive: centralize pulling a corr id from our normalized error
+const getCorrId = (err: any) =>
+  err?.correlationId || err?.corr || err?.traceId || null;
+
 interface RetellAgent {
   id: string
   organization_id: string
@@ -110,10 +114,13 @@ const RetellAgentSettings = () => {
         setOrganizationId(data.organization_id)
         form.reset(data)
       } catch (error) {
-        console.error('Error loading agent:', error)
+        const corr = getCorrId(error);
+        console.error('RetellAgentSettings error', { corrId: corr, error })
         toast({
           title: "Error",
-          description: "Failed to load agent settings.",
+          description: corr
+            ? `Failed to load agent settings. (Corr ID: ${corr})`
+            : "Failed to load agent settings.",
           variant: "destructive"
         })
       } finally {
@@ -139,10 +146,13 @@ const RetellAgentSettings = () => {
 
         setVoices(data.voices || [])
       } catch (error) {
-        console.error('Error loading voices:', error)
+        const corr = getCorrId(error);
+        console.error('RetellAgentSettings error', { corrId: corr, error })
         toast({
           title: "Warning",
-          description: "Could not load available voices.",
+          description: corr
+            ? `Could not load available voices. (Corr ID: ${corr})`
+            : "Could not load available voices.",
           variant: "destructive"
         })
       } finally {
@@ -188,10 +198,13 @@ const RetellAgentSettings = () => {
         description: "Agent settings have been updated successfully.",
       })
     } catch (error) {
-      console.error('Error saving agent:', error)
+      const corr = getCorrId(error);
+      console.error('RetellAgentSettings error', { corrId: corr, error })
       toast({
         title: "Error",
-        description: "Failed to save agent settings. Please try again.",
+        description: corr
+          ? `Failed to save agent settings. Please try again. (Corr ID: ${corr})`
+          : "Failed to save agent settings. Please try again.",
         variant: "destructive"
       })
     } finally {
@@ -226,10 +239,13 @@ const RetellAgentSettings = () => {
         description: `Agent published successfully as version ${data.version}.`,
       })
     } catch (error) {
-      console.error('Error publishing agent:', error)
+      const corr = getCorrId(error);
+      console.error('RetellAgentSettings error', { corrId: corr, error })
       toast({
         title: "Error",
-        description: "Failed to publish agent. Please try again.",
+        description: corr
+          ? `Failed to publish agent. Please try again. (Corr ID: ${corr})`
+          : "Failed to publish agent. Please try again.",
         variant: "destructive"
       })
     } finally {
@@ -245,10 +261,13 @@ const RetellAgentSettings = () => {
       const audio = new Audio(previewUrl)
       await audio.play()
     } catch (error) {
-      console.error('Error playing voice preview:', error)
+      const corr = getCorrId(error);
+      console.error('RetellAgentSettings error', { corrId: corr, error })
       toast({
         title: "Warning",
-        description: "Could not play voice preview.",
+        description: corr
+          ? `Could not play voice preview. (Corr ID: ${corr})`
+          : "Could not play voice preview.",
         variant: "destructive"
       })
     }
