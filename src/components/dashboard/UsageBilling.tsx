@@ -65,7 +65,9 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [isLoadingBilling, setIsLoadingBilling] = useState(true);
   const [checkoutError, setCheckoutError] = useState<any>(null);
+  const [preflightError, setPreflightError] = useState<any>(null);
   const [debugPanelOpen, setDebugPanelOpen] = useState(false);
+  const [preflightDebugOpen, setPreflightDebugOpen] = useState(false);
   const [preflightResults, setPreflightResults] = useState<any>(null);
   const [isRunningPreflight, setIsRunningPreflight] = useState(false);
   const [refreshStatusError, setRefreshStatusError] = useState<any>(null);
@@ -222,6 +224,8 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
     
     try {
       setIsRunningPreflight(true);
+      setPreflightError(null);
+      
       const { data, error } = await supabase.functions.invoke('billing-preflight', {
         body: { 
           orgId: organizationId,
@@ -233,11 +237,26 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       return data;
     } catch (error: any) {
       console.error('Preflight check failed:', error);
+      
+      // Try to parse structured error response
+      let parsedError = null;
+      try {
+        if (error?.message && typeof error.message === 'string') {
+          parsedError = JSON.parse(error.message);
+        } else if (error && typeof error === 'object') {
+          parsedError = error;
+        }
+      } catch (parseError) {
+        parsedError = { message: error?.message || "Preflight check failed" };
+      }
+      
+      setPreflightError(parsedError);
+      setPreflightDebugOpen(true);
+      
       return {
-        success: false,
         overallStatus: 'fail',
         canProceed: false,
-        error: error.message
+        error: parsedError
       };
     } finally {
       setIsRunningPreflight(false);
@@ -248,6 +267,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
     try {
       setIsUpgrading(true);
       setCheckoutError(null);
+      setPreflightError(null);
       setPreflightResults(null);
       
       // Run preflight check first
@@ -257,7 +277,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       if (!preflightResult?.canProceed) {
         toast({
           title: "Checkout Blocked",
-          description: "Please fix the issues below before proceeding",
+          description: "Please fix the issues identified in the preflight check",
           variant: "destructive",
         });
         return;
@@ -710,13 +730,15 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                           <div key={check.id || index} className="flex items-start gap-3 p-3 border rounded-lg">
                             <span className="text-lg">{getStatusIcon(check.status)}</span>
                             <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium">{check.name}</span>
-                                <Badge variant="outline" className={getStatusColor(check.status)}>
-                                  {check.status}
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground mt-1">{check.message}</p>
+                               <div className="flex items-center justify-between">
+                                 <span className="font-medium">{check.message || check.id}</span>
+                                 <Badge variant="outline" className={getStatusColor(check.status)}>
+                                   {check.status}
+                                 </Badge>
+                               </div>
+                               {check.message && check.message !== check.id && (
+                                 <p className="text-sm text-muted-foreground mt-1">{check.message}</p>
+                               )}
                               {check.hint && (
                                 <p className="text-sm text-orange-600 mt-1">💡 {check.hint}</p>
                               )}
@@ -742,15 +764,23 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                         </Alert>
                       )}
                     </div>
-                  )}
-                  
-                  {/* Checkout Debug Panel */}
-                  {checkoutError && renderDebugPanel(
-                    checkoutError, 
-                    debugPanelOpen, 
-                    setDebugPanelOpen, 
-                    'Checkout Debug'
-                  )}
+                   )}
+                   
+                   {/* Preflight Debug Panel */}
+                   {preflightError && renderDebugPanel(
+                     preflightError, 
+                     preflightDebugOpen, 
+                     setPreflightDebugOpen, 
+                     'Preflight Debug'
+                   )}
+                   
+                   {/* Checkout Debug Panel */}
+                   {checkoutError && renderDebugPanel(
+                     checkoutError, 
+                     debugPanelOpen, 
+                     setDebugPanelOpen, 
+                     'Checkout Debug'
+                   )}
                   
                   <div className="flex gap-2">
                     <Button 
