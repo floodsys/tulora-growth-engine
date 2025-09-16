@@ -69,18 +69,19 @@ serve(async (req) => {
     }
 
     // Check entitlements for agent publishing
+    const corr = crypto.randomUUID()
     const currentAgentCount = await getCurrentCount(supabase, organizationId, 'agents')
     const entitlementCheck = await requireEntitlement(supabase, organizationId, {
       limitKey: 'agents',
       currentCount: currentAgentCount
-    })
+    }, corr)
 
     if (!entitlementCheck.success) {
-      console.log('Agent publishing blocked by entitlements:', entitlementCheck.error)
+      console.log(`[${corr}] Agent publishing blocked by entitlements:`, entitlementCheck.error)
       return new Response(
         JSON.stringify(entitlementCheck.error),
         { 
-          status: 403,
+          status: entitlementCheck.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )

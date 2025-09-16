@@ -62,18 +62,19 @@ Deno.serve(async (req) => {
 
     // Check entitlements for number purchasing
     const currentNumberCount = await getCurrentCount(supabaseClient, membership.organization_id, 'numbers')
+    const corr = crypto.randomUUID()
     const entitlementCheck = await requireEntitlement(supabaseClient, membership.organization_id, {
       feature: 'numbers',
       limitKey: 'numbers',
       currentCount: currentNumberCount
-    })
+    }, corr)
 
     if (!entitlementCheck.success) {
-      console.log('Number purchase blocked by entitlements:', entitlementCheck.error)
+      console.log(`[${corr}] Number purchase blocked by entitlements:`, entitlementCheck.error)
       return new Response(
         JSON.stringify(entitlementCheck.error),
         { 
-          status: 403,
+          status: entitlementCheck.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )

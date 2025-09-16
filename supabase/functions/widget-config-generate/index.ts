@@ -47,19 +47,20 @@ Deno.serve(async (req) => {
     const { agentId, widgetType = 'chat', config = {} } = body
 
     // Check widget entitlements
+    const corr = crypto.randomUUID()
     const currentWidgetCount = await getCurrentCount(supabase, membership.organization_id, 'widgets')
     const entitlementCheck = await requireEntitlement(supabase, membership.organization_id, {
       feature: 'widgets',
       limitKey: 'widgets',
       currentCount: currentWidgetCount
-    })
+    }, corr)
 
     if (!entitlementCheck.success) {
-      console.log('Widget creation blocked by entitlements:', entitlementCheck.error)
+      console.log(`[${corr}] Widget creation blocked by entitlements:`, entitlementCheck.error)
       return new Response(
         JSON.stringify(entitlementCheck.error),
         { 
-          status: 403,
+          status: entitlementCheck.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )

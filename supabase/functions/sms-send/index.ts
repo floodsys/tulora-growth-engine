@@ -62,16 +62,17 @@ Deno.serve(async (req) => {
     }
 
     // Check SMS entitlements
+    const corr = crypto.randomUUID()
     const entitlementCheck = await requireEntitlement(supabaseClient, membership.organization_id, {
       feature: 'sms'
-    })
+    }, corr)
 
     if (!entitlementCheck.success) {
-      console.log('SMS sending blocked by entitlements:', entitlementCheck.error)
+      console.log(`[${corr}] SMS sending blocked by entitlements:`, entitlementCheck.error)
       return new Response(
         JSON.stringify(entitlementCheck.error),
         { 
-          status: 403,
+          status: entitlementCheck.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
