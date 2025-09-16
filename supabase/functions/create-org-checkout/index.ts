@@ -28,6 +28,10 @@ serve(async (req) => {
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
     if (!stripeKey) throw new Error('STRIPE_SECRET_KEY is not set')
 
+    // Detect Stripe key mode
+    const isLiveKey = stripeKey.startsWith('sk_live_')
+    logStep('Stripe key mode detected', { isLive: isLiveKey })
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -41,8 +45,45 @@ serve(async (req) => {
     const { data: userData, error: userError } = await supabase.auth.getUser(token)
     if (userError || !userData.user) throw new Error('User not authenticated')
 
-    const { orgId, planKey }: CheckoutRequest = await req.json()
+    let { orgId, planKey }: CheckoutRequest = await req.json()
     logStep('Request data', { orgId, planKey })
+
+    // Require non-empty orgId with fallback
+    if (!orgId || orgId.trim() === '') {
+      // Try to get user's default organization
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('current_org_id')
+        .eq('user_id', userData.user.id)
+        .single()
+      
+      if (profile?.current_org_id) {
+        orgId = profile.current_org_id
+        logStep('Using fallback orgId from profile', { orgId })
+      } else {
+        // Check if user has any org memberships
+        const { data: memberships } = await supabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('user_id', userData.user.id)
+          .eq('seat_active', true)
+          .limit(1)
+        
+        if (memberships?.[0]?.organization_id) {
+          orgId = memberships[0].organization_id
+          logStep('Using fallback orgId from membership', { orgId })
+        } else {
+          return new Response(JSON.stringify({ 
+            error: 'Organization ID required',
+            code: 'ORG_ID_MISSING',
+            hint: 'Select an organization before checkout.'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400,
+          })
+        }
+      }
+    }
 
     // Verify user has admin access to this org
     const { data: membership } = await supabase
@@ -86,11 +127,39 @@ serve(async (req) => {
     const priceId = planConfig.stripe_price_id_monthly
     const isDevelopment = Deno.env.get('NODE_ENV') !== 'production'
     
+    // Verify plan & price mapping before creating a Session
     if (!priceId && !isDevelopment) {
-      throw new Error(`No monthly Stripe price ID configured for plan ${planKey}`)
+      return new Response(JSON.stringify({
+        error: 'Price not configured',
+        code: 'PRICE_NOT_CONFIGURED',
+        hint: 'Configure live Price ID in Admin → Stripe Configuration.'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
+
+    // Verify price exists in Stripe if we have a priceId
+    if (priceId) {
+      try {
+        await stripe.prices.retrieve(priceId)
+        logStep('Verified price exists in Stripe', { priceId })
+      } catch (stripeError: any) {
+        if (stripeError.code === 'resource_missing') {
+          return new Response(JSON.stringify({
+            error: 'Price ID not found',
+            code: 'NO_SUCH_PRICE',
+            hint: 'Price ID and Stripe key are in different modes (test vs live).'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400,
+          })
+        }
+        throw stripeError // Re-throw other Stripe errors
+      }
+    }
 
     // Create or get Stripe customer
     let customerId = org.stripe_customer_id
@@ -152,6 +221,14 @@ serve(async (req) => {
     // Get APP_ORIGIN for success/cancel URLs
     const appOrigin = Deno.env.get('APP_ORIGIN') || req.headers.get('origin') || 'http://localhost:3000'
     
+    // Consistent metadata for reconciliation
+    const metadata = {
+      org_id: orgId,
+      plan_key: planKey,
+      product_line: planConfig.product_line,
+      organization_id: orgId // Keep both for compatibility
+    }
+    
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -161,17 +238,9 @@ serve(async (req) => {
       line_items: lineItems,
       success_url: `${appOrigin}/dashboard?checkout_success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appOrigin}/dashboard?checkout_canceled=true`,
-      metadata: {
-        organization_id: orgId,
-        plan_key: planKey,
-        product_line: planConfig.product_line
-      },
+      metadata,
       subscription_data: {
-        metadata: {
-          organization_id: orgId,
-          plan_key: planKey,
-          product_line: planConfig.product_line
-        }
+        metadata
       }
     })
 
