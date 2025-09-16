@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CalendarIcon, Clock, Phone, MessageSquare, Database, CreditCard, ExternalLink, Users, RefreshCw, Zap } from "lucide-react";
 import { format, addDays, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -411,22 +412,31 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                   )}
                 </Button>
               ) : (
-                <Button 
-                  onClick={handleUpgrade}
-                  disabled={isUpgrading}
-                >
-                  {isUpgrading ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Starting...
-                    </>
-                  ) : (
-                    <>
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Upgrade Now
-                    </>
-                  )}
-                </Button>
+                <div className="space-y-2">
+                  {!organizationId ? (
+                    <Alert variant="destructive">
+                      <AlertDescription>
+                        Select an organization before starting checkout.
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
+                  <Button 
+                    onClick={handleUpgrade}
+                    disabled={isUpgrading || !organizationId}
+                  >
+                    {isUpgrading ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Starting...
+                      </>
+                    ) : (
+                      <>
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Upgrade Now
+                      </>
+                    )}
+                  </Button>
+                </div>
               )}
             </div>
           </div>
@@ -447,7 +457,10 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                   </p>
                 </div>
               </div>
-              <Button onClick={handleUpgrade} disabled={isUpgrading}>
+              <Button 
+                onClick={handleUpgrade} 
+                disabled={isUpgrading || !organizationId}
+              >
                 Resolve Now
               </Button>
             </div>
