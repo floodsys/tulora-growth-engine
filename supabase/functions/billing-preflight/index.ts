@@ -79,30 +79,27 @@ serve(async (req) => {
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
     if (!stripeKey) {
       checks.push({
-        id: 'stripe_key',
-        name: 'Stripe API Key',
+        id: 'api_key',
         status: 'fail',
-        message: 'Stripe API key not configured',
+        code: 'API_KEY_MISSING',
         hint: 'Configure STRIPE_SECRET_KEY in environment variables'
       })
     } else {
       stripeMode = stripeKey.startsWith('sk_live_') ? 'live' : 'test'
       checks.push({
-        id: 'stripe_key',
-        name: 'Stripe API Key',
+        id: 'api_key',
         status: 'pass',
-        message: `Stripe ${stripeMode} mode configured`,
-        details: { mode: stripeMode }
+        code: null,
+        hint: null
       })
     }
 
     // 2. Organization ID Check
     if (!orgId || orgId.trim() === '') {
       checks.push({
-        id: 'org_id',
-        name: 'Organization Selection',
+        id: 'org',
         status: 'fail',
-        message: 'No organization selected',
+        code: 'ORG_ID_MISSING',
         hint: 'Select an organization before checkout'
       })
     } else {
@@ -115,18 +112,16 @@ serve(async (req) => {
 
       if (!org) {
         checks.push({
-          id: 'org_id',
-          name: 'Organization Selection',
+          id: 'org',
           status: 'fail',
-          message: 'Organization not found',
+          code: 'ORG_NOT_FOUND',
           hint: 'Selected organization does not exist'
         })
       } else if (org.status === 'suspended') {
         checks.push({
-          id: 'org_id',
-          name: 'Organization Selection',
+          id: 'org',
           status: 'fail',
-          message: 'Organization is suspended',
+          code: 'ORG_SUSPENDED',
           hint: 'Contact support to reactivate your organization'
         })
       } else {
@@ -140,19 +135,17 @@ serve(async (req) => {
 
         if (!membership || !['owner', 'admin'].includes(membership.role)) {
           checks.push({
-            id: 'org_id',
-            name: 'Organization Selection',
+            id: 'org',
             status: 'fail',
-            message: 'Insufficient permissions',
+            code: 'ORG_ACCESS_DENIED',
             hint: 'You need admin access to manage billing'
           })
         } else {
           checks.push({
-            id: 'org_id',
-            name: 'Organization Selection',
+            id: 'org',
             status: 'pass',
-            message: `Organization "${org.name}" selected`,
-            details: { orgName: org.name, userRole: membership.role }
+            code: null,
+            hint: null
           })
         }
       }
@@ -161,10 +154,9 @@ serve(async (req) => {
     // 3. Plan Configuration Check
     if (!planKey) {
       checks.push({
-        id: 'plan_config',
-        name: 'Plan Configuration',
+        id: 'plan',
         status: 'fail',
-        message: 'No plan specified',
+        code: 'PLAN_NOT_SPECIFIED',
         hint: 'Specify a plan for checkout'
       })
     } else {
@@ -177,123 +169,118 @@ serve(async (req) => {
 
       if (planError || !planConfig) {
         checks.push({
-          id: 'plan_config',
-          name: 'Plan Configuration',
+          id: 'plan',
           status: 'fail',
-          message: `Plan "${planKey}" not found or inactive`,
+          code: 'PLAN_NOT_FOUND',
           hint: 'Check plan configuration in Admin → Stripe Configuration'
         })
       } else {
         checks.push({
-          id: 'plan_config',
-          name: 'Plan Configuration',
+          id: 'plan',
           status: 'pass',
-          message: `Plan "${planConfig.display_name}" found`,
-          details: { planKey, displayName: planConfig.display_name, productLine: planConfig.product_line }
+          code: null,
+          hint: null
         })
 
         // 4. Price ID Configuration Check
-        const priceId = planConfig.stripe_price_id_monthly
+        priceId = planConfig.stripe_price_id_monthly
         const isDevelopment = Deno.env.get('NODE_ENV') !== 'production'
 
         if (!priceId && stripeMode === 'live' && !isDevelopment) {
           checks.push({
-            id: 'price_mapping',
-            name: 'Price ID Mapping',
+            id: 'price',
             status: 'fail',
-            message: 'No price ID configured for live mode',
+            code: 'PRICE_NOT_CONFIGURED',
             hint: 'Set stripe_price_id_monthly for this plan in Admin → Stripe Configuration'
           })
         } else if (!priceId && stripeMode === 'test') {
           checks.push({
-            id: 'price_mapping',
-            name: 'Price ID Mapping',
-            status: 'warning',
-            message: 'No price ID configured (test mode will use dynamic pricing)',
-            details: { mode: stripeMode, fallback: 'dynamic_test_price' }
+            id: 'price',
+            status: 'pass',
+            code: null,
+            hint: null
           })
         } else if (priceId) {
           // 5. Stripe Price Validation
           if (stripeKey) {
             try {
               const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
-              const price = await stripe.prices.retrieve(priceId)
+              await stripe.prices.retrieve(priceId)
               
               checks.push({
-                id: 'price_mapping',
-                name: 'Price ID Mapping',
+                id: 'price',
                 status: 'pass',
-                message: `Price ID "${priceId}" configured and valid`,
-                details: { priceId, amount: price.unit_amount, currency: price.currency }
-              })
-
-              checks.push({
-                id: 'stripe_price_validation',
-                name: 'Stripe Price Validation',
-                status: 'pass',
-                message: `Price exists in Stripe ${stripeMode} environment`,
-                details: { priceId, validated: true }
+                code: null,
+                hint: null
               })
             } catch (stripeError: any) {
               if (stripeError.code === 'resource_missing') {
                 checks.push({
-                  id: 'stripe_price_validation',
-                  name: 'Stripe Price Validation',
+                  id: 'price',
                   status: 'fail',
-                  message: 'Price ID not found in Stripe',
-                  hint: `Price ID "${priceId}" doesn't exist in Stripe ${stripeMode} environment. Check Admin → Stripe Configuration.`
+                  code: 'NO_SUCH_PRICE',
+                  hint: 'Key/price mode mismatch or typo.'
                 })
               } else {
                 checks.push({
-                  id: 'stripe_price_validation',
-                  name: 'Stripe Price Validation',
+                  id: 'price',
                   status: 'fail',
-                  message: `Stripe API error: ${stripeError.message}`,
-                  hint: 'Check Stripe API key and price configuration'
+                  code: 'STRIPE_API_ERROR',
+                  hint: `Stripe API error: ${stripeError.message}`
                 })
               }
             }
           }
         } else {
           checks.push({
-            id: 'price_mapping',
-            name: 'Price ID Mapping',
+            id: 'price',
             status: 'pass',
-            message: 'Development mode - dynamic pricing will be used',
-            details: { mode: 'development', fallback: 'dynamic_test_price' }
+            code: null,
+            hint: null
           })
         }
       }
     }
 
-    // Determine overall status
-    const hasFailures = checks.some(check => check.status === 'fail')
-    const hasWarnings = checks.some(check => check.status === 'warning')
-    
-    const overallStatus = hasFailures ? 'fail' : hasWarnings ? 'warning' : 'pass'
-    const canProceed = !hasFailures
+    // 6. Webhook Secret Check (warning only)
+    const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')
+    if (!webhookSecret || webhookSecret.trim() === '') {
+      checks.push({
+        id: 'webhook',
+        status: 'warn',
+        code: 'WEBHOOK_SECRET_MISSING',
+        hint: `Add ${stripeMode === 'live' ? 'live' : 'test'} whsec_... to STRIPE_WEBHOOK_SECRET`
+      })
+    } else {
+      checks.push({
+        id: 'webhook',
+        status: 'pass',
+        code: null,
+        hint: null
+      })
+    }
 
     const result = {
-      success: true,
-      correlationId: corr,
-      overallStatus,
-      canProceed,
-      context: {
-        stripeMode,
-        orgId,
-        planKey,
-        timestamp: new Date().toISOString()
-      },
-      checks
+      corr,
+      mode: stripeMode,
+      orgId,
+      planKey,
+      priceId,
+      checks: checks.map(check => ({
+        id: check.id,
+        status: check.status,
+        ...(check.code && { code: check.code }),
+        ...(check.hint && { hint: check.hint })
+      }))
     }
 
     console.log('[billing-preflight:result]', { 
       corr, 
-      overallStatus, 
-      canProceed, 
-      checkCount: checks.length,
-      failures: checks.filter(c => c.status === 'fail').length,
-      warnings: checks.filter(c => c.status === 'warning').length
+      mode: stripeMode,
+      orgId,
+      planKey,
+      priceId,
+      checkCount: checks.length
     })
 
     return new Response(JSON.stringify(result), {
