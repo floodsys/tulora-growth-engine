@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CalendarIcon, Clock, Phone, MessageSquare, Database, CreditCard, ExternalLink, Users, RefreshCw } from "lucide-react";
+import { CalendarIcon, Clock, Phone, MessageSquare, Database, CreditCard, ExternalLink, Users, RefreshCw, Zap } from "lucide-react";
 import { format, addDays, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,7 @@ import { BillingTestPanel } from "@/components/dashboard/BillingTestPanel";
 import { useUsageData } from "@/hooks/useUsageData";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import { ConcurrencyCard } from "@/components/dashboard/widgets/ConcurrencyCard";
+import { useOrganizationRole } from "@/hooks/useOrganizationRole";
 
 interface UsageData {
   minutes: { used: number; limit: number };
@@ -53,10 +54,12 @@ interface UsageBillingProps {
 export function UsageBilling({ organizationId }: UsageBillingProps) {
   const { toast } = useToast();
   const { dateRange, setDateRange } = useDashboardDateRange();
+  const { isAdmin } = useOrganizationRole(organizationId);
   
   const [isSyncing, setIsSyncing] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isOpeningPortal, setIsOpeningPortal] = useState(false);
+  const [isReconciling, setIsReconciling] = useState(false);
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [isLoadingBilling, setIsLoadingBilling] = useState(true);
 
@@ -265,6 +268,35 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
     }
   };
 
+  const handleReconcileBilling = async () => {
+    try {
+      setIsReconciling(true);
+      const { data, error } = await supabase.functions.invoke('admin-billing-reconcile', {
+        body: { orgId: organizationId }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Billing Reconciled",
+        description: `Updated billing status for plan: ${data.planKey}`,
+      });
+      
+      // Refresh billing status and usage data
+      await fetchBillingStatus();
+      await refreshUsage();
+    } catch (error) {
+      console.error('Error reconciling billing:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reconcile billing status",
+        variant: "destructive",
+      });
+    } finally {
+      setIsReconciling(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <AdminChecklistBanner />
@@ -337,6 +369,28 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                   </>
                 )}
               </Button>
+
+              {/* Reconcile Billing Button - Admin Only */}
+              {isAdmin && (
+                <Button 
+                  variant="outline" 
+                  onClick={handleReconcileBilling}
+                  disabled={isReconciling}
+                  className="text-warning hover:text-warning-foreground"
+                >
+                  {isReconciling ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Reconciling...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="h-4 w-4 mr-2" />
+                      Reconcile Billing
+                    </>
+                  )}
+                </Button>
+              )}
               
               {billingStatus?.status === 'active' ? (
                 <Button 
