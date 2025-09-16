@@ -91,7 +91,7 @@ export const useRetellCalls = (organizationId?: string) => {
             .from('retell_calls')
             .select('*')
             .eq('organization_id', organizationId)
-            .order('created_at', { ascending: false })
+            .order('started_at', { ascending: false })
             .limit(filters.limit || 50)
 
           if (filters.dateRange) {
