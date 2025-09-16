@@ -84,11 +84,11 @@ serve(async (req) => {
 
     // Use monthly subscription price
     const priceId = planConfig.stripe_price_id_monthly
-    if (!priceId) {
+    const isDevelopment = Deno.env.get('NODE_ENV') !== 'production'
+    
+    if (!priceId && !isDevelopment) {
       throw new Error(`No monthly Stripe price ID configured for plan ${planKey}`)
     }
-
-    logStep('Using subscription price ID', { planKey, priceId })
 
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
 
@@ -111,10 +111,32 @@ serve(async (req) => {
     }
 
     // Prepare line items - subscription + optional setup fee
-    const lineItems = [{
-      price: priceId,
-      quantity: 1, // Default to 1 seat, can be adjusted later via Stripe portal
-    }];
+    let lineItems;
+    
+    if (priceId) {
+      // Use configured Stripe Price ID
+      logStep('Using configured subscription price ID', { planKey, priceId })
+      lineItems = [{
+        price: priceId,
+        quantity: 1, // Default to 1 seat, can be adjusted later via Stripe portal
+      }];
+    } else if (isDevelopment) {
+      // Dev-only fallback: create dynamic test price
+      logStep('Using dynamic test price for dev environment', { planKey })
+      lineItems = [{
+        price_data: {
+          currency: 'usd',
+          unit_amount: 1000, // $10.00 test price
+          recurring: {
+            interval: 'month'
+          },
+          product_data: {
+            name: `${planKey} (Test)`
+          }
+        },
+        quantity: 1
+      }];
+    }
 
     // Add setup fee if enabled and configured
     if (planConfig.bill_setup_fee_in_stripe && planConfig.stripe_setup_price_id) {
