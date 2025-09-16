@@ -1,7 +1,14 @@
+/**
+ * @deprecated This module is now a compatibility wrapper over src/lib/entitlements/ssot.ts
+ * Please migrate to useEntitlements from the entitlements SSOT for new code.
+ * 
+ * This file maintains the original API for backwards compatibility while
+ * delegating to the new Single Source of Truth implementation.
+ */
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useEntitlements } from '@/lib/entitlements/ssot';
 
-// Types for product-line entitlements
+// Types for product-line entitlements (kept for API compatibility)
 export interface ProductEntitlements {
   plan_key: string;
   plan_name: string;
@@ -30,86 +37,111 @@ export interface ProductLineGating {
   refresh: () => Promise<void>;
 }
 
+let hasShownDeprecationWarning = false;
+
 /**
  * Hook for product-line aware feature gating
- * Provides access to entitlements grouped by product line (leadgen/support)
+ * Now delegates to the SSOT entitlements system
  */
 export function useProductLineGating(orgId: string | null): ProductLineGating {
-  const [entitlements, setEntitlements] = useState<OrgEntitlements>({});
-  const [loading, setLoading] = useState(true);
+  const { entitlements, isLoading, refresh: refreshSSoT } = useEntitlements(orgId);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchEntitlements = async () => {
-    if (!orgId) {
-      setEntitlements({});
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setError(null);
-      
-      // Call the server-side entitlements aggregator
-      const { data, error: rpcError } = await supabase
-        .rpc('get_org_entitlements', { p_org_id: orgId });
-
-      if (rpcError) {
-        throw rpcError;
-      }
-
-      // Type guard for the response data
-      const typedData = data as unknown;
-      if (typedData && typeof typedData === 'object' && !Array.isArray(typedData)) {
-        setEntitlements(typedData as OrgEntitlements);
-      } else {
-        setEntitlements({});
-      }
-    } catch (err) {
-      console.error('Error fetching entitlements:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error');
-      setEntitlements({});
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchEntitlements();
-  }, [orgId]);
+    if (!hasShownDeprecationWarning) {
+      console.warn('useProductLineGating is deprecated. Please use useEntitlements from src/lib/entitlements/ssot.ts');
+      hasShownDeprecationWarning = true;
+    }
+  }, []);
+
+  // Map SSOT entitlements to product-line format
+  const mappedEntitlements: OrgEntitlements = {
+    // Assume leadgen as the primary product line for backwards compatibility
+    leadgen: entitlements.isActive ? {
+      plan_key: 'leadgen_starter', // Default mapping
+      plan_name: entitlements.planName,
+      status: 'active',
+      quantity: 1,
+      features: Object.entries(entitlements.features)
+        .filter(([_, enabled]) => enabled)
+        .map(([feature]) => feature),
+      limits: entitlements.limits
+    } : undefined
+  };
 
   // Helper functions for product-line aware gating
   const isSubscribed = (productLine: 'leadgen' | 'support'): boolean => {
-    return !!entitlements[productLine];
+    if (productLine === 'leadgen') {
+      return entitlements.isActive;
+    }
+    return false; // Support not implemented in SSOT yet
   };
 
   const hasFeature = (productLine: 'leadgen' | 'support', feature: string): boolean => {
-    const productEntitlements = entitlements[productLine];
-    if (!productEntitlements) return false;
-    
-    return productEntitlements.features.includes(feature);
+    if (productLine === 'leadgen' && entitlements.isActive) {
+      // Map feature names to SSOT features
+      switch (feature) {
+        case 'scheduling':
+        case 'appointment_scheduling':
+          return entitlements.features.scheduling;
+        case 'numbers':
+        case 'voice_numbers':
+          return entitlements.features.numbers;
+        case 'sms':
+        case 'messaging':
+          return entitlements.features.sms;
+        case 'widgets':
+        case 'site_widgets':
+          return entitlements.features.widgets;
+        case 'advanced_analytics':
+          return entitlements.features.advancedAnalytics;
+        default:
+          return false;
+      }
+    }
+    return false;
   };
 
   const getLimits = (productLine: 'leadgen' | 'support'): Record<string, any> => {
-    const productEntitlements = entitlements[productLine];
-    return productEntitlements?.limits || {};
+    if (productLine === 'leadgen') {
+      return entitlements.limits;
+    }
+    return {};
   };
 
   const getPlanKey = (productLine: 'leadgen' | 'support'): string | null => {
-    return entitlements[productLine]?.plan_key || null;
+    if (productLine === 'leadgen' && entitlements.isActive) {
+      // Map based on features to determine plan tier
+      if (entitlements.features.advancedAnalytics) {
+        return 'leadgen_business';
+      }
+      if (entitlements.features.scheduling) {
+        return 'leadgen_starter';
+      }
+      return 'leadgen_trial';
+    }
+    return null;
   };
 
   const getPlanName = (productLine: 'leadgen' | 'support'): string | null => {
-    return entitlements[productLine]?.plan_name || null;
+    if (productLine === 'leadgen' && entitlements.isActive) {
+      return entitlements.planName;
+    }
+    return null;
   };
 
   const refresh = async () => {
-    setLoading(true);
-    await fetchEntitlements();
+    try {
+      setError(null);
+      await refreshSSoT();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    }
   };
 
   return {
-    entitlements,
-    loading,
+    entitlements: mappedEntitlements,
+    loading: isLoading,
     error,
     isSubscribed,
     hasFeature,
