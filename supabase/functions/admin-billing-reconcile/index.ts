@@ -27,15 +27,22 @@ serve(async (req) => {
     })
   }
 
+  const corr = crypto.randomUUID();
+
+  const fail = (status: number, code: string, message: string, hint?: string, details?: any) => {
+    logStep("ERROR", { corr, code, message, hint, details, status });
+    return new Response(JSON.stringify({ corr, code, message, hint, details }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status,
+    });
+  };
+
   try {
-    logStep('Function started')
+    logStep('Function started', { corr })
 
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     if (!serviceRoleKey) {
-      return new Response(JSON.stringify({ code: 'SERVICE_ROLE_MISSING', error: 'Service role key not configured' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      })
+      return fail(500, 'SERVICE_ROLE_MISSING', 'Service role key not configured', 'Configure SUPABASE_SERVICE_ROLE_KEY in environment');
     }
 
     const supabase = createClient(
@@ -47,23 +54,28 @@ serve(async (req) => {
     // Verify admin access
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 401,
-      })
+      return fail(401, 'UNAUTHORIZED', 'No authorization header', 'Include Authorization header with Bearer token');
     }
 
     const token = authHeader.replace('Bearer ', '')
     const { data: userData, error: userError } = await supabase.auth.getUser(token)
     if (userError || !userData.user) {
-      return new Response(JSON.stringify({ error: 'User not authenticated' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 401,
-      })
+      return fail(401, 'UNAUTHORIZED', 'Invalid or expired token', 'Sign in again with valid credentials');
     }
 
-    const { orgId }: ReconcileRequest = await req.json()
-    logStep('Request data', { orgId })
+    let body: ReconcileRequest;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      return fail(400, 'INVALID_JSON', 'Invalid JSON in request body', 'Ensure request body contains valid JSON');
+    }
+
+    const { orgId } = body;
+    if (!orgId || orgId.trim() === '') {
+      return fail(400, 'ORG_ID_MISSING', 'Organization ID is required', 'Provide a valid organization ID');
+    }
+
+    logStep('Request data', { corr, orgId })
 
     // Verify user has admin access to this org or is superadmin
     const { data: superadminCheck } = await supabase
@@ -92,28 +104,22 @@ serve(async (req) => {
       const isOrgAdmin = membership?.role === 'admin' || orgOwnership?.owner_user_id === userData.user.id
 
       if (!isOrgAdmin) {
-        return new Response(JSON.stringify({ error: 'Insufficient permissions' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 403,
-        })
+        return fail(403, 'FORBIDDEN', 'Insufficient permissions', 'Only organization admins or superadmins can reconcile billing');
       }
     }
 
-    logStep('Admin access verified', { userId: userData.user.id, isSuperadmin })
+    logStep('Admin access verified', { corr, userId: userData.user.id, isSuperadmin })
 
     // Get Stripe key
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
     if (!stripeKey) {
-      return new Response(JSON.stringify({ error: 'STRIPE_SECRET_KEY not configured' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      })
+      return fail(500, 'INTERNAL_ERROR', 'STRIPE_SECRET_KEY not configured', 'Configure Stripe secret key in environment');
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
 
     // Search for completed checkout sessions with this orgId
-    logStep('Searching for checkout sessions', { orgId })
+    logStep('Searching for checkout sessions', { corr, orgId })
     
     const sessions = await stripe.checkout.sessions.list({
       limit: 10,
@@ -129,18 +135,13 @@ serve(async (req) => {
     )
 
     if (matchingSessions.length === 0) {
-      return new Response(JSON.stringify({ 
-        error: 'No completed checkout sessions found for this organization',
-        orgId 
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 404,
-      })
+      return fail(404, 'NO_CHECKOUT_SESSIONS', 'No completed checkout sessions found for this organization', `No Stripe checkout sessions found for organization ${orgId}`);
     }
 
     // Get the most recent session
     const latestSession = matchingSessions.sort((a, b) => b.created - a.created)[0]
     logStep('Found matching session', { 
+      corr,
       sessionId: latestSession.id, 
       created: latestSession.created 
     })
@@ -149,12 +150,7 @@ serve(async (req) => {
     const subscription = latestSession.subscription as Stripe.Subscription
 
     if (!customer || !subscription) {
-      return new Response(JSON.stringify({ 
-        error: 'Session missing customer or subscription data' 
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      })
+      return fail(400, 'INCOMPLETE_SESSION_DATA', 'Session missing customer or subscription data', 'Checkout session does not contain required customer and subscription information');
     }
 
     // Extract plan key from subscription metadata or map from price ID
@@ -175,12 +171,7 @@ serve(async (req) => {
     }
 
     if (!planKey) {
-      return new Response(JSON.stringify({ 
-        error: 'Could not determine plan key from subscription' 
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      })
+      return fail(400, 'PLAN_KEY_MISSING', 'Could not determine plan key from subscription', 'Subscription metadata missing plan_key and no matching plan found for price ID');
     }
 
     logStep('Reconciliation data', { 
@@ -264,10 +255,18 @@ serve(async (req) => {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    logStep('ERROR', { message: errorMessage })
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    })
+    
+    // Handle Stripe-specific errors
+    if (error instanceof Error) {
+      if (error.message.includes('Invalid API Key')) {
+        return fail(500, 'INTERNAL_ERROR', 'Invalid Stripe API key', 'Check STRIPE_SECRET_KEY configuration');
+      }
+      
+      if (error.message.includes('restricted')) {
+        return fail(403, 'INSUFFICIENT_STRIPE_PERMISSIONS', 'Stripe key has insufficient permissions', 'Use a Stripe key with full access permissions');
+      }
+    }
+    
+    return fail(500, 'INTERNAL_ERROR', 'Unexpected server error', 'Check function logs for details', { error: errorMessage });
   }
 })

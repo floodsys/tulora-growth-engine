@@ -28,26 +28,32 @@ serve(async (req) => {
     });
   }
 
+  const corr = crypto.randomUUID();
+
+  const fail = (status: number, code: string, message: string, hint?: string, details?: any) => {
+    logStep("ERROR", { corr, code, message, hint, details, status });
+    return new Response(JSON.stringify({ corr, code, message, hint, details }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status,
+    });
+  };
+
   try {
-    logStep("Function started");
+    logStep("Function started", { corr });
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    if (!stripeKey) {
+      return fail(500, "INTERNAL_ERROR", "STRIPE_SECRET_KEY is not set", "Configure Stripe secret key in environment");
+    }
+
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!serviceRoleKey) {
+      return fail(500, "SERVICE_ROLE_MISSING", "Service role key not configured", "Configure SUPABASE_SERVICE_ROLE_KEY in environment");
+    }
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "forbidden" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
-      });
-    }
-
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
-    if (!serviceRoleKey) {
-      return new Response(JSON.stringify({ code: "SERVICE_ROLE_MISSING", error: "Service role key not configured" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      })
+      return fail(401, "UNAUTHORIZED", "No authorization header", "Include Authorization header with Bearer token");
     }
 
     // Use service role client for admin operations
@@ -57,52 +63,34 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Get user info for logging and auth
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "forbidden" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
-      });
+    // Get user info for auth validation
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+    if (userError || !userData.user) {
+      return fail(401, "UNAUTHORIZED", "Invalid or expired token", "Sign in again with valid credentials");
     }
 
-    // Check if user is superadmin using USER context (not service role)
-    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin', { user_id: user.id });
-    if (superadminError || !isSuperadmin) {
-      logStep("Superadmin check failed", { error: superadminError, isSuperadmin });
-      return new Response(JSON.stringify({ error: "forbidden" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
-      });
+    // Check if user is superadmin
+    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin', { user_id: userData.user.id });
+    if (superadminError) {
+      return fail(500, "INTERNAL_ERROR", "Failed to check admin permissions", "Database error during permission check", { error: superadminError.message });
+    }
+    
+    if (!isSuperadmin) {
+      return fail(403, "FORBIDDEN", "Superadmin access required", "Only superadmins can access billing overview");
     }
 
-    logStep("Superadmin access verified", { userId: user.id, email: user.email });
+    logStep("Superadmin access verified", { corr, userId: userData.user.id, email: userData.user.email });
 
     let body: OverviewRequest;
     try {
       body = await req.json();
     } catch (parseError) {
-      return new Response(JSON.stringify({
-        ok: false,
-        error: "Invalid JSON in request body",
-        hint: "Ensure request body contains valid JSON",
-        cause: "parse_error"
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
-      });
+      return fail(400, "INVALID_JSON", "Invalid JSON in request body", "Ensure request body contains valid JSON");
     }
 
     if (!body.action) {
-      return new Response(JSON.stringify({
-        ok: false,
-        error: "Missing required action field",
-        hint: "Include 'action' field with one of: list_subscriptions, list_invoices, list_webhook_events",
-        cause: "missing_action"
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
-      });
+      return fail(400, "MISSING_ACTION", "Missing required action field", "Include 'action' field with one of: list_subscriptions, list_invoices, list_webhook_events");
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
@@ -372,44 +360,23 @@ serve(async (req) => {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR", { message: errorMessage });
     
-    // Categorize error types
+    // Handle Stripe-specific errors
     if (error instanceof Error) {
-      if (error.message.includes('STRIPE_SECRET_KEY')) {
-        return new Response(JSON.stringify({
-          ok: false,
-          error: "Stripe configuration missing",
-          hint: "Configure STRIPE_SECRET_KEY in edge function secrets",
-          cause: "stripe_config_missing"
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
-        });
+      if (error.message.includes('Invalid API Key')) {
+        return fail(500, "INTERNAL_ERROR", "Invalid Stripe API key", "Check STRIPE_SECRET_KEY configuration");
+      }
+      
+      if (error.message.includes('restricted')) {
+        return fail(403, "INSUFFICIENT_STRIPE_PERMISSIONS", "Stripe key has insufficient permissions", "Use a Stripe key with full access permissions");
       }
       
       if (error.message.includes('No such') && error.message.includes('subscription')) {
-        return new Response(JSON.stringify({
-          ok: false,
-          error: "Stripe subscription not found",
-          hint: "Subscription may have been deleted from Stripe dashboard",
-          cause: "stripe_subscription_missing"
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        });
+        return fail(400, "NO_SUCH_SUBSCRIPTION", "Stripe subscription not found", "Subscription may have been deleted from Stripe dashboard");
       }
     }
     
     // Generic server error
-    return new Response(JSON.stringify({
-      ok: false,
-      error: "Unexpected server error",
-      hint: "Check function logs for details",
-      cause: "server_error"
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+    return fail(500, "INTERNAL_ERROR", "Unexpected server error", "Check function logs for details", { error: errorMessage });
   }
 });

@@ -23,19 +23,38 @@ serve(async (req) => {
     })
   }
 
+  const corr = crypto.randomUUID();
+
+  const fail = (status: number, code: string, message: string, hint?: string, details?: any) => {
+    logStep("ERROR", { corr, code, message, hint, details, status });
+    return new Response(JSON.stringify({ corr, code, message, hint, details }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status,
+    });
+  };
+
   try {
-    logStep('Webhook received')
+    logStep('Webhook received', { corr })
 
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
     const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')
     
-    if (!stripeKey || !webhookSecret) {
-      throw new Error('Missing Stripe configuration')
+    if (!stripeKey) {
+      return fail(500, 'INTERNAL_ERROR', 'STRIPE_SECRET_KEY not configured', 'Configure Stripe secret key in environment');
+    }
+    
+    if (!webhookSecret) {
+      return fail(500, 'INTERNAL_ERROR', 'STRIPE_WEBHOOK_SECRET not configured', 'Configure Stripe webhook secret in environment');
     }
 
     const signature = req.headers.get('stripe-signature')
     if (!signature) {
-      throw new Error('Missing Stripe signature')
+      return fail(400, 'MISSING_SIGNATURE', 'Missing Stripe signature', 'Webhook request must include stripe-signature header');
+    }
+
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!serviceRoleKey) {
+      return fail(500, 'SERVICE_ROLE_MISSING', 'Service role key not configured', 'Configure SUPABASE_SERVICE_ROLE_KEY in environment');
     }
 
     const body = await req.text()
@@ -43,15 +62,7 @@ serve(async (req) => {
 
     // Verify webhook signature
     const event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret)
-    logStep('Event verified', { type: event.type, id: event.id })
-
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    if (!serviceRoleKey) {
-      return new Response(JSON.stringify({ code: 'SERVICE_ROLE_MISSING', error: 'Service role key not configured' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      })
-    }
+    logStep('Event verified', { corr, type: event.type, id: event.id })
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -104,18 +115,20 @@ serve(async (req) => {
         logStep('Unhandled event type', { type: event.type })
     }
 
-    return new Response(JSON.stringify({ received: true }), {
+    return new Response(JSON.stringify({ corr, received: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    logStep('ERROR', { message: errorMessage })
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
-    })
+    
+    // Handle webhook-specific errors
+    if (error instanceof Error && error.message.includes('signature')) {
+      return fail(400, 'INVALID_SIGNATURE', 'Invalid webhook signature', 'Verify STRIPE_WEBHOOK_SECRET matches endpoint configuration');
+    }
+    
+    return fail(500, 'INTERNAL_ERROR', 'Webhook processing failed', 'Check function logs for details', { error: errorMessage });
   }
 })
 
