@@ -209,11 +209,15 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
     return {
       ...group,
       items: group.items.filter(item => {
-        // Keep all items visible for now, just disable them if needed
+        // Remove duplicate entries that already exist elsewhere
+        if (group.label === "Admin" && (item.title === "Team" || item.title === "Profile")) {
+          return false
+        }
+        // Keep all other items visible; just disable them if needed
         return true
       })
     }
-  }).filter(Boolean)
+  }).filter(Boolean) as typeof sidebarGroups
 
   return (
     <Sidebar 
