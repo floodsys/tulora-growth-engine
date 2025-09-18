@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Crown, Building2, Users, CreditCard, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 // Local validation utilities for Stripe price IDs (mirroring UsageBilling.tsx)
 const isProbablyLivePriceId = (priceId: string | null | undefined): boolean => {
@@ -24,10 +26,10 @@ const isProbablyLivePriceId = (priceId: string | null | undefined): boolean => {
          priceId.length > 20 // Live price IDs are typically longer
 }
 
-const validatePlanPrices = (planConfig: any): { monthlyValid: boolean; yearlyValid: boolean } => {
+const validatePlanPrices = (planConfig: any): { monthlyOk: boolean; yearlyOk: boolean } => {
   return {
-    monthlyValid: isProbablyLivePriceId(planConfig?.stripe_price_id_monthly),
-    yearlyValid: isProbablyLivePriceId(planConfig?.stripe_price_id_yearly)
+    monthlyOk: isProbablyLivePriceId(planConfig?.stripe_price_id_monthly),
+    yearlyOk: isProbablyLivePriceId(planConfig?.stripe_price_id_yearly)
   }
 }
 
@@ -40,11 +42,55 @@ interface UpgradeModalProps {
 
 export function UpgradeModal({ open, onOpenChange, limitType, hasPendingBilling = false }: UpgradeModalProps) {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [plans, setPlans] = useState<any[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+
+  // Fetch plan configs on mount
+  useEffect(() => {
+    const fetchPlanConfigs = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('plan_configs')
+          .select('plan_key, display_name, stripe_price_id_monthly, stripe_price_id_yearly')
+          .eq('is_active', true);
+
+        if (error) {
+          console.error('Error fetching plan configs:', { 
+            error: error.message, 
+            correlationId: crypto.randomUUID() 
+          });
+          toast({
+            title: "Configuration Error",
+            description: "Unable to load plan configurations. Please contact support.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setPlans(data || []);
+      } catch (error: any) {
+        console.error('Unexpected error fetching plan configs:', { 
+          error: error.message, 
+          correlationId: crypto.randomUUID() 
+        });
+        toast({
+          title: "Configuration Error", 
+          description: "Unable to load plan configurations. Please contact support.",
+          variant: "destructive",
+        });
+      } finally {
+        setPlansLoading(false);
+      }
+    };
+
+    fetchPlanConfigs();
+  }, [toast]);
 
   // Compute disabled state for checkout validation (assuming starter plan)
-  const selectedPlanConfig = { plan_key: 'starter' } // Default recommendation
-  const priceStatus = validatePlanPrices(selectedPlanConfig)
-  const checkoutDisabled = !(priceStatus.monthlyValid || priceStatus.yearlyValid)
+  const selectedPlanConfig = plans.find(p => p.plan_key === 'starter') || plans.find(p => p.plan_key === 'pro');
+  const priceStatus = validatePlanPrices(selectedPlanConfig);
+  const checkoutDisabled = plansLoading || !selectedPlanConfig || !(priceStatus.monthlyOk || priceStatus.yearlyOk);
 
   const handleViewPlans = () => {
     onOpenChange(false);
@@ -54,8 +100,12 @@ export function UpgradeModal({ open, onOpenChange, limitType, hasPendingBilling 
   const handleUpgradeNow = () => {
     // Block checkout if prices are not valid
     if (checkoutDisabled) {
-      // Note: We need access to toast hook, so we'll handle this in the click handler
-      return
+      toast({
+        title: "Plan Configuration Error",
+        description: "This plan isn't fully configured with live Stripe prices. Please contact support for assistance.",
+        variant: "destructive",
+      });
+      return;
     }
     
     onOpenChange(false);
@@ -70,8 +120,12 @@ export function UpgradeModal({ open, onOpenChange, limitType, hasPendingBilling 
   const handleResumeCheckout = () => {
     // Block checkout if prices are not valid
     if (checkoutDisabled) {
-      // Note: We need access to toast hook, so we'll handle this in the click handler
-      return
+      toast({
+        title: "Plan Configuration Error",
+        description: "This plan isn't fully configured with live Stripe prices. Please contact support for assistance.",
+        variant: "destructive",
+      });
+      return;
     }
     
     onOpenChange(false);
@@ -155,7 +209,7 @@ export function UpgradeModal({ open, onOpenChange, limitType, hasPendingBilling 
             {hasPendingBilling && (
               <Button 
                 onClick={handleResumeCheckout}
-                disabled={checkoutDisabled}
+                disabled={checkoutDisabled || plansLoading}
                 className="w-full"
                 size="lg"
               >
@@ -166,7 +220,7 @@ export function UpgradeModal({ open, onOpenChange, limitType, hasPendingBilling 
             
             <Button 
               onClick={handleUpgradeNow}
-              disabled={checkoutDisabled}
+              disabled={checkoutDisabled || plansLoading}
               className="w-full"
               size="lg"
               variant={hasPendingBilling ? "outline" : "default"}
