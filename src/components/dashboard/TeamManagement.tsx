@@ -340,7 +340,7 @@ export function TeamManagement() {
     }
   };
 
-  if (loading || roleLoading || orgLoading) {
+  if (loading || roleLoading || orgLoading || !organization || !organizationId) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -675,12 +675,12 @@ export function TeamManagement() {
       />
 
       {/* Transfer Ownership Dialog */}
-      {organizationId && (
+      {organizationId && organization && (
         <TransferOwnershipDialog
           open={transferOwnershipOpen}
           onOpenChange={setTransferOwnershipOpen}
           organizationId={organizationId}
-          organizationName={organization?.name || ""}
+          organizationName={organization.name || ""}
           availableMembers={members.filter(m => !isOwnerMember(m))}
           onTransferComplete={() => {
             setTransferOwnershipOpen(false);
