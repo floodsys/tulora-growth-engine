@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { toast } from 'sonner'
 
+// Helper for correlation ID extraction
+const getCorrId = (err: any) => err?.correlationId ?? err?.corr ?? err?.traceId ?? null
+
 export interface SMSBrand {
   id: string
   organization_id: string
@@ -106,8 +109,9 @@ export function useSMS() {
       if (error) throw error
       setBrands(data || [])
     } catch (error) {
-      console.error('Error fetching SMS brands:', error)
-      toast.error('Failed to fetch SMS brands')
+      const corrId = getCorrId(error)
+      console.error('Error fetching SMS brands:', { corrId, error })
+      toast.error(`Failed to fetch SMS brands${corrId ? ` (Corr ID: ${corrId})` : ''}`)
     } finally {
       setLoading(false)
     }
@@ -124,8 +128,9 @@ export function useSMS() {
       if (error) throw error
       setCampaigns(data || [])
     } catch (error) {
-      console.error('Error fetching SMS campaigns:', error)
-      toast.error('Failed to fetch SMS campaigns')
+      const corrId = getCorrId(error)
+      console.error('Error fetching SMS campaigns:', { corrId, error })
+      toast.error(`Failed to fetch SMS campaigns${corrId ? ` (Corr ID: ${corrId})` : ''}`)
     } finally {
       setLoading(false)
     }
@@ -143,8 +148,9 @@ export function useSMS() {
       if (error) throw error
       setMessages((data || []) as SMSMessage[])
     } catch (error) {
-      console.error('Error fetching SMS messages:', error)
-      toast.error('Failed to fetch SMS messages')
+      const corrId = getCorrId(error)
+      console.error('Error fetching SMS messages:', { corrId, error })
+      toast.error(`Failed to fetch SMS messages${corrId ? ` (Corr ID: ${corrId})` : ''}`)
     } finally {
       setLoading(false)
     }
@@ -163,8 +169,9 @@ export function useSMS() {
       await listBrands() // Refresh the list
       return data.brand
     } catch (error) {
-      console.error('Error registering brand:', error)
-      toast.error('Failed to register brand')
+      const corrId = getCorrId(error)
+      console.error('Error registering brand:', { corrId, error })
+      toast.error(`Failed to register brand${corrId ? ` (Corr ID: ${corrId})` : ''}`)
       throw error
     } finally {
       setLoading(false)
@@ -184,8 +191,9 @@ export function useSMS() {
       await listCampaigns() // Refresh the list
       return data.campaign
     } catch (error) {
-      console.error('Error registering campaign:', error)
-      toast.error('Failed to register campaign')
+      const corrId = getCorrId(error)
+      console.error('Error registering campaign:', { corrId, error })
+      toast.error(`Failed to register campaign${corrId ? ` (Corr ID: ${corrId})` : ''}`)
       throw error
     } finally {
       setLoading(false)
@@ -205,8 +213,9 @@ export function useSMS() {
       await listMessages() // Refresh the list
       return data
     } catch (error) {
-      console.error('Error sending SMS:', error)
-      toast.error('Failed to send SMS')
+      const corrId = getCorrId(error)
+      console.error('Error sending SMS:', { corrId, error })
+      toast.error(`Failed to send SMS${corrId ? ` (Corr ID: ${corrId})` : ''}`)
       throw error
     } finally {
       setLoading(false)
