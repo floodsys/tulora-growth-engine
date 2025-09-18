@@ -209,8 +209,8 @@ export function AppSidebar({ activeScreen, setActiveScreen }: AppSidebarProps) {
     return {
       ...group,
       items: group.items.filter(item => {
-        // Remove duplicate entries that already exist elsewhere
-        if (group.label === "Admin" && (item.title === "Team" || item.title === "Profile")) {
+        // Remove duplicate Profile entry that already exists elsewhere
+        if (group.label === "Admin" && item.title === "Profile") {
           return false
         }
         // Keep all other items visible; just disable them if needed
