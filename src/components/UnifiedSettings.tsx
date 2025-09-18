@@ -36,6 +36,9 @@ export function UnifiedSettings({ organizationId }: UnifiedSettingsProps) {
   const { isAdmin, role, loading } = useOrganizationRole(organizationId);
   const [activeTab, setActiveTab] = useState("personal");
 
+  // Environment guard for dev-only mock data
+  const isDev = (import.meta?.env?.DEV ?? process?.env?.NODE_ENV === 'development');
+
   // Mock data - in production, this would come from the database
   const [personalData, setPersonalData] = useState({
     name: user?.user_metadata?.full_name || "John Doe",
@@ -352,30 +355,41 @@ export function UnifiedSettings({ organizationId }: UnifiedSettingsProps) {
                   </div>
                   
                   <div className="space-y-4">
-                    {mockMembers.map((member) => (
-                      <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarFallback>{member.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium">{member.name}</p>
-                              {member.role === 'admin' && <Crown className="h-3 w-3 text-yellow-500" />}
+                    {isDev ? (
+                      <>
+                        <p className="text-xs text-muted-foreground italic">Mock data (dev only)</p>
+                        {mockMembers.map((member) => (
+                          <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <Avatar>
+                                <AvatarFallback>{member.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium">{member.name}</p>
+                                  {member.role === 'admin' && <Crown className="h-3 w-3 text-yellow-500" />}
+                                </div>
+                                <p className="text-sm text-muted-foreground">{member.email}</p>
+                              </div>
                             </div>
-                            <p className="text-sm text-muted-foreground">{member.email}</p>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="capitalize">{member.role}</Badge>
+                              {member.role !== 'admin' && (
+                                <Button variant="ghost" size="sm">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="capitalize">{member.role}</Badge>
-                          {member.role !== 'admin' && (
-                            <Button variant="ghost" size="sm">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
+                        ))}
+                      </>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No members yet</p>
+                        <p className="text-sm">Invite team members to get started</p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </CardContent>
               </Card>
