@@ -124,6 +124,8 @@ const Dashboard = () => {
         return <SettingsOrganization />
       case "organization":
         return <SettingsOrganization />
+      case "profile":
+        return <ProfileSettingsScreen />
       case "settings":
         return <UnifiedSettings organizationId="demo-org-id" />
       case "profile-settings":
