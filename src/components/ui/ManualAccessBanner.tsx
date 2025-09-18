@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Calendar, CreditCard } from 'lucide-react';
@@ -34,12 +34,57 @@ interface ManualAccessBannerProps {
 
 export function ManualAccessBanner({ organizationId, planKey, endsAt, isActive }: ManualAccessBannerProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
   const { toast } = useToast();
 
+  // Fetch plan configs on mount
+  useEffect(() => {
+    const fetchPlanConfigs = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('plan_configs')
+          .select('plan_key, display_name, stripe_price_id_monthly, stripe_price_id_yearly')
+          .eq('is_active', true);
+
+        if (error) {
+          console.error('Error fetching plan configs:', { 
+            error: error.message, 
+            planKey,
+            correlationId: crypto.randomUUID() 
+          });
+          toast({
+            title: "Configuration Error",
+            description: "Unable to load plan configurations. Please contact support.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setPlans(data || []);
+      } catch (error: any) {
+        console.error('Unexpected error fetching plan configs:', { 
+          error: error.message, 
+          planKey,
+          correlationId: crypto.randomUUID() 
+        });
+        toast({
+          title: "Configuration Error", 
+          description: "Unable to load plan configurations. Please contact support.",
+          variant: "destructive",
+        });
+      } finally {
+        setPlansLoading(false);
+      }
+    };
+
+    fetchPlanConfigs();
+  }, [planKey, toast]);
+
   // Compute disabled state for checkout validation
-  const selectedPlanConfig = { plan_key: planKey } // Minimal plan config for validation
-  const priceStatus = validatePlanPrices(selectedPlanConfig)
-  const checkoutDisabled = !(priceStatus.monthlyValid || priceStatus.yearlyValid)
+  const selectedPlanConfig = plans.find(p => p.plan_key === planKey);
+  const priceStatus = validatePlanPrices(selectedPlanConfig);
+  const checkoutDisabled = plansLoading || !selectedPlanConfig || !(priceStatus.monthlyValid || priceStatus.yearlyValid);
 
   // Only show if manual activation is active and future-dated
   const isValidManualAccess = isActive && new Date(endsAt) > new Date();
