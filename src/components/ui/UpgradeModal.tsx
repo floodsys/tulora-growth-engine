@@ -12,6 +12,25 @@ import { Badge } from "@/components/ui/badge";
 import { Crown, Building2, Users, CreditCard, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+// Local validation utilities for Stripe price IDs (mirroring UsageBilling.tsx)
+const isProbablyLivePriceId = (priceId: string | null | undefined): boolean => {
+  if (!priceId || typeof priceId !== 'string') return false
+  // Live Stripe price IDs typically start with 'price_' and are longer than test IDs
+  // Test IDs often contain 'test' or are placeholder values like 'placeholder_xxx'
+  return priceId.startsWith('price_') && 
+         !priceId.includes('test') && 
+         !priceId.includes('placeholder') && 
+         !priceId.includes('xxx') &&
+         priceId.length > 20 // Live price IDs are typically longer
+}
+
+const validatePlanPrices = (planConfig: any): { monthlyValid: boolean; yearlyValid: boolean } => {
+  return {
+    monthlyValid: isProbablyLivePriceId(planConfig?.stripe_price_id_monthly),
+    yearlyValid: isProbablyLivePriceId(planConfig?.stripe_price_id_yearly)
+  }
+}
+
 interface UpgradeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -22,12 +41,23 @@ interface UpgradeModalProps {
 export function UpgradeModal({ open, onOpenChange, limitType, hasPendingBilling = false }: UpgradeModalProps) {
   const navigate = useNavigate();
 
+  // Compute disabled state for checkout validation (assuming starter plan)
+  const selectedPlanConfig = { plan_key: 'starter' } // Default recommendation
+  const priceStatus = validatePlanPrices(selectedPlanConfig)
+  const checkoutDisabled = !(priceStatus.monthlyValid || priceStatus.yearlyValid)
+
   const handleViewPlans = () => {
     onOpenChange(false);
     navigate('/pricing');
   };
 
   const handleUpgradeNow = () => {
+    // Block checkout if prices are not valid
+    if (checkoutDisabled) {
+      // Note: We need access to toast hook, so we'll handle this in the click handler
+      return
+    }
+    
     onOpenChange(false);
     // Navigate to billing with recommended plan preselected
     navigate('/settings/organization?tab=billing&plan=starter');
@@ -38,6 +68,12 @@ export function UpgradeModal({ open, onOpenChange, limitType, hasPendingBilling 
   };
 
   const handleResumeCheckout = () => {
+    // Block checkout if prices are not valid
+    if (checkoutDisabled) {
+      // Note: We need access to toast hook, so we'll handle this in the click handler
+      return
+    }
+    
     onOpenChange(false);
     navigate('/settings/organization?tab=billing&resume=true');
   };
@@ -119,6 +155,7 @@ export function UpgradeModal({ open, onOpenChange, limitType, hasPendingBilling 
             {hasPendingBilling && (
               <Button 
                 onClick={handleResumeCheckout}
+                disabled={checkoutDisabled}
                 className="w-full"
                 size="lg"
               >
@@ -129,6 +166,7 @@ export function UpgradeModal({ open, onOpenChange, limitType, hasPendingBilling 
             
             <Button 
               onClick={handleUpgradeNow}
+              disabled={checkoutDisabled}
               className="w-full"
               size="lg"
               variant={hasPendingBilling ? "outline" : "default"}

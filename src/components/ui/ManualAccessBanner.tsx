@@ -6,6 +6,25 @@ import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+// Local validation utilities for Stripe price IDs (mirroring UsageBilling.tsx)
+const isProbablyLivePriceId = (priceId: string | null | undefined): boolean => {
+  if (!priceId || typeof priceId !== 'string') return false
+  // Live Stripe price IDs typically start with 'price_' and are longer than test IDs
+  // Test IDs often contain 'test' or are placeholder values like 'placeholder_xxx'
+  return priceId.startsWith('price_') && 
+         !priceId.includes('test') && 
+         !priceId.includes('placeholder') && 
+         !priceId.includes('xxx') &&
+         priceId.length > 20 // Live price IDs are typically longer
+}
+
+const validatePlanPrices = (planConfig: any): { monthlyValid: boolean; yearlyValid: boolean } => {
+  return {
+    monthlyValid: isProbablyLivePriceId(planConfig?.stripe_price_id_monthly),
+    yearlyValid: isProbablyLivePriceId(planConfig?.stripe_price_id_yearly)
+  }
+}
+
 interface ManualAccessBannerProps {
   organizationId: string;
   planKey: string;
@@ -16,6 +35,11 @@ interface ManualAccessBannerProps {
 export function ManualAccessBanner({ organizationId, planKey, endsAt, isActive }: ManualAccessBannerProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  // Compute disabled state for checkout validation
+  const selectedPlanConfig = { plan_key: planKey } // Minimal plan config for validation
+  const priceStatus = validatePlanPrices(selectedPlanConfig)
+  const checkoutDisabled = !(priceStatus.monthlyValid || priceStatus.yearlyValid)
 
   // Only show if manual activation is active and future-dated
   const isValidManualAccess = isActive && new Date(endsAt) > new Date();
@@ -28,6 +52,16 @@ export function ManualAccessBanner({ organizationId, planKey, endsAt, isActive }
   const formattedDate = format(new Date(endsAt), 'MMM d, yyyy');
 
   const handleStartSubscription = async () => {
+    // Block checkout if prices are not valid
+    if (checkoutDisabled) {
+      toast({
+        title: "Plan Configuration Error",
+        description: "This plan isn't fully configured with live Stripe prices. Please contact support for assistance.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('create-org-checkout', {
@@ -96,7 +130,7 @@ export function ManualAccessBanner({ organizationId, planKey, endsAt, isActive }
           <Button
             size="sm"
             onClick={handleStartSubscription}
-            disabled={isLoading}
+            disabled={isLoading || checkoutDisabled}
             className="bg-orange-600 hover:bg-orange-700 text-white"
           >
             <CreditCard className="h-4 w-4 mr-1" />
