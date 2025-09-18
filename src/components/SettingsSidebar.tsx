@@ -61,7 +61,7 @@ export function SettingsSidebar({ onBack }: SettingsSidebarProps) {
 
               {/* Organization Settings - Owners only */}
               {isOwner && (
-                <NavLink to="/settings/organization" className={getNavClasses('/settings/organization')}>
+                <NavLink to="/dashboard?tab=organization" className={getNavClasses('/settings/organization')}>
                   <Building2 className="h-4 w-4" />
                   Organization Settings
                 </NavLink>
