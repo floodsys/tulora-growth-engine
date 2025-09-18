@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 
+// Helper for correlation ID extraction
+const getCorrId = (err: any) => err?.correlationId ?? err?.corr ?? err?.traceId ?? null
+
 export interface RetellKB {
   id: string
   organization_id: string
@@ -48,10 +51,11 @@ export const useRetellKnowledgeBase = (organizationId?: string) => {
       if (error) throw error
       setKnowledgeBases(data || [])
     } catch (error) {
-      console.error('Error loading knowledge bases:', error)
+      const corrId = getCorrId(error)
+      console.error('Error loading knowledge bases:', { corrId, error })
       toast({
         title: "Error",
-        description: "Failed to load knowledge bases.",
+        description: `Failed to load knowledge bases.${corrId ? ` (Corr ID: ${corrId})` : ''}`,
         variant: "destructive"
       })
     } finally {
@@ -79,10 +83,11 @@ export const useRetellKnowledgeBase = (organizationId?: string) => {
 
       return data
     } catch (error) {
-      console.error('Error creating knowledge base:', error)
+      const corrId = getCorrId(error)
+      console.error('Error creating knowledge base:', { corrId, error })
       toast({
         title: "Error",
-        description: "Failed to create knowledge base.",
+        description: `Failed to create knowledge base.${corrId ? ` (Corr ID: ${corrId})` : ''}`,
         variant: "destructive"
       })
       return null
@@ -110,10 +115,11 @@ export const useRetellKnowledgeBase = (organizationId?: string) => {
 
       return data
     } catch (error) {
-      console.error('Error adding source:', error)
+      const corrId = getCorrId(error)
+      console.error('Error adding source:', { corrId, error })
       toast({
         title: "Error",
-        description: "Failed to add source to knowledge base.",
+        description: `Failed to add source to knowledge base.${corrId ? ` (Corr ID: ${corrId})` : ''}`,
         variant: "destructive"
       })
       return null
@@ -141,10 +147,11 @@ export const useRetellKnowledgeBase = (organizationId?: string) => {
 
       return true
     } catch (error) {
-      console.error('Error deleting source:', error)
+      const corrId = getCorrId(error)
+      console.error('Error deleting source:', { corrId, error })
       toast({
         title: "Error",
-        description: "Failed to delete source.",
+        description: `Failed to delete source.${corrId ? ` (Corr ID: ${corrId})` : ''}`,
         variant: "destructive"
       })
       return false
@@ -169,10 +176,11 @@ export const useRetellKnowledgeBase = (organizationId?: string) => {
 
       return data
     } catch (error) {
-      console.error('Error getting KB status:', error)
+      const corrId = getCorrId(error)
+      console.error('Error getting KB status:', { corrId, error })
       toast({
         title: "Error",
-        description: "Failed to get knowledge base status.",
+        description: `Failed to get knowledge base status.${corrId ? ` (Corr ID: ${corrId})` : ''}`,
         variant: "destructive"
       })
       return null
@@ -199,10 +207,11 @@ export const useRetellKnowledgeBase = (organizationId?: string) => {
 
       return await addSource(kbId, 'file', fileContent, file.name)
     } catch (error) {
-      console.error('Error uploading file:', error)
+      const corrId = getCorrId(error)
+      console.error('Error uploading file:', { corrId, error })
       toast({
         title: "Error",
-        description: "Failed to upload file.",
+        description: `Failed to upload file.${corrId ? ` (Corr ID: ${corrId})` : ''}`,
         variant: "destructive"
       })
       return null

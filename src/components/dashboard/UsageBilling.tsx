@@ -21,6 +21,9 @@ import { ConcurrencyCard } from "@/components/dashboard/widgets/ConcurrencyCard"
 import { useOrganizationRole } from "@/hooks/useOrganizationRole";
 import { useEntitlements } from "@/lib/entitlements/ssot";
 
+// Helper for correlation ID extraction
+const getCorrId = (err: any) => err?.correlationId ?? err?.corr ?? err?.traceId ?? null
+
 interface UsageData {
   minutes: { used: number; limit: number };
   calls: { used: number; limit: number };
@@ -472,7 +475,8 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       await refreshUsage();
       await refreshEntitlements();
     } catch (error: any) {
-      console.error('Error reconciling billing:', error);
+      const corrId = getCorrId(error)
+      console.error('Error reconciling billing:', { corrId, error });
       
       // Try to parse structured error response
       let parsedError = null;
@@ -493,6 +497,9 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       let description = parsedError?.message || "Failed to reconcile billing status";
       if (parsedError?.hint) {
         description += ` (${parsedError.hint})`;
+      }
+      if (corrId) {
+        description += ` (Corr ID: ${corrId})`;
       }
       
       toast({
