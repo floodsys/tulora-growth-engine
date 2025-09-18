@@ -118,6 +118,8 @@ const Dashboard = () => {
         }
         
         return <UsageBilling organizationId={organizationId} />
+      case "team":
+        return <TeamManagement />
       case "teams":
         return <SettingsOrganization />
       case "organization":
