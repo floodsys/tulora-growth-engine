@@ -24,6 +24,25 @@ import { useEntitlements } from "@/lib/entitlements/ssot";
 // Helper for correlation ID extraction
 const getCorrId = (err: any) => err?.correlationId ?? err?.corr ?? err?.traceId ?? null
 
+// Local validation utilities for Stripe price IDs
+const isProbablyLivePriceId = (priceId: string | null | undefined): boolean => {
+  if (!priceId || typeof priceId !== 'string') return false
+  // Live Stripe price IDs typically start with 'price_' and are longer than test IDs
+  // Test IDs often contain 'test' or are placeholder values like 'placeholder_xxx'
+  return priceId.startsWith('price_') && 
+         !priceId.includes('test') && 
+         !priceId.includes('placeholder') && 
+         !priceId.includes('xxx') &&
+         priceId.length > 20 // Live price IDs are typically longer
+}
+
+const validatePlanPrices = (planConfig: any): { monthlyValid: boolean; yearlyValid: boolean } => {
+  return {
+    monthlyValid: isProbablyLivePriceId(planConfig?.stripe_price_id_monthly),
+    yearlyValid: isProbablyLivePriceId(planConfig?.stripe_price_id_yearly)
+  }
+}
+
 interface UsageData {
   minutes: { used: number; limit: number };
   calls: { used: number; limit: number };
@@ -298,6 +317,19 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   };
 
   const handleUpgrade = async () => {
+    // Check plan price validity before proceeding
+    const selectedPlanConfig = availablePlans.find(p => p.plan_key === selectedPlan)
+    const priceValidation = validatePlanPrices(selectedPlanConfig)
+    
+    if (!priceValidation.monthlyValid && !priceValidation.yearlyValid) {
+      toast({
+        title: "Plan Configuration Error",
+        description: "This plan isn't fully configured with live Stripe prices. Please contact support for assistance.",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
       setIsUpgrading(true);
       setCheckoutError(null);
@@ -962,28 +994,32 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                       )}
                     </Button>
                     
-                     <Button 
-                       onClick={handleUpgrade}
-                       disabled={isUpgrading || !organizationId || !selectedPlan || (preflightResults && !preflightResults.canProceed)}
-                       className="flex-1"
-                     >
-                       {isUpgrading ? (
-                         <>
-                           <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                           Starting...
-                         </>
-                       ) : (
-                         <>
-                           <ExternalLink className="h-4 w-4 mr-2" />
-                           Upgrade Now {selectedPlan && `(${selectedPlan})`}
-                         </>
-                       )}
-                     </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+                      <Button 
+                        onClick={handleUpgrade}
+                        disabled={isUpgrading || !organizationId || !selectedPlan || (preflightResults && !preflightResults.canProceed) || (() => {
+                          const selectedPlanConfig = availablePlans.find(p => p.plan_key === selectedPlan)
+                          const priceValidation = validatePlanPrices(selectedPlanConfig)
+                          return !priceValidation.monthlyValid && !priceValidation.yearlyValid
+                        })()}
+                        className="flex-1"
+                      >
+                        {isUpgrading ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            Starting...
+                          </>
+                        ) : (
+                          <>
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Upgrade Now {selectedPlan && `(${selectedPlan})`}
+                          </>
+                        )}
+                      </Button>
+                   </div>
+                 </div>
+               )}
+             </div>
+           </div>
         </Card>
 
         {/* Upgrade Required Banner */}
@@ -1003,7 +1039,11 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
               </div>
               <Button 
                 onClick={handleUpgrade} 
-                disabled={isUpgrading || !organizationId}
+                disabled={isUpgrading || !organizationId || (() => {
+                  const selectedPlanConfig = availablePlans.find(p => p.plan_key === selectedPlan)
+                  const priceValidation = validatePlanPrices(selectedPlanConfig)
+                  return !priceValidation.monthlyValid && !priceValidation.yearlyValid
+                })()}
               >
                 Resolve Now
               </Button>
