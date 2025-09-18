@@ -23,6 +23,13 @@ import { Search, Phone, Users, MoreHorizontal, PhoneCall, Clock, TrendingUp, Fil
 import { TranscriptViewer } from "./widgets/TranscriptViewer"
 import { RecordingPlayer } from "./widgets/RecordingPlayer"
 import { formatDistanceToNow } from "date-fns"
+import { useRetellCalls } from "@/hooks/useRetellCalls"
+import { useRetellAnalytics } from "@/hooks/useRetellAnalytics"
+import { useToast } from "@/hooks/use-toast"
+import { useUserOrganization } from "@/hooks/useUserOrganization"
+
+// Helper for correlation ID extraction
+const getCorrId = (err: any) => err?.correlationId ?? err?.corr ?? err?.traceId ?? null
 
 interface Call {
   id: string
@@ -108,12 +115,18 @@ const mockTranscript = [
   }
 ]
 
-const AllCallsTab = () => {
+const AllCallsTab = ({ realCalls, hasRealData, realTotal }: { 
+  realCalls: any[], 
+  hasRealData: boolean, 
+  realTotal: number 
+}) => {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCall, setSelectedCall] = useState<Call | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
 
-  const filteredCalls = mockCalls.filter(call =>
+  // Use real data when available, fallback to mocks
+  const dataSource = hasRealData ? realCalls : mockCalls
+  const filteredCalls = dataSource.filter(call =>
     call.caller.toLowerCase().includes(searchTerm.toLowerCase()) ||
     call.phone.includes(searchTerm) ||
     call.outcome.toLowerCase().includes(searchTerm.toLowerCase())
@@ -175,22 +188,38 @@ const AllCallsTab = () => {
             />
           </div>
 
+          {/* Zero state for no calls */}
+          {realTotal === 0 && hasRealData && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-8">
+                  <Phone className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium">No calls yet</h3>
+                  <p className="text-muted-foreground mt-2">
+                    Start making calls to see your activity here
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Calls Table */}
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Caller</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Outcome</TableHead>
-                <TableHead>Sentiment</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCalls.map((call) => (
+          {(filteredCalls.length > 0 || !hasRealData) && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Caller</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Outcome</TableHead>
+                  <TableHead>Sentiment</TableHead>
+                  <TableHead>Duration</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCalls.map((call) => (
                 <TableRow 
                   key={call.id}
                   className="cursor-pointer hover:bg-muted/50"
@@ -223,10 +252,11 @@ const AllCallsTab = () => {
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -299,61 +329,69 @@ const AllCallsTab = () => {
   )
 }
 
-const AnalyticsTab = () => (
-  <div className="space-y-6">
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+const AnalyticsTab = ({ analytics, hasAnalytics }: { analytics: any, hasAnalytics: boolean }) => {
+  // KPI variables with real data and safe fallbacks
+  const totalCalls = hasAnalytics ? (analytics?.totalCalls || 0) : 1234
+  const successfulCalls = hasAnalytics ? (analytics?.completedCalls || 0) : 892
+  const avgDuration = hasAnalytics ? (analytics?.averageDuration ? `${Math.floor(analytics.averageDuration / 60)}:${(analytics.averageDuration % 60).toString().padStart(2, '0')}` : '0:00') : '4:32'
+  const successRate = hasAnalytics ? (analytics?.successRate ? `${Math.round(analytics.successRate)}%` : '0%') : '72%'
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
+            <Phone className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalCalls.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">+10% from last month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Successful Calls</CardTitle>
+            <PhoneCall className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{successfulCalls.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">+5% from last month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg Duration</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{avgDuration}</div>
+            <p className="text-xs text-muted-foreground">+2% from last month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{successRate}</div>
+            <p className="text-xs text-muted-foreground">+8% from last month</p>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
-          <Phone className="h-4 w-4 text-muted-foreground" />
+        <CardHeader>
+          <CardTitle>Call Performance Trends</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">1,234</div>
-          <p className="text-xs text-muted-foreground">+10% from last month</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Successful Calls</CardTitle>
-          <PhoneCall className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">892</div>
-          <p className="text-xs text-muted-foreground">+5% from last month</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Avg Duration</CardTitle>
-          <Clock className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">4:32</div>
-          <p className="text-xs text-muted-foreground">+2% from last month</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">72%</div>
-          <p className="text-xs text-muted-foreground">+8% from last month</p>
+          <p className="text-muted-foreground">Advanced analytics charts coming soon...</p>
         </CardContent>
       </Card>
     </div>
-
-    <Card>
-      <CardHeader>
-        <CardTitle>Call Performance Trends</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-muted-foreground">Advanced analytics charts coming soon...</p>
-      </CardContent>
-    </Card>
-  </div>
-)
+  )
+}
 
 const ScheduledTab = () => (
   <div className="space-y-6">
@@ -385,6 +423,29 @@ const ReportsTab = () => (
 )
 
 export function CallsScreen() {
+  const { toast } = useToast()
+  const { organization } = useUserOrganization()
+  
+  // Initialize real data hooks
+  const { calls: realCalls, loading: callsLoading, getCallStats } = useRetellCalls(organization?.id)
+  const { analytics, loading: analyticsLoading, loadAnalytics } = useRetellAnalytics(organization?.id)
+  
+  // Error handling with correlation ID
+  const handleError = (error: any, operation: string) => {
+    const corrId = getCorrId(error)
+    const message = `Failed to ${operation}${corrId ? ` (Corr ID: ${corrId})` : ''}`
+    console.error('CallsScreen error:', { corrId, error, operation })
+    toast({
+      title: "Error",
+      description: message,
+      variant: "destructive"
+    })
+  }
+
+  // Derive real data with fallbacks
+  const realTotal = realCalls?.length || 0
+  const hasRealData = !callsLoading && realCalls && realCalls.length > 0
+
   return (
     <div className="h-full max-h-[calc(100vh-8rem)]">
       <div className="mb-6">
@@ -401,11 +462,18 @@ export function CallsScreen() {
         </TabsList>
         
         <TabsContent value="all" className="flex-1 mt-6">
-          <AllCallsTab />
+          <AllCallsTab 
+            realCalls={realCalls || []} 
+            hasRealData={hasRealData} 
+            realTotal={realTotal} 
+          />
         </TabsContent>
         
         <TabsContent value="analytics" className="flex-1 mt-6">
-          <AnalyticsTab />
+          <AnalyticsTab 
+            analytics={analytics} 
+            hasAnalytics={!analyticsLoading && !!analytics} 
+          />
         </TabsContent>
         
         <TabsContent value="scheduled" className="flex-1 mt-6">
