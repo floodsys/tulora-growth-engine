@@ -84,7 +84,7 @@ export function UnifiedSettings({ organizationId }: UnifiedSettingsProps) {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-6 h-auto p-1 bg-muted/50">
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto p-1 bg-muted/50">
           <TabsTrigger value="personal" className="text-xs flex items-center gap-2">
             <User className="h-3 w-3" />
             PERSONAL
@@ -98,20 +98,10 @@ export function UnifiedSettings({ organizationId }: UnifiedSettingsProps) {
             SECURITY
           </TabsTrigger>
           {isAdmin && (
-            <>
-              <TabsTrigger value="organization" className="text-xs flex items-center gap-2">
-                <Building className="h-3 w-3" />
-                ORGANIZATION
-              </TabsTrigger>
-              <TabsTrigger value="team" className="text-xs flex items-center gap-2">
-                <Users className="h-3 w-3" />
-                TEAM
-              </TabsTrigger>
-              <TabsTrigger value="billing" className="text-xs flex items-center gap-2">
-                <CreditCard className="h-3 w-3" />
-                BILLING
-              </TabsTrigger>
-            </>
+            <TabsTrigger value="billing" className="text-xs flex items-center gap-2">
+              <CreditCard className="h-3 w-3" />
+              BILLING
+            </TabsTrigger>
           )}
         </TabsList>
 
@@ -291,157 +281,54 @@ export function UnifiedSettings({ organizationId }: UnifiedSettingsProps) {
           </Card>
         </TabsContent>
 
-        {/* Organization Settings (Admin Only) */}
+        {/* Billing Settings (Admin Only) */}
         {isAdmin && (
-          <>
-            <TabsContent value="organization" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Organization Information</CardTitle>
-                  <CardDescription>Manage your organization settings</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="orgName">Organization Name</Label>
-                    <Input
-                      id="orgName"
-                      value={orgData.name}
-                      onChange={(e) => setOrgData({...orgData, name: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Current Plan</Label>
-                      <p className="text-sm text-muted-foreground">
-                        {orgData.plan} Plan - {orgData.seats.used}/{orgData.seats.total} seats used
-                      </p>
-                    </div>
-                    <Badge variant="default">{orgData.plan}</Badge>
-                  </div>
-                  
-                  <Button>Save Changes</Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-destructive flex items-center gap-2">
-                    <Trash2 className="h-4 w-4" />
-                    Organization Danger Zone
-                  </CardTitle>
-                  <CardDescription>Permanently delete this organization</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button variant="destructive">Delete Organization</Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="team" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Team Members</CardTitle>
-                  <CardDescription>Manage your team members and their roles</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm font-medium">
-                        {orgData.seats.used}/{orgData.seats.total} seats used
-                      </p>
-                    </div>
-                    <Button>Invite Member</Button>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    {isDev ? (
-                      <>
-                        <p className="text-xs text-muted-foreground italic">Mock data (dev only)</p>
-                        {mockMembers.map((member) => (
-                          <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <Avatar>
-                                <AvatarFallback>{member.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <p className="font-medium">{member.name}</p>
-                                  {member.role === 'admin' && <Crown className="h-3 w-3 text-yellow-500" />}
-                                </div>
-                                <p className="text-sm text-muted-foreground">{member.email}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="secondary" className="capitalize">{member.role}</Badge>
-                              {member.role !== 'admin' && (
-                                <Button variant="ghost" size="sm">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </>
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p>No members yet</p>
-                        <p className="text-sm">Invite team members to get started</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="billing" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Billing & Subscription</CardTitle>
-                  <CardDescription>Manage your subscription and billing information</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <p className="font-medium">{orgData.plan} Plan</p>
-                      <p className="text-sm text-muted-foreground">
-                        ${orgData.billing.amount}/month • Next billing: {orgData.billing.nextBilling}
-                      </p>
-                    </div>
-                    <Badge variant={orgData.billing.status === 'active' ? 'default' : 'destructive'}>
-                      {orgData.billing.status}
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button>Manage Subscription</Button>
-                    <Button variant="outline">Upgrade Plan</Button>
-                  </div>
-                  
-                  <Separator />
-                  
+          <TabsContent value="billing" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Billing & Subscription</CardTitle>
+                <CardDescription>Manage your subscription and billing information</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div>
-                    <Label>Usage This Month</Label>
-                    <div className="mt-2 space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Agents Created</span>
-                        <span>3/5</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Calls Made</span>
-                        <span>847/1,000</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Storage Used</span>
-                        <span>18GB/25GB</span>
-                      </div>
+                    <p className="font-medium">{orgData.plan} Plan</p>
+                    <p className="text-sm text-muted-foreground">
+                      ${orgData.billing.amount}/month • Next billing: {orgData.billing.nextBilling}
+                    </p>
+                  </div>
+                  <Badge variant={orgData.billing.status === 'active' ? 'default' : 'destructive'}>
+                    {orgData.billing.status}
+                  </Badge>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button>Manage Subscription</Button>
+                  <Button variant="outline">Upgrade Plan</Button>
+                </div>
+                
+                <Separator />
+                
+                <div>
+                  <Label>Usage This Month</Label>
+                  <div className="mt-2 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Agents Created</span>
+                      <span>3/5</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Calls Made</span>
+                      <span>847/1,000</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Storage Used</span>
+                      <span>18GB/25GB</span>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         )}
       </Tabs>
     </div>
