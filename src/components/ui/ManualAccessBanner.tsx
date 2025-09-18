@@ -18,10 +18,10 @@ const isProbablyLivePriceId = (priceId: string | null | undefined): boolean => {
          priceId.length > 20 // Live price IDs are typically longer
 }
 
-const validatePlanPrices = (planConfig: any): { monthlyValid: boolean; yearlyValid: boolean } => {
+const validatePlanPrices = (planConfig: any): { monthlyOk: boolean; yearlyOk: boolean } => {
   return {
-    monthlyValid: isProbablyLivePriceId(planConfig?.stripe_price_id_monthly),
-    yearlyValid: isProbablyLivePriceId(planConfig?.stripe_price_id_yearly)
+    monthlyOk: isProbablyLivePriceId(planConfig?.stripe_price_id_monthly),
+    yearlyOk: isProbablyLivePriceId(planConfig?.stripe_price_id_yearly)
   }
 }
 
@@ -84,7 +84,7 @@ export function ManualAccessBanner({ organizationId, planKey, endsAt, isActive }
   // Compute disabled state for checkout validation
   const selectedPlanConfig = plans.find(p => p.plan_key === planKey);
   const priceStatus = validatePlanPrices(selectedPlanConfig);
-  const checkoutDisabled = plansLoading || !selectedPlanConfig || !(priceStatus.monthlyValid || priceStatus.yearlyValid);
+  const checkoutDisabled = plansLoading || !selectedPlanConfig || !(priceStatus.monthlyOk || priceStatus.yearlyOk);
 
   // Only show if manual activation is active and future-dated
   const isValidManualAccess = isActive && new Date(endsAt) > new Date();
