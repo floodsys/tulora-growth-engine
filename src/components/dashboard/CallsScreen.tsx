@@ -115,10 +115,12 @@ const mockTranscript = [
   }
 ]
 
-const AllCallsTab = ({ realCalls, hasRealData, realTotal }: { 
+const AllCallsTab = ({ realCalls, hasRealData, realTotal, authoritativeTotal, callsData }: { 
   realCalls: any[], 
   hasRealData: boolean, 
-  realTotal: number 
+  realTotal: number,
+  authoritativeTotal: number,
+  callsData: any
 }) => {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCall, setSelectedCall] = useState<Call | null>(null)
@@ -189,7 +191,7 @@ const AllCallsTab = ({ realCalls, hasRealData, realTotal }: {
           </div>
 
           {/* Zero state for no calls */}
-          {realTotal === 0 && hasRealData && (
+          {authoritativeTotal === 0 && callsData && (
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center py-8">
@@ -427,7 +429,8 @@ export function CallsScreen() {
   const { organization } = useUserOrganization()
   
   // Initialize real data hooks
-  const { calls: realCalls, loading: callsLoading, getCallStats } = useRetellCalls(organization?.id)
+  const callsData = useRetellCalls(organization?.id)
+  const { calls: realCalls, loading: callsLoading, getCallStats } = callsData
   const { analytics, loading: analyticsLoading, loadAnalytics } = useRetellAnalytics(organization?.id)
   
   // Error handling with correlation ID
@@ -445,6 +448,11 @@ export function CallsScreen() {
   // Derive real data with fallbacks
   const realTotal = realCalls?.length || 0
   const hasRealData = !callsLoading && realCalls && realCalls.length > 0
+  
+  // Add derived total from pagination (authoritative source)
+  const totalFromPagination = callsData?.pagination?.total
+  const hasPaginationTotal = typeof totalFromPagination === 'number'
+  const authoritativeTotal = hasPaginationTotal ? totalFromPagination! : realCalls?.length ?? 0
 
   return (
     <div className="h-full max-h-[calc(100vh-8rem)]">
@@ -465,7 +473,9 @@ export function CallsScreen() {
           <AllCallsTab 
             realCalls={realCalls || []} 
             hasRealData={hasRealData} 
-            realTotal={realTotal} 
+            realTotal={realTotal}
+            authoritativeTotal={authoritativeTotal}
+            callsData={callsData}
           />
         </TabsContent>
         
