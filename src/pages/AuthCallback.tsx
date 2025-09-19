@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { isProfileComplete } from "@/lib/profile/isProfileComplete";
+import { resolveNextPath } from "@/lib/navigation/resolveNextPath";
 import { Loader2 } from "lucide-react";
 import logo from "@/assets/logo.svg";
 
@@ -53,12 +54,14 @@ const AuthCallback = () => {
          // Check if profile is complete using centralized function
          if (!isProfileComplete(profile)) {
           setStatus("Setting up your profile...");
-          const nextUrl = searchParams.get('next') || '/dashboard';
-          setTimeout(() => navigate(`/onboarding/organization?next=${encodeURIComponent(nextUrl)}`), 1000);
+          const nextParam = searchParams.get('next');
+          const safeNext = resolveNextPath(nextParam);
+          setTimeout(() => navigate(`/onboarding/organization?next=${encodeURIComponent(safeNext)}`), 1000);
         } else {
           setStatus("Welcome back! Redirecting...");
-          const nextUrl = searchParams.get('next') || '/dashboard';
-          setTimeout(() => navigate(nextUrl), 1000);
+          const nextParam = searchParams.get('next');
+          const safeNext = resolveNextPath(nextParam);
+          setTimeout(() => navigate(safeNext), 1000);
         }
 
       } catch (error) {

@@ -6,6 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { saveOrganization, type OrganizationData } from "@/lib/profile/saveOrganization";
 import { OrganizationStep, type OrganizationStepValues } from "@/components/onboarding/OrganizationStep";
+import { resolveNextPath } from "@/lib/navigation/resolveNextPath";
+import { useProfile } from "@/hooks/useProfile";
 import { telemetry } from "@/lib/telemetry";
 import { CheckCircle2, User, Mail, LogOut } from "lucide-react";
 import logo from "@/assets/logo.svg";
@@ -22,6 +24,7 @@ const OnboardingOrganization = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { invalidateProfile } = useProfile();
 
   // Check authentication and get user info + existing profile
   useEffect(() => {
@@ -114,14 +117,18 @@ const OnboardingOrganization = () => {
       // Track successful onboarding completion for Google users
       telemetry.signupStepCompleted('organization', 'google');
 
+      // Invalidate profile cache so guards/components get fresh data
+      invalidateProfile();
+
       toast({
         title: "Profile updated",
         description: "Your organization information has been saved.",
       });
 
       // Redirect to next URL or dashboard
-      const nextUrl = searchParams.get('next') || '/dashboard';
-      navigate(nextUrl);
+      const nextParam = searchParams.get('next');
+      const safeNext = resolveNextPath(nextParam);
+      navigate(safeNext);
 
     } catch (error: any) {
       console.error('Profile completion error (non-PII details):', {

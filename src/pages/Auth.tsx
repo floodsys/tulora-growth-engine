@@ -47,26 +47,15 @@ const Auth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Check if user is already logged in and handle profile completion
+  // Check if user is already logged in - let ProgressiveProfilingGuard handle profile completeness
   useEffect(() => {
-    const checkUserAndProfile = async () => {
+    const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        // Check if user has complete profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('organization_name, organization_size, industry')
-          .eq('user_id', session.user.id)
-          .single();
-        
-        if (!profile || !profile.organization_name || !profile.organization_size || !profile.industry) {
-          navigate('/onboarding/organization');
-        } else {
-          navigate('/dashboard');
-        }
+        navigate('/dashboard');
       }
     };
-    checkUserAndProfile();
+    checkSession();
   }, [navigate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
