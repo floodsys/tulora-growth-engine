@@ -1405,6 +1405,7 @@ export type Database = {
           organization_id: string
           pronunciation_dict: Json | null
           published_at: string | null
+          settings: Json | null
           status: string
           transfer_mode: string | null
           transfer_number: string | null
@@ -1437,6 +1438,7 @@ export type Database = {
           organization_id: string
           pronunciation_dict?: Json | null
           published_at?: string | null
+          settings?: Json | null
           status?: string
           transfer_mode?: string | null
           transfer_number?: string | null
@@ -1469,6 +1471,7 @@ export type Database = {
           organization_id?: string
           pronunciation_dict?: Json | null
           published_at?: string | null
+          settings?: Json | null
           status?: string
           transfer_mode?: string | null
           transfer_number?: string | null
