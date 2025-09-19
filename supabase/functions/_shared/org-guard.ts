@@ -469,5 +469,23 @@ export function isExemptedPath(path: string, action: string): boolean {
     typeof pattern === 'object' && 'test' in pattern 
       ? pattern.test(path)
       : false
-  );
+   );
+}
+
+/**
+ * Resolve webhook target with precedence: agent.webhook_url → org.settings.webhook_url → null
+ */
+export function resolveWebhookTarget({ agent, orgSettings }: { 
+  agent?: { webhook_url?: string }, 
+  orgSettings?: { webhook_url?: string } 
+}): { url: string | null, target: "agent" | "org" | null } {
+  if (agent?.webhook_url?.trim()) {
+    return { url: agent.webhook_url.trim(), target: "agent" }
+  }
+  
+  if (orgSettings?.webhook_url?.trim()) {
+    return { url: orgSettings.webhook_url.trim(), target: "org" }
+  }
+  
+  return { url: null, target: null }
 }
