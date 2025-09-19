@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import {
   Table,
@@ -31,7 +33,8 @@ import {
   AlertCircle,
   Plus,
   Globe,
-  MessageSquare
+  MessageSquare,
+  RefreshCw
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { formatDistanceToNow } from "date-fns"
@@ -52,6 +55,7 @@ export function KnowledgeBase() {
   const [newKBTitle, setNewKBTitle] = useState("")
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [urlToAdd, setUrlToAdd] = useState("")
+  const [autoRefresh, setAutoRefresh] = useState(false)
   const [textToAdd, setTextToAdd] = useState("")
   const [textName, setTextName] = useState("")
   const [selectedKB, setSelectedKB] = useState<string>("")
@@ -149,8 +153,9 @@ export function KnowledgeBase() {
   const handleAddUrl = async () => {
     if (!urlToAdd.trim() || !selectedKB) return
 
-    await addSource(selectedKB, 'url', urlToAdd, urlToAdd)
+    await addSource(selectedKB, 'url', urlToAdd, urlToAdd, { enable_auto_refresh: autoRefresh })
     setUrlToAdd("")
+    setAutoRefresh(false)
   }
 
   const handleAddText = async () => {
@@ -336,6 +341,16 @@ export function KnowledgeBase() {
                           value={urlToAdd}
                           onChange={(e) => setUrlToAdd(e.target.value)}
                         />
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id="auto-refresh"
+                            checked={autoRefresh}
+                            onCheckedChange={setAutoRefresh}
+                          />
+                          <Label htmlFor="auto-refresh" className="text-sm">
+                            Auto-refresh (every 12h)
+                          </Label>
+                        </div>
                         <Button onClick={handleAddUrl} className="w-full">
                           Add URL
                         </Button>
@@ -454,12 +469,20 @@ export function KnowledgeBase() {
                       {source.size ? formatFileSize(source.size) : '-'}
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(source.status)}>
-                        <div className="flex items-center gap-1">
-                          {getStatusIcon(source.status)}
-                          {source.status}
-                        </div>
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge className={getStatusColor(source.status)}>
+                          <div className="flex items-center gap-1">
+                            {getStatusIcon(source.status)}
+                            {source.status}
+                          </div>
+                        </Badge>
+                        {source.type === 'url' && source.metadata?.enable_auto_refresh && (
+                          <Badge variant="outline" className="text-xs">
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            Auto-refresh
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {formatDistanceToNow(new Date(source.created_at), { addSuffix: true })}

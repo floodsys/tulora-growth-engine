@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     )
 
-    const { kbId, type, content, name, organizationId } = await req.json()
+    const { kbId, type, content, name, organizationId, options } = await req.json()
 
     // Get KB from database
     const { data: kb, error: kbError } = await supabase
@@ -57,16 +57,19 @@ Deno.serve(async (req) => {
 
       retellSourceData = await retellResponse.json()
     } else if (type === 'url') {
-      // URL source
+      // URL source with optional auto-refresh
+      const urlPayload: any = { url: content }
+      if (options?.enable_auto_refresh) {
+        urlPayload.enable_auto_refresh = true
+      }
+      
       const retellResponse = await fetch(`https://api.retellai.com/v2/knowledge-base/${kb.kb_id}/add-url`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${(await import('../_shared/env.ts')).RETELL_API_KEY()}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          url: content,
-        }),
+        body: JSON.stringify(urlPayload),
       })
 
       if (!retellResponse.ok) {
@@ -117,7 +120,8 @@ Deno.serve(async (req) => {
         size: size,
         status: 'pending',
         metadata: {
-          retell_data: retellSourceData
+          retell_data: retellSourceData,
+          ...(type === 'url' && options?.enable_auto_refresh && { enable_auto_refresh: true })
         }
       })
       .select()

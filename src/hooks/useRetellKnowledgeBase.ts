@@ -95,12 +95,12 @@ export const useRetellKnowledgeBase = (organizationId?: string) => {
   }
 
   // Add source to knowledge base
-  const addSource = async (kbId: string, type: 'file' | 'url' | 'text', content: string, name: string) => {
+  const addSource = async (kbId: string, type: 'file' | 'url' | 'text', content: string, name: string, options?: { enable_auto_refresh?: boolean }) => {
     if (!organizationId) return null
 
     try {
       const { data, error } = await supabase.functions.invoke('retell-kb-add-source', {
-        body: { kbId, type, content, name, organizationId }
+        body: { kbId, type, content, name, organizationId, options }
       })
 
       if (error) throw error
