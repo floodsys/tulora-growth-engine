@@ -1,9 +1,9 @@
 // Build information and cache management utilities
 
 // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.
-export const COMMIT_SHA = import.meta.env.VITE_COMMIT_SHA || 'unknown';
-export const BUILD_ID = import.meta.env.VITE_BUILD_ID || `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-export const BUILD_TIMESTAMP = import.meta.env.VITE_BUILD_TIMESTAMP || new Date().toISOString();
+export const COMMIT_SHA = (import.meta as any).env?.VITE_COMMIT_SHA || 'unknown';
+export const BUILD_ID = (import.meta as any).env?.VITE_BUILD_ID || `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+export const BUILD_TIMESTAMP = (import.meta as any).env?.VITE_BUILD_TIMESTAMP || new Date().toISOString();
 
 // COSMETIC ONLY - These environment variables are NEVER used for authorization
 // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin)
@@ -36,29 +36,38 @@ export async function clearAllCaches(): Promise<CacheClearResult> {
 
   try {
     // Clear service workers if available
-    if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      
-      for (const registration of registrations) {
-        await registration.unregister();
-        result.serviceWorkersCleared++;
+    if (typeof globalThis !== 'undefined' && 'navigator' in globalThis && 'window' in globalThis) {
+      const nav = (globalThis as any).navigator;
+      if ('serviceWorker' in nav) {
+        const registrations = await nav.serviceWorker.getRegistrations();
+        
+        for (const registration of registrations) {
+          await registration.unregister();
+          result.serviceWorkersCleared++;
+        }
       }
     }
 
     // Clear all caches if available
-    if ('caches' in window) {
-      const cacheNames = await caches.keys();
-      
-      for (const cacheName of cacheNames) {
-        await caches.delete(cacheName);
-        result.cachesCleared.push(cacheName);
+    if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
+      const win = (globalThis as any).window;
+      if ('caches' in win) {
+        const cacheNames = await win.caches.keys();
+        
+        for (const cacheName of cacheNames) {
+          await win.caches.delete(cacheName);
+          result.cachesCleared.push(cacheName);
+        }
       }
     }
 
     // Clear localStorage and sessionStorage
     try {
-      localStorage.clear();
-      sessionStorage.clear();
+      if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
+        const win = (globalThis as any).window;
+        win.localStorage?.clear();
+        win.sessionStorage?.clear();
+      }
     } catch (e) {
       // Some browsers may restrict this
       console.warn('Could not clear storage:', e);
@@ -74,7 +83,10 @@ export async function clearAllCaches(): Promise<CacheClearResult> {
 
 export function forceReload(): void {
   // Force a hard reload bypassing cache
-  window.location.reload();
+  if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
+    const win = (globalThis as any).window;
+    win.location.reload();
+  }
 }
 
 export function getBuildInfo() {
@@ -82,8 +94,8 @@ export function getBuildInfo() {
     commitSha: COMMIT_SHA,
     buildId: BUILD_ID,
     buildTimestamp: BUILD_TIMESTAMP,
-    userAgent: navigator.userAgent,
-    url: window.location.href,
+    userAgent: typeof globalThis !== 'undefined' && 'navigator' in globalThis ? (globalThis as any).navigator.userAgent : 'server',
+    url: typeof globalThis !== 'undefined' && 'window' in globalThis ? (globalThis as any).window.location.href : 'server',
     timestamp: new Date().toISOString()
   };
 }

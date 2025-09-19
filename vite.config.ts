@@ -87,6 +87,20 @@ export default defineConfig(({ mode }) => ({
             return;
           }
 
+          // Handle healthz endpoint
+          if (url === '/healthz' && req.method === 'GET') {
+            console.log('[API Middleware] Handling healthz endpoint');
+            import('./src/api/healthz.js').then(({ default: handler }) => {
+              handler(req, res);
+            }).catch(error => {
+              console.error('Error loading healthz handler:', error);
+              res.setHeader('Content-Type', 'application/json');
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: 'Health endpoint loading failed' }));
+            });
+            return;
+          }
+
           // Handle validate endpoint
           if (url === '/admin/validate' && req.method === 'GET') {
             console.log('[API Middleware] Handling validate endpoint');

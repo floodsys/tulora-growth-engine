@@ -144,3 +144,29 @@ test.describe('Version Information', () => {
     expect(buildId).toBeTruthy();
   });
 });
+
+test.describe('Health endpoint', () => {
+  test('should return health status with version info', async ({ page }) => {
+    // Test /api/healthz endpoint
+    const response = await page.request.get('/api/healthz');
+    expect(response.status()).toBe(200);
+    
+    const healthData = await response.json();
+    expect(healthData.status).toBe('ok');
+    expect(healthData.commit).toBeTruthy();
+    expect(healthData.buildId).toBeTruthy();
+    expect(healthData.buildTimestamp).toBeTruthy();
+    expect(typeof healthData.uptimeSec).toBe('number');
+    
+    // Verify cache headers
+    expect(response.headers()['cache-control']).toContain('no-store');
+    
+    // Compare with /version.json to ensure consistency
+    const versionResponse = await page.request.get('/version.json');
+    const versionData = await versionResponse.json();
+    
+    expect(healthData.commit).toBe(versionData.commit);
+    expect(healthData.buildId).toBe(versionData.buildId);
+    expect(healthData.buildTimestamp).toBe(versionData.buildTimestamp);
+  });
+});
