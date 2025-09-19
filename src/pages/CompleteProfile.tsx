@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { safeProfileUpsert, splitFullName } from "@/lib/profileUtils";
+import { saveOrganization, type OrganizationData } from "@/lib/profile/saveOrganization";
 import logo from "@/assets/logo.svg";
 
 const CompleteProfile = () => {
@@ -24,18 +24,34 @@ const CompleteProfile = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
 
-  // Pre-fill name from OAuth provider if available
+  // Pre-fill data from existing profile and OAuth provider
   useEffect(() => {
-    if (user && !loading) {
-      const displayName = user.user_metadata?.full_name || 
-                         user.user_metadata?.name || 
-                         user.user_metadata?.display_name || "";
-      
-      setFormData(prev => ({
-        ...prev,
-        fullName: displayName
-      }));
-    }
+    const loadExistingProfile = async () => {
+      if (user && !loading) {
+        // First try to get data from existing profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, organization_name, organization_size, industry')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        // Fallback to OAuth provider metadata for name
+        const displayName = profile?.full_name ||
+                           user.user_metadata?.full_name || 
+                           user.user_metadata?.name || 
+                           user.user_metadata?.display_name || "";
+        
+        setFormData(prev => ({
+          ...prev,
+          fullName: displayName,
+          organizationName: profile?.organization_name || "",
+          organizationSize: profile?.organization_size || "",
+          industry: profile?.industry || ""
+        }));
+      }
+    };
+
+    loadExistingProfile();
   }, [user, loading]);
 
   // Redirect if not authenticated
@@ -95,39 +111,25 @@ const CompleteProfile = () => {
     setIsLoading(true);
 
     try {
-      // Split full name into first and last name
-      const { firstName, lastName } = splitFullName(formData.fullName);
       const industry = formData.industry === "Other" ? formData.customIndustry : formData.industry;
 
-      // Use safe upsert that won't overwrite existing data
-      const { error: profileError } = await safeProfileUpsert({
-        user_id: user.id,
-        full_name: formData.fullName,
-        first_name: firstName,
-        last_name: lastName,
-        email: user.email || '',
+      // Prepare organization data
+      const organizationData: OrganizationData = {
         organization_name: formData.organizationName,
         organization_size: formData.organizationSize,
         industry: industry,
+      };
+
+      // Use the consistent saveOrganization function
+      const result = await saveOrganization({
+        userId: user.id,
+        fullName: formData.fullName,
+        organizationData,
+        source: 'signup',
       });
 
-      if (profileError) throw profileError;
-
-      // Update auth user metadata
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: {
-          full_name: formData.fullName,
-          first_name: firstName,
-          last_name: lastName,
-          organization_name: formData.organizationName,
-          organization_size: formData.organizationSize,
-          industry: industry,
-        }
-      });
-
-      if (updateError) {
-        console.error('Auth metadata update error:', updateError);
-        // Don't fail the flow for metadata update errors
+      if (!result.ok) {
+        throw new Error(result.error || 'Failed to save profile information');
       }
 
       toast({
