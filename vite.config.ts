@@ -8,9 +8,18 @@ import { ViteDevServer } from "vite";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   define: {
-    // Generate BUILD_ID at build time
+    // Generate build info at build time
+    'import.meta.env.VITE_COMMIT_SHA': JSON.stringify(
+      process.env.GITHUB_SHA?.substring(0, 12) || 
+      process.env.VITE_COMMIT_SHA || 
+      'unknown'
+    ),
     'import.meta.env.VITE_BUILD_ID': JSON.stringify(
-      process.env.VITE_BUILD_ID || `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      process.env.VITE_BUILD_ID || 
+      `${process.env.GITHUB_SHA?.substring(0, 12) || 'build'}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    ),
+    'import.meta.env.VITE_BUILD_TIMESTAMP': JSON.stringify(
+      process.env.VITE_BUILD_TIMESTAMP || new Date().toISOString()
     ),
   },
   server: {
