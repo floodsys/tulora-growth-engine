@@ -1,12 +1,20 @@
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { resolveNextPath } from "@/lib/navigation/resolveNextPath";
+import { telemetry } from "@/lib/telemetry";
 
 const CompleteProfile = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
   useEffect(() => {
+    // Track legacy route usage for analytics
+    telemetry.track('legacy_complete_profile_redirect', {
+      original_path: '/complete-profile',
+      has_next_param: !!searchParams.get('next'),
+      timestamp: new Date().toISOString()
+    });
+
     // Redirect to /onboarding/organization preserving ?next= parameter
     const nextParam = searchParams.get('next');
     const targetPath = '/onboarding/organization';

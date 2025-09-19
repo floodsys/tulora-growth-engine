@@ -120,10 +120,19 @@ const OnboardingOrganization = () => {
       // Invalidate profile cache so guards/components get fresh data
       invalidateProfile();
 
-      toast({
-        title: "Profile updated",
-        description: "Your organization information has been saved.",
-      });
+      // Show success toast with any auth metadata warnings
+      if (result.authMetadataWarning) {
+        toast({
+          title: "Profile updated",
+          description: result.authMetadataWarning,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Profile updated",
+          description: "Your organization information has been saved.",
+        });
+      }
 
       // Redirect to next URL or dashboard
       const nextParam = searchParams.get('next');
