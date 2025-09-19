@@ -70,6 +70,7 @@ interface RetellAgent {
   kb_ids: string[]
   status: string
   published_at?: string
+  settings?: any
 }
 
 interface Voice {
@@ -93,6 +94,14 @@ const RetellAgentSettings = () => {
   const [voicesLoading, setVoicesLoading] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [organizationId, setOrganizationId] = useState<string>('')
+  
+  // DTMF state
+  const [dtmfSettings, setDtmfSettings] = useState({
+    enabled: false,
+    maxDigits: 10,
+    termKey: '#',
+    timeoutMs: 5000
+  })
 
   const form = useForm<RetellAgent>()
 
@@ -112,6 +121,17 @@ const RetellAgentSettings = () => {
 
         setAgent(data)
         setOrganizationId(data.organization_id)
+        
+        // Initialize DTMF settings from agent.settings.dtmf
+        const settings = data.settings as any || {}
+        const dtmf = settings.dtmf || {}
+        setDtmfSettings({
+          enabled: dtmf.enabled || false,
+          maxDigits: dtmf.maxDigits || 10,
+          termKey: dtmf.termKey || '#',
+          timeoutMs: dtmf.timeoutMs || 5000
+        })
+        
         form.reset(data)
       } catch (error) {
         const corr = getCorrId(error);
@@ -179,17 +199,25 @@ const RetellAgentSettings = () => {
     try {
       const formData = form.getValues()
       
+      // Merge DTMF settings into agent settings
+      const currentSettings = agent.settings as any || {}
+      const updatedSettings = {
+        ...currentSettings,
+        dtmf: dtmfSettings
+      }
+      
       const { error } = await supabase
         .from('retell_agents')
         .update({
           ...formData,
+          settings: updatedSettings,
           updated_at: new Date().toISOString()
         })
         .eq('id', agent.id)
 
       if (error) throw error
 
-      const updatedAgent = { ...agent, ...formData }
+      const updatedAgent = { ...agent, ...formData, settings: updatedSettings }
       setAgent(updatedAgent)
       setHasUnsavedChanges(false)
 
@@ -972,72 +1000,91 @@ const RetellAgentSettings = () => {
                     </div>
                   </div>
 
-                  {/* DTMF Options */}
-                  <div className="space-y-4">
-                    <h4 className="font-medium">DTMF (Keypad) Options</h4>
-                    
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Enable DTMF Input</Label>
-                        <p className="text-sm text-muted-foreground">Allow users to provide keypad input during calls</p>
-                      </div>
-                      <Switch
-                        checked={false}
-                        onCheckedChange={() => {}}
-                      />
-                    </div>
+                   {/* DTMF Options */}
+                   <div className="space-y-4">
+                     <h4 className="font-medium">DTMF (Keypad) Options</h4>
+                     
+                     <div className="flex items-center justify-between">
+                       <div>
+                         <Label>Enable DTMF Input</Label>
+                         <p className="text-sm text-muted-foreground">Allow users to provide keypad input during calls</p>
+                       </div>
+                       <Switch
+                         checked={dtmfSettings.enabled}
+                         onCheckedChange={(enabled) => {
+                           setDtmfSettings(prev => ({ ...prev, enabled }))
+                           setHasUnsavedChanges(true)
+                         }}
+                       />
+                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div>
-                        <Label>Digit Limit</Label>
-                        <Input
-                          type="number"
-                          placeholder="10"
-                          min="1"
-                          max="20"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">Maximum number of digits to collect</p>
-                      </div>
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                       <div>
+                         <Label>Digit Limit</Label>
+                         <Input
+                           type="number"
+                           value={dtmfSettings.maxDigits}
+                           onChange={(e) => {
+                             setDtmfSettings(prev => ({ ...prev, maxDigits: parseInt(e.target.value) || 10 }))
+                             setHasUnsavedChanges(true)
+                           }}
+                           placeholder="10"
+                           min="1"
+                           max="20"
+                         />
+                         <p className="text-xs text-muted-foreground mt-1">Maximum number of digits to collect</p>
+                       </div>
 
-                      <div>
-                        <Label>Termination Key</Label>
-                        <Select value="#" onValueChange={() => {}}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select key" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-background border shadow-md">
-                            <SelectItem value="#"># (Hash)</SelectItem>
-                            <SelectItem value="*">* (Star)</SelectItem>
-                            <SelectItem value="none">None</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground mt-1">Key to end DTMF input</p>
-                      </div>
+                       <div>
+                         <Label>Termination Key</Label>
+                         <Select 
+                           value={dtmfSettings.termKey} 
+                           onValueChange={(termKey) => {
+                             setDtmfSettings(prev => ({ ...prev, termKey }))
+                             setHasUnsavedChanges(true)
+                           }}
+                         >
+                           <SelectTrigger>
+                             <SelectValue placeholder="Select key" />
+                           </SelectTrigger>
+                           <SelectContent className="bg-background border shadow-md">
+                             <SelectItem value="#"># (Hash)</SelectItem>
+                             <SelectItem value="*">* (Star)</SelectItem>
+                             <SelectItem value="none">None</SelectItem>
+                           </SelectContent>
+                         </Select>
+                         <p className="text-xs text-muted-foreground mt-1">Key to end DTMF input</p>
+                       </div>
 
-                      <div>
-                        <Label>Timeout (seconds)</Label>
-                        <Input
-                          type="number"
-                          placeholder="5"
-                          min="1"
-                          max="30"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">Time to wait for input before timeout</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
+                       <div>
+                         <Label>Timeout (seconds)</Label>
+                         <Input
+                           type="number"
+                           value={dtmfSettings.timeoutMs / 1000}
+                           onChange={(e) => {
+                             setDtmfSettings(prev => ({ ...prev, timeoutMs: (parseInt(e.target.value) || 5) * 1000 }))
+                             setHasUnsavedChanges(true)
+                           }}
+                           placeholder="5"
+                           min="1"
+                           max="30"
+                         />
+                         <p className="text-xs text-muted-foreground mt-1">Time to wait for input before timeout</p>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               </AccordionContent>
+             </AccordionItem>
 
-            {/* Transfer Settings */}
-            <AccordionItem value="transfer" className="border rounded-lg">
-              <AccordionTrigger className="px-6 py-4 hover:no-underline">
-                <div className="flex items-center">
-                  <Phone className="h-5 w-5 mr-3 text-primary" />
-                  <span className="font-semibold">Call Transfer Settings</span>
-                </div>
-              </AccordionTrigger>
+             {/* Transfer Settings */}
+             <AccordionItem value="transfer" className="border rounded-lg">
+               <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                 <div className="flex items-center">
+                   <Phone className="h-5 w-5 mr-3 text-primary" />
+                   <span className="font-semibold">Call Transfer Settings</span>
+                 </div>
+               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
                 <div className="space-y-4">
                   <div>

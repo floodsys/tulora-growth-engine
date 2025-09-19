@@ -172,6 +172,22 @@ serve(async (req) => {
       retellConfig.webhook_url = agent.webhook_url
     }
 
+    // Add DTMF settings if enabled
+    if (agent.settings?.dtmf?.enabled) {
+      retellConfig.dtmf_options = {
+        enabled: true,
+        max_digits: agent.settings.dtmf.maxDigits || 10,
+        termination_key: agent.settings.dtmf.termKey || '#',
+        timeout_ms: agent.settings.dtmf.timeoutMs || 5000
+      }
+      
+      // Also include in metadata for runtime access
+      retellConfig.metadata = {
+        ...retellConfig.metadata,
+        dtmf: agent.settings.dtmf
+      }
+    }
+
     // Publish to Retell API
     const { RETELL_API_KEY } = await import('../_shared/env.ts')
     const retellApiKey = RETELL_API_KEY()

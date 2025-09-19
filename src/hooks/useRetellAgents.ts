@@ -33,6 +33,7 @@ export interface RetellAgent {
   created_at: string
   updated_at: string
   published_at?: string
+  settings?: any
 }
 
 export interface Voice {
