@@ -28,6 +28,10 @@ jobs:
         run: npm ci
         
       - name: Build application
+        env:
+          VITE_COMMIT_SHA: ${{ github.sha }}
+          VITE_BUILD_ID: ${{ github.sha }}-${{ github.run_number }}
+          VITE_BUILD_TIMESTAMP: ${{ github.event.head_commit.timestamp }}
         run: npm run build
         
       - name: Run Full Invite Test Suite
