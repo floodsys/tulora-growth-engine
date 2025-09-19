@@ -214,7 +214,7 @@ const CompleteProfile = () => {
 
           <div className="space-y-2">
             <Label htmlFor="organizationSize">Organization size *</Label>
-            <Select onValueChange={(value) => handleSelectChange("organizationSize", value)}>
+            <Select value={formData.organizationSize} onValueChange={(value) => handleSelectChange("organizationSize", value)}>
               <SelectTrigger className={formErrors.organizationSize ? "border-destructive" : ""}>
                 <SelectValue placeholder="Select organization size" />
               </SelectTrigger>
@@ -235,7 +235,7 @@ const CompleteProfile = () => {
 
           <div className="space-y-2">
             <Label htmlFor="industry">Industry *</Label>
-            <Select onValueChange={(value) => handleSelectChange("industry", value)}>
+            <Select value={formData.industry} onValueChange={(value) => handleSelectChange("industry", value)}>
               <SelectTrigger className={formErrors.industry ? "border-destructive" : ""}>
                 <SelectValue placeholder="Select your industry" />
               </SelectTrigger>

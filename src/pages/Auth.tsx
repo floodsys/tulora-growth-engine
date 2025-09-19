@@ -59,9 +59,8 @@ const Auth = () => {
           .eq('user_id', session.user.id)
           .single();
         
-        // If profile is missing required fields, go to complete profile
         if (!profile || !profile.organization_name || !profile.organization_size || !profile.industry) {
-          navigate('/complete-profile');
+          navigate('/onboarding/organization');
         } else {
           navigate('/dashboard');
         }
