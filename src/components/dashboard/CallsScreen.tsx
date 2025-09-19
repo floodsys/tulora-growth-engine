@@ -44,6 +44,7 @@ interface Call {
   summary?: string
   cost?: number
   tokenUsage?: number
+  analysis_json?: any // Real analysis data from Retell
 }
 
 const mockCalls: Call[] = [
@@ -123,11 +124,28 @@ const AllCallsTab = ({ realCalls, hasRealData, realTotal, authoritativeTotal, ca
   callsData: any
 }) => {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCall, setSelectedCall] = useState<Call | null>(null)
+  const [selectedCall, setSelectedCall] = useState<Call | any>(null)
   const [detailOpen, setDetailOpen] = useState(false)
 
+  // Transform real calls to match Call interface
+  const transformedRealCalls = realCalls?.map(call => ({
+    id: call.id,
+    caller: call.from_e164 || 'Unknown',
+    phone: call.to_e164 || call.from_e164 || '',
+    outcome: call.outcome || 'Unknown',
+    sentiment: call.sentiment || 'neutral',
+    duration: call.duration_ms ? Math.floor(call.duration_ms / 1000) : 0,
+    owner: call.retell_agents?.name || 'Unknown',
+    timestamp: new Date(call.created_at),
+    recordingUrl: call.recording_signed_url,
+    summary: call.transcript_summary,
+    analysis_json: call.analysis_json,
+    cost: 0, // Would need to be calculated
+    tokenUsage: 0 // Would need to be tracked
+  })) || []
+
   // Use real data when available, fallback to mocks
-  const dataSource = hasRealData ? realCalls : mockCalls
+  const dataSource = hasRealData ? transformedRealCalls : mockCalls
   const filteredCalls = dataSource.filter(call =>
     call.caller.toLowerCase().includes(searchTerm.toLowerCase()) ||
     call.phone.includes(searchTerm) ||
@@ -151,17 +169,78 @@ const AllCallsTab = ({ realCalls, hasRealData, realTotal, authoritativeTotal, ca
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
   }
 
-  const handleCallSelect = (call: Call) => {
+  const handleCallSelect = (call: Call | any) => {
     setSelectedCall(call)
     setDetailOpen(true)
   }
 
-  const handleRedial = (call: Call) => {
+  const handleRedial = (call: Call | any) => {
     console.log("Redialing with context:", call)
   }
 
-  const handleWarmTransfer = (call: Call) => {
+  const handleWarmTransfer = (call: Call | any) => {
     console.log("Warm transfer with context:", call)
+  }
+
+  // Helper to render analysis fields in a read-only format
+  const renderAnalysisSection = (analysisData: any) => {
+    if (!analysisData || typeof analysisData !== 'object') {
+      return (
+        <div className="text-sm text-muted-foreground text-center py-4">
+          No analysis data available
+        </div>
+      )
+    }
+
+    const analysisFields = Object.entries(analysisData)
+      .filter(([key, value]) => value !== null && value !== undefined && value !== '')
+      .map(([key, value]) => {
+        // Format key for display
+        const displayKey = key
+          .replace(/_/g, ' ')
+          .replace(/([A-Z])/g, ' $1')
+          .replace(/^./, str => str.toUpperCase())
+          .trim()
+
+        // Format value for display
+        let displayValue = value
+        if (typeof value === 'object') {
+          displayValue = JSON.stringify(value, null, 2)
+        } else if (typeof value === 'boolean') {
+          displayValue = value ? 'Yes' : 'No'
+        } else if (typeof value === 'number') {
+          displayValue = value.toString()
+        }
+
+        return { key: displayKey, value: displayValue, originalKey: key }
+      })
+
+    if (analysisFields.length === 0) {
+      return (
+        <div className="text-sm text-muted-foreground text-center py-4">
+          No analysis fields available
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-3">
+        {analysisFields.map(({ key, value, originalKey }) => (
+          <div key={originalKey} className="border-b border-border/50 pb-2 last:border-b-0">
+            <div className="text-sm font-medium text-foreground mb-1">{key}</div>
+            <div className="text-sm text-muted-foreground">
+              {typeof value === 'string' && value.length > 200 ? (
+                <div className="max-h-24 overflow-y-auto">
+                  <pre className="whitespace-pre-wrap text-xs">{value}</pre>
+                </div>
+              ) : (
+                <span>{String(value)}</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
   }
 
   return (
@@ -315,6 +394,18 @@ const AllCallsTab = ({ realCalls, hasRealData, realTotal, authoritativeTotal, ca
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Post-Call Analysis Section */}
+              {selectedCall?.analysis_json && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Analysis</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {renderAnalysisSection(selectedCall.analysis_json)}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Recording Player */}
               {selectedCall.recordingUrl && (
