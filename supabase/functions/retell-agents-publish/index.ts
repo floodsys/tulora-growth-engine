@@ -167,9 +167,14 @@ serve(async (req) => {
       retellConfig.telephony.transfer_mode = agent.transfer_mode
     }
 
-    // Add webhook URL if configured
-    if (agent.webhook_url) {
-      retellConfig.webhook_url = agent.webhook_url
+    // Add webhook URL using precedence resolution (agent → org fallback)
+    const webhookResult = resolveWebhookTarget({ 
+      agent: { webhook_url: agent.webhook_url }, 
+      orgSettings: guardResult.organization?.settings 
+    })
+    if (webhookResult.url) {
+      retellConfig.webhook_url = webhookResult.url
+      console.log('Webhook configured:', { corrId, organizationId, target: webhookResult.target, url: webhookResult.url.substring(0, 30) + '...' })
     }
 
     // Add DTMF settings if enabled
@@ -271,7 +276,10 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true,
         version: newVersion,
-        retell_agent: publishedAgent
+        retell_agent: publishedAgent,
+        webhook_configured: !!webhookResult.url,
+        webhook_target: webhookResult.target,
+        corr: corrId
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

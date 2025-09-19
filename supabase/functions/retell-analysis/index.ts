@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { requireEntitlement } from '../_shared/entitlements.ts'
+import { resolveWebhookTarget } from '../_shared/org-guard.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,10 +26,10 @@ Deno.serve(async (req) => {
     const gate = await requireEntitlement(supabase, organizationId, { feature: "advancedAnalytics" }, corr);
     if (!gate.ok) return new Response(JSON.stringify(gate.body), { status: gate.status, headers: corsHeaders });
 
-    // Get agent analysis settings
+    // Get agent and organization settings for webhook resolution
     const { data: agent, error: agentError } = await supabase
       .from('retell_agents')
-      .select('settings')
+      .select('settings, webhook_url')
       .eq('id', agentId)
       .eq('organization_id', organizationId)
       .single()
@@ -36,6 +37,13 @@ Deno.serve(async (req) => {
     if (agentError || !agent) {
       throw new Error('Agent not found')
     }
+
+    // Get organization settings for webhook fallback
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('settings')
+      .eq('id', organizationId)
+      .single()
 
     const analysisSettings = agent.settings?.analysisSettings
     if (!analysisSettings?.enabled || !analysisSettings.fields?.length) {
@@ -134,37 +142,52 @@ Return your response as a JSON object with the field names as keys and the extra
       }
     }
 
-    // Send to webhook if configured
-    if (analysisSettings.sendToWebhook && analysisSettings.webhookUrl) {
-      try {
-        await fetch(analysisSettings.webhookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Event-Type': 'call.analysis.completed',
-          },
-          body: JSON.stringify({
-            call_id: callId,
-            organization_id: organizationId,
-            agent_id: agentId,
-            analysis: parsedAnalysis,
-            timestamp: new Date().toISOString(),
-            metadata: {
-              model: analysisSettings.model,
-              fields_analyzed: analysisSettings.fields.filter((f: any) => f.enabled).length
-            }
-          }),
-        })
-      } catch (webhookError) {
-        console.error('Webhook delivery failed:', webhookError)
+    // Send to webhook if configured using precedence resolution
+    let webhookSent = false
+    let webhookTarget = null
+    if (analysisSettings.sendToWebhook) {
+      const webhookResult = resolveWebhookTarget({ 
+        agent: { webhook_url: agent.webhook_url }, 
+        orgSettings: org?.settings 
+      })
+      
+      if (webhookResult.url) {
+        webhookTarget = webhookResult.target
+        try {
+          const webhookResponse = await fetch(webhookResult.url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Event-Type': 'call.analysis.completed',
+            },
+            body: JSON.stringify({
+              call_id: callId,
+              organization_id: organizationId,
+              agent_id: agentId,
+              analysis: parsedAnalysis,
+              timestamp: new Date().toISOString(),
+              metadata: {
+                model: analysisSettings.model,
+                fields_analyzed: analysisSettings.fields.filter((f: any) => f.enabled).length,
+                webhook_target: webhookResult.target
+              }
+            }),
+          })
+          webhookSent = webhookResponse.ok
+          console.log('Webhook sent:', { corrId: corr, organizationId, target: webhookResult.target, success: webhookSent })
+        } catch (webhookError) {
+          console.error('Webhook delivery failed:', { corrId: corr, organizationId, target: webhookResult.target, error: webhookError })
+        }
       }
     }
 
     return new Response(JSON.stringify({
       analysis: parsedAnalysis,
       stored: analysisSettings.sendToDashboard,
-      webhook_sent: analysisSettings.sendToWebhook && analysisSettings.webhookUrl,
-      timestamp: new Date().toISOString()
+      webhook_sent: webhookSent,
+      webhook_target: webhookTarget,
+      timestamp: new Date().toISOString(),
+      corr: corr
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
