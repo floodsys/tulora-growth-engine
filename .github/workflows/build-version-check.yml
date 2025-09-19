@@ -100,9 +100,129 @@ jobs:
             dist/version.json
           retention-days: 30
           
-      - name: Upload build artifacts  
-        uses: actions/upload-artifact@v4
+       - name: Upload build artifacts  
+         uses: actions/upload-artifact@v4
+         with:
+           name: build-${{ steps.version-check.outputs.commit-sha }}
+           path: dist/
+           retention-days: 7
+
+  release-tagging:
+    name: Create Release Tag and Changelog
+    runs-on: ubuntu-latest
+    needs: build-with-version
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
+    permissions:
+      contents: write  # Required for creating tags and releases
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          name: build-${{ steps.version-check.outputs.commit-sha }}
-          path: dist/
-          retention-days: 7
+          fetch-depth: 0  # Need full history for changelog generation
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+      - name: Generate release information
+        id: release-info
+        run: |
+          # Get commit SHA and timestamp
+          COMMIT_SHA="${GITHUB_SHA:0:12}"
+          TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
+          TAG_NAME="deploy/${COMMIT_SHA}-${TIMESTAMP}"
+          
+          echo "commit-sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+          echo "tag-name=$TAG_NAME" >> $GITHUB_OUTPUT
+          
+          # Find the last deploy tag for changelog
+          LAST_TAG=$(git tag -l "deploy/*" --sort=-version:refname | head -n1)
+          echo "last-tag=$LAST_TAG" >> $GITHUB_OUTPUT
+          
+          if [[ -z "$LAST_TAG" ]]; then
+            echo "No previous deploy tags found, will use initial commit"
+            LAST_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          echo "last-reference=$LAST_TAG" >> $GITHUB_OUTPUT
+          
+      - name: Generate changelog
+        id: changelog
+        run: |
+          echo "## 🚀 Deployment ${GITHUB_SHA:0:12}" > CHANGELOG_ENTRY.md
+          echo "" >> CHANGELOG_ENTRY.md
+          echo "**Branch:** ${{ github.ref_name }}" >> CHANGELOG_ENTRY.md
+          echo "**Commit:** [\`${GITHUB_SHA:0:12}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})" >> CHANGELOG_ENTRY.md
+          echo "**Build ID:** ${{ needs.build-with-version.outputs.build-id || 'N/A' }}" >> CHANGELOG_ENTRY.md
+          echo "**Timestamp:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> CHANGELOG_ENTRY.md
+          echo "" >> CHANGELOG_ENTRY.md
+          
+          # Generate commit list since last tag
+          if [[ "${{ steps.release-info.outputs.last-tag }}" != "" ]]; then
+            echo "### 📝 Changes since ${{ steps.release-info.outputs.last-tag }}" >> CHANGELOG_ENTRY.md
+            echo "" >> CHANGELOG_ENTRY.md
+            
+            # Try to parse conventional commits, fallback to simple list
+            git log ${{ steps.release-info.outputs.last-reference }}..HEAD \
+              --pretty=format:"- %s (%h)" \
+              --no-merges | head -20 >> CHANGELOG_ENTRY.md
+          else
+            echo "### 📝 Initial Release" >> CHANGELOG_ENTRY.md
+            echo "" >> CHANGELOG_ENTRY.md
+            echo "- Initial deployment" >> CHANGELOG_ENTRY.md
+          fi
+          
+          echo "" >> CHANGELOG_ENTRY.md
+          echo "---" >> CHANGELOG_ENTRY.md
+          echo "*Generated automatically by CI*" >> CHANGELOG_ENTRY.md
+          
+          # Set multiline output
+          {
+            echo 'changelog<<EOF'
+            cat CHANGELOG_ENTRY.md
+            echo EOF
+          } >> $GITHUB_OUTPUT
+          
+      - name: Create annotated git tag
+        id: create-tag
+        run: |
+          TAG_NAME="${{ steps.release-info.outputs.tag-name }}"
+          
+          # Create annotated tag with changelog
+          git tag -a "$TAG_NAME" -m "Deployment ${{ steps.release-info.outputs.commit-sha }}
+          
+          Branch: ${{ github.ref_name }}
+          Build ID: ${{ needs.build-with-version.outputs.build-id || 'N/A' }}
+          Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          ${{ steps.changelog.outputs.changelog }}"
+          
+          # Push tag (this will fail the job if unsuccessful)
+          if ! git push origin "$TAG_NAME"; then
+            echo "❌ FATAL: Failed to push tag $TAG_NAME"
+            echo "This indicates a Git configuration or permissions issue"
+            exit 1
+          fi
+          
+          echo "✅ Successfully created and pushed tag: $TAG_NAME"
+          echo "tag-url=${{ github.server_url }}/${{ github.repository }}/releases/tag/$TAG_NAME" >> $GITHUB_OUTPUT
+          
+      - name: Post CI Summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          # 🚀 Release Tagged Successfully
+          
+          ## Release Information
+          - **Tag:** `${{ steps.release-info.outputs.tag-name }}`
+          - **Commit:** [`${{ steps.release-info.outputs.commit-sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+          - **Build ID:** `${{ needs.build-with-version.outputs.build-id || 'N/A' }}`
+          - **Branch:** `${{ github.ref_name }}`
+          - **Tag URL:** [${{ steps.release-info.outputs.tag-name }}](${{ steps.create-tag.outputs.tag-url }})
+          
+          ${{ steps.changelog.outputs.changelog }}
+          EOF
+          
+          echo "📋 Release information posted to CI summary"

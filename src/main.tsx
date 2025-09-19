@@ -5,6 +5,13 @@ import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/contexts/AuthContext";
 import App from "./App.tsx";
 import "./index.css";
+import { initializeSentry, captureDeployment } from "./lib/sentry";
+
+// Initialize Sentry with release tracking (gated by environment variables)
+initializeSentry();
+
+// Capture deployment event for tracking
+captureDeployment();
 
 const queryClient = new QueryClient();
 
