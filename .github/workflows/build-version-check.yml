@@ -1,0 +1,108 @@
+name: Build and Version Check
+
+on:
+  push:
+    branches: [ main, develop, release/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-with-version:
+    name: Build with Version Information
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for accurate commit info
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Version Safety Check
+        id: version-check
+        run: |
+          # Extract short commit SHA
+          COMMIT_SHA="${GITHUB_SHA:0:12}"
+          echo "COMMIT_SHA=$COMMIT_SHA" >> $GITHUB_ENV
+          echo "commit-sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          
+          # Fail on main/release branches if commit SHA is missing
+          if [[ "${{ github.ref }}" == "refs/heads/main" || "${{ github.ref }}" == refs/heads/release/* ]]; then
+            if [[ -z "$COMMIT_SHA" || "$COMMIT_SHA" == "000000000000" ]]; then
+              echo "❌ FATAL: Missing commit SHA on protected branch ${{ github.ref }}"
+              echo "This indicates a CI configuration issue that could affect version tracking"
+              exit 1
+            fi
+            echo "✅ Commit SHA validation passed for protected branch"
+          fi
+          
+          # Set build timestamp
+          BUILD_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
+          echo "BUILD_TIMESTAMP=$BUILD_TIMESTAMP" >> $GITHUB_ENV
+          echo "build-timestamp=$BUILD_TIMESTAMP" >> $GITHUB_OUTPUT
+          
+          # Generate build ID
+          BUILD_ID="${COMMIT_SHA}-$(date +%s)-$(openssl rand -hex 4)"
+          echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
+          echo "build-id=$BUILD_ID" >> $GITHUB_OUTPUT
+        
+      - name: Build application
+        env:
+          VITE_COMMIT_SHA: ${{ env.COMMIT_SHA }}
+          VITE_BUILD_ID: ${{ env.BUILD_ID }}
+          VITE_BUILD_TIMESTAMP: ${{ env.BUILD_TIMESTAMP }}
+          VITE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          echo "🏗️ Building with version information:"
+          echo "  Commit SHA: $VITE_COMMIT_SHA"
+          echo "  Build ID: $VITE_BUILD_ID"
+          echo "  Build Timestamp: $VITE_BUILD_TIMESTAMP"
+          echo "  Repository: $VITE_REPO_URL"
+          echo ""
+          npm run build
+          
+      - name: Verify version.json
+        run: |
+          if [[ ! -f "dist/version.json" ]]; then
+            echo "❌ ERROR: version.json not generated in build output"
+            exit 1
+          fi
+          
+          echo "✅ version.json generated successfully:"
+          cat dist/version.json | jq .
+          
+      - name: Print Final Version Information
+        run: |
+          echo ""
+          echo "📦 BUILD COMPLETE - VERSION INFORMATION:"
+          echo "======================================"
+          echo "Commit SHA:      ${{ steps.version-check.outputs.commit-sha }}"
+          echo "Build ID:        ${{ steps.version-check.outputs.build-id }}"
+          echo "Build Timestamp: ${{ steps.version-check.outputs.build-timestamp }}"
+          echo "Branch:          ${{ github.ref_name }}"
+          echo "Repository:      ${{ github.repository }}"
+          echo "======================================"
+          echo ""
+          
+      - name: Upload version.json artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: version-info-${{ steps.version-check.outputs.commit-sha }}
+          path: |
+            dist/version.json
+          retention-days: 30
+          
+      - name: Upload build artifacts  
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ steps.version-check.outputs.commit-sha }}
+          path: dist/
+          retention-days: 7
