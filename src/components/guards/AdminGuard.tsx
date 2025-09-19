@@ -4,6 +4,7 @@ import { useSuperadmin } from '@/hooks/useSuperadmin';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertTriangle } from 'lucide-react';
+import { AdminFooterBadge } from '@/components/ui/AdminFooterBadge';
 
 interface AdminGuardProps {
   children: React.ReactNode;
@@ -37,7 +38,12 @@ export function AdminGuard({ children }: AdminGuardProps) {
   
   if (isDev) {
     console.log('[AdminGuard] Development mode - bypassing admin checks');
-    return <>{children}</>;
+    return (
+      <>
+        {children}
+        <AdminFooterBadge />
+      </>
+    );
   }
 
   useEffect(() => {
@@ -59,6 +65,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">Verifying admin access...</p>
         </div>
+        <AdminFooterBadge />
       </div>
     );
   }
@@ -84,6 +91,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
             Retry Access Check
           </Button>
         </div>
+        <AdminFooterBadge />
       </div>
     );
   }
@@ -94,5 +102,10 @@ export function AdminGuard({ children }: AdminGuardProps) {
   }
 
   // Render protected content for superadmins
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <AdminFooterBadge />
+    </>
+  );
 }
