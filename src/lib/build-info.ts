@@ -1,8 +1,9 @@
 // Build information and cache management utilities
 
 // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin). Env checks are cosmetic only.
-export const BUILD_ID = `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-export const BUILD_TIMESTAMP = new Date().toISOString();
+export const COMMIT_SHA = import.meta.env.VITE_COMMIT_SHA || 'unknown';
+export const BUILD_ID = import.meta.env.VITE_BUILD_ID || `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+export const BUILD_TIMESTAMP = import.meta.env.VITE_BUILD_TIMESTAMP || new Date().toISOString();
 
 // COSMETIC ONLY - These environment variables are NEVER used for authorization
 // Source of truth = DB (public.superadmins + GUC fallback inside is_superadmin)
@@ -78,6 +79,7 @@ export function forceReload(): void {
 
 export function getBuildInfo() {
   return {
+    commitSha: COMMIT_SHA,
     buildId: BUILD_ID,
     buildTimestamp: BUILD_TIMESTAMP,
     userAgent: navigator.userAgent,
