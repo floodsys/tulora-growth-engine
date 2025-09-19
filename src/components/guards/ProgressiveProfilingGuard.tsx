@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { isProfileComplete } from "@/lib/profile/isProfileComplete";
+import { resolveNextPath } from "@/lib/navigation/resolveNextPath";
 import { Loader2 } from "lucide-react";
 
 interface ProgressiveProfilingGuardProps {
@@ -22,7 +23,6 @@ const ProgressiveProfilingGuard = ({ children }: ProgressiveProfilingGuardProps)
     '/invite/accept-new',
     '/demo',
     '/demos/voice',
-    '/complete-profile',
     '/', // Allow access to landing page
   ];
 
@@ -64,9 +64,16 @@ const ProgressiveProfilingGuard = ({ children }: ProgressiveProfilingGuardProps)
 
          // Check if profile is complete using centralized function
          if (!isProfileComplete(profile)) {
+          // Loop protection: don't redirect if already on onboarding
+          if (location.pathname.startsWith('/onboarding/organization')) {
+            setIsChecking(false);
+            return;
+          }
+          
           // Redirect to onboarding with current path as next parameter
           const currentPath = location.pathname + location.search;
-          navigate(`/onboarding/organization?next=${encodeURIComponent(currentPath)}`);
+          const safeNext = resolveNextPath(currentPath);
+          navigate(`/onboarding/organization?next=${encodeURIComponent(safeNext)}`);
           return;
         }
 

@@ -72,6 +72,14 @@ export async function saveOrganization({
       // Don't fail the entire operation if auth metadata update fails
       if (authError) {
         console.error('Auth metadata update error:', authError);
+        telemetry.track('profile_save_warning', { 
+          source, 
+          issue: 'auth_metadata_update_failed',
+          error_code: authError.message 
+        });
+        
+        // This would be better handled by the calling component for UI feedback
+        // but for now we'll log it and continue
       }
     }
 
