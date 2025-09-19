@@ -12,7 +12,7 @@ import Dashboard from "@/pages/Dashboard";
 import Auth from "@/pages/Auth";
 import AuthCallback from "@/pages/AuthCallback";
 import OnboardingOrganization from "@/pages/OnboardingOrganization";
-import CompleteProfile from "@/pages/CompleteProfile";
+
 import ProfileTest from "@/pages/ProfileTest";
 import TalkToUs from "@/pages/TalkToUs";
 import RetellAgentSettings from "@/pages/RetellAgentSettings";
@@ -81,7 +81,7 @@ function App() {
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/onboarding/organization" element={<OnboardingOrganization />} />
-              <Route path="/complete-profile" element={<CompleteProfile />} />
+              
               <Route path="/profile-test" element={<ProfileTest />} />
               <Route path="/talk-to-us" element={<TalkToUs />} />
                <Route path="/retell-agent/:agentId" element={<RetellAgentSettings />} />
