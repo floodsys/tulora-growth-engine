@@ -24,9 +24,9 @@ const OnboardingOrganization = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { invalidateProfile } = useProfile();
+  const { profile, invalidateProfile } = useProfile();
 
-  // Check authentication and get user info + existing profile
+  // Check authentication and get user info + set initial values from profile
   useEffect(() => {
     const checkAuthAndGetUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -41,25 +41,21 @@ const OnboardingOrganization = () => {
       const email = user.email || "";
       
       setUserInfo({ name: fullName, email });
-
-      // Fetch existing profile to prefill organization fields
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('organization_name, organization_size, industry')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (profile) {
-        setInitialValues({
-          organizationName: profile.organization_name || "",
-          organizationSize: profile.organization_size || "",
-          industry: profile.industry || "",
-          customIndustry: "",
-        });
-      }
     };
     checkAuthAndGetUser();
   }, [navigate]);
+
+  // Set initial values when profile data is available
+  useEffect(() => {
+    if (profile) {
+      setInitialValues({
+        organizationName: profile.organization_name || "",
+        organizationSize: profile.organization_size || "",
+        industry: profile.industry || "",
+        customIndustry: "",
+      });
+    }
+  }, [profile]);
 
 
   const handleSignOut = async () => {
@@ -86,14 +82,8 @@ const OnboardingOrganization = () => {
         throw new Error('User not authenticated');
       }
 
-      // Get full name from Google metadata if available and DB doesn't have it
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      const fullName = (!existingProfile?.full_name && userInfo.name) ? userInfo.name : undefined;
+      // Get full name from Google metadata if available and profile doesn't have it
+      const fullName = (!profile?.full_name && userInfo.name) ? userInfo.name : undefined;
 
       // Prepare organization data
       const organizationData: OrganizationData = {
