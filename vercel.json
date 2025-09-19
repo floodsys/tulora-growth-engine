@@ -1,0 +1,38 @@
+{
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Commit-SHA",
+          "value": "$VERCEL_GIT_COMMIT_SHA"
+        },
+        {
+          "key": "X-Build-Id", 
+          "value": "$VERCEL_GIT_COMMIT_SHA-$VERCEL_DEPLOYMENT_ID"
+        }
+      ]
+    },
+    {
+      "source": "/version.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate, proxy-revalidate"
+        },
+        {
+          "key": "Surrogate-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Pragma",
+          "value": "no-cache"
+        },
+        {
+          "key": "Expires",
+          "value": "0"
+        }
+      ]
+    }
+  ]
+}
