@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { requireEntitlement, getCurrentCount } from '../_shared/entitlements.ts'
+import { requireOrgIpAllowed, createIpBlockedResponse } from '../_shared/org-guard.ts'
 
 interface BuyNumberRequest {
   area_code?: string
@@ -55,6 +56,14 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'No active organization membership' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
+
+    // Check IP allowlist
+    const ipGuardResult = await requireOrgIpAllowed(req, membership.organization_id, supabaseClient)
+    if (!ipGuardResult.ok) {
+      const corr = crypto.randomUUID()
+      console.log(`[${corr}] IP blocked for org ${membership.organization_id}: ${ipGuardResult.clientIp}`)
+      return createIpBlockedResponse(ipGuardResult, corsHeaders, corr)
     }
 
     // Parse request body

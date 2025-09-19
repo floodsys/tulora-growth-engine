@@ -12,6 +12,13 @@ export interface OrgGuardResult {
   };
 }
 
+export interface OrgIpGuardResult {
+  ok: boolean;
+  status?: number;
+  reason?: string;
+  clientIp?: string;
+}
+
 export interface OrgGuardContext {
   organizationId: string;
   action: string;
@@ -111,6 +118,185 @@ export async function requireOrgActive(context: OrgGuardContext): Promise<OrgGua
       ok: false,
       status: 500,
       reason: 'internal_error'
+    };
+  }
+}
+
+/**
+ * Extracts client IP address from request headers in order of preference
+ */
+export function getClientIp(req: Request): string | null {
+  const headers = req.headers;
+  
+  // Order of preference: cf-connecting-ip → x-real-ip → first of x-forwarded-for → fly-client-ip
+  const cfConnectingIp = headers.get('cf-connecting-ip');
+  if (cfConnectingIp) return cfConnectingIp;
+  
+  const xRealIp = headers.get('x-real-ip');
+  if (xRealIp) return xRealIp;
+  
+  const xForwardedFor = headers.get('x-forwarded-for');
+  if (xForwardedFor) {
+    const firstIp = xForwardedFor.split(',')[0]?.trim();
+    if (firstIp) return firstIp;
+  }
+  
+  const flyClientIp = headers.get('fly-client-ip');
+  if (flyClientIp) return flyClientIp;
+  
+  // Last resort: check for edge runtime IP
+  const xForwardedHost = headers.get('x-forwarded-host');
+  if (xForwardedHost) {
+    // Try to extract from various edge runtime headers
+    const edgeIp = headers.get('x-edge-ip') || headers.get('x-client-ip');
+    if (edgeIp) return edgeIp;
+  }
+  
+  return null;
+}
+
+/**
+ * Checks if an IP matches against an allowlist rule
+ * Supports: exact IP, wildcard octet (*.*.*.* or 203.0.113.*), CIDR notation (/24)
+ */
+export function ipMatchesAllowlist(ip: string, rules: string[]): boolean {
+  if (!ip || !rules?.length) return false;
+  
+  for (const rule of rules) {
+    const trimmedRule = rule.trim();
+    if (!trimmedRule) continue;
+    
+    // Exact match
+    if (trimmedRule === ip) return true;
+    
+    // Wildcard match (e.g., 203.0.113.*)
+    if (trimmedRule.includes('*')) {
+      const regexPattern = trimmedRule
+        .replace(/\./g, '\\.')
+        .replace(/\*/g, '[0-9]+');
+      const regex = new RegExp(`^${regexPattern}$`);
+      if (regex.test(ip)) return true;
+    }
+    
+    // CIDR notation (e.g., 203.0.113.0/24)
+    if (trimmedRule.includes('/')) {
+      const [network, prefixStr] = trimmedRule.split('/');
+      const prefix = parseInt(prefixStr, 10);
+      
+      if (prefix >= 0 && prefix <= 32 && network) {
+        try {
+          const ipParts = ip.split('.').map(p => parseInt(p, 10));
+          const networkParts = network.split('.').map(p => parseInt(p, 10));
+          
+          if (ipParts.length === 4 && networkParts.length === 4) {
+            // Convert to 32-bit integers
+            const ipInt = (ipParts[0] << 24) + (ipParts[1] << 16) + (ipParts[2] << 8) + ipParts[3];
+            const networkInt = (networkParts[0] << 24) + (networkParts[1] << 16) + (networkParts[2] << 8) + networkParts[3];
+            const mask = ~((1 << (32 - prefix)) - 1);
+            
+            if ((ipInt & mask) === (networkInt & mask)) return true;
+          }
+        } catch (e) {
+          console.warn(`Invalid CIDR rule: ${trimmedRule}`, e);
+        }
+      }
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * Validates if the request IP is allowed based on organization IP allowlist settings
+ */
+export async function requireOrgIpAllowed(
+  req: Request, 
+  organizationId: string, 
+  supabase: SupabaseClient
+): Promise<OrgIpGuardResult> {
+  try {
+    const clientIp = getClientIp(req);
+    
+    // Fetch organization settings
+    const { data: org, error } = await supabase
+      .from('organizations')
+      .select('id, name, settings')
+      .eq('id', organizationId)
+      .single();
+
+    if (error || !org) {
+      console.error('Failed to fetch organization for IP check:', error);
+      return {
+        ok: false,
+        status: 404,
+        reason: 'organization_not_found',
+        clientIp: clientIp || 'unknown'
+      };
+    }
+
+    const settings = org.settings || {};
+    const accessSettings = settings.access || {};
+    const ipAllowlistEnabled = accessSettings.ip_allowlist_enabled;
+    const ipAllowlist = accessSettings.ip_allowlist || [];
+
+    // If IP allowlist is not enabled or empty, allow access
+    if (!ipAllowlistEnabled || !Array.isArray(ipAllowlist) || ipAllowlist.length === 0) {
+      return {
+        ok: true,
+        clientIp: clientIp || 'unknown'
+      };
+    }
+
+    // If we can't determine client IP, deny access when allowlist is active
+    if (!clientIp) {
+      console.warn(`IP allowlist active but could not determine client IP for org ${organizationId}`);
+      return {
+        ok: false,
+        status: 403,
+        reason: 'IP_NOT_ALLOWED',
+        clientIp: 'unknown'
+      };
+    }
+
+    // Check if IP matches allowlist
+    const isAllowed = ipMatchesAllowlist(clientIp, ipAllowlist);
+    
+    if (!isAllowed) {
+      // Log blocked IP attempt
+      await supabase.rpc('log_event', {
+        p_org_id: organizationId,
+        p_action: 'access.ip_blocked',
+        p_target_type: 'organization',
+        p_target_id: organizationId,
+        p_status: 'blocked',
+        p_metadata: {
+          client_ip: clientIp,
+          allowlist_rules: ipAllowlist,
+          organization_name: org.name,
+          timestamp: new Date().toISOString()
+        }
+      });
+
+      return {
+        ok: false,
+        status: 403,
+        reason: 'IP_NOT_ALLOWED',
+        clientIp
+      };
+    }
+
+    return {
+      ok: true,
+      clientIp
+    };
+
+  } catch (error) {
+    console.error('Error in IP allowlist check:', error);
+    return {
+      ok: false,
+      status: 500,
+      reason: 'internal_error',
+      clientIp: getClientIp(req) || 'unknown'
     };
   }
 }
@@ -218,6 +404,32 @@ export function createBlockedResponse(result: OrgGuardResult, corsHeaders: Recor
       code: result.reason,
       status: result.organization?.status,
       suspended_reason: result.organization?.suspension_reason
+    }),
+    {
+      status: result.status || 403,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    }
+  );
+}
+
+/**
+ * Creates standardized error response for IP blocking
+ */
+export function createIpBlockedResponse(result: OrgIpGuardResult, corsHeaders: Record<string, string>, corrId?: string): Response {
+  const messages = {
+    IP_NOT_ALLOWED: "Access denied. Your IP address is not in the organization's allowlist.",
+    organization_not_found: "Organization not found.",
+    internal_error: "Internal error occurred."
+  };
+
+  const message = messages[result.reason as keyof typeof messages] || "Access denied.";
+
+  return new Response(
+    JSON.stringify({
+      error: message,
+      error_code: result.reason,
+      client_ip: result.clientIp,
+      corr: corrId
     }),
     {
       status: result.status || 403,

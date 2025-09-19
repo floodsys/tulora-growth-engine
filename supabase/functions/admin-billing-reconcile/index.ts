@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import Stripe from 'https://esm.sh/stripe@14.21.0'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
+import { requireOrgIpAllowed, createIpBlockedResponse } from '../_shared/org-guard.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
