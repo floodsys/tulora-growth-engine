@@ -59,14 +59,10 @@ export function useVersionNotifier() {
     checkVersion();
 
     // Check every 5 minutes
-    timeoutId = setTimeout(() => {
-      checkVersion();
-    }, 5 * 60 * 1000);
+    const intervalId = setInterval(checkVersion, 5 * 60 * 1000);
 
     return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      clearInterval(intervalId);
     };
   }, []);
 
