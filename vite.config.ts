@@ -26,6 +26,12 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
+  preview: {
+    headers: {
+      'X-Commit-SHA': process.env.GITHUB_SHA?.substring(0, 12) || process.env.VITE_COMMIT_SHA || 'unknown',
+      'X-Build-Id': process.env.VITE_BUILD_ID || `${process.env.GITHUB_SHA?.substring(0, 12) || 'build'}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    }
+  },
   plugins: [
     // API middleware plugin - MUST be first to prevent SPA fallback
     {
@@ -33,7 +39,14 @@ export default defineConfig(({ mode }) => ({
       configureServer(server: ViteDevServer) {
         // Add middleware at the very beginning, before any other middleware
         server.middlewares.use((req, res, next) => {
-          // Only handle /api/** routes
+          // Inject version headers on all HTML responses
+          const commitSha = process.env.GITHUB_SHA?.substring(0, 12) || process.env.VITE_COMMIT_SHA || 'unknown';
+          const buildId = process.env.VITE_BUILD_ID || `${commitSha}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          
+          res.setHeader('X-Commit-SHA', commitSha);
+          res.setHeader('X-Build-Id', buildId);
+          
+          // Only handle /api/** routes for API functionality
           if (!req.url?.startsWith('/api/')) {
             return next();
           }
