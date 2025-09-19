@@ -110,6 +110,31 @@ export default defineConfig(({ mode }) => ({
         });
       }
     },
+    // Generate version.json at build time
+    {
+      name: 'generate-version-file',
+      generateBundle(this: any) {
+        const commitSha = process.env.GITHUB_SHA?.substring(0, 12) || 
+                         process.env.VITE_COMMIT_SHA || 
+                         'unknown';
+        const buildId = process.env.VITE_BUILD_ID || 
+                       `${commitSha}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const buildTimestamp = process.env.VITE_BUILD_TIMESTAMP || new Date().toISOString();
+        
+        const versionInfo = {
+          commit: commitSha,
+          buildId,
+          buildTimestamp,
+          ...(process.env.NODE_ENV && { env: process.env.NODE_ENV })
+        };
+
+        this.emitFile({
+          type: 'asset',
+          fileName: 'version.json',
+          source: JSON.stringify(versionInfo, null, 2)
+        });
+      }
+    },
     react(),
     mode === 'development' &&
     componentTagger()
