@@ -15,7 +15,11 @@ export interface VersionInfo {
  */
 export async function fetchVersionJson(): Promise<VersionInfo> {
   try {
-    const response = await fetch('/version.json', {
+    // Cache-busting with current build ID to ensure fresh fetch
+    const currentBuildId = BUILD_ID;
+    const cacheBustingUrl = `/version.json?v=${currentBuildId}&t=${Date.now()}`;
+    
+    const response = await fetch(cacheBustingUrl, {
       cache: 'no-cache',
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
