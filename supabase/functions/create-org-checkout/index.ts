@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import Stripe from 'https://esm.sh/stripe@14.21.0'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
+import { requireOrgIpAllowed, createIpBlockedResponse } from '../_shared/org-guard.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -117,6 +118,14 @@ serve(async (req) => {
 
     if (!membership || !['owner', 'admin'].includes(membership.role)) {
       return fail(401, 'UNAUTHORIZED', 'Insufficient permissions')
+    }
+
+    // Check IP allowlist
+    const ipGuardResult = await requireOrgIpAllowed(req, orgId, supabase)
+    if (!ipGuardResult.ok) {
+      const ipCorr = crypto.randomUUID()
+      console.log(`[${ipCorr}] IP blocked for org ${orgId}: ${ipGuardResult.clientIp}`)
+      return createIpBlockedResponse(ipGuardResult, corsHeaders, ipCorr)
     }
 
     // Get organization details

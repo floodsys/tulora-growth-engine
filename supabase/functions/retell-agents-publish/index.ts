@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
-import { requireOrgActive, createBlockedResponse } from '../_shared/org-guard.ts'
+import { requireOrgActive, createBlockedResponse, requireOrgIpAllowed, createIpBlockedResponse } from '../_shared/org-guard.ts'
 import { requireEntitlement, getCurrentCount } from '../_shared/entitlements.ts'
 
 const corsHeaders = {
@@ -66,6 +66,14 @@ serve(async (req) => {
 
     if (!guardResult.ok) {
       return createBlockedResponse(guardResult, corsHeaders)
+    }
+
+    // Check IP allowlist
+    const ipGuardResult = await requireOrgIpAllowed(req, organizationId, supabase)
+    if (!ipGuardResult.ok) {
+      const corr = crypto.randomUUID()
+      console.log(`[${corr}] IP blocked for org ${organizationId}: ${ipGuardResult.clientIp}`)
+      return createIpBlockedResponse(ipGuardResult, corsHeaders, corr)
     }
 
     // Check entitlements for agent publishing
