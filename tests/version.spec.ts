@@ -165,6 +165,9 @@ test.describe('Health endpoint', () => {
     const versionResponse = await page.request.get('/version.json');
     const versionData = await versionResponse.json();
     
+    // Verify version.json cache headers
+    expect(versionResponse.headers()['cache-control']).toContain('no-store');
+    
     expect(healthData.commit).toBe(versionData.commit);
     expect(healthData.buildId).toBe(versionData.buildId);
     expect(healthData.buildTimestamp).toBe(versionData.buildTimestamp);
