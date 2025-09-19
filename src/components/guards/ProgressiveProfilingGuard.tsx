@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { isProfileComplete } from "@/lib/profile/isProfileComplete";
 import { resolveNextPath } from "@/lib/navigation/resolveNextPath";
+import { useProfile } from "@/hooks/useProfile";
 import { Loader2 } from "lucide-react";
 
 interface ProgressiveProfilingGuardProps {
@@ -13,6 +14,7 @@ const ProgressiveProfilingGuard = ({ children }: ProgressiveProfilingGuardProps)
   const [isChecking, setIsChecking] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+  const { profile, isLoading: profileLoading } = useProfile();
 
   // Routes that should be exempt from profile checking
   const exemptRoutes = [
@@ -44,26 +46,13 @@ const ProgressiveProfilingGuard = ({ children }: ProgressiveProfilingGuardProps)
           return;
         }
 
-        // Check if user's profile has required organization fields
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('organization_name, organization_size, industry')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-
-        if (profileError) {
-          console.error('Profile check error (non-PII details):', {
-            error_message: profileError.message,
-            error_code: profileError.code,
-            timestamp: new Date().toISOString(),
-          });
-          // Allow access if we can't check profile
-          setIsChecking(false);
-          return;
+        // Wait for profile to load from cache
+        if (profileLoading) {
+          return; // Will re-run when profileLoading changes
         }
 
-         // Check if profile is complete using centralized function
-         if (!isProfileComplete(profile)) {
+        // Check if profile is complete using centralized function
+        if (!isProfileComplete(profile)) {
           // Loop protection: don't redirect if already on onboarding
           if (location.pathname.startsWith('/onboarding/organization')) {
             setIsChecking(false);
@@ -73,7 +62,7 @@ const ProgressiveProfilingGuard = ({ children }: ProgressiveProfilingGuardProps)
           // Redirect to onboarding with current path as next parameter
           const currentPath = location.pathname + location.search;
           const safeNext = resolveNextPath(currentPath);
-          navigate(`/onboarding/organization?next=${encodeURIComponent(safeNext)}`);
+          navigate(`/onboarding/organization?next=${encodeURIComponent(safeNext)}`, { replace: true });
           return;
         }
 
@@ -91,7 +80,7 @@ const ProgressiveProfilingGuard = ({ children }: ProgressiveProfilingGuardProps)
     };
 
     checkProfileCompleteness();
-  }, [location.pathname, navigate]);
+  }, [location.pathname, navigate, profile, profileLoading]);
 
   // Show loading spinner while checking
   if (isChecking) {

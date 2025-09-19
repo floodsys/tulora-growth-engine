@@ -18,6 +18,7 @@ export interface SaveOrganizationParams {
 export interface SaveOrganizationResult {
   ok: boolean;
   error?: string;
+  authMetadataWarning?: string;
 }
 
 export async function saveOrganization({
@@ -72,14 +73,16 @@ export async function saveOrganization({
       // Don't fail the entire operation if auth metadata update fails
       if (authError) {
         console.error('Auth metadata update error:', authError);
-        telemetry.track('profile_save_warning', { 
+        telemetry.track('profile_save_authmeta_failed', { 
           source, 
-          issue: 'auth_metadata_update_failed',
           error_code: authError.message 
         });
         
-        // This would be better handled by the calling component for UI feedback
-        // but for now we'll log it and continue
+        // Return info about auth metadata sync issue for UI handling
+        return { 
+          ok: true, 
+          authMetadataWarning: 'Some account settings may take a moment to sync.' 
+        };
       }
     }
 
