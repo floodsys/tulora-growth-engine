@@ -7,6 +7,9 @@ import { AdminSecurityWrapper } from "@/components/AdminSecurityWrapper";
 import { HelmetProvider } from "react-helmet-async";
 import { InviteAcceptRedirect } from "@/components/InviteAcceptRedirect";
 import { RedirectToOrganizationTeam } from "@/components/RedirectToOrganizationTeam";
+import { useVersionNotifier } from "@/hooks/useVersionNotifier";
+import { VersionMismatchBanner } from "@/components/VersionMismatchBanner";
+import { useSuperadmin } from "@/hooks/useSuperadmin";
 import Index from "@/pages/Index";
 import Dashboard from "@/pages/Dashboard";
 import Auth from "@/pages/Auth";
@@ -67,12 +70,16 @@ function ServiceWorkerManager() {
 }
 
 function App() {
+  const { versionMismatch } = useVersionNotifier();
+  const { isSuperadmin } = useSuperadmin();
+
   return (
     <HelmetProvider>
       <AuthProvider>
         <TooltipProvider>
           <Router>
             <ServiceWorkerManager />
+            <VersionMismatchBanner versionMismatch={versionMismatch} isSuperadmin={isSuperadmin} />
             <AdminSecurityWrapper>
             <ProgressiveProfilingGuard>
               <Routes>
