@@ -56,12 +56,12 @@ const AuthCallback = () => {
           setStatus("Setting up your profile...");
           const nextParam = searchParams.get('next');
           const safeNext = resolveNextPath(nextParam);
-          setTimeout(() => navigate(`/onboarding/organization?next=${encodeURIComponent(safeNext)}`), 1000);
+          setTimeout(() => navigate(`/onboarding/organization?next=${encodeURIComponent(safeNext)}`, { replace: true }), 1000);
         } else {
           setStatus("Welcome back! Redirecting...");
           const nextParam = searchParams.get('next');
           const safeNext = resolveNextPath(nextParam);
-          setTimeout(() => navigate(safeNext), 1000);
+          setTimeout(() => navigate(safeNext, { replace: true }), 1000);
         }
 
       } catch (error) {

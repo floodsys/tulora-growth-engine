@@ -137,7 +137,7 @@ const OnboardingOrganization = () => {
       // Redirect to next URL or dashboard
       const nextParam = searchParams.get('next');
       const safeNext = resolveNextPath(nextParam);
-      navigate(safeNext);
+      navigate(safeNext, { replace: true });
 
     } catch (error: any) {
       console.error('Profile completion error (non-PII details):', {

@@ -52,7 +52,7 @@ const Auth = () => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       }
     };
     checkSession();
@@ -168,7 +168,7 @@ const Auth = () => {
         }
 
         // Navigate to dashboard if we have a session
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
         return;
       }
 
@@ -230,7 +230,7 @@ const Auth = () => {
         description: "You've been signed in successfully.",
       });
 
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     } catch (error: any) {
       const corr = getCorrId(error);
       const baseDescription = error.message || "Please check your credentials and try again.";
