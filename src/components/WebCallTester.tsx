@@ -1,9 +1,11 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Monitor, Loader2 } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Monitor, Loader2, AlertTriangle } from "lucide-react"
 import { useRetellWebCall } from "@/hooks/useRetellWebCall"
 import { BrowserCallModal } from "@/components/BrowserCallModal"
+import { Link } from "react-router-dom"
 
 interface WebCallTesterProps {
   agent: {
@@ -17,7 +19,7 @@ interface WebCallTesterProps {
 export function WebCallTester({ agent, className = "" }: WebCallTesterProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [traceId, setTraceId] = useState<string>()
-  const { loading, session, createWebCall, endWebCall } = useRetellWebCall()
+  const { loading, session, billingLimitError, isDisabled, createWebCall, endWebCall, clearBillingError } = useRetellWebCall()
 
   const handleStartWebCall = async () => {
     const sessionData = await createWebCall(agent.agent_id)
@@ -52,20 +54,35 @@ export function WebCallTester({ agent, className = "" }: WebCallTesterProps) {
 
   return (
     <>
-      <Button 
-        variant="outline" 
-        size="sm" 
-        onClick={handleStartWebCall}
-        disabled={loading}
-        className={`flex-1 ${className}`}
-      >
-        {loading ? (
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-        ) : (
-          <Monitor className="h-4 w-4 mr-2" />
+      <div className="flex flex-col gap-2">
+        {/* Billing Limit Error Alert */}
+        {billingLimitError.isOverLimit && (
+          <Alert variant="destructive" className="border-orange-200 bg-orange-50 dark:bg-orange-950/20">
+            <AlertTriangle className="h-4 w-4 text-orange-600" />
+            <AlertDescription className="text-orange-800 dark:text-orange-200 text-xs">
+              You've hit your plan's call limit.{" "}
+              <Link to="/dashboard?screen=billing" className="underline font-medium hover:text-orange-900">
+                Update plan
+              </Link>
+            </AlertDescription>
+          </Alert>
         )}
-        Test in Browser
-      </Button>
+        
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleStartWebCall}
+          disabled={loading || isDisabled()}
+          className={`flex-1 ${className}`}
+        >
+          {loading ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Monitor className="h-4 w-4 mr-2" />
+          )}
+          Test in Browser
+        </Button>
+      </div>
 
       <BrowserCallModal
         isOpen={modalOpen}

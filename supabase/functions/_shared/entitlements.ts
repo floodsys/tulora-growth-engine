@@ -18,6 +18,22 @@ export interface EntitlementCheck {
   currentCount?: number
 }
 
+/**
+ * Plan limits structure from plan_configs.limits JSONB
+ * All fields are optional - null/undefined means unlimited or not enforced
+ */
+export interface PlanLimitsSchema {
+  agents?: number | null
+  numbers?: number | null
+  widgets?: number | null
+  seats?: number | null
+  storage_gb?: number | null
+  // Usage quotas
+  calls_per_month?: number | null
+  minutes_per_month?: number | null
+  messages_per_month?: number | null
+}
+
 // Feature aliases mapping (mirrors frontend SSOT)
 const FEATURE_ALIASES: Record<string, string> = {
   appointment_scheduling: "scheduling",

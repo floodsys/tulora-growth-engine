@@ -46,6 +46,7 @@ export type AuditAction =
   | 'billing.payment_method_added'
   | 'billing.payment_method_removed'
   | 'billing.invoice_generated'
+  | 'billing.portal_opened'
   | 'subscription.created'
   | 'subscription.cancelled'
   | 'subscription.renewed'

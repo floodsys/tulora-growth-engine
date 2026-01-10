@@ -12,6 +12,81 @@ const logStep = (step: string, details?: any) => {
   console.log(`[ORG-BILLING-WEBHOOK] ${step}${detailsStr}`);
 }
 
+// Error context for logging failed webhooks
+interface WebhookErrorContext {
+  eventId?: string;
+  eventType?: string;
+  orgId?: string;
+  errorCode: string;
+  errorMessage: string;
+  rawStatus: number;
+  correlationId: string;
+}
+
+/**
+ * Log webhook error to billing_webhook_errors table and activity_events
+ * This enables monitoring and alerting for failed Stripe webhooks
+ * 
+ * TODO: Hook this into email/Slack alerts for critical failures
+ */
+async function logWebhookError(supabase: any, context: WebhookErrorContext): Promise<void> {
+  const { eventId, eventType, orgId, errorCode, errorMessage, rawStatus, correlationId } = context;
+  
+  try {
+    // Insert into billing_webhook_errors table
+    const { error: insertError } = await supabase
+      .from('billing_webhook_errors')
+      .insert({
+        event_id: eventId || null,
+        event_type: eventType || null,
+        organization_id: orgId || null,
+        error_message: errorMessage,
+        error_code: errorCode,
+        raw_status: rawStatus,
+        correlation_id: correlationId,
+      });
+
+    if (insertError) {
+      logStep('WARNING: Failed to insert webhook error to table', { error: insertError, correlationId });
+    } else {
+      logStep('Webhook error logged to billing_webhook_errors', { eventId, eventType, correlationId });
+    }
+
+    // Also log to activity_events for telemetry/audit trail
+    await supabase.rpc('log_activity_event', {
+      p_org_id: orgId || null,
+      p_action: 'billing.webhook_failed',
+      p_target_type: 'stripe_webhook',
+      p_actor_user_id: null,
+      p_actor_role_snapshot: 'system',
+      p_target_id: eventId || null,
+      p_status: 'error',
+      p_error_code: 'STRIPE_WEBHOOK_ERROR',
+      p_ip_hash: null,
+      p_user_agent: null,
+      p_request_id: correlationId,
+      p_channel: 'audit',
+      p_metadata: {
+        event_type: eventType,
+        event_id: eventId,
+        org_id: orgId,
+        error_code: errorCode,
+        error_message: errorMessage,
+        raw_status: rawStatus,
+        timestamp: new Date().toISOString(),
+      }
+    });
+
+    logStep('Webhook error logged to activity_events', { correlationId });
+  } catch (logError) {
+    // Don't throw - logging failures shouldn't break the response
+    logStep('WARNING: Failed to log webhook error', { 
+      error: logError instanceof Error ? logError.message : String(logError),
+      correlationId 
+    });
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
@@ -25,8 +100,28 @@ serve(async (req) => {
 
   const corr = crypto.randomUUID();
 
-  const fail = (status: number, code: string, message: string, hint?: string, details?: any) => {
+  // Track event context for error logging (populated as we parse the webhook)
+  let eventId: string | undefined;
+  let eventType: string | undefined;
+  let resolvedOrgId: string | undefined;
+  let supabaseClient: any = null;
+
+  const fail = async (status: number, code: string, message: string, hint?: string, details?: any) => {
     logStep("ERROR", { corr, code, message, hint, details, status });
+    
+    // Log error to database if we have a supabase client
+    if (supabaseClient) {
+      await logWebhookError(supabaseClient, {
+        eventId,
+        eventType,
+        orgId: resolvedOrgId,
+        errorCode: code,
+        errorMessage: message,
+        rawStatus: status,
+        correlationId: corr,
+      });
+    }
+    
     return new Response(JSON.stringify({ corr, code, message, hint, details }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status,
@@ -39,22 +134,31 @@ serve(async (req) => {
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
     const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')
     
+    // Initialize supabase client early so we can log errors even for config issues
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (serviceRoleKey && Deno.env.get('SUPABASE_URL')) {
+      supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        serviceRoleKey,
+        { auth: { persistSession: false } }
+      );
+    }
+
     if (!stripeKey) {
-      return fail(500, 'INTERNAL_ERROR', 'STRIPE_SECRET_KEY not configured', 'Configure Stripe secret key in environment');
+      return await fail(500, 'INTERNAL_ERROR', 'STRIPE_SECRET_KEY not configured', 'Configure Stripe secret key in environment');
     }
     
     if (!webhookSecret) {
-      return fail(500, 'INTERNAL_ERROR', 'STRIPE_WEBHOOK_SECRET not configured', 'Configure Stripe webhook secret in environment');
+      return await fail(500, 'INTERNAL_ERROR', 'STRIPE_WEBHOOK_SECRET not configured', 'Configure Stripe webhook secret in environment');
     }
 
     const signature = req.headers.get('stripe-signature')
     if (!signature) {
-      return fail(400, 'MISSING_SIGNATURE', 'Missing Stripe signature', 'Webhook request must include stripe-signature header');
+      return await fail(400, 'MISSING_SIGNATURE', 'Missing Stripe signature', 'Webhook request must include stripe-signature header');
     }
 
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     if (!serviceRoleKey) {
-      return fail(500, 'SERVICE_ROLE_MISSING', 'Service role key not configured', 'Configure SUPABASE_SERVICE_ROLE_KEY in environment');
+      return await fail(500, 'SERVICE_ROLE_MISSING', 'Service role key not configured', 'Configure SUPABASE_SERVICE_ROLE_KEY in environment');
     }
 
     const body = await req.text()
@@ -62,13 +166,15 @@ serve(async (req) => {
 
     // Verify webhook signature
     const event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret)
+    
+    // Store event context for error logging
+    eventId = event.id;
+    eventType = event.type;
+    
     logStep('Event verified', { corr, type: event.type, id: event.id })
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      serviceRoleKey,
-      { auth: { persistSession: false } }
-    )
+    // Use the already-initialized supabase client
+    const supabase = supabaseClient;
 
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -86,6 +192,8 @@ serve(async (req) => {
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription
+        // Try to resolve org ID early for error logging context
+        resolvedOrgId = subscription.metadata.organization_id || subscription.metadata.org_id;
         logStep('Subscription event', { 
           type: event.type, 
           subscriptionId: subscription.id,
@@ -125,10 +233,11 @@ serve(async (req) => {
     
     // Handle webhook-specific errors
     if (error instanceof Error && error.message.includes('signature')) {
-      return fail(400, 'INVALID_SIGNATURE', 'Invalid webhook signature', 'Verify STRIPE_WEBHOOK_SECRET matches endpoint configuration');
+      return await fail(400, 'INVALID_SIGNATURE', 'Invalid webhook signature', 'Verify STRIPE_WEBHOOK_SECRET matches endpoint configuration');
     }
     
-    return fail(500, 'INTERNAL_ERROR', 'Webhook processing failed', 'Check function logs for details', { error: errorMessage });
+    // Return 500 so Stripe will retry the webhook
+    return await fail(500, 'INTERNAL_ERROR', 'Webhook processing failed', 'Check function logs for details', { error: errorMessage });
   }
 })
 

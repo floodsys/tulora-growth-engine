@@ -36,10 +36,15 @@ import {
   MessageSquare,
   RefreshCw
 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { formatDistanceToNow } from "date-fns"
 import { useRetellKnowledgeBase } from "@/hooks/useRetellKnowledgeBase"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
+import { supabase } from "@/integrations/supabase/client"
+import { cn } from "@/lib/utils"
+
+// Helper for correlation ID extraction
+const getCorrId = (err: any) => err?.correlationId ?? err?.corr ?? err?.traceId ?? null
 
 interface SearchResult {
   id: string
@@ -59,7 +64,8 @@ export function KnowledgeBase() {
   const [textToAdd, setTextToAdd] = useState("")
   const [textName, setTextName] = useState("")
   const [selectedKB, setSelectedKB] = useState<string>("")
-  const { toast } = useToast()
+  const [refreshingKBs, setRefreshingKBs] = useState<Set<string>>(new Set())
+  const [updatingSources, setUpdatingSources] = useState<Set<string>>(new Set())
   
   const { organization } = useUserOrganization()
   const { 
@@ -277,13 +283,50 @@ export function KnowledgeBase() {
         {knowledgeBases.map((kb) => (
           <Card key={kb.id}>
             <CardHeader>
-              <CardTitle className="text-lg">{kb.title}</CardTitle>
-              <Badge className={getStatusColor(kb.state)}>
-                <div className="flex items-center gap-1">
-                  {getStatusIcon(kb.state)}
-                  {kb.state}
+              <div className="flex justify-between items-start">
+                <CardTitle className="text-lg">{kb.title}</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Badge className={getStatusColor(kb.state)}>
+                    <div className="flex items-center gap-1">
+                      {getStatusIcon(kb.state)}
+                      {kb.state}
+                    </div>
+                  </Badge>
+                  <Button 
+                    size="sm" 
+                    variant="ghost"
+                    onClick={async () => {
+                      const corr = crypto.randomUUID()
+                      setRefreshingKBs(prev => new Set([...prev, kb.id]))
+                      try {
+                        const { error } = await supabase.functions.invoke('retell-kb-refresh', {
+                          body: { 
+                            knowledgeBaseId: kb.id,
+                            organizationId: organization?.id 
+                          }
+                        })
+                        if (error) throw error
+                        toast.success('Knowledge base refresh started')
+                        // Trigger a refetch
+                        await getKBStatus(kb.id)
+                      } catch (error) {
+                        const corrId = getCorrId(error) || corr
+                        toast.error(`Refresh failed (Corr ID: ${corrId})`)
+                        console.error('KB refresh failed:', { corrId, error })
+                      } finally {
+                        setRefreshingKBs(prev => {
+                          const next = new Set(prev)
+                          next.delete(kb.id)
+                          return next
+                        })
+                      }
+                    }}
+                    disabled={refreshingKBs.has(kb.id)}
+                  >
+                    <RefreshCw className={cn("h-4 w-4", refreshingKBs.has(kb.id) && "animate-spin")} />
+                  </Button>
                 </div>
-              </Badge>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-2 text-sm">
@@ -476,11 +519,39 @@ export function KnowledgeBase() {
                             {source.status}
                           </div>
                         </Badge>
-                        {source.type === 'url' && source.metadata?.enable_auto_refresh && (
-                          <Badge variant="outline" className="text-xs">
-                            <RefreshCw className="h-3 w-3 mr-1" />
-                            Auto-refresh
-                          </Badge>
+                        {source.type === 'url' && (
+                          <Switch
+                            id={`auto-refresh-${source.id}`}
+                            checked={source.metadata?.enable_auto_refresh || false}
+                            onCheckedChange={async (checked) => {
+                              const corr = crypto.randomUUID()
+                              setUpdatingSources(prev => new Set([...prev, source.id]))
+                              try {
+                                const { error } = await supabase.functions.invoke('retell-kb-update-source', {
+                                  body: {
+                                    sourceId: source.id,
+                                    enable_auto_refresh: checked,
+                                    organizationId: organization?.id
+                                  }
+                                })
+                                if (error) throw error
+                                toast.success(`Auto-refresh ${checked ? 'enabled' : 'disabled'}`)
+                                // Update local state by refetching
+                                await getKBStatus(source.kb_id || '')
+                              } catch (error) {
+                                const corrId = getCorrId(error) || corr
+                                toast.error(`Update failed (Corr ID: ${corrId})`)
+                                console.error('Source update failed:', { corrId, error })
+                              } finally {
+                                setUpdatingSources(prev => {
+                                  const next = new Set(prev)
+                                  next.delete(source.id)
+                                  return next
+                                })
+                              }
+                            }}
+                            disabled={updatingSources.has(source.id)}
+                          />
                         )}
                       </div>
                     </TableCell>

@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 import { requireOrgActive, createBlockedResponse } from '../_shared/org-guard.ts'
+import { syncStripeSeatsForOrgAsync } from '../_shared/billingSeats.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -207,6 +208,12 @@ Deno.serve(async (req) => {
           };
           auditTargetId = user.id;
           result = acceptData;
+          
+          // Sync seat count to Stripe after successful invite acceptance
+          // (fire-and-forget, don't block response)
+          if (acceptData.organization_id) {
+            syncStripeSeatsForOrgAsync(supabase, acceptData.organization_id);
+          }
         }
         break;
 

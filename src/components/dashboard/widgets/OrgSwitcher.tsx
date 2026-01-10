@@ -18,8 +18,11 @@ import {
 import { cn } from "@/lib/utils"
 import { useFreePlanLimits } from "@/hooks/useFreePlanLimits"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
+import { useProfile } from "@/hooks/useProfile"
+import { useAuth } from "@/contexts/AuthContext"
 import { UpgradeModal } from "@/components/ui/UpgradeModal"
 import { supabase } from "@/integrations/supabase/client"
+import { useToast } from "@/hooks/use-toast"
 
 interface Organization {
   id: string
@@ -32,8 +35,12 @@ export function OrgSwitcher() {
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null)
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
+  const [switching, setSwitching] = useState(false)
   const { canCreateOrganization, hasPendingBilling, isNonPaying } = useFreePlanLimits()
   const { organization, loading } = useUserOrganization()
+  const { invalidateProfile } = useProfile()
+  const { user } = useAuth()
+  const { toast } = useToast()
 
   useEffect(() => {
     async function fetchOrganizations() {
@@ -130,6 +137,56 @@ export function OrgSwitcher() {
     }
   }, [loading, organization])
 
+  /**
+   * Switch to a different organization by updating profile.current_org_id
+   */
+  const handleSwitchOrganization = async (org: Organization) => {
+    if (!user || org.id === selectedOrg?.id) {
+      setOpen(false)
+      return
+    }
+
+    setSwitching(true)
+    try {
+      // Update profile.current_org_id in the database
+      const { error } = await supabase
+        .from('profiles')
+        .update({ current_org_id: org.id })
+        .eq('user_id', user.id)
+
+      if (error) {
+        console.error('Error switching organization:', error)
+        toast({
+          title: "Failed to switch organization",
+          description: "Please try again.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Update local state immediately for responsiveness
+      setSelectedOrg(org)
+      
+      // Invalidate profile cache so useProfile and useUserOrganization refresh
+      invalidateProfile()
+      
+      toast({
+        title: "Organization switched",
+        description: `Now viewing ${org.name}`,
+      })
+    } catch (error) {
+      console.error('Error switching organization:', error)
+      toast({
+        title: "Failed to switch organization",
+        description: "Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setSwitching(false)
+      setOpen(false)
+    }
+  }
+
   const handleCreateOrganization = async () => {
     if (!canCreateOrganization) {
       setUpgradeModalOpen(true)
@@ -198,10 +255,8 @@ export function OrgSwitcher() {
                   <CommandItem
                     key={org.id}
                     value={org.id}
-                    onSelect={() => {
-                      setSelectedOrg(org)
-                      setOpen(false)
-                    }}
+                    onSelect={() => handleSwitchOrganization(org)}
+                    disabled={switching}
                   >
                     <Check
                       className={cn(

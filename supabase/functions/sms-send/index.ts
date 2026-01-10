@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { requireEntitlement } from '../_shared/entitlements.ts'
 import { requireOrgIpAllowed, createIpBlockedResponse } from '../_shared/org-guard.ts'
+import { enforceUsageQuota, isUsageQuotaError, usageQuotaErrorResponse } from '../_shared/billingUsage.ts'
 
 interface SendSMSRequest {
   to_number: string
@@ -85,6 +86,31 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
+    }
+
+    // Check message usage quota before sending
+    // Use service_role client for quota check (needs access to plan_configs and usage_rollups)
+    const supabaseServiceClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    try {
+      await enforceUsageQuota(supabaseServiceClient, membership.organization_id, 'messages', corr)
+      console.log(`[${corr}] Message quota check passed for org ${membership.organization_id}`)
+    } catch (quotaError) {
+      if (isUsageQuotaError(quotaError)) {
+        console.log(`[${corr}] SMS sending blocked by message quota:`, quotaError)
+        return new Response(
+          JSON.stringify(quotaError),
+          { 
+            status: quotaError.status,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+      // Re-throw non-quota errors
+      throw quotaError
     }
 
     // Get Retell API key

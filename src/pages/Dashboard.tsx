@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/AppSidebar"
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview"
 import { CallsScreen } from "@/components/dashboard/CallsScreen"
 import { AgentsScreen } from "@/components/dashboard/AgentsScreen"
+import { AiWorkersScreen } from "@/components/dashboard/AiWorkersScreen"
 import { NumbersManagement } from "@/components/dashboard/NumbersManagement"
 import { WidgetManagement } from "@/components/dashboard/WidgetManagement"
 import { AbusePreventionSettings } from "@/components/dashboard/AbusePreventionSettings"
@@ -77,6 +78,8 @@ const Dashboard = () => {
         return <CallsScreen />
       case "agents":
         return <AgentsScreen />
+      case "ai-workers":
+        return <AiWorkersScreen />
       case "numbers":
         return <NumbersManagement />
       case "widgets":

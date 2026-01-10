@@ -18,7 +18,8 @@ import {
   ChevronRight,
   ChevronDown,
   Hash,
-  User
+  User,
+  Cpu
 } from "lucide-react"
 
 import {
@@ -52,6 +53,7 @@ const sidebarGroups = [
   {
     label: "Build",
     items: [
+      { title: "AI Workers", url: "ai-workers", icon: Cpu },
       { title: "Agents", url: "agents", icon: Bot },
       { title: "Knowledge Base", url: "knowledge", icon: BookOpen },
     ]

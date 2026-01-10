@@ -309,28 +309,51 @@ serve(async (req) => {
     const rawBody = await req.text();
     console.log("Raw body length:", rawBody.length);
 
-    // Verify webhook signature
+    // REQUIRED: Verify webhook signature (hardened - no processing without valid signature)
     const signature = req.headers.get('x-retell-signature');
-    if (signature) {
-      const webhookSecret = RETELL_WEBHOOK_SECRET();
-      const isValidSignature = await verifyWebhookSignature(signature, rawBody, webhookSecret);
-      
-      if (!isValidSignature) {
-        console.error('Invalid webhook signature');
-        return new Response(
-          JSON.stringify({ error: 'Invalid webhook signature' }),
-          { 
-            status: 401,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        );
-      }
-      console.log('Webhook signature verified successfully');
-    } else {
-      console.warn('No webhook signature provided');
+    
+    // Fail immediately if signature header is missing
+    if (!signature) {
+      console.error('Missing x-retell-signature header - rejecting request');
+      return new Response(
+        JSON.stringify({ error: 'Missing webhook signature' }),
+        { 
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
-    // Parse the webhook body after signature verification
+    // Get webhook secret and verify signature
+    const webhookSecret = RETELL_WEBHOOK_SECRET();
+    if (!webhookSecret) {
+      console.error('RETELL_WEBHOOK_SECRET environment variable not configured');
+      return new Response(
+        JSON.stringify({ error: 'Webhook signature verification not configured' }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    const isValidSignature = await verifyWebhookSignature(signature, rawBody, webhookSecret);
+    
+    // Fail if signature does not match
+    if (!isValidSignature) {
+      console.error('Invalid webhook signature - computed HMAC does not match header');
+      return new Response(
+        JSON.stringify({ error: 'Invalid webhook signature' }),
+        { 
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+    
+    console.log('Webhook signature verified successfully');
+
+    // Parse the webhook body ONLY after signature verification passes
     const webhookBody: RetellWebhookEvent = JSON.parse(rawBody);
     console.log("Webhook body:", JSON.stringify(webhookBody, null, 2));
 

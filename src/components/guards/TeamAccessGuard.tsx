@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { useUserOrganization } from "@/hooks/useUserOrganization";
-import { useOrganizationRole } from "@/hooks/useOrganizationRole";
+import { useCanonicalUserRole } from "@/hooks/useCanonicalUserRole";
 import { Skeleton } from "@/components/ui/skeleton";
 import TeamAccessDenied from "@/pages/TeamAccessDenied";
 
@@ -9,8 +9,8 @@ interface TeamAccessGuardProps {
 }
 
 export function TeamAccessGuard({ children }: TeamAccessGuardProps) {
-  const { organizationId, isOwner, loading: orgLoading } = useUserOrganization();
-  const { isAdmin, loading: roleLoading } = useOrganizationRole(organizationId || undefined);
+  const { organizationId, loading: orgLoading } = useUserOrganization();
+  const { isOwner, isAdmin, loading: roleLoading } = useCanonicalUserRole(organizationId ?? undefined);
 
   // Show loading state while checking permissions
   if (orgLoading || roleLoading) {

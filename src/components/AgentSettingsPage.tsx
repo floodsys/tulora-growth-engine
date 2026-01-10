@@ -37,7 +37,10 @@ import { AgentKnowledgeManager } from "@/components/AgentKnowledgeManager"
 import { AgentTransferTools } from "@/components/AgentTransferTools"
 import { AgentPrivacySettings } from "@/components/AgentPrivacySettings"
 import { AgentAnalysisSettings } from "@/components/AgentAnalysisSettings"
+import { AgentStatusBadge } from "@/components/AgentStatusBadge"
+import { AgentStatusActions } from "@/components/AgentStatusActions"
 import { useToast } from "@/hooks/use-toast"
+import { normalizeAgentStatus, canEditAgent, AgentStatus, AgentStatusType } from "@/lib/agents/types"
 
 // Additive helper: prefer normalized correlationId → corr → traceId
 const getCorrId = (err: any) =>
@@ -47,7 +50,7 @@ export function AgentSettingsPage() {
   const { agentId } = useParams()
   const navigate = useNavigate()
   const { organization } = useUserOrganization()
-  const { agents, getAgent, updateAgentSettings, publishAgent, loading } = useRetellAgents(organization?.id)
+  const { agents, getAgent, updateAgentSettings, publishAgent, transitionAgentStatus, loading } = useRetellAgents(organization?.id)
   const { toast } = useToast()
 
   const [agent, setAgent] = useState<any>(null)
@@ -291,56 +294,44 @@ export function AgentSettingsPage() {
               <Bot className="h-6 w-6" />
               {agent.name}
             </h1>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge 
-                className={
-                  agent.status === 'published' 
-                    ? "bg-success text-success-foreground"
-                    : "bg-warning text-warning-foreground"
-                }
-              >
-                {agent.status === 'published' ? (
-                  <>
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Published
-                  </>
-                ) : (
-                  <>
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    Draft
-                  </>
-                )}
-              </Badge>
+            <div className="flex items-center gap-3 mt-1">
+              <AgentStatusBadge status={agent.status} />
               <span className="text-sm text-muted-foreground">
                 Agent ID: {agent.agent_id}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                v{agent.version || 1}
               </span>
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={handleSaveSettings}
-            disabled={saving}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            {saving ? 'Saving...' : 'Save'}
-          </Button>
-          {agent.status === 'draft' && (
-            <Button
-              onClick={handlePublishAgent}
-              disabled={publishing}
+        <div className="flex items-center gap-4">
+          {/* Save button (only for editable states) */}
+          {canEditAgent(normalizeAgentStatus(agent.status)) && (
+            <Button 
+              variant="outline" 
+              onClick={handleSaveSettings}
+              disabled={saving}
             >
-              <Play className="h-4 w-4 mr-2" />
-              {publishing ? 'Publishing...' : 'Publish'}
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? 'Saving...' : 'Save'}
             </Button>
           )}
-          {agent.status === 'published' && (
-            <Button variant="outline">
-              <Pause className="h-4 w-4 mr-2" />
-              Pause
-            </Button>
-          )}
+          
+          {/* Status transition actions */}
+          <AgentStatusActions
+            status={agent.status}
+            onTransition={(toStatus) => {
+              transitionAgentStatus(agent.id, toStatus).then((result) => {
+                if (result) {
+                  setAgent(prev => ({ ...prev, status: toStatus }))
+                  setAgentSettings(prev => ({ ...prev, status: toStatus }))
+                }
+              })
+            }}
+            onPublish={handlePublishAgent}
+            loading={publishing || saving}
+          />
         </div>
       </div>
 

@@ -4,10 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Phone, Monitor, Loader2, AudioWaveform, Clock } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Phone, Monitor, Loader2, AudioWaveform, Clock, AlertTriangle } from "lucide-react";
 import { callEF } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { getAgentFeatureFlags, isAgentDisabled } from "@/lib/agent-feature-flags";
+import { Link } from "react-router-dom";
 
 interface VoiceDemoCardSynthflowProps {
   slug: string;
@@ -20,10 +22,10 @@ interface VoiceDemoCardSynthflowProps {
   onCardClick?: (slug: string) => void;
 }
 
-export function VoiceDemoCardSynthflow({ 
-  slug, 
-  name, 
-  description, 
+export function VoiceDemoCardSynthflow({
+  slug,
+  name,
+  description,
   tags,
   category,
   subtitle,
@@ -40,8 +42,30 @@ export function VoiceDemoCardSynthflow({
     client_secret?: string;
     access_token?: string;
   } | null>(null);
-  
+  const [billingLimitError, setBillingLimitError] = useState<boolean>(false);
+  const [buttonsDisabledUntil, setButtonsDisabledUntil] = useState<number>(0);
+
   const { toast } = useToast();
+
+  // Check if error is a BILLING_OVER_LIMIT error
+  const isBillingOverLimit = (error: any): boolean => {
+    return error?.originalPayload?.code === 'BILLING_OVER_LIMIT' ||
+      error?.code === 'BILLING_OVER_LIMIT';
+  };
+
+  // Check if error is a BILLING_QUOTA_CHECK_ERROR (transient usage verification failure)
+  const isBillingQuotaCheckError = (error: any): boolean => {
+    return error?.originalPayload?.code === 'BILLING_QUOTA_CHECK_ERROR' ||
+      error?.code === 'BILLING_QUOTA_CHECK_ERROR';
+  };
+
+  // Temporarily disable buttons after billing error
+  const disableButtonsTemporarily = () => {
+    setButtonsDisabledUntil(Date.now() + 5000); // 5 second cooldown
+    setTimeout(() => setButtonsDisabledUntil(0), 5000);
+  };
+
+  const isButtonDisabled = () => Date.now() < buttonsDisabledUntil;
 
   const validatePhoneNumber = (phone: string) => {
     // E.164 validation: starts with +, followed by digits, 7-15 digits total
@@ -103,22 +127,44 @@ export function VoiceDemoCardSynthflow({
         agentSlug: slug,
         toNumber: phoneNumber,
       }) as any;
-      
+
+      setBillingLimitError(false);
       setStatusMessage("Call queued—your phone should ring shortly.");
       if (response?.traceId) {
         setTraceId(response.traceId);
       }
-      
+
       toast({
         title: "Call queued",
         description: `Your phone should ring shortly for ${name}`,
       });
     } catch (error: any) {
-      const errorInfo = getErrorMessage(error);
-      setStatusMessage(`Error: ${errorInfo.message}`);
-      
-      if (errorInfo.traceId) {
-        setTraceId(errorInfo.traceId);
+      if (isBillingOverLimit(error)) {
+        setBillingLimitError(true);
+        disableButtonsTemporarily();
+        setStatusMessage("You've hit your plan's call limit for this month.");
+        toast({
+          title: "Call Limit Reached",
+          description: "You've hit your plan's call limit for this month. Update your plan in Billing to continue.",
+          variant: "destructive",
+        });
+      } else if (isBillingQuotaCheckError(error)) {
+        // Transient error - don't show scary message
+        setBillingLimitError(false);
+        setStatusMessage("We're temporarily unable to verify your usage. Please try again in a moment.");
+        toast({
+          title: "Please try again",
+          description: "We're temporarily unable to verify your usage. Please try again in a moment.",
+          variant: "default",
+        });
+      } else {
+        setBillingLimitError(false);
+        const errorInfo = getErrorMessage(error);
+        setStatusMessage(`Error: ${errorInfo.message}`);
+
+        if (errorInfo.traceId) {
+          setTraceId(errorInfo.traceId);
+        }
       }
     } finally {
       setIsCallingPhone(false);
@@ -135,23 +181,45 @@ export function VoiceDemoCardSynthflow({
       const payload = await callEF("retell-webcall-create", {
         agentSlug: slug,
       }) as any;
-      
+
+      setBillingLimitError(false);
       setStatusMessage("Web call session created!");
       setSessionData({
         call_id: payload?.call_id,
         client_secret: payload?.client_secret,
         access_token: payload?.access_token,
       });
-      
+
       if (payload?.traceId) {
         setTraceId(payload.traceId);
       }
     } catch (error: any) {
-      const errorInfo = getErrorMessage(error);
-      setStatusMessage(`Error: ${errorInfo.message}`);
-      
-      if (errorInfo.traceId) {
-        setTraceId(errorInfo.traceId);
+      if (isBillingOverLimit(error)) {
+        setBillingLimitError(true);
+        disableButtonsTemporarily();
+        setStatusMessage("You've hit your plan's call limit for this month.");
+        toast({
+          title: "Call Limit Reached",
+          description: "You've hit your plan's call limit for this month. Update your plan in Billing to continue.",
+          variant: "destructive",
+        });
+      } else if (isBillingQuotaCheckError(error)) {
+        // Transient error - don't show scary message
+        setBillingLimitError(false);
+        setStatusMessage("We're temporarily unable to verify your usage. Please try again in a moment.");
+        toast({
+          title: "Please try again",
+          description: "We're temporarily unable to verify your usage. Please try again in a moment.",
+          variant: "default",
+        });
+      } else {
+        setBillingLimitError(false);
+        const errorInfo = getErrorMessage(error);
+        setStatusMessage(`Error: ${errorInfo.message}`);
+
+        if (errorInfo.traceId) {
+          setTraceId(errorInfo.traceId);
+        }
       }
     } finally {
       setIsTryingBrowser(false);
@@ -174,10 +242,9 @@ export function VoiceDemoCardSynthflow({
   // If no actions, return compact card
   if (!showActions) {
     return (
-      <Card 
-        className={`playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300 cursor-pointer relative ${
-          agentIsDisabled ? 'opacity-75' : ''
-        }`}
+      <Card
+        className={`playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300 cursor-pointer relative ${agentIsDisabled ? 'opacity-75' : ''
+          }`}
         onClick={() => onCardClick?.(slug)}
       >
         {/* Coming Soon Ribbon */}
@@ -187,7 +254,7 @@ export function VoiceDemoCardSynthflow({
             Coming Soon
           </div>
         )}
-        
+
         <div className="p-4 min-h-[140px] flex flex-col justify-between">
           <div className="space-y-2">
             <div className="flex items-start justify-between">
@@ -201,7 +268,7 @@ export function VoiceDemoCardSynthflow({
               </div>
               <AudioWaveform className={`w-5 h-5 ${getIconColor(slug)} ${agentIsDisabled ? 'opacity-50' : 'animate-pulse'} flex-shrink-0`} />
             </div>
-            
+
             {/* Tags */}
             <div className="flex flex-wrap gap-1">
               {tags.map((tag) => (
@@ -211,7 +278,7 @@ export function VoiceDemoCardSynthflow({
               ))}
             </div>
           </div>
-          
+
           <p className="text-xs text-muted-foreground leading-relaxed break-words mt-2">{description}</p>
         </div>
       </Card>
@@ -219,9 +286,8 @@ export function VoiceDemoCardSynthflow({
   }
 
   return (
-    <Card className={`playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300 relative ${
-      agentIsDisabled ? 'opacity-90' : ''
-    }`}>
+    <Card className={`playground-card bg-card/50 backdrop-blur-sm border border-border/50 hover:shadow-lg transition-all duration-300 relative ${agentIsDisabled ? 'opacity-90' : ''
+      }`}>
       {/* Coming Soon Ribbon */}
       {agentIsDisabled && (
         <div className="absolute top-4 right-4 bg-yellow-500/90 text-yellow-950 text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 z-10">
@@ -229,7 +295,7 @@ export function VoiceDemoCardSynthflow({
           Coming Soon
         </div>
       )}
-      
+
       <div className="flex flex-col lg:flex-row">
         {/* Left side - Content */}
         <div className="flex-1 p-6">
@@ -240,7 +306,7 @@ export function VoiceDemoCardSynthflow({
             {subtitle && (
               <p className="text-sm font-medium text-muted-foreground">{subtitle}</p>
             )}
-            
+
             {/* Tags */}
             <div className="flex flex-wrap gap-1">
               {tags.map((tag) => (
@@ -249,7 +315,7 @@ export function VoiceDemoCardSynthflow({
                 </span>
               ))}
             </div>
-            
+
             <p className="text-sm text-muted-foreground leading-relaxed break-words">{description}</p>
           </div>
         </div>
@@ -277,11 +343,25 @@ export function VoiceDemoCardSynthflow({
               </p>
             </div>
 
+            {/* Billing Limit Error Alert */}
+            {billingLimitError && (
+              <Alert variant="destructive" className="border-orange-200 bg-orange-50 dark:bg-orange-950/20">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <AlertDescription className="text-orange-800 dark:text-orange-200">
+                  You've hit your plan's call limit for this month.{" "}
+                  <Link to="/dashboard?screen=billing" className="underline font-medium hover:text-orange-900">
+                    Update your plan in Billing
+                  </Link>{" "}
+                  to continue.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Action Buttons */}
             <div className="space-y-2">
               <Button
                 onClick={handleCallMe}
-                disabled={!agentFlags.callMe || isCallingPhone || isTryingBrowser || !phoneNumber || phoneNumber === "+1"}
+                disabled={!agentFlags.callMe || isCallingPhone || isTryingBrowser || !phoneNumber || phoneNumber === "+1" || isButtonDisabled()}
                 className="w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 variant="default"
                 aria-label={`Call ${name} on your phone`}
@@ -298,10 +378,10 @@ export function VoiceDemoCardSynthflow({
                   </>
                 )}
               </Button>
-              
+
               <Button
                 onClick={handleTryInBrowser}
-                disabled={!agentFlags.tryInBrowser || isTryingBrowser || isCallingPhone}
+                disabled={!agentFlags.tryInBrowser || isTryingBrowser || isCallingPhone || isButtonDisabled()}
                 className="w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 variant="outline"
                 aria-label={`Start ${name} in browser`}
@@ -318,7 +398,7 @@ export function VoiceDemoCardSynthflow({
                   </>
                 )}
               </Button>
-              
+
               {agentIsDisabled && (
                 <p className="text-xs text-muted-foreground text-center italic mt-2">
                   This agent is coming soon. Try Jessica for now!
@@ -328,12 +408,11 @@ export function VoiceDemoCardSynthflow({
 
             {/* Status Messages */}
             {statusMessage && (
-              <div 
-                className={`text-xs p-2 rounded border ${
-                  statusMessage.includes("Error") 
-                    ? "bg-destructive/10 text-destructive border-destructive/20" 
-                    : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
-                }`}
+              <div
+                className={`text-xs p-2 rounded border ${statusMessage.includes("Error")
+                  ? "bg-destructive/10 text-destructive border-destructive/20"
+                  : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+                  }`}
                 role="status"
                 aria-live="polite"
               >
@@ -362,7 +441,7 @@ export function VoiceDemoCardSynthflow({
                 <Separator />
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium">Session Details</h4>
-                  <div 
+                  <div
                     className="text-xs space-y-1 bg-muted/50 p-3 rounded font-mono"
                     role="region"
                     aria-label="Web call session information"

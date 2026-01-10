@@ -51,7 +51,16 @@ const ProgressiveProfilingGuard = ({ children }: ProgressiveProfilingGuardProps)
           return; // Will re-run when profileLoading changes
         }
 
-        // Check if profile is complete using centralized function
+        // ================================================================
+        // FULL ONBOARDING CHECK: User must have BOTH:
+        // 1. Profile complete (organization_name, organization_size, industry)
+        // 2. current_org_id set (user is associated with an organization)
+        // 
+        // NOTE: When multi-org switching is introduced, the current_org_id
+        // check may need to be moved to a separate org-context guard.
+        // ================================================================
+
+        // Step 1: Check if basic profile fields are complete
         if (!isProfileComplete(profile)) {
           // Loop protection: don't redirect if already on onboarding
           if (location.pathname.startsWith('/onboarding/organization')) {
@@ -66,7 +75,23 @@ const ProgressiveProfilingGuard = ({ children }: ProgressiveProfilingGuardProps)
           return;
         }
 
-        // Profile is complete, allow access
+        // Step 2: Check if user has an organization assigned
+        // This ensures the user completed org creation/selection after profile fields
+        if (!profile?.current_org_id) {
+          // Loop protection: don't redirect if already on onboarding
+          if (location.pathname.startsWith('/onboarding/organization')) {
+            setIsChecking(false);
+            return;
+          }
+          
+          // Profile is complete but no org assigned - redirect to org onboarding
+          const currentPath = location.pathname + location.search;
+          const safeNext = resolveNextPath(currentPath);
+          navigate(`/onboarding/organization?next=${encodeURIComponent(safeNext)}`, { replace: true });
+          return;
+        }
+
+        // Both profile complete AND current_org_id set - allow dashboard access
         setIsChecking(false);
 
       } catch (error: any) {

@@ -1,6 +1,12 @@
+/**
+ * Organization Update Seats Edge Function
+ * 
+ * Manual endpoint to sync seat count to Stripe subscription.
+ * Uses the shared billingSeats helper for consistency.
+ */
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import Stripe from 'https://esm.sh/stripe@14.21.0'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
+import { syncStripeSeatsForOrg, SeatSyncResult } from '../_shared/billingSeats.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,11 +27,10 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  try {
-    logStep('Function started')
+  const corr = crypto.randomUUID();
 
-    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
-    if (!stripeKey) throw new Error('STRIPE_SECRET_KEY is not set')
+  try {
+    logStep('Function started', { corr })
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -41,7 +46,7 @@ serve(async (req) => {
     if (userError || !userData.user) throw new Error('User not authenticated')
 
     const { orgId }: UpdateSeatsRequest = await req.json()
-    logStep('Request data', { orgId })
+    logStep('Request data', { corr, orgId })
 
     // Verify user has admin access to this org
     const { data: membership } = await supabase
@@ -51,129 +56,43 @@ serve(async (req) => {
       .eq('user_id', userData.user.id)
       .single()
 
-    if (!membership || !['owner', 'admin'].includes(membership.role)) {
-      throw new Error('Insufficient permissions')
-    }
-
-    // Count active seats
-    const { data: activeSeats, error: seatsError } = await supabase
-      .from('organization_members')
-      .select('user_id', { count: 'exact' })
-      .eq('organization_id', orgId)
-      .eq('seat_active', true)
-
-    if (seatsError) {
-      logStep('Error counting seats', { error: seatsError })
-      throw new Error('Failed to count active seats')
-    }
-
-    const seatCount = activeSeats?.length || 0
-    logStep('Active seat count', { seatCount })
-
-    // Get the org's active subscription
-    const { data: subscription } = await supabase
-      .from('org_stripe_subscriptions')
-      .select('*')
-      .eq('organization_id', orgId)
-      .in('status', ['active', 'trialing'])
+    // Also check if user is owner
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('owner_user_id')
+      .eq('id', orgId)
       .single()
 
-    if (!subscription) {
-      logStep('No active subscription found')
+    const isOwner = org?.owner_user_id === userData.user.id
+    const isAdmin = membership?.role === 'admin'
+
+    if (!isOwner && !isAdmin) {
+      throw new Error('Insufficient permissions - admin or owner access required')
+    }
+
+    // Use the shared seat sync helper
+    logStep('Calling syncStripeSeatsForOrg', { corr, orgId })
+    const result: SeatSyncResult = await syncStripeSeatsForOrg(supabase, orgId, corr)
+
+    logStep('Seat sync result', { corr, ...result })
+
+    if (!result.success && !result.skipped) {
       return new Response(JSON.stringify({ 
-        success: true, 
-        message: 'No active subscription to update',
-        seatCount 
+        error: result.error || 'Seat sync failed',
+        message: result.message
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        status: 500,
       })
     }
-
-    logStep('Found subscription', { 
-      subscriptionId: subscription.stripe_subscription_id,
-      currentQuantity: subscription.quantity 
-    })
-
-    // If seat count matches current quantity, no update needed
-    if (seatCount === subscription.quantity) {
-      logStep('Seat count matches current quantity, no update needed')
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: 'Seat count already up to date',
-        seatCount 
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      })
-    }
-
-    const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
-
-    // Update the subscription item quantity in Stripe
-    const subscriptionItemId = subscription.subscription_item_id
-    if (!subscriptionItemId) {
-      throw new Error('No subscription item ID found')
-    }
-
-    await stripe.subscriptionItems.update(subscriptionItemId, {
-      quantity: seatCount,
-      proration_behavior: 'create_prorations',
-    })
-
-    logStep('Updated Stripe subscription item', { 
-      subscriptionItemId,
-      newQuantity: seatCount 
-    })
-
-    // Update the quantity in our database
-    const { error: updateError } = await supabase
-      .from('org_stripe_subscriptions')
-      .update({ 
-        quantity: seatCount,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', subscription.id)
-
-    if (updateError) {
-      logStep('Error updating subscription in database', { error: updateError })
-      throw new Error('Failed to update subscription in database')
-    }
-
-    // Log the seat sync event
-    const { error: auditError } = await supabase
-      .from('audit_log')
-      .insert({
-        organization_id: orgId,
-        actor_user_id: userData.user.id,
-        actor_role_snapshot: 'admin',
-        action: 'billing.seats_synced',
-        target_type: 'subscription',
-        target_id: subscription.stripe_subscription_id,
-        status: 'success',
-        channel: 'audit',
-        metadata: {
-          old_quantity: subscription.quantity,
-          new_quantity: seatCount,
-          stripe_subscription_id: subscription.stripe_subscription_id
-        }
-      })
-
-    if (auditError) {
-      logStep('Warning: Failed to log audit event', { error: auditError })
-    }
-
-    logStep('Successfully updated seat count', { 
-      orgId,
-      oldQuantity: subscription.quantity,
-      newQuantity: seatCount 
-    })
 
     return new Response(JSON.stringify({ 
       success: true,
-      message: `Seats updated from ${subscription.quantity} to ${seatCount}`,
-      oldQuantity: subscription.quantity,
-      newQuantity: seatCount
+      message: result.message,
+      oldQuantity: result.oldQuantity,
+      newQuantity: result.newQuantity,
+      subscriptionId: result.subscriptionId,
+      skipped: result.skipped
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
@@ -181,7 +100,7 @@ serve(async (req) => {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    logStep('ERROR', { message: errorMessage })
+    logStep('ERROR', { corr, message: errorMessage })
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

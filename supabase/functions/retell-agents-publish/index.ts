@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 import { requireOrgActive, createBlockedResponse, requireOrgIpAllowed, createIpBlockedResponse } from '../_shared/org-guard.ts'
 import { requireEntitlement, getCurrentCount } from '../_shared/entitlements.ts'
+import { transitionAgentStatus, normalizeStatus, AgentStatus, isValidTransition, ALLOWED_TRANSITIONS } from '../_shared/agentStatus.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -241,13 +242,45 @@ serve(async (req) => {
     const publishedAgent = await retellResponse.json()
     console.log('Successfully published agent:', agentId)
 
-    // Update agent status in database
+    // Update agent status using state machine transition
+    const currentStatus = normalizeStatus(agent.status)
+    
+    // Determine target status - TESTING → ACTIVE (publish), or stay ACTIVE if already active
+    let targetStatus = AgentStatus.ACTIVE
+    if (currentStatus === AgentStatus.ACTIVE) {
+      // Already active, just update config
+      targetStatus = AgentStatus.ACTIVE
+    } else if (currentStatus !== AgentStatus.TESTING) {
+      // Must be in TESTING to publish to ACTIVE
+      const allowed = ALLOWED_TRANSITIONS[currentStatus]?.join(', ') || 'none'
+      console.error(`Cannot publish agent from ${currentStatus} status. Allowed: [${allowed}]`)
+      return new Response(
+        JSON.stringify({ 
+          error: 'INVALID_STATUS_TRANSITION',
+          message: `Agent must be in TESTING status to publish. Current status: ${currentStatus}`,
+          currentStatus,
+          allowedTransitions: ALLOWED_TRANSITIONS[currentStatus] || [],
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    // Use service role for the status update
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
     const newVersion = agent.version + 1
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('retell_agents')
       .update({
-        status: 'published',
+        status: targetStatus,
         version: newVersion,
+        activated_at: currentStatus !== AgentStatus.ACTIVE ? new Date().toISOString() : agent.activated_at,
         published_at: new Date().toISOString()
       })
       .eq('id', agent.id)

@@ -1,9 +1,23 @@
+/**
+ * SuiteCRM Sync Worker - Internal Only
+ * 
+ * This Edge Function is restricted to trusted internal callers only.
+ * It processes the CRM outbox queue and syncs leads to SuiteCRM.
+ * 
+ * SECURITY: This function uses SUPABASE_SERVICE_ROLE_KEY and is protected
+ * by an internal secret header (x-internal-secret). Since verify_jwt = false
+ * in config.toml (to allow non-Supabase callers like schedulers/queues),
+ * authentication is enforced via the INTERNAL_SUITECRM_WORKER_SECRET env var.
+ * 
+ * Callers MUST include the header: x-internal-secret: <secret>
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-internal-secret',
 }
 
 interface OutboxEntry {
@@ -16,7 +30,83 @@ interface OutboxEntry {
   last_error?: string
 }
 
+/**
+ * Validates that the request contains the correct internal secret header.
+ * Returns null if valid, or an error Response if invalid.
+ */
+function validateInternalSecret(req: Request): Response | null {
+  const expectedSecret = Deno.env.get('INTERNAL_SUITECRM_WORKER_SECRET')
+  
+  if (!expectedSecret) {
+    console.error('INTERNAL_SUITECRM_WORKER_SECRET is not configured')
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: 'Internal configuration error' 
+      }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
+  }
+
+  const providedSecret = req.headers.get('x-internal-secret')
+
+  if (!providedSecret) {
+    console.warn('Missing x-internal-secret header')
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: 'Unauthorized: missing internal secret' 
+      }),
+      { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
+  }
+
+  // Use timing-safe comparison to prevent timing attacks
+  if (providedSecret.length !== expectedSecret.length) {
+    console.warn('Invalid x-internal-secret header (length mismatch)')
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: 'Forbidden: invalid internal secret' 
+      }),
+      { 
+        status: 403, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
+  }
+
+  // Simple constant-time comparison
+  let mismatch = 0
+  for (let i = 0; i < providedSecret.length; i++) {
+    mismatch |= providedSecret.charCodeAt(i) ^ expectedSecret.charCodeAt(i)
+  }
+
+  if (mismatch !== 0) {
+    console.warn('Invalid x-internal-secret header (value mismatch)')
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: 'Forbidden: invalid internal secret' 
+      }),
+      { 
+        status: 403, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
+  }
+
+  return null // Valid
+}
+
 async function processOutboxEntries() {
+  // Service role key is only accessed after secret validation has passed
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   
@@ -115,8 +205,16 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // SECURITY CHECK: Validate internal secret BEFORE any worker logic executes
+  // ─────────────────────────────────────────────────────────────────────────────
+  const authError = validateInternalSecret(req)
+  if (authError) {
+    return authError
+  }
+
   try {
-    console.log('SuiteCRM Sync Worker started')
+    console.log('SuiteCRM Sync Worker started (authenticated)')
     
     const result = await processOutboxEntries()
 

@@ -598,11 +598,50 @@ function WorkspaceSecuritySettings() {
 
   const saveSettings = async () => {
     setSaving(true)
+    const corr = crypto.randomUUID()
+    const previousSettings = { ...settings }
+    
     try {
-      // Save settings logic here
+      // Get current organization
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+      
+      const { data: membership } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single()
+      
+      if (!membership) throw new Error('No organization found')
+      
+      const { data, error } = await supabase.functions.invoke('org-settings-save', {
+        body: { 
+          organizationId: membership.organization_id,
+          settings: {
+            require_mfa: settings.require_mfa,
+            session_timeout_minutes: settings.session_timeout_minutes,
+            ip_allowlist_enabled: settings.ip_whitelist_enabled,
+            ip_allowlist: settings.ip_whitelist,
+            webhook_security_enabled: settings.webhook_security_enabled,
+            audit_log_retention_days: settings.audit_log_retention_days
+          }
+        }
+      })
+      
+      if (error) throw error
+      
       toast.success("Security settings saved")
+      
+      if (data?.settings) {
+        setSettings(data.settings)
+      }
     } catch (error) {
-      toast.error("Failed to save settings")
+      // ROLLBACK on failure
+      setSettings(previousSettings)
+      
+      const corrId = getCorrId(error) || corr
+      toast.error(`Failed to save settings (Corr ID: ${corrId})`)
+      console.error('Settings save failed:', { corrId, error })
     } finally {
       setSaving(false)
     }

@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { Phone, Globe, Loader2 } from "lucide-react";
+import { Phone, Globe, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { callEF } from "@/lib/api";
+import { Link } from "react-router-dom";
 
 interface VoiceDemoCardProps {
   slug: string;
@@ -22,7 +24,30 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
   const [lastTraceId, setLastTraceId] = useState<string>("");
   const [statusMessage, setStatusMessage] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [billingLimitError, setBillingLimitError] = useState<boolean>(false);
+  const [quotaCheckError, setQuotaCheckError] = useState<boolean>(false);
+  const [buttonsDisabledUntil, setButtonsDisabledUntil] = useState<number>(0);
   const { toast } = useToast();
+
+  // Check if error is a BILLING_OVER_LIMIT error
+  const isBillingOverLimit = (error: any): boolean => {
+    return error?.originalPayload?.code === 'BILLING_OVER_LIMIT' ||
+      error?.code === 'BILLING_OVER_LIMIT';
+  };
+
+  // Check if error is a BILLING_QUOTA_CHECK_ERROR (transient usage verification failure)
+  const isBillingQuotaCheckError = (error: any): boolean => {
+    return error?.originalPayload?.code === 'BILLING_QUOTA_CHECK_ERROR' ||
+      error?.code === 'BILLING_QUOTA_CHECK_ERROR';
+  };
+
+  // Temporarily disable buttons after billing error
+  const disableButtonsTemporarily = () => {
+    setButtonsDisabledUntil(Date.now() + 5000); // 5 second cooldown
+    setTimeout(() => setButtonsDisabledUntil(0), 5000);
+  };
+
+  const isButtonDisabled = () => Date.now() < buttonsDisabledUntil;
 
   const getErrorMessage = (error: any): { message: string; traceId?: string; details?: string } => {
     let message = "";
@@ -101,27 +126,52 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
       if (response?.traceId) {
         setLastTraceId(response.traceId);
       }
-      
+
       setStatusMessage(`Call initiated successfully${response?.traceId ? ` (${response.traceId})` : ''}`);
-      
+
       toast({
         title: "Call initiated!",
         description: `${name} will call you at ${phoneNumber} shortly.`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error initiating call:', error);
-      const errorInfo = getErrorMessage(error);
-      setErrorMessage(`Call failed: ${errorInfo.message}`);
-      
-      if (errorInfo.traceId) {
-        setLastTraceId(errorInfo.traceId);
+
+      if (isBillingOverLimit(error)) {
+        setBillingLimitError(true);
+        setQuotaCheckError(false);
+        disableButtonsTemporarily();
+        setErrorMessage("You've hit your plan's call limit for this month.");
+        toast({
+          title: "Call Limit Reached",
+          description: "You've hit your plan's call limit for this month. Update your plan in Billing to continue.",
+          variant: "destructive",
+        });
+      } else if (isBillingQuotaCheckError(error)) {
+        // Transient error - don't show scary message
+        setBillingLimitError(false);
+        setQuotaCheckError(true);
+        setErrorMessage("We're temporarily unable to verify your usage. Please try again in a moment.");
+        toast({
+          title: "Please try again",
+          description: "We're temporarily unable to verify your usage. Please try again in a moment.",
+          variant: "default",
+        });
+      } else {
+        setBillingLimitError(false);
+        setQuotaCheckError(false);
+        const errorInfo = getErrorMessage(error);
+        setErrorMessage(`Call failed: ${errorInfo.message}`);
+
+        if (errorInfo.traceId) {
+          setLastTraceId(errorInfo.traceId);
+        }
+
+        toast({
+          title: "Call failed",
+          description: errorInfo.message,
+          variant: "destructive",
+        });
       }
-      
-      toast({
-        title: "Call failed",
-        description: errorInfo.message,
-        variant: "destructive",
-      });
     } finally {
       setIsCallLoading(false);
     }
@@ -146,26 +196,51 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
       // Store session data for display
       setBrowserSessionData(response);
       setStatusMessage(`Web call session created${response?.traceId ? ` (${response.traceId})` : ''}`);
-      
+
       toast({
         title: "Web call session ready!",
         description: `Session created for ${name}. Browser audio coming soon.`,
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating web call:', error);
-      const errorInfo = getErrorMessage(error);
-      setErrorMessage(`Web call failed: ${errorInfo.message}`);
-      
-      if (errorInfo.traceId) {
-        setLastTraceId(errorInfo.traceId);
+
+      if (isBillingOverLimit(error)) {
+        setBillingLimitError(true);
+        setQuotaCheckError(false);
+        disableButtonsTemporarily();
+        setErrorMessage("You've hit your plan's call limit for this month.");
+        toast({
+          title: "Call Limit Reached",
+          description: "You've hit your plan's call limit for this month. Update your plan in Billing to continue.",
+          variant: "destructive",
+        });
+      } else if (isBillingQuotaCheckError(error)) {
+        // Transient error - don't show scary message
+        setBillingLimitError(false);
+        setQuotaCheckError(true);
+        setErrorMessage("We're temporarily unable to verify your usage. Please try again in a moment.");
+        toast({
+          title: "Please try again",
+          description: "We're temporarily unable to verify your usage. Please try again in a moment.",
+          variant: "default",
+        });
+      } else {
+        setBillingLimitError(false);
+        setQuotaCheckError(false);
+        const errorInfo = getErrorMessage(error);
+        setErrorMessage(`Web call failed: ${errorInfo.message}`);
+
+        if (errorInfo.traceId) {
+          setLastTraceId(errorInfo.traceId);
+        }
+
+        toast({
+          title: "Web call failed",
+          description: errorInfo.message,
+          variant: "destructive",
+        });
       }
-      
-      toast({
-        title: "Web call failed",
-        description: errorInfo.message,
-        variant: "destructive",
-      });
     } finally {
       setIsBrowserLoading(false);
     }
@@ -180,7 +255,7 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
             <CardDescription className="mt-2">{description}</CardDescription>
           </div>
         </div>
-        
+
         <div className="flex flex-wrap gap-2 mt-3">
           {tags.map((tag) => (
             <Badge key={tag} variant="secondary" className="text-xs">
@@ -210,7 +285,7 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
                 Browser audio coming soon.
               </p>
             </div>
-            
+
             <Button
               onClick={() => setBrowserSessionData(null)}
               variant="outline"
@@ -238,10 +313,24 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
               </p>
             </div>
 
+            {/* Billing Limit Error Alert */}
+            {billingLimitError && (
+              <Alert variant="destructive" className="border-orange-200 bg-orange-50 dark:bg-orange-950/20">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <AlertDescription className="text-orange-800 dark:text-orange-200">
+                  You've hit your plan's call limit for this month.{" "}
+                  <Link to="/dashboard?screen=billing" className="underline font-medium hover:text-orange-900">
+                    Update your plan in Billing
+                  </Link>{" "}
+                  to continue.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Button
                 onClick={handleCallMe}
-                disabled={isCallLoading || !phoneNumber.trim()}
+                disabled={isCallLoading || !phoneNumber.trim() || isButtonDisabled()}
                 className="w-full"
                 variant="default"
               >
@@ -255,7 +344,7 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
 
               <Button
                 onClick={handleTryInBrowser}
-                disabled={isBrowserLoading}
+                disabled={isBrowserLoading || isButtonDisabled()}
                 variant="outline"
                 className="w-full"
               >
@@ -269,7 +358,7 @@ export function VoiceDemoCard({ slug, name, description, tags }: VoiceDemoCardPr
             </div>
           </>
         )}
-        
+
         {/* Status/Error Messages */}
         {(statusMessage || errorMessage) && (
           <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border/20">
