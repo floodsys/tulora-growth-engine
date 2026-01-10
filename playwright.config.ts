@@ -16,6 +16,15 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      testIgnore: ['**/edge-function-rls.spec.ts'], // Exclude API-only tests
+    },
+    {
+      name: 'edge-rls',
+      testMatch: '**/edge-function-rls.spec.ts',
+      use: {
+        // API-only tests don't need a browser, but Playwright requires a project
+        ...devices['Desktop Chrome'],
+      },
     },
   ],
 
@@ -23,5 +32,7 @@ export default defineConfig({
     command: 'npm run dev',
     url: 'http://localhost:8080',
     reuseExistingServer: !process.env.CI,
+    // Don't start webserver for edge-rls tests (they use Supabase)
+    ignoreHTTPSErrors: true,
   },
 });

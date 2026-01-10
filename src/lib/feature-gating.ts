@@ -11,6 +11,9 @@ export interface PlanLimits {
   seats: number | null
   calls_per_month: number | null
   storage_gb: number | null
+  // Usage quotas (optional - null/undefined = unlimited/not enforced)
+  minutes_per_month?: number | null
+  messages_per_month?: number | null
 }
 
 export interface FeatureFlags {

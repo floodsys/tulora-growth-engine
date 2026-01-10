@@ -9,6 +9,7 @@ export interface ProfileData {
   organization_name?: string;
   organization_size?: string;
   industry?: string;
+  current_org_id?: string;
 }
 
 /**

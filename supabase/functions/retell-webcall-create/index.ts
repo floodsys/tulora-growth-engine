@@ -1,4 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { checkUsageQuota } from '../_shared/billingUsage.ts'
+import { checkAgentForCalls, createAgentStatusErrorResponse } from '../_shared/agentStatus.ts'
 
 interface WebCallRequest {
   agentSlug: string;
@@ -149,6 +152,49 @@ serve(async (req) => {
     }
     
     console.log(`[${traceId}] Creating web call for agent ${agentSlug} using URL: ${webUrl}`);
+    
+    // Look up organization from agent to check quota and status
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+    
+    // AGENT STATUS CHECK: Only ACTIVE agents can receive production calls
+    const agentStatusCheck = await checkAgentForCalls(supabaseAdmin, agentId, traceId)
+    
+    if (!agentStatusCheck.allowed) {
+      console.log(`[${traceId}] Agent status check failed: ${agentStatusCheck.error?.message}`)
+      return createAgentStatusErrorResponse(agentStatusCheck, cors, traceId)
+    }
+    
+    const agentData = agentStatusCheck.agent
+    
+    if (agentData?.organization_id) {
+      // Check usage quota before initiating call
+      const quotaResult = await checkUsageQuota(
+        supabaseAdmin,
+        agentData.organization_id,
+        'calls',
+        traceId
+      )
+
+      if (!quotaResult.allowed && quotaResult.reason === 'over_limit') {
+        console.log(`[${traceId}] Blocked webcall for org ${agentData.organization_id}: quota exceeded (${quotaResult.current}/${quotaResult.limit})`)
+        return new Response(JSON.stringify({
+          status: 402,
+          code: 'BILLING_OVER_LIMIT',
+          metric: 'calls',
+          remaining: 0,
+          limit: quotaResult.limit,
+          current: quotaResult.current,
+          message: 'Monthly call limit exceeded.',
+          traceId
+        }), { 
+          status: 402, 
+          headers: { ...cors, "Content-Type": "application/json" }
+        });
+      }
+    }
     
     // Call Retell API
     const res = await fetch(webUrl, {

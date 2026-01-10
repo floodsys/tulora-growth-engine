@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,12 +10,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserOrganization } from "@/hooks/useUserOrganization";
 import { useOrganizationRole, OrganizationRole } from "@/hooks/useOrganizationRole";
-import { Plus, Mail, Users, UserCheck, Clock, X, Copy, Ban, ArrowLeft, Trash2, Crown } from "lucide-react";
+import { Plus, Mail, Users, UserCheck, Clock, X, Copy, Ban, ArrowLeft, Trash2, Crown, AlertTriangle, TrendingUp } from "lucide-react";
 import { useFreePlanLimits } from "@/hooks/useFreePlanLimits";
 import { UpgradeModal } from "@/components/ui/UpgradeModal";
 import { createInviteWithLimits } from "@/lib/freePlanUtils";
@@ -66,6 +69,26 @@ export default function SettingsTeams() {
   const { canAddTeamMember, hasPendingBilling } = useFreePlanLimits();
   const { isCurrentUserOwner, organizationOwnerId } = useOwnerInfo();
 
+  // Fetch subscription data for seat limits
+  const { data: subscription } = useQuery({
+    queryKey: ['org-subscription-seats', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return null;
+      const { data, error } = await supabase
+        .from('org_stripe_subscriptions')
+        .select('quantity, plan_key, status')
+        .eq('organization_id', organizationId)
+        .eq('status', 'active')
+        .maybeSingle();
+      if (error) {
+        console.error('Error fetching subscription:', error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!organizationId,
+  });
+
   useEffect(() => {
     if (!orgLoading && !roleLoading && organizationId) {
       fetchTeamData();
@@ -74,7 +97,7 @@ export default function SettingsTeams() {
 
   const fetchTeamData = async () => {
     if (!organizationId) return;
-    
+
     try {
       // Fetch members with user profile data
       const { data: membersData, error: membersError } = await supabase
@@ -92,7 +115,7 @@ export default function SettingsTeams() {
             .select('full_name, email, avatar_url')
             .eq('user_id', member.user_id)
             .single();
-          
+
           return {
             ...member,
             profiles: profile
@@ -132,26 +155,26 @@ export default function SettingsTeams() {
     if (!emailRegex.test(email)) {
       return "Please enter a valid email address";
     }
-    
+
     // Check if user is already a member
     const existingMember = members.find(m => m.profiles?.email?.toLowerCase() === email.toLowerCase());
     if (existingMember) {
       return "This user is already a team member";
     }
-    
+
     // Check if user already has a pending invite
     const existingInvite = invites.find(i => i.email.toLowerCase() === email.toLowerCase() && i.status === 'pending');
     if (existingInvite) {
       return "This user already has a pending invitation";
     }
-    
+
     return "";
   };
 
   const handleInvite = async () => {
     const email = inviteEmail.trim();
     const error = validateEmail(email);
-    
+
     if (error) {
       setEmailError(error);
       return;
@@ -172,7 +195,7 @@ export default function SettingsTeams() {
       if (result?.success) {
         // Create invite link
         const inviteLink = `${window.location.origin}/invite/accept?token=${result.token}`;
-        
+
         // Copy to clipboard
         await navigator.clipboard.writeText(inviteLink);
 
@@ -191,12 +214,12 @@ export default function SettingsTeams() {
       }
     } catch (error) {
       console.error('Error sending invite:', error);
-      
+
       if (error instanceof Error && error.message === 'UPGRADE_REQUIRED') {
         setUpgradeModalOpen(true);
         return;
       }
-      
+
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to send invitation",
@@ -251,7 +274,7 @@ export default function SettingsTeams() {
 
   const updateMemberRole = async (memberId: string, newRole: OrganizationRole) => {
     if (!organizationId) return;
-    
+
     try {
       // Get the member's user_id first
       const member = members.find(m => m.id === memberId);
@@ -287,7 +310,7 @@ export default function SettingsTeams() {
 
   const removeMember = async (memberId: string) => {
     if (!organizationId) return;
-    
+
     try {
       // Get the member's user_id first
       const member = members.find(m => m.id === memberId);
@@ -387,15 +410,46 @@ export default function SettingsTeams() {
             <div className="text-2xl font-bold">{totalMembers}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={subscription?.quantity && activeSeats >= subscription.quantity ? 'border-destructive' : ''}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <UserCheck className="h-4 w-4" />
               Active Seats
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeSeats}</div>
+          <CardContent className="space-y-2">
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold">{activeSeats}</span>
+              {subscription?.quantity && (
+                <span className="text-sm text-muted-foreground">/ {subscription.quantity}</span>
+              )}
+              {!subscription?.quantity && (
+                <span className="text-sm text-muted-foreground">/ ∞</span>
+              )}
+            </div>
+            {subscription?.quantity && (
+              <>
+                <Progress
+                  value={(activeSeats / subscription.quantity) * 100}
+                  className={`h-2 ${activeSeats >= subscription.quantity ? '[&>div]:bg-destructive' : activeSeats >= subscription.quantity * 0.8 ? '[&>div]:bg-yellow-500' : ''}`}
+                />
+                {activeSeats >= subscription.quantity && (
+                  <Badge variant="destructive" className="mt-1">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    At limit
+                  </Badge>
+                )}
+                {activeSeats >= subscription.quantity * 0.8 && activeSeats < subscription.quantity && (
+                  <Badge variant="outline" className="mt-1 text-yellow-600 border-yellow-500">
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    {subscription.quantity - activeSeats} seats remaining
+                  </Badge>
+                )}
+              </>
+            )}
+            {subscription?.plan_key && (
+              <p className="text-xs text-muted-foreground capitalize">{subscription.plan_key} plan</p>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -411,78 +465,99 @@ export default function SettingsTeams() {
         </Card>
       </div>
 
+      {/* Seat Limit Warning */}
+      {subscription?.quantity && activeSeats >= subscription.quantity && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>
+              You've reached your seat limit ({activeSeats}/{subscription.quantity}).
+              Remove inactive members or upgrade your plan to add more team members.
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-4"
+              onClick={() => setUpgradeModalOpen(true)}
+            >
+              Upgrade Plan
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Invite Form */}
       <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5" />
-              Invite Team Member
-            </CardTitle>
-            <CardDescription>
-              Send an invitation to add a new member to your team
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="md:col-span-2 space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter email address"
-                  value={inviteEmail}
-                  onChange={(e) => {
-                    setInviteEmail(e.target.value);
-                    if (emailError) setEmailError('');
-                  }}
-                  className={emailError ? 'border-destructive' : ''}
-                />
-                {emailError && (
-                  <p className="text-sm text-destructive">{emailError}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select value={inviteRole} onValueChange={(value) => setInviteRole(value as OrganizationRole)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="editor">Editor</SelectItem>
-                    <SelectItem value="viewer">Viewer</SelectItem>
-                    <SelectItem value="user">User</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-transparent">Action</Label>
-                <Button 
-                  onClick={handleInvite} 
-                  className="w-full"
-                  disabled={inviting || !canAddTeamMember}
-                >
-                  {inviting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                      Sending...
-                    </>
-                  ) : !canAddTeamMember ? (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Upgrade to Add More
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Send Invite
-                    </>
-                  )}
-                </Button>
-              </div>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            Invite Team Member
+          </CardTitle>
+          <CardDescription>
+            Send an invitation to add a new member to your team
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter email address"
+                value={inviteEmail}
+                onChange={(e) => {
+                  setInviteEmail(e.target.value);
+                  if (emailError) setEmailError('');
+                }}
+                className={emailError ? 'border-destructive' : ''}
+              />
+              {emailError && (
+                <p className="text-sm text-destructive">{emailError}</p>
+              )}
             </div>
-          </CardContent>
-        </Card>
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Select value={inviteRole} onValueChange={(value) => setInviteRole(value as OrganizationRole)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="editor">Editor</SelectItem>
+                  <SelectItem value="viewer">Viewer</SelectItem>
+                  <SelectItem value="user">User</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-transparent">Action</Label>
+              <Button
+                onClick={handleInvite}
+                className="w-full"
+                disabled={inviting || !canAddTeamMember}
+              >
+                {inviting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Sending...
+                  </>
+                ) : !canAddTeamMember ? (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Upgrade to Add More
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Send Invite
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Pending Invitations */}
       {invites.filter(i => i.status === 'pending').length > 0 && (
@@ -580,85 +655,85 @@ export default function SettingsTeams() {
                         </div>
                       </div>
                     </TableCell>
-                      <TableCell>
-                        {isOwnerMember(member) ? (
-                          <Badge variant="default" className="bg-primary">
-                            <Crown className="h-3 w-3 mr-1" />
-                            Owner
-                          </Badge>
-                        ) : (
-                          <Badge variant={getRoleBadgeVariant(member.role, false)}>
-                            {formatRole(member.role)}
-                          </Badge>
-                        )}
-                      </TableCell>
-                     <TableCell>
-                       {new Date(member.created_at).toLocaleDateString()}
-                     </TableCell>
-                     <TableCell>
-                       <Badge variant={member.seat_active ? 'default' : 'secondary'}>
-                         {member.seat_active ? 'Active' : 'Inactive'}
-                       </Badge>
-                     </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {!isOwnerMember(member) && (isOrgOwner || isAdmin) && (
-                            <>
-                              <Select
-                                value={member.role}
-                                onValueChange={(value) => updateMemberRole(member.id, value as OrganizationRole)}
-                              >
-                                <SelectTrigger className="w-24">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="admin">Admin</SelectItem>
-                                  <SelectItem value="editor">Editor</SelectItem>
-                                  <SelectItem value="viewer">Viewer</SelectItem>
-                                  <SelectItem value="user">User</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="outline" size="sm">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Remove Team Member</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Are you sure you want to remove {member.profiles?.full_name || member.profiles?.email} from the team? This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => removeMember(member.id)}>
-                                      Remove
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </>
-                          )}
-                          
-                          {isOwnerMember(member) && isCurrentUserOwner && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => setTransferOwnershipOpen(true)}
+                    <TableCell>
+                      {isOwnerMember(member) ? (
+                        <Badge variant="default" className="bg-primary">
+                          <Crown className="h-3 w-3 mr-1" />
+                          Owner
+                        </Badge>
+                      ) : (
+                        <Badge variant={getRoleBadgeVariant(member.role, false)}>
+                          {formatRole(member.role)}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(member.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={member.seat_active ? 'default' : 'secondary'}>
+                        {member.seat_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {!isOwnerMember(member) && (isOrgOwner || isAdmin) && (
+                          <>
+                            <Select
+                              value={member.role}
+                              onValueChange={(value) => updateMemberRole(member.id, value as OrganizationRole)}
                             >
-                              <Crown className="h-4 w-4 mr-1" />
-                              Transfer Ownership
-                            </Button>
-                          )}
-                          
-                          {isOwnerMember(member) && !isCurrentUserOwner && (
-                            <span className="text-xs text-muted-foreground">Protected</span>
-                          )}
-                        </div>
-                      </TableCell>
+                              <SelectTrigger className="w-24">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="editor">Editor</SelectItem>
+                                <SelectItem value="viewer">Viewer</SelectItem>
+                                <SelectItem value="user">User</SelectItem>
+                              </SelectContent>
+                            </Select>
+
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Remove Team Member</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to remove {member.profiles?.full_name || member.profiles?.email} from the team? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => removeMember(member.id)}>
+                                    Remove
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </>
+                        )}
+
+                        {isOwnerMember(member) && isCurrentUserOwner && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setTransferOwnershipOpen(true)}
+                          >
+                            <Crown className="h-4 w-4 mr-1" />
+                            Transfer Ownership
+                          </Button>
+                        )}
+
+                        {isOwnerMember(member) && !isCurrentUserOwner && (
+                          <span className="text-xs text-muted-foreground">Protected</span>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -666,14 +741,14 @@ export default function SettingsTeams() {
           </div>
         </CardContent>
       </Card>
-      
+
       <UpgradeModal
         open={upgradeModalOpen}
         onOpenChange={setUpgradeModalOpen}
         limitType="team_cap"
         hasPendingBilling={hasPendingBilling}
       />
-      
+
       <TransferOwnershipDialog
         open={transferOwnershipOpen}
         onOpenChange={setTransferOwnershipOpen}

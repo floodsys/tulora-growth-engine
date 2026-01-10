@@ -8,7 +8,13 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:edge-rls": "node scripts/run-edge-rls-tests.js",
+    "test:edge-rls:verbose": "node scripts/run-edge-rls-tests.js --verbose",
+    "test:edge-rls:skip-seed": "node scripts/run-edge-rls-tests.js --skip-seed",
+    "test:playwright": "playwright test",
+    "test:playwright:ui": "playwright test --ui",
+    "seed:edge-rls": "psql postgresql://postgres:postgres@localhost:54322/postgres -f scripts/seed-edge-rls-test-data.sql"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

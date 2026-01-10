@@ -25,8 +25,9 @@ import { RecordingPlayer } from "./widgets/RecordingPlayer"
 import { formatDistanceToNow } from "date-fns"
 import { useRetellCalls } from "@/hooks/useRetellCalls"
 import { useRetellAnalytics } from "@/hooks/useRetellAnalytics"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { useUserOrganization } from "@/hooks/useUserOrganization"
+import { useNavigate } from "react-router-dom"
 
 // Helper for correlation ID extraction
 const getCorrId = (err: any) => err?.correlationId ?? err?.corr ?? err?.traceId ?? null
@@ -516,24 +517,27 @@ const ReportsTab = () => (
 )
 
 export function CallsScreen() {
-  const { toast } = useToast()
-  const { organization } = useUserOrganization()
+  const navigate = useNavigate()
   
-  // Initialize real data hooks
-  const callsData = useRetellCalls(organization?.id)
-  const { calls: realCalls, loading: callsLoading, getCallStats } = callsData
-  const { analytics, loading: analyticsLoading, loadAnalytics } = useRetellAnalytics(organization?.id)
+  // Initialize real data hooks - useRetellCalls already gets org from context
+  const { calls: realCalls, pagination, loading: callsLoading, error: callsError, refetch } = useRetellCalls()
+  const { analytics, loading: analyticsLoading, loadAnalytics } = useRetellAnalytics()
+  
+  // The callsData object for backward compatibility
+  const callsData = { 
+    calls: realCalls, 
+    pagination, 
+    loading: callsLoading,
+    error: callsError,
+    refetch 
+  }
   
   // Error handling with correlation ID
   const handleError = (error: any, operation: string) => {
     const corrId = getCorrId(error)
     const message = `Failed to ${operation}${corrId ? ` (Corr ID: ${corrId})` : ''}`
     console.error('CallsScreen error:', { corrId, error, operation })
-    toast({
-      title: "Error",
-      description: message,
-      variant: "destructive"
-    })
+    toast.error(message)
   }
 
   // Derive real data with fallbacks

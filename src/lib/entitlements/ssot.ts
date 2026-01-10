@@ -13,6 +13,10 @@ export interface EntitlementLimits {
   agents: number | null
   numbers: number | null
   widgets: number | null
+  // Usage quotas (optional - null/undefined = unlimited/not enforced)
+  calls_per_month?: number | null
+  minutes_per_month?: number | null
+  messages_per_month?: number | null
 }
 
 export interface Entitlements {
@@ -157,7 +161,11 @@ export function computeEntitlements(
       limits: {
         agents: rawLimits.agents === 0 ? 0 : (rawLimits.agents || null), // 0 means zero, null means unlimited
         numbers: rawLimits.numbers === 0 ? 0 : (rawLimits.numbers || null),
-        widgets: rawLimits.widgets === 0 ? 0 : (rawLimits.widgets || null)
+        widgets: rawLimits.widgets === 0 ? 0 : (rawLimits.widgets || null),
+        // Usage quotas - undefined/null means unlimited/not enforced
+        calls_per_month: rawLimits.calls_per_month ?? undefined,
+        minutes_per_month: rawLimits.minutes_per_month ?? undefined,
+        messages_per_month: rawLimits.messages_per_month ?? undefined,
       },
       planName: getPlanDisplayName(planKey, planConfigRow),
       isActive: true

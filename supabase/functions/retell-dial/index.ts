@@ -1,6 +1,8 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 import { requireOrgActive, createBlockedResponse } from '../_shared/org-guard.ts'
+import { checkUsageQuota, isUsageQuotaError, usageQuotaErrorResponse, type UsageQuotaError } from '../_shared/billingUsage.ts'
+import { checkAgentForCalls, createAgentStatusErrorResponse } from '../_shared/agentStatus.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -89,6 +91,35 @@ serve(async (req) => {
       return createBlockedResponse(guardResult, corsHeaders)
     }
 
+    // Check usage quota before initiating call
+    const quotaResult = await checkUsageQuota(
+      createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      ),
+      membership.organization_id,
+      'calls'
+    )
+
+    if (!quotaResult.allowed && quotaResult.reason === 'over_limit') {
+      console.log(`[retell-dial] Blocked call for org ${membership.organization_id}: quota exceeded (${quotaResult.current}/${quotaResult.limit})`)
+      return new Response(
+        JSON.stringify({
+          status: 402,
+          code: 'BILLING_OVER_LIMIT',
+          metric: 'calls',
+          remaining: 0,
+          limit: quotaResult.limit,
+          current: quotaResult.current,
+          message: 'Monthly call limit exceeded. Please upgrade your plan.',
+        }),
+        { 
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
     // Validate inputs
     if (!agentId || !phoneNumber) {
       return new Response(
@@ -98,6 +129,18 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
+    }
+
+    // AGENT STATUS CHECK: Only ACTIVE agents can receive production calls
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+    const agentStatusCheck = await checkAgentForCalls(supabaseAdmin, agentId)
+    
+    if (!agentStatusCheck.allowed) {
+      console.log(`[retell-dial] Agent status check failed for ${agentId}: ${agentStatusCheck.error?.message}`)
+      return createAgentStatusErrorResponse(agentStatusCheck, corsHeaders)
     }
 
     // Validate phone number format

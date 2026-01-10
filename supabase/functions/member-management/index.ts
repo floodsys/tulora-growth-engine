@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 import { requireOrgActive, createBlockedResponse } from '../_shared/org-guard.ts'
+import { syncStripeSeatsForOrgAsync } from '../_shared/billingSeats.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -183,6 +184,12 @@ Deno.serve(async (req) => {
       p_status: auditStatus,
       p_metadata: auditMetadata
     });
+
+    // Sync seat count to Stripe after successful member add/remove
+    // (fire-and-forget, don't block response or roll back membership changes)
+    if (auditStatus === 'success' && (action === 'add' || action === 'remove')) {
+      syncStripeSeatsForOrgAsync(supabase, organizationId);
+    }
 
     if (auditStatus === 'error') {
       return new Response(

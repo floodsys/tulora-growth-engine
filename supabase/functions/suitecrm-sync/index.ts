@@ -1,9 +1,52 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+/**
+ * Creates a Supabase client using the user's JWT from the Authorization header.
+ * This client has the permissions of the authenticated user.
+ */
+function createUserClient(authHeader: string | null): SupabaseClient | null {
+  if (!authHeader) return null
+  
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+  
+  if (!supabaseUrl || !supabaseAnonKey) return null
+  
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: { Authorization: authHeader }
+    }
+  })
+}
+
+/**
+ * Verifies that a user is a member or admin of the specified organization.
+ * Uses the service role client to check organization_members table.
+ */
+async function verifyOrgMembership(
+  serviceClient: SupabaseClient,
+  userId: string, 
+  organizationId: string
+): Promise<boolean> {
+  const { data, error } = await serviceClient
+    .from('organization_members')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('organization_id', organizationId)
+    .maybeSingle()
+  
+  if (error) {
+    console.error('Error checking org membership:', error)
+    return false
+  }
+  
+  return data !== null
 }
 
 // Inline types and interfaces needed for SuiteCRM sync
@@ -484,7 +527,44 @@ serve(async (req) => {
   }
 
   try {
-    const { lead_id } = await req.json()
+    // ============================================================
+    // AUTHENTICATION: Verify JWT and get authenticated user
+    // ============================================================
+    const authHeader = req.headers.get('Authorization')
+    const userClient = createUserClient(authHeader)
+    
+    if (!userClient) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Missing or invalid authorization header' 
+        }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    // Get the authenticated user from the JWT
+    const { data: { user }, error: authError } = await userClient.auth.getUser()
+    
+    if (authError || !user) {
+      console.error('Authentication failed:', authError?.message)
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Unauthorized: Invalid or expired token' 
+        }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    // Parse request body
+    const { lead_id, organization_id } = await req.json()
 
     if (!lead_id) {
       return new Response(
@@ -499,6 +579,78 @@ serve(async (req) => {
       )
     }
 
+    // ============================================================
+    // AUTHORIZATION: Verify org membership if organization_id provided
+    // Only create service client AFTER user is authenticated
+    // ============================================================
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const serviceClient = createClient(supabaseUrl, supabaseServiceKey)
+
+    // If organization_id is provided in the request, verify membership
+    if (organization_id) {
+      const isMember = await verifyOrgMembership(serviceClient, user.id, organization_id)
+      
+      if (!isMember) {
+        console.error(`User ${user.id} is not a member of organization ${organization_id}`)
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Forbidden: You are not a member of this organization' 
+          }),
+          { 
+            status: 403, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
+      }
+    }
+
+    // Also verify membership based on the lead's organization_id
+    // First, fetch the lead to get its organization_id
+    const { data: lead, error: leadFetchError } = await serviceClient
+      .from('leads')
+      .select('organization_id')
+      .eq('id', lead_id)
+      .single()
+
+    if (leadFetchError || !lead) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Lead not found' 
+        }),
+        { 
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    // Verify user is a member of the lead's organization
+    if (lead.organization_id) {
+      const isMemberOfLeadOrg = await verifyOrgMembership(serviceClient, user.id, lead.organization_id)
+      
+      if (!isMemberOfLeadOrg) {
+        console.error(`User ${user.id} is not authorized to sync lead ${lead_id} (org: ${lead.organization_id})`)
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Forbidden: You are not authorized to sync this lead' 
+          }),
+          { 
+            status: 403, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
+      }
+    }
+
+    // ============================================================
+    // PRIVILEGED OPERATION: Now proceed with CRM sync using service role
+    // User/org validation is complete at this point
+    // ============================================================
+    console.log(`User ${user.id} authorized to sync lead ${lead_id}`)
     const result = await syncLeadToSuiteCRM(lead_id)
 
     return new Response(

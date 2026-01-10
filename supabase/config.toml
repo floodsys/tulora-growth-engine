@@ -12,27 +12,6 @@ enabled = true
 site_url = "http://localhost:3000"
 additional_redirect_urls = ["https://lovableproject.com"]
 jwt_expiry = 3600
-password_length = 8
-external_email_enabled = true
-external_phone_enabled = true
-external_apple_enabled = false
-external_azure_enabled = false
-external_bitbucket_enabled = false
-external_discord_enabled = false
-external_facebook_enabled = false
-external_figma_enabled = false
-external_github_enabled = false
-external_gitlab_enabled = false
-external_google_enabled = false
-external_keycloak_enabled = false
-external_linkedin_enabled = false
-external_notion_enabled = false
-external_twitch_enabled = false
-external_twitter_enabled = false
-external_slack_enabled = false
-external_spotify_enabled = false
-external_workos_enabled = false
-external_zoom_enabled = false
 
 [auth.email]
 enable_signup = true
@@ -63,11 +42,8 @@ verify_jwt = false
 [functions.test-suitecrm-connection]
 verify_jwt = true
 
-[functions.test-suitecrm-connection.env]
-CORS_DEBUG_WILDCARD = "false"
-
 [functions.suitecrm-sync]
-verify_jwt = false
+verify_jwt = true
 
 [functions.suitecrm-sync-worker]
 verify_jwt = false
@@ -81,10 +57,6 @@ verify_jwt = true
 [functions.contact-sales]
 verify_jwt = false
 
-[functions.contact-sales.env]
-SUITECRM_AUTO_CREATE_FIELDS = "false"
-CORS_DEBUG_WILDCARD = "false"
-
 [functions.generate-signed-url]
 verify_jwt = true
 
@@ -93,3 +65,4 @@ verify_jwt = false
 
 [functions.verify-turnstile]
 verify_jwt = false
+

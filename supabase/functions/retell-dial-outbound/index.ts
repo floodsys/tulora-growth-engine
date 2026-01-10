@@ -1,7 +1,13 @@
 import { corsHeaders } from '../_shared/cors.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { checkUsageQuota } from '../_shared/billingUsage.ts'
+import { checkAgentForCalls, createAgentStatusErrorResponse } from '../_shared/agentStatus.ts'
 
 Deno.serve(async (req) => {
+  // Trace ID for logging
+  const traceId = `trace_${Date.now()}_${crypto.randomUUID().slice(0, 10)}`
+  const log = (msg: string) => console.log(`[${traceId}] ${msg}`)
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -21,8 +27,9 @@ Deno.serve(async (req) => {
     // Get the authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
+      log('Unauthorized: no user')
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
+        JSON.stringify({ error: 'Unauthorized', traceId }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -36,8 +43,9 @@ Deno.serve(async (req) => {
       .single()
 
     if (!membership) {
+      log('No active organization membership')
       return new Response(
-        JSON.stringify({ error: 'No active organization membership' }),
+        JSON.stringify({ error: 'No active organization membership', traceId }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -46,25 +54,64 @@ Deno.serve(async (req) => {
     const { phoneNumber, agentId } = body
 
     if (!phoneNumber || !agentId) {
+      log('Missing required fields: phoneNumber or agentId')
       return new Response(
-        JSON.stringify({ error: 'Phone number and agent ID are required' }),
+        JSON.stringify({ error: 'Phone number and agent ID are required', traceId }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Verify agent belongs to organization and is published
-    const { data: agent } = await supabase
-      .from('retell_agents')
-      .select('*')
-      .eq('agent_id', agentId)
-      .eq('organization_id', membership.organization_id)
-      .eq('status', 'published')
-      .single()
+    log(`Initiating outbound call: agentId=${agentId}, to=${phoneNumber}`)
 
-    if (!agent) {
+    // Create admin client for privileged operations
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    // AGENT STATUS CHECK: Only ACTIVE agents can receive production calls
+    const agentStatusCheck = await checkAgentForCalls(supabaseAdmin, agentId, traceId)
+
+    if (!agentStatusCheck.allowed) {
+      log(`Agent status check failed for ${agentId}: ${agentStatusCheck.error?.message}`)
+      return createAgentStatusErrorResponse(agentStatusCheck, corsHeaders, traceId)
+    }
+
+    // Verify agent belongs to the user's organization
+    if (agentStatusCheck.agent?.organization_id !== membership.organization_id) {
+      log(`Agent ${agentId} does not belong to org ${membership.organization_id}`)
       return new Response(
-        JSON.stringify({ error: 'Agent not found or not published' }),
+        JSON.stringify({
+          error: 'AGENT_NOT_FOUND',
+          message: 'Agent not found or not accessible',
+          traceId
+        }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Check usage quota before initiating call
+    const quotaResult = await checkUsageQuota(
+      supabaseAdmin,
+      membership.organization_id,
+      'calls',
+      traceId
+    )
+
+    if (!quotaResult.allowed && quotaResult.reason === 'over_limit') {
+      log(`Blocked call for org ${membership.organization_id}: quota exceeded (${quotaResult.current}/${quotaResult.limit})`)
+      return new Response(
+        JSON.stringify({
+          status: 402,
+          code: 'BILLING_OVER_LIMIT',
+          metric: 'calls',
+          remaining: 0,
+          limit: quotaResult.limit,
+          current: quotaResult.current,
+          message: 'Monthly call limit exceeded. Please upgrade your plan.',
+          traceId
+        }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -78,8 +125,9 @@ Deno.serve(async (req) => {
       .single()
 
     if (!number) {
+      log('No phone number assigned to this agent for outbound calls')
       return new Response(
-        JSON.stringify({ error: 'No phone number assigned to this agent for outbound calls' }),
+        JSON.stringify({ error: 'No phone number assigned to this agent for outbound calls', traceId }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -108,14 +156,15 @@ Deno.serve(async (req) => {
 
     if (!retellResponse.ok) {
       const errorData = await retellResponse.text()
-      console.error('Retell API error:', errorData)
+      log(`Retell API error: ${errorData}`)
       return new Response(
-        JSON.stringify({ error: 'Failed to initiate call' }),
+        JSON.stringify({ error: 'Failed to initiate call', traceId }),
         { status: retellResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     const callData = await retellResponse.json()
+    log(`Call initiated successfully: call_id=${callData.call_id}`)
 
     // Record call in our database
     const { data: call, error: callError } = await supabase
@@ -136,7 +185,7 @@ Deno.serve(async (req) => {
       .single()
 
     if (callError) {
-      console.error('Error storing call record:', callError)
+      log(`Error storing call record: ${callError.message}`)
       // Continue anyway, call was initiated
     }
 
@@ -146,14 +195,15 @@ Deno.serve(async (req) => {
         call_id: callData.call_id,
         call_status: callData.call_status,
         message: `Outbound call initiated to ${phoneNumber}`,
+        traceId
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
   } catch (error) {
-    console.error('Error initiating outbound call:', error)
+    console.error(`[${traceId}] Error initiating outbound call:`, error)
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error', traceId }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { User, Building2, Users, Settings, ArrowLeft } from "lucide-react";
+import { User, Building2, Users, Settings, ArrowLeft, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserOrganization } from "@/hooks/useUserOrganization";
 import { useOrganizationRole } from "@/hooks/useOrganizationRole";
@@ -16,13 +16,12 @@ export function SettingsSidebar({ onBack }: SettingsSidebarProps) {
   const currentPath = location.pathname;
 
   const getNavClasses = (path: string) => {
-    const isActive = currentPath === path || 
+    const isActive = currentPath === path ||
       (path === '/settings/organization/team' && currentPath.startsWith('/settings/organization'));
-    return `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent ${
-      isActive 
-        ? 'bg-accent text-accent-foreground font-medium' 
-        : 'text-muted-foreground hover:text-foreground'
-    }`;
+    return `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent ${isActive
+      ? 'bg-accent text-accent-foreground font-medium'
+      : 'text-muted-foreground hover:text-foreground'
+      }`;
   };
 
   return (
@@ -30,9 +29,9 @@ export function SettingsSidebar({ onBack }: SettingsSidebarProps) {
       <div className="flex h-full max-h-screen flex-col gap-2">
         {/* Header */}
         <div className="flex h-14 items-center border-b px-4 lg:h-16 lg:px-6">
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onBack}
             className="flex items-center gap-2"
           >
@@ -50,6 +49,11 @@ export function SettingsSidebar({ onBack }: SettingsSidebarProps) {
                 Settings
               </h3>
 
+              {/* Security - All authenticated users */}
+              <NavLink to="/settings/security" className={getNavClasses('/settings/security')}>
+                <Shield className="h-4 w-4" />
+                Security
+              </NavLink>
 
               {/* Team - Admins and Owners */}
               {(isAdmin || isOwner) && (

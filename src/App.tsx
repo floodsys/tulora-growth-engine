@@ -31,6 +31,7 @@ import ProgressiveProfilingGuard from "@/components/guards/ProgressiveProfilingG
 
 import SettingsTeams from "@/pages/SettingsTeams";
 import SettingsOrganization from "@/pages/SettingsOrganization";
+import SettingsSecurityUser from "@/pages/SettingsSecurityUser";
 import ActivityLogs from "@/pages/ActivityLogs";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AdminSetup from "@/pages/AdminSetup";
@@ -55,7 +56,7 @@ import { AdminGuard } from "@/components/admin/AdminGuard";
 function ServiceWorkerManager() {
   useEffect(() => {
     const isAdminRoute = window.location.pathname.startsWith('/admin');
-    
+
     if (isAdminRoute && 'serviceWorker' in navigator) {
       // Disable service worker on admin routes
       navigator.serviceWorker.getRegistrations().then(registrations => {
@@ -81,51 +82,51 @@ function App() {
             <ServiceWorkerManager />
             <VersionMismatchBanner versionMismatch={versionMismatch} isSuperadmin={isSuperadmin} />
             <AdminSecurityWrapper>
-            <ProgressiveProfilingGuard>
-              <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              <Route path="/onboarding/organization" element={<OnboardingOrganization />} />
-              
-              <Route path="/profile-test" element={<ProfileTest />} />
-              <Route path="/talk-to-us" element={<TalkToUs />} />
-               <Route path="/retell-agent/:agentId" element={<RetellAgentSettings />} />
-               <Route path="/agent/:agentId/settings" element={<AgentSettingsPage />} />
-              <Route path="/settings" element={<SettingsLayout />}>
-                
-                <Route path="teams" element={<RedirectToOrganizationTeam />} />
-                <Route path="organization" element={<SettingsOrganization />} />
-                <Route path="organization/team" element={<SettingsOrganization />} />
-              </Route>
-              <Route path="/invite/accept" element={<InviteAccept />} />
-              <Route path="/invite/accept-new" element={<InviteAcceptRedirect />} />
-              <Route path="/demo" element={<Demo />} />
-              <Route path="/demos/voice" element={<VoiceDemo />} />
-              <Route path="/activity-logs" element={<ActivityLogs />} />
-              <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
-              <Route path="/admin/access-denied" element={<AdminAccessDenied />} />
-              <Route path="/admin-setup" element={<AdminSetup />} />
-              <Route path="/admin/logs/org/:orgId" element={<AdminOrgLogs />} />
-              <Route path="/admin/agents" element={<AdminGuard><AdminAgents /></AdminGuard>} />
-               <Route path="/admin/calls" element={<AdminGuard><AdminCalls /></AdminGuard>} />
-               <Route path="/admin/observability" element={<AdminGuard><ObservabilityDashboard /></AdminGuard>} />
-              <Route path="/admin/contact-settings" element={<AdminGuard><AdminContactSettings /></AdminGuard>} />
-              <Route path="/admin/notifications" element={<AdminGuard><AdminNotifications /></AdminGuard>} />
-              <Route path="/admin/stripe-config" element={<AdminGuard><AdminStripeConfig /></AdminGuard>} />
-               <Route path="/admin/billing-verification" element={<AdminGuard><AdminBillingVerification /></AdminGuard>} />
-               <Route path="/admin/self-check" element={<AdminSelfCheck />} />
-               <Route path="/pricing" element={<Pricing />} />
-               <Route path="/contact/sales" element={<ContactSales />} />
-               <Route path="*" element={<NotFound />} />
-              </Routes>
-            </ProgressiveProfilingGuard>
-            <Toaster />
-          </AdminSecurityWrapper>
-        </Router>
-      </TooltipProvider>
-    </AuthProvider>
+              <ProgressiveProfilingGuard>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
+                  <Route path="/onboarding/organization" element={<OnboardingOrganization />} />
+
+                  <Route path="/profile-test" element={<ProfileTest />} />
+                  <Route path="/talk-to-us" element={<TalkToUs />} />
+                  <Route path="/retell-agent/:agentId" element={<RetellAgentSettings />} />
+                  <Route path="/agent/:agentId/settings" element={<AgentSettingsPage />} />
+                  <Route path="/settings" element={<SettingsLayout />}>
+                    <Route path="security" element={<SettingsSecurityUser />} />
+                    <Route path="teams" element={<RedirectToOrganizationTeam />} />
+                    <Route path="organization" element={<SettingsOrganization />} />
+                    <Route path="organization/team" element={<SettingsOrganization />} />
+                  </Route>
+                  <Route path="/invite/accept" element={<InviteAccept />} />
+                  <Route path="/invite/accept-new" element={<InviteAcceptRedirect />} />
+                  <Route path="/demo" element={<Demo />} />
+                  <Route path="/demos/voice" element={<VoiceDemo />} />
+                  <Route path="/activity-logs" element={<ActivityLogs />} />
+                  <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
+                  <Route path="/admin/access-denied" element={<AdminAccessDenied />} />
+                  <Route path="/admin-setup" element={<AdminSetup />} />
+                  <Route path="/admin/logs/org/:orgId" element={<AdminOrgLogs />} />
+                  <Route path="/admin/agents" element={<AdminGuard><AdminAgents /></AdminGuard>} />
+                  <Route path="/admin/calls" element={<AdminGuard><AdminCalls /></AdminGuard>} />
+                  <Route path="/admin/observability" element={<AdminGuard><ObservabilityDashboard /></AdminGuard>} />
+                  <Route path="/admin/contact-settings" element={<AdminGuard><AdminContactSettings /></AdminGuard>} />
+                  <Route path="/admin/notifications" element={<AdminGuard><AdminNotifications /></AdminGuard>} />
+                  <Route path="/admin/stripe-config" element={<AdminGuard><AdminStripeConfig /></AdminGuard>} />
+                  <Route path="/admin/billing-verification" element={<AdminGuard><AdminBillingVerification /></AdminGuard>} />
+                  <Route path="/admin/self-check" element={<AdminSelfCheck />} />
+                  <Route path="/pricing" element={<Pricing />} />
+                  <Route path="/contact/sales" element={<ContactSales />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </ProgressiveProfilingGuard>
+              <Toaster />
+            </AdminSecurityWrapper>
+          </Router>
+        </TooltipProvider>
+      </AuthProvider>
     </HelmetProvider>
   );
 }

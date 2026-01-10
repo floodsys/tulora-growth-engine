@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
+import { 
+  AgentStatus, 
+  AgentStatusType, 
+  normalizeAgentStatus, 
+  isValidTransition, 
+  getAllowedTransitions,
+  canEditAgent,
+  AGENT_STATUS_DISPLAY,
+  getTransitionLabel 
+} from '@/lib/agents/types'
 
 export interface RetellAgent {
   id: string
@@ -33,6 +43,10 @@ export interface RetellAgent {
   created_at: string
   updated_at: string
   published_at?: string
+  testing_started_at?: string
+  activated_at?: string
+  paused_at?: string
+  archived_at?: string
   settings?: any
 }
 
@@ -115,7 +129,7 @@ export const useRetellAgents = (organizationId?: string) => {
         language: agentData.language || 'en',
         voice_id: agentData.voice_id,
         voice_model: agentData.voice_model,
-        status: agentData.status || 'draft',
+        status: agentData.status || AgentStatus.DRAFT,
         // Add other required fields with defaults
         version: 1,
         backchannel_enabled: false,
@@ -191,11 +205,95 @@ export const useRetellAgents = (organizationId?: string) => {
     }
   }
 
-  // Publish agent
+  // Transition agent status (state machine enforced)
+  const transitionAgentStatus = async (agentId: string, toStatus: AgentStatusType) => {
+    try {
+      const agent = agents.find(a => a.id === agentId)
+      if (!agent) throw new Error('Agent not found')
+      
+      const currentStatus = normalizeAgentStatus(agent.status)
+      
+      // Validate transition is allowed
+      if (!isValidTransition(currentStatus, toStatus)) {
+        const allowed = getAllowedTransitions(currentStatus)
+        toast({
+          title: "Invalid Transition",
+          description: `Cannot transition from ${currentStatus} to ${toStatus}. Allowed: ${allowed.join(', ') || 'none'}`,
+          variant: "destructive"
+        })
+        return null
+      }
+      
+      // Build update data with appropriate timestamps
+      const updateData: Partial<RetellAgent> = {
+        status: toStatus,
+      }
+      
+      // Set timestamps based on transition
+      const now = new Date().toISOString()
+      switch (toStatus) {
+        case AgentStatus.TESTING:
+          (updateData as any).testing_started_at = now
+          break
+        case AgentStatus.ACTIVE:
+          (updateData as any).activated_at = now
+          break
+        case AgentStatus.PAUSED:
+          (updateData as any).paused_at = now
+          break
+        case AgentStatus.ARCHIVED:
+          (updateData as any).archived_at = now
+          break
+      }
+      
+      const { data, error } = await supabase
+        .from('retell_agents')
+        .update(updateData)
+        .eq('id', agentId)
+        .select()
+        .single()
+      
+      if (error) throw error
+      
+      setAgents(prev => prev.map(a => 
+        a.id === agentId ? { ...a, ...data } : a
+      ))
+      
+      const label = getTransitionLabel(currentStatus, toStatus)
+      toast({
+        title: `Agent ${AGENT_STATUS_DISPLAY[toStatus].label}`,
+        description: `Agent status changed to ${AGENT_STATUS_DISPLAY[toStatus].label}.`,
+      })
+      
+      return data
+    } catch (error) {
+      console.error('Error transitioning agent status:', error)
+      toast({
+        title: "Error",
+        description: "Failed to update agent status.",
+        variant: "destructive"
+      })
+      return null
+    }
+  }
+
+  // Publish agent (TESTING → ACTIVE)
   const publishAgent = async (agentId: string) => {
     try {
       const agent = agents.find(a => a.id === agentId)
       if (!agent) throw new Error('Agent not found')
+      
+      const currentStatus = normalizeAgentStatus(agent.status)
+      
+      // Agent must be in TESTING to publish to ACTIVE
+      if (currentStatus !== AgentStatus.TESTING && currentStatus !== AgentStatus.ACTIVE) {
+        toast({
+          title: "Cannot Publish",
+          description: `Agent must be in TESTING status to publish. Current status: ${currentStatus}`,
+          variant: "destructive"
+        })
+        return null
+      }
 
       const { data, error } = await supabase.functions.invoke('retell-agents-publish', {
         body: { 
@@ -209,23 +307,25 @@ export const useRetellAgents = (organizationId?: string) => {
       setAgents(prev => prev.map(a => 
         a.id === agentId ? { 
           ...a, 
-          status: 'published',
+          status: AgentStatus.ACTIVE,
           version: data.version,
-          published_at: new Date().toISOString()
+          published_at: new Date().toISOString(),
+          activated_at: currentStatus !== AgentStatus.ACTIVE ? new Date().toISOString() : a.activated_at
         } : a
       ))
 
       toast({
         title: "Agent Published",
-        description: `Agent published successfully as version ${data.version}.`,
+        description: `Agent is now ACTIVE and published as version ${data.version}.`,
       })
 
       return data
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error publishing agent:', error)
+      const message = error?.message || "Failed to publish agent."
       toast({
         title: "Error",
-        description: "Failed to publish agent.",
+        description: message,
         variant: "destructive"
       })
       return null
@@ -316,9 +416,17 @@ export const useRetellAgents = (organizationId?: string) => {
     createAgent,
     updateAgent,
     updateAgentSettings,
+    transitionAgentStatus,
     publishAgent,
     deleteAgent,
     attachKBToAgent,
     getAgent,
+    // Re-export status utilities for convenience
+    AgentStatus,
+    normalizeAgentStatus,
+    getAllowedTransitions,
+    canEditAgent,
+    AGENT_STATUS_DISPLAY,
+    getTransitionLabel,
   }
 }
