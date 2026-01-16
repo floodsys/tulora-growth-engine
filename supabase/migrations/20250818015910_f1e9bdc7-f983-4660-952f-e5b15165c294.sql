@@ -2,16 +2,16 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- Create memberships table
+-- Create memberships table (no FKs yet; added later)
 CREATE TABLE IF NOT EXISTS public.memberships (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    organization_id uuid REFERENCES public.organizations(id) ON DELETE CASCADE,
-    user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
-    role text NOT NULL CHECK (role IN ('owner', 'admin', 'member')),
-    status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'pending')),
-    created_at timestamptz DEFAULT now(),
-    updated_at timestamptz DEFAULT now(),
-    UNIQUE(organization_id, user_id)
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  organization_id uuid,
+  user_id uuid,
+  role text NOT NULL CHECK (role IN ('owner', 'admin', 'member')),
+  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'pending')),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE (organization_id, user_id)
 );
 
 -- Security definer functions to check organization membership and admin status
