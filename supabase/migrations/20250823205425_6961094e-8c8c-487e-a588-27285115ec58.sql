@@ -12,7 +12,7 @@ END $$;
 DO $$ 
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'organizations' AND table_schema = 'public') THEN
-    CREATE TABLE public.organizations (
+CREATE TABLE IF NOT EXISTS public.organizations (
       id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
       name text NOT NULL,
       owner_user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
