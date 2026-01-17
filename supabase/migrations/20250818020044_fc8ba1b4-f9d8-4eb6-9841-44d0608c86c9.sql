@@ -197,6 +197,7 @@ END;
 $$;
 
 -- Organizations policies
+DROP POLICY IF EXISTS "Users can view their own organizations" ON public.organizations;
 CREATE POLICY "Users can view their own organizations"
   ON public.organizations FOR SELECT
   USING (public.is_org_member(id));
