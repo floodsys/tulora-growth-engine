@@ -202,86 +202,105 @@ CREATE POLICY "Users can view their own organizations"
   ON public.organizations FOR SELECT
   USING (public.is_org_member(id));
 
+DROP POLICY IF EXISTS "Org admins can update organization" ON public.organizations;
 CREATE POLICY "Org admins can update organization"
   ON public.organizations FOR UPDATE
   USING (public.is_org_admin(id));
 
+DROP POLICY IF EXISTS "Authenticated users can create organizations" ON public.organizations;
 CREATE POLICY "Authenticated users can create organizations"
   ON public.organizations FOR INSERT
   WITH CHECK (auth.uid() IS NOT NULL);
 
 -- Memberships policies
+DROP POLICY IF EXISTS "Users can view own memberships" ON public.memberships;
 CREATE POLICY "Users can view own memberships"
   ON public.memberships FOR SELECT
   USING (user_id = auth.uid() OR public.is_org_admin(organization_id));
 
+DROP POLICY IF EXISTS "Org admins can manage memberships" ON public.memberships;
 CREATE POLICY "Org admins can manage memberships"
   ON public.memberships FOR ALL
   USING (public.is_org_admin(organization_id));
 
+DROP POLICY IF EXISTS "Users can create memberships" ON public.memberships;
 CREATE POLICY "Users can create memberships"
   ON public.memberships FOR INSERT
   WITH CHECK (auth.uid() IS NOT NULL);
 
 -- Leads policies
+DROP POLICY IF EXISTS "Org members can view leads" ON public.leads;
 CREATE POLICY "Org members can view leads"
   ON public.leads FOR SELECT
   USING (public.is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "Org members can manage leads" ON public.leads;
 CREATE POLICY "Org members can manage leads"
   ON public.leads FOR ALL
   USING (public.is_org_member(organization_id));
 
 -- Calls policies
+DROP POLICY IF EXISTS "Org members can view calls" ON public.calls;
 CREATE POLICY "Org members can view calls"
   ON public.calls FOR SELECT
   USING (public.is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "Org members can manage calls" ON public.calls;
 CREATE POLICY "Org members can manage calls"
   ON public.calls FOR ALL
   USING (public.is_org_member(organization_id));
 
 -- Appointments policies
+DROP POLICY IF EXISTS "Org members can view appointments" ON public.appointments;
 CREATE POLICY "Org members can view appointments"
   ON public.appointments FOR SELECT
   USING (public.is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "Org members can manage appointments" ON public.appointments;
 CREATE POLICY "Org members can manage appointments"
   ON public.appointments FOR ALL
   USING (public.is_org_member(organization_id));
 
 -- Messages policies
+DROP POLICY IF EXISTS "Org members can view messages" ON public.messages;
 CREATE POLICY "Org members can view messages"
   ON public.messages FOR SELECT
   USING (public.is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "Org members can manage messages" ON public.messages;
 CREATE POLICY "Org members can manage messages"
   ON public.messages FOR ALL
   USING (public.is_org_member(organization_id));
 
 -- Usage events policies
+DROP POLICY IF EXISTS "Org admins can view usage_events" ON public.usage_events;
 CREATE POLICY "Org admins can view usage_events"
   ON public.usage_events FOR SELECT
   USING (public.is_org_admin(organization_id));
 
+DROP POLICY IF EXISTS "Org members can create usage_events" ON public.usage_events;
 CREATE POLICY "Org members can create usage_events"
   ON public.usage_events FOR INSERT
   WITH CHECK (public.is_org_member(organization_id));
 
 -- KB files policies
+DROP POLICY IF EXISTS "Org members can view kb_files" ON public.kb_files;
 CREATE POLICY "Org members can view kb_files"
   ON public.kb_files FOR SELECT
   USING (public.is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "Org members can manage kb_files" ON public.kb_files;
 CREATE POLICY "Org members can manage kb_files"
   ON public.kb_files FOR ALL
   USING (public.is_org_member(organization_id));
 
 -- Embeddings policies
+DROP POLICY IF EXISTS "Org members can view embeddings" ON public.embeddings;
 CREATE POLICY "Org members can view embeddings"
   ON public.embeddings FOR SELECT
   USING (public.is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "Org members can manage embeddings" ON public.embeddings;
 CREATE POLICY "Org members can manage embeddings"
   ON public.embeddings FOR ALL
   USING (public.is_org_member(organization_id));
