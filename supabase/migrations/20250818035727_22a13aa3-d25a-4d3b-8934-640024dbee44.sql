@@ -1,3 +1,17 @@
+-- Helper: auto-update updated_at on row updates
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS update_agent_profiles_updated_at ON public.agent_profiles;
+
+
 -- Create agent_profiles table
 CREATE TABLE public.agent_profiles (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
