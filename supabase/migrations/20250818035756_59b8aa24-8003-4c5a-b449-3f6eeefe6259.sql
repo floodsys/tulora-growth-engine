@@ -8,7 +8,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create agent_profiles table
-CREATE TABLE public.agent_profiles (
+CREATE TABLE IF NOT EXISTS public.agent_profiles (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   organization_id UUID NOT NULL,
   name TEXT NOT NULL,
