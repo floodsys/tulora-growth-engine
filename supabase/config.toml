@@ -1,5 +1,17 @@
 project_id = "nkjxbeypbiclvouqfjyc"
 
+# Enable optional services
+[db.pooler]
+enabled = true
+port = 54329
+pool_mode = "transaction"
+
+[storage]
+enabled = true
+
+[storage.image_transformation]
+enabled = true
+
 [api]
 enabled = true
 port = 54321
@@ -65,4 +77,3 @@ verify_jwt = false
 
 [functions.verify-turnstile]
 verify_jwt = false
-
