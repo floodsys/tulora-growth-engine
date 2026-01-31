@@ -14,6 +14,8 @@
     "test:edge-rls:skip-seed": "node scripts/run-edge-rls-tests.js --skip-seed",
     "test:playwright": "playwright test",
     "test:playwright:ui": "playwright test --ui",
+    "test:superadmin": "node scripts/test-superadmin-auth.js",
+    "test:ci": "vitest run",
     "seed:edge-rls": "psql postgresql://postgres:postgres@localhost:54322/postgres -f scripts/seed-edge-rls-test-data.sql"
   },
   "dependencies": {
