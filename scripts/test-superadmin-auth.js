@@ -2,27 +2,31 @@
 
 /**
  * Superadmin Authorization Test Script
- * 
+ *
  * This script validates that admin endpoints properly enforce superadmin authorization.
  * It requires manual user switching since we can't programmatically sign in as different users.
- * 
+ *
  * Usage:
  * 1. Sign in to the app as a superadmin user
- * 2. Run: npm run test:auth
- * 3. Sign in as a non-superadmin user  
- * 4. Run: npm run test:auth
- * 
+ * 2. Run: npm run test:superadmin
+ * 3. Sign in as a non-superadmin user
+ * 4. Run: npm run test:superadmin
+ *
  * The script will output pass/fail results for each user type.
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Test configuration
 const SUPABASE_URL = 'https://nkjxbeypbiclvouqfjyc.supabase.co';
 const ADMIN_ENDPOINTS = [
   'admin-billing-actions',
-  'admin-billing-overview', 
+  'admin-billing-overview',
   'org-suspension'
 ];
 
@@ -105,7 +109,7 @@ function generateTestReport() {
       },
       non_superadmin: {
         '/admin': 403,
-        '/admin/_diag': 403, 
+        '/admin/_diag': 403,
         edge_functions: 403
       }
     },
@@ -117,15 +121,15 @@ function generateTestReport() {
   };
 
   const reportPath = path.join(__dirname, '..', 'test-reports', `auth-test-${timestamp.split('T')[0]}.json`);
-  
+
   // Ensure directory exists
   const reportDir = path.dirname(reportPath);
   if (!fs.existsSync(reportDir)) {
     fs.mkdirSync(reportDir, { recursive: true });
   }
-  
+
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
-  
+
   console.log(`📊 Test report generated: ${reportPath}`);
   console.log('');
 }

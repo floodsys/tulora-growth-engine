@@ -1,0 +1,351 @@
+{
+  "timestamp": "2026-01-31T03:47:52.919Z",
+  "test_type": "rls_tautology_check",
+  "summary": {
+    "total_findings": 34,
+    "critical": 8,
+    "high": 26,
+    "medium": 0,
+    "low": 0
+  },
+  "patterns_checked": [
+    {
+      "name": "unqualified_user_id_tautology",
+      "description": "Unqualified user_id = user_id tautology (always true)",
+      "severity": "critical"
+    },
+    {
+      "name": "parameter_shadowing",
+      "description": "Parameter shadowing pattern (potentially always true)",
+      "severity": "critical"
+    },
+    {
+      "name": "auth_uid_tautology",
+      "description": "auth.uid() = auth.uid() tautology (always true)",
+      "severity": "critical"
+    },
+    {
+      "name": "using_expression_true",
+      "description": "RLS policy with USING (true) - allows all access",
+      "severity": "high"
+    },
+    {
+      "name": "with_check_true",
+      "description": "RLS policy with WITH CHECK (true) - allows all inserts/updates",
+      "severity": "high"
+    },
+    {
+      "name": "missing_table_qualification",
+      "description": "Potentially unqualified user_id in WHERE clause",
+      "severity": "medium"
+    }
+  ],
+  "findings": [
+    {
+      "severity": "high",
+      "message": "RLS policy with WITH CHECK (true) - allows all inserts/updates in 20250906215750_da03ef07-9659-4c9a-b0a2-ff7278771c23.sql",
+      "file": "supabase\\migrations\\20250906215750_da03ef07-9659-4c9a-b0a2-ff7278771c23.sql",
+      "line": "WITH CHECK (true); -- Allow anyone to insert leads",
+      "lineNumber": 19,
+      "pattern": "with_check_true",
+      "timestamp": "2026-01-31T03:47:52.526Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with WITH CHECK (true) - allows all inserts/updates in 20250906215648_cc8e36fb-4938-4661-a15c-83beddf01960.sql",
+      "file": "supabase\\migrations\\20250906215648_cc8e36fb-4938-4661-a15c-83beddf01960.sql",
+      "line": "WITH CHECK (true);",
+      "lineNumber": 64,
+      "pattern": "with_check_true",
+      "timestamp": "2026-01-31T03:47:52.528Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with USING (true) - allows all access in 20250906215648_cc8e36fb-4938-4661-a15c-83beddf01960.sql",
+      "file": "supabase\\migrations\\20250906215648_cc8e36fb-4938-4661-a15c-83beddf01960.sql",
+      "line": "USING (true);",
+      "lineNumber": 76,
+      "pattern": "using_expression_true",
+      "timestamp": "2026-01-31T03:47:52.529Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with USING (true) - allows all access in 20250906213437_01a10c93-8243-4e53-bfbc-7e1104a752c1.sql",
+      "file": "supabase\\migrations\\20250906213437_01a10c93-8243-4e53-bfbc-7e1104a752c1.sql",
+      "line": "USING (true)",
+      "lineNumber": 82,
+      "pattern": "using_expression_true",
+      "timestamp": "2026-01-31T03:47:52.532Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with WITH CHECK (true) - allows all inserts/updates in 20250906213437_01a10c93-8243-4e53-bfbc-7e1104a752c1.sql",
+      "file": "supabase\\migrations\\20250906213437_01a10c93-8243-4e53-bfbc-7e1104a752c1.sql",
+      "line": "WITH CHECK (true);",
+      "lineNumber": 83,
+      "pattern": "with_check_true",
+      "timestamp": "2026-01-31T03:47:52.533Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with USING (true) - allows all access in 20250828023148_cc78bfb8-ac7b-4ecb-a8bd-91689a17d0aa.sql",
+      "file": "supabase\\migrations\\20250828023148_cc78bfb8-ac7b-4ecb-a8bd-91689a17d0aa.sql",
+      "line": "create policy admin_access_voice_agents on public.voice_agents for all using (true) with check (true);",
+      "lineNumber": 48,
+      "pattern": "using_expression_true",
+      "timestamp": "2026-01-31T03:47:52.541Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with WITH CHECK (true) - allows all inserts/updates in 20250828023148_cc78bfb8-ac7b-4ecb-a8bd-91689a17d0aa.sql",
+      "file": "supabase\\migrations\\20250828023148_cc78bfb8-ac7b-4ecb-a8bd-91689a17d0aa.sql",
+      "line": "create policy admin_access_voice_agents on public.voice_agents for all using (true) with check (true);",
+      "lineNumber": 48,
+      "pattern": "with_check_true",
+      "timestamp": "2026-01-31T03:47:52.542Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with USING (true) - allows all access in 20250828023148_cc78bfb8-ac7b-4ecb-a8bd-91689a17d0aa.sql",
+      "file": "supabase\\migrations\\20250828023148_cc78bfb8-ac7b-4ecb-a8bd-91689a17d0aa.sql",
+      "line": "create policy admin_access_call_logs on public.call_logs for all using (true) with check (true);",
+      "lineNumber": 51,
+      "pattern": "using_expression_true",
+      "timestamp": "2026-01-31T03:47:52.543Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with WITH CHECK (true) - allows all inserts/updates in 20250828023148_cc78bfb8-ac7b-4ecb-a8bd-91689a17d0aa.sql",
+      "file": "supabase\\migrations\\20250828023148_cc78bfb8-ac7b-4ecb-a8bd-91689a17d0aa.sql",
+      "line": "create policy admin_access_call_logs on public.call_logs for all using (true) with check (true);",
+      "lineNumber": 51,
+      "pattern": "with_check_true",
+      "timestamp": "2026-01-31T03:47:52.543Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with USING (true) - allows all access in 20250828023148_cc78bfb8-ac7b-4ecb-a8bd-91689a17d0aa.sql",
+      "file": "supabase\\migrations\\20250828023148_cc78bfb8-ac7b-4ecb-a8bd-91689a17d0aa.sql",
+      "line": "create policy admin_access_bookings on public.bookings for all using (true) with check (true);",
+      "lineNumber": 54,
+      "pattern": "using_expression_true",
+      "timestamp": "2026-01-31T03:47:52.544Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with WITH CHECK (true) - allows all inserts/updates in 20250828023148_cc78bfb8-ac7b-4ecb-a8bd-91689a17d0aa.sql",
+      "file": "supabase\\migrations\\20250828023148_cc78bfb8-ac7b-4ecb-a8bd-91689a17d0aa.sql",
+      "line": "create policy admin_access_bookings on public.bookings for all using (true) with check (true);",
+      "lineNumber": 54,
+      "pattern": "with_check_true",
+      "timestamp": "2026-01-31T03:47:52.545Z"
+    },
+    {
+      "severity": "critical",
+      "message": "Unqualified user_id = user_id tautology (always true) in 20250826060007_0ca8ce01-fb45-4d60-b479-9b3665643031.sql",
+      "file": "supabase\\migrations\\20250826060007_0ca8ce01-fb45-4d60-b479-9b3665643031.sql",
+      "line": "'purpose', 'Prevent tautology bugs like user_id = user_id'",
+      "lineNumber": 247,
+      "pattern": "unqualified_user_id_tautology",
+      "timestamp": "2026-01-31T03:47:52.557Z"
+    },
+    {
+      "severity": "critical",
+      "message": "Unqualified user_id = user_id tautology (always true) in 20250826041841_fbf0de36-a098-40ef-a7d4-d646d4775fb2.sql",
+      "file": "supabase\\migrations\\20250826041841_fbf0de36-a098-40ef-a7d4-d646d4775fb2.sql",
+      "line": "AND prosrc LIKE '%user_id = user_id%';",
+      "lineNumber": 8,
+      "pattern": "unqualified_user_id_tautology",
+      "timestamp": "2026-01-31T03:47:52.565Z"
+    },
+    {
+      "severity": "critical",
+      "message": "Unqualified user_id = user_id tautology (always true) in 20250824215912_45f099cf-096f-494d-902f-a9fc309c9978.sql",
+      "file": "supabase\\migrations\\20250824215912_45f099cf-096f-494d-902f-a9fc309c9978.sql",
+      "line": "AND user_id = user_id",
+      "lineNumber": 67,
+      "pattern": "unqualified_user_id_tautology",
+      "timestamp": "2026-01-31T03:47:52.586Z"
+    },
+    {
+      "severity": "critical",
+      "message": "Unqualified user_id = user_id tautology (always true) in 20250824215912_45f099cf-096f-494d-902f-a9fc309c9978.sql",
+      "file": "supabase\\migrations\\20250824215912_45f099cf-096f-494d-902f-a9fc309c9978.sql",
+      "line": "AND user_id = user_id",
+      "lineNumber": 86,
+      "pattern": "unqualified_user_id_tautology",
+      "timestamp": "2026-01-31T03:47:52.587Z"
+    },
+    {
+      "severity": "critical",
+      "message": "Unqualified user_id = user_id tautology (always true) in 20250824202120_10a463cd-9e00-41b1-b7be-69428555a706.sql",
+      "file": "supabase\\migrations\\20250824202120_10a463cd-9e00-41b1-b7be-69428555a706.sql",
+      "line": "AND user_id = user_id",
+      "lineNumber": 44,
+      "pattern": "unqualified_user_id_tautology",
+      "timestamp": "2026-01-31T03:47:52.592Z"
+    },
+    {
+      "severity": "critical",
+      "message": "Unqualified user_id = user_id tautology (always true) in 20250824202120_10a463cd-9e00-41b1-b7be-69428555a706.sql",
+      "file": "supabase\\migrations\\20250824202120_10a463cd-9e00-41b1-b7be-69428555a706.sql",
+      "line": "AND user_id = user_id",
+      "lineNumber": 63,
+      "pattern": "unqualified_user_id_tautology",
+      "timestamp": "2026-01-31T03:47:52.592Z"
+    },
+    {
+      "severity": "critical",
+      "message": "Unqualified user_id = user_id tautology (always true) in 20250824202029_f49a9957-e965-459e-9f83-4a98ef6315e9.sql",
+      "file": "supabase\\migrations\\20250824202029_f49a9957-e965-459e-9f83-4a98ef6315e9.sql",
+      "line": "AND user_id = user_id",
+      "lineNumber": 45,
+      "pattern": "unqualified_user_id_tautology",
+      "timestamp": "2026-01-31T03:47:52.594Z"
+    },
+    {
+      "severity": "critical",
+      "message": "Unqualified user_id = user_id tautology (always true) in 20250824202029_f49a9957-e965-459e-9f83-4a98ef6315e9.sql",
+      "file": "supabase\\migrations\\20250824202029_f49a9957-e965-459e-9f83-4a98ef6315e9.sql",
+      "line": "AND user_id = user_id",
+      "lineNumber": 64,
+      "pattern": "unqualified_user_id_tautology",
+      "timestamp": "2026-01-31T03:47:52.594Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with WITH CHECK (true) - allows all inserts/updates in 20250824005917_08ae0a0d-7c62-4b06-82f5-32fc76b569d4.sql",
+      "file": "supabase\\migrations\\20250824005917_08ae0a0d-7c62-4b06-82f5-32fc76b569d4.sql",
+      "line": "WITH CHECK (true); -- Allow system inserts",
+      "lineNumber": 105,
+      "pattern": "with_check_true",
+      "timestamp": "2026-01-31T03:47:52.604Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with WITH CHECK (true) - allows all inserts/updates in 20250824005843_334d0f67-e9f2-4487-badd-24bc505f7444.sql",
+      "file": "supabase\\migrations\\20250824005843_334d0f67-e9f2-4487-badd-24bc505f7444.sql",
+      "line": "WITH CHECK (true); -- Allow system inserts",
+      "lineNumber": 105,
+      "pattern": "with_check_true",
+      "timestamp": "2026-01-31T03:47:52.605Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with WITH CHECK (true) - allows all inserts/updates in 20250823221939_9bf762de-4968-48e1-9b7b-6d2b8dee814a.sql",
+      "file": "supabase\\migrations\\20250823221939_9bf762de-4968-48e1-9b7b-6d2b8dee814a.sql",
+      "line": "FOR INSERT WITH CHECK (true);",
+      "lineNumber": 117,
+      "pattern": "with_check_true",
+      "timestamp": "2026-01-31T03:47:52.622Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with USING (true) - allows all access in 20250823221939_9bf762de-4968-48e1-9b7b-6d2b8dee814a.sql",
+      "file": "supabase\\migrations\\20250823221939_9bf762de-4968-48e1-9b7b-6d2b8dee814a.sql",
+      "line": "FOR ALL USING (true);",
+      "lineNumber": 122,
+      "pattern": "using_expression_true",
+      "timestamp": "2026-01-31T03:47:52.623Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with USING (true) - allows all access in 20250823221939_9bf762de-4968-48e1-9b7b-6d2b8dee814a.sql",
+      "file": "supabase\\migrations\\20250823221939_9bf762de-4968-48e1-9b7b-6d2b8dee814a.sql",
+      "line": "FOR ALL USING (true);",
+      "lineNumber": 131,
+      "pattern": "using_expression_true",
+      "timestamp": "2026-01-31T03:47:52.623Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with WITH CHECK (true) - allows all inserts/updates in 20250823221751_84015fe7-147f-4948-816d-8890ab06165e.sql",
+      "file": "supabase\\migrations\\20250823221751_84015fe7-147f-4948-816d-8890ab06165e.sql",
+      "line": "FOR INSERT WITH CHECK (true);",
+      "lineNumber": 117,
+      "pattern": "with_check_true",
+      "timestamp": "2026-01-31T03:47:52.626Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with USING (true) - allows all access in 20250823221751_84015fe7-147f-4948-816d-8890ab06165e.sql",
+      "file": "supabase\\migrations\\20250823221751_84015fe7-147f-4948-816d-8890ab06165e.sql",
+      "line": "FOR ALL USING (true);",
+      "lineNumber": 122,
+      "pattern": "using_expression_true",
+      "timestamp": "2026-01-31T03:47:52.626Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with USING (true) - allows all access in 20250823221751_84015fe7-147f-4948-816d-8890ab06165e.sql",
+      "file": "supabase\\migrations\\20250823221751_84015fe7-147f-4948-816d-8890ab06165e.sql",
+      "line": "FOR ALL USING (true);",
+      "lineNumber": 131,
+      "pattern": "using_expression_true",
+      "timestamp": "2026-01-31T03:47:52.627Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with WITH CHECK (true) - allows all inserts/updates in 20250823215738_ca8e8433-1ea5-4338-ac9e-89bd79bdf062.sql",
+      "file": "supabase\\migrations\\20250823215738_ca8e8433-1ea5-4338-ac9e-89bd79bdf062.sql",
+      "line": "FOR INSERT WITH CHECK (true);",
+      "lineNumber": 144,
+      "pattern": "with_check_true",
+      "timestamp": "2026-01-31T03:47:52.630Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with USING (true) - allows all access in 20250823215738_ca8e8433-1ea5-4338-ac9e-89bd79bdf062.sql",
+      "file": "supabase\\migrations\\20250823215738_ca8e8433-1ea5-4338-ac9e-89bd79bdf062.sql",
+      "line": "FOR ALL USING (true);",
+      "lineNumber": 149,
+      "pattern": "using_expression_true",
+      "timestamp": "2026-01-31T03:47:52.631Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with USING (true) - allows all access in 20250823215738_ca8e8433-1ea5-4338-ac9e-89bd79bdf062.sql",
+      "file": "supabase\\migrations\\20250823215738_ca8e8433-1ea5-4338-ac9e-89bd79bdf062.sql",
+      "line": "FOR ALL USING (true);",
+      "lineNumber": 158,
+      "pattern": "using_expression_true",
+      "timestamp": "2026-01-31T03:47:52.632Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with WITH CHECK (true) - allows all inserts/updates in 20250823215634_36eb0f09-8ada-4302-a868-2b36faa4d65a.sql",
+      "file": "supabase\\migrations\\20250823215634_36eb0f09-8ada-4302-a868-2b36faa4d65a.sql",
+      "line": "FOR INSERT WITH CHECK (true);",
+      "lineNumber": 183,
+      "pattern": "with_check_true",
+      "timestamp": "2026-01-31T03:47:52.634Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with USING (true) - allows all access in 20250823215634_36eb0f09-8ada-4302-a868-2b36faa4d65a.sql",
+      "file": "supabase\\migrations\\20250823215634_36eb0f09-8ada-4302-a868-2b36faa4d65a.sql",
+      "line": "FOR ALL USING (true);",
+      "lineNumber": 188,
+      "pattern": "using_expression_true",
+      "timestamp": "2026-01-31T03:47:52.635Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with USING (true) - allows all access in 20250823215634_36eb0f09-8ada-4302-a868-2b36faa4d65a.sql",
+      "file": "supabase\\migrations\\20250823215634_36eb0f09-8ada-4302-a868-2b36faa4d65a.sql",
+      "line": "FOR ALL USING (true);",
+      "lineNumber": 197,
+      "pattern": "using_expression_true",
+      "timestamp": "2026-01-31T03:47:52.636Z"
+    },
+    {
+      "severity": "high",
+      "message": "RLS policy with USING (true) - allows all access in 20250823211238_fdd7b3a1-a28f-44f8-944e-d7380ad1fbca.sql",
+      "file": "supabase\\migrations\\20250823211238_fdd7b3a1-a28f-44f8-944e-d7380ad1fbca.sql",
+      "line": "FOR SELECT USING (true);",
+      "lineNumber": 140,
+      "pattern": "using_expression_true",
+      "timestamp": "2026-01-31T03:47:52.643Z"
+    }
+  ]
+}

@@ -2,14 +2,18 @@
 
 /**
  * RLS Regression Tripwire - SQL Tautology Detection
- * 
+ *
  * Prevents future "user_id = user_id" tautologies and parameter shadowing
  * that can break Row-Level Security policies.
  */
 
-const fs = require('fs');
-const path = require('path');
-const glob = require('glob');
+import fs from 'fs';
+import path from 'path';
+import { glob } from 'glob';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Dangerous patterns that indicate RLS issues
 const DANGEROUS_PATTERNS = [
@@ -22,7 +26,7 @@ const DANGEROUS_PATTERNS = [
   {
     name: 'parameter_shadowing',
     regex: /\bp_user_id\s*=\s*p_user_id\b/gi,
-    severity: 'critical', 
+    severity: 'critical',
     description: 'Parameter shadowing pattern (potentially always true)'
   },
   {
@@ -40,7 +44,7 @@ const DANGEROUS_PATTERNS = [
   {
     name: 'with_check_true',
     regex: /WITH\s+CHECK\s*\(\s*true\s*\)/gi,
-    severity: 'high', 
+    severity: 'high',
     description: 'RLS policy with WITH CHECK (true) - allows all inserts/updates'
   },
   {
@@ -65,9 +69,9 @@ function addFinding(severity, message, file, line, lineNumber, pattern) {
     pattern,
     timestamp: new Date().toISOString()
   };
-  
+
   findings.push(finding);
-  
+
   if (severity === 'critical' || severity === 'high') {
     hasErrors = true;
     console.error(`❌ ${severity.toUpperCase()}: ${message}`);
@@ -83,12 +87,31 @@ function addFinding(severity, message, file, line, lineNumber, pattern) {
   }
 }
 
+// Lines that are clearly documentation/detection code, not actual vulnerabilities
+const FALSE_POSITIVE_PATTERNS = [
+  /LIKE\s*'%.*user_id\s*=\s*user_id.*%'/i,  // SQL LIKE patterns searching for tautologies
+  /['"].*purpose.*['"].*['"].*prevent.*tautology/i,  // Documentation comments
+  /comment.*tautology/i,  // Comments about tautologies
+  /--.*user_id\s*=\s*user_id/i,  // SQL comments
+  /\/\/.*user_id\s*=\s*user_id/i,  // JS comments
+  /\/\*.*user_id\s*=\s*user_id.*\*\//i,  // Block comments
+];
+
+function isFalsePositive(line) {
+  return FALSE_POSITIVE_PATTERNS.some(pattern => pattern.test(line));
+}
+
 function checkFile(filePath) {
   try {
     const content = fs.readFileSync(filePath, 'utf8');
     const lines = content.split('\n');
-    
+
     lines.forEach((line, index) => {
+      // Skip false positives (documentation, comments, detection code)
+      if (isFalsePositive(line)) {
+        return;
+      }
+
       DANGEROUS_PATTERNS.forEach(pattern => {
         const matches = line.matchAll(pattern.regex);
         for (const match of matches) {
@@ -108,15 +131,15 @@ function checkFile(filePath) {
   }
 }
 
-function checkSQLFiles() {
+async function checkSQLFiles() {
   console.log('🔍 Checking SQL files for RLS tautologies...');
-  
-  const sqlFiles = glob.sync('supabase/**/*.sql', {
+
+  const sqlFiles = await glob('supabase/**/*.sql', {
     ignore: ['node_modules/**', 'dist/**', '.git/**']
   });
-  
+
   sqlFiles.forEach(checkFile);
-  
+
   if (sqlFiles.length === 0) {
     console.log('📝 No SQL files found to check');
   } else {
@@ -124,27 +147,27 @@ function checkSQLFiles() {
   }
 }
 
-function checkEdgeFunctions() {
+async function checkEdgeFunctions() {
   console.log('🔍 Checking Edge Functions for RLS patterns...');
-  
-  const functionFiles = glob.sync('supabase/functions/**/index.ts', {
+
+  const functionFiles = await glob('supabase/functions/**/index.ts', {
     ignore: ['node_modules/**', 'dist/**']
   });
-  
+
   functionFiles.forEach(checkFile);
-  
+
   console.log(`📝 Checked ${functionFiles.length} edge function files`);
 }
 
-function checkSourceCode() {
+async function checkSourceCode() {
   console.log('🔍 Checking source code for dangerous RLS patterns...');
-  
-  const sourceFiles = glob.sync('src/**/*.{ts,tsx,js,jsx}', {
+
+  const sourceFiles = await glob('src/**/*.{ts,tsx,js,jsx}', {
     ignore: ['node_modules/**', 'dist/**']
   });
-  
+
   sourceFiles.forEach(checkFile);
-  
+
   console.log(`📝 Checked ${sourceFiles.length} source files`);
 }
 
@@ -153,7 +176,7 @@ function generateReport() {
   if (!fs.existsSync(reportDir)) {
     fs.mkdirSync(reportDir, { recursive: true });
   }
-  
+
   const report = {
     timestamp: new Date().toISOString(),
     test_type: 'rls_tautology_check',
@@ -171,10 +194,10 @@ function generateReport() {
     })),
     findings
   };
-  
+
   const reportPath = path.join(reportDir, 'rls-tautology-check.json');
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
-  
+
   console.log(`📊 Report saved to: ${reportPath}`);
   return report;
 }
@@ -182,7 +205,7 @@ function generateReport() {
 function printSummary(report) {
   console.log('\n📊 RLS Tautology Check Summary:');
   console.log('================================');
-  
+
   if (report.summary.total_findings === 0) {
     console.log('✅ No dangerous RLS patterns found!');
   } else {
@@ -192,7 +215,7 @@ function printSummary(report) {
     console.log(`  Medium: ${report.summary.medium}`);
     console.log(`  Low: ${report.summary.low}`);
   }
-  
+
   if (hasErrors) {
     console.log('\n💥 CRITICAL ISSUES FOUND:');
     console.log('These patterns can completely bypass RLS security!');
@@ -204,16 +227,16 @@ function printSummary(report) {
   }
 }
 
-function main() {
+async function main() {
   console.log('🚀 Starting RLS Tautology Check...\n');
-  
-  checkSQLFiles();
-  checkEdgeFunctions();
-  checkSourceCode();
-  
+
+  await checkSQLFiles();
+  await checkEdgeFunctions();
+  await checkSourceCode();
+
   const report = generateReport();
   printSummary(report);
-  
+
   // Exit with error code if critical issues found
   if (hasErrors) {
     console.log('\n❌ Build should FAIL due to critical RLS issues!');
@@ -228,8 +251,6 @@ function main() {
 }
 
 // Run the check
-if (require.main === module) {
-  main();
-}
+main();
 
-module.exports = { checkFile, checkSQLFiles, checkEdgeFunctions, checkSourceCode };
+export { checkFile, checkSQLFiles, checkEdgeFunctions, checkSourceCode };
