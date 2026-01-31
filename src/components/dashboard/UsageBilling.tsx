@@ -29,11 +29,11 @@ const isProbablyLivePriceId = (priceId: string | null | undefined): boolean => {
   if (!priceId || typeof priceId !== 'string') return false
   // Live Stripe price IDs typically start with 'price_' and are longer than test IDs
   // Test IDs often contain 'test' or are placeholder values like 'placeholder_xxx'
-  return priceId.startsWith('price_') && 
-         !priceId.includes('test') && 
-         !priceId.includes('placeholder') && 
-         !priceId.includes('xxx') &&
-         priceId.length > 20 // Live price IDs are typically longer
+  return priceId.startsWith('price_') &&
+    !priceId.includes('test') &&
+    !priceId.includes('placeholder') &&
+    !priceId.includes('xxx') &&
+    priceId.length > 20 // Live price IDs are typically longer
 }
 
 const validatePlanPrices = (planConfig: any): { monthlyValid: boolean; yearlyValid: boolean } => {
@@ -81,10 +81,10 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   const { dateRange, setDateRange } = useDashboardDateRange();
   const { isAdmin } = useOrganizationRole(organizationId);
   const { entitlements, refresh: refreshEntitlements } = useEntitlements(organizationId);
-  
+
   const [availablePlans, setAvailablePlans] = useState<any[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<string>('leadgen_starter');
-  
+
   const [isSyncing, setIsSyncing] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isOpeningPortal, setIsOpeningPortal] = useState(false);
@@ -111,9 +111,9 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
           .select('plan_key, display_name, stripe_price_id_monthly')
           .eq('is_active', true)
           .not('stripe_price_id_monthly', 'is', null);
-        
+
         if (error) throw error;
-        
+
         setAvailablePlans(data || []);
         // Set default to first available plan if current selection is not available
         if (data && data.length > 0 && !data.find(p => p.plan_key === selectedPlan)) {
@@ -124,32 +124,32 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
         // Keep default fallback
       }
     };
-    
+
     fetchPlans();
   }, []);
 
   // Use real usage data instead of mocks
-  const { 
-    currentUsage, 
-    usageEvents, 
-    concurrency, 
-    loading: usageLoading, 
+  const {
+    currentUsage,
+    usageEvents,
+    concurrency,
+    loading: usageLoading,
     error: usageError,
     refreshUsage,
-    refreshConcurrency 
+    refreshConcurrency
   } = useUsageData(organizationId);
 
   // Convert usage rollup to expected format with SSOT limits
   const usageData: UsageData | null = currentUsage ? {
-    minutes: { 
-      used: currentUsage.minutes, 
+    minutes: {
+      used: currentUsage.minutes,
       limit: entitlements.limits.agents ? (entitlements.limits.agents * 500) : 5000 // Rough estimation: 500 min per agent
     },
-    calls: { 
-      used: currentUsage.calls, 
+    calls: {
+      used: currentUsage.calls,
       limit: entitlements.limits.agents ? (entitlements.limits.agents * 200) : 1000 // Rough estimation: 200 calls per agent
     },
-    tokens: { 
+    tokens: {
       used: currentUsage.messages * 100, // Estimate tokens from messages
       limit: entitlements.limits.agents ? (entitlements.limits.agents * 50000) : 250000 // Rough estimation: 50k tokens per agent
     },
@@ -158,7 +158,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       billing_cycle: "monthly",
       next_billing_date: billingStatus?.current_period_end || "2024-02-15"
     },
-    spend: { 
+    spend: {
       current: (currentUsage.calls * 0.12) + (currentUsage.minutes * 0.05), // Calculate from usage
       limit: entitlements.limits.agents ? (entitlements.limits.agents * 30) : 150 // Rough estimation: $30 per agent
     }
@@ -174,7 +174,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
     try {
       setIsLoadingBilling(true);
       setRefreshStatusError(null);
-      
+
       const { data, error } = await supabase.functions.invoke('admin-billing-overview', {
         body: { action: 'list_subscriptions', limit: 10 }
       });
@@ -184,7 +184,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       setBillingStatus(data);
     } catch (error: any) {
       console.error('Error fetching billing status:', error);
-      
+
       // Try to parse structured error response
       let parsedError = null;
       try {
@@ -196,10 +196,10 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       } catch (parseError) {
         parsedError = { message: error?.message || "Failed to fetch billing status" };
       }
-      
+
       setRefreshStatusError(parsedError);
       setRefreshDebugOpen(true);
-      
+
       toast({
         title: "Error",
         description: parsedError?.message || "Failed to fetch billing status",
@@ -236,12 +236,12 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
 
   const formatEventDetails = (details: any) => {
     if (!details) return '';
-    
+
     if (typeof details === 'string') return details;
-    
+
     const entries = Object.entries(details);
     if (entries.length === 0) return '';
-    
+
     return entries.map(([key, value]) => `${key}: ${value}`).join(', ');
   };
 
@@ -249,7 +249,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
     if (isLoadingBilling) {
       return <Badge variant="secondary">Loading...</Badge>;
     }
-    
+
     if (!billingStatus) {
       return <Badge variant="secondary">Unknown</Badge>;
     }
@@ -274,13 +274,13 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
 
   const runPreflightCheck = async () => {
     if (!organizationId) return null;
-    
+
     try {
       setIsRunningPreflight(true);
       setPreflightError(null);
-      
+
       const { data, error } = await supabase.functions.invoke('billing-preflight', {
-        body: { 
+        body: {
           orgId: organizationId,
           planKey: selectedPlan
         }
@@ -290,7 +290,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       return data;
     } catch (error: any) {
       console.error('Preflight check failed:', error);
-      
+
       // Try to parse structured error response
       let parsedError = null;
       try {
@@ -302,10 +302,10 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       } catch (parseError) {
         parsedError = { message: error?.message || "Preflight check failed" };
       }
-      
+
       setPreflightError(parsedError);
       setPreflightDebugOpen(true);
-      
+
       return {
         overallStatus: 'fail',
         canProceed: false,
@@ -320,7 +320,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
     // Check plan price validity before proceeding
     const selectedPlanConfig = availablePlans.find(p => p.plan_key === selectedPlan)
     const priceValidation = validatePlanPrices(selectedPlanConfig)
-    
+
     if (!priceValidation.monthlyValid && !priceValidation.yearlyValid) {
       toast({
         title: "Plan Configuration Error",
@@ -335,11 +335,11 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       setCheckoutError(null);
       setPreflightError(null);
       setPreflightResults(null);
-      
+
       // Run preflight check first
       const preflightResult = await runPreflightCheck();
       setPreflightResults(preflightResult);
-      
+
       if (!preflightResult?.canProceed) {
         toast({
           title: "Checkout Blocked",
@@ -348,9 +348,9 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
         });
         return;
       }
-      
+
       const { data, error } = await supabase.functions.invoke('create-org-checkout', {
-        body: { 
+        body: {
           orgId: organizationId,
           planKey: selectedPlan
         }
@@ -363,7 +363,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       }
     } catch (error: any) {
       console.error('Error creating checkout:', error);
-      
+
       // Try to parse structured error response
       let parsedError = null;
       try {
@@ -375,10 +375,10 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       } catch (parseError) {
         parsedError = { message: error?.message || "Failed to start upgrade process" };
       }
-      
+
       setCheckoutError(parsedError);
       setDebugPanelOpen(true);
-      
+
       const errorMsg = parsedError?.message || error?.message || "Failed to start upgrade process";
       toast({
         title: "Checkout Failed",
@@ -399,7 +399,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       });
       return;
     }
-    
+
     try {
       setIsOpeningPortal(true);
       const { data, error } = await supabase.functions.invoke('org-customer-portal', {
@@ -426,13 +426,13 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   const handleSyncSeats = async () => {
     if (!organizationId) {
       toast({
-        title: "Error", 
+        title: "Error",
         description: "Organization not loaded. Please refresh the page.",
         variant: "destructive",
       });
       return;
     }
-    
+
     try {
       setIsSyncing(true);
       const { data, error } = await supabase.functions.invoke('org-update-seats', {
@@ -445,7 +445,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
         title: "Success",
         description: "Seat count synchronized successfully",
       });
-      
+
       // Refresh billing status
       await fetchBillingStatus();
     } catch (error) {
@@ -464,16 +464,16 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
     if (!organizationId) {
       toast({
         title: "Error",
-        description: "Organization not loaded. Please refresh the page.", 
+        description: "Organization not loaded. Please refresh the page.",
         variant: "destructive",
       });
       return;
     }
-    
+
     try {
       setIsReconciling(true);
       setReconcileError(null);
-      
+
       const { data, error } = await supabase.functions.invoke('admin-billing-reconcile', {
         body: { orgId: organizationId }
       });
@@ -491,7 +491,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
         title: "Billing Reconciled Successfully",
         description: `Updated billing status. ${details.join(' | ')}${data.corr ? ` [${data.corr.substring(0, 8)}]` : ''}`,
       });
-      
+
       // Also log the full reconciliation details for debugging
       console.log('Billing reconciliation successful:', {
         correlationId: data.corr,
@@ -501,7 +501,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
         sessionId: data.sessionId,
         details: data.details
       });
-      
+
       // Refresh billing status, usage data, and entitlements
       await fetchBillingStatus();
       await refreshUsage();
@@ -509,7 +509,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
     } catch (error: any) {
       const corrId = getCorrId(error)
       console.error('Error reconciling billing:', { corrId, error });
-      
+
       // Try to parse structured error response
       let parsedError = null;
       try {
@@ -521,10 +521,10 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       } catch (parseError) {
         parsedError = { message: error?.message || "Failed to reconcile billing status" };
       }
-      
+
       setReconcileError(parsedError);
       setReconcileDebugOpen(true);
-      
+
       // Show specific error hint if available
       let description = parsedError?.message || "Failed to reconcile billing status";
       if (parsedError?.hint) {
@@ -533,7 +533,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
       if (corrId) {
         description += ` (Corr ID: ${corrId})`;
       }
-      
+
       toast({
         title: "Reconciliation Failed",
         description,
@@ -562,8 +562,6 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
         return 'Cannot determine plan from Stripe subscription. Check subscription metadata.';
       case 'INSUFFICIENT_STRIPE_PERMISSIONS':
         return 'Stripe API key lacks required permissions.';
-      case 'ORG_ID_MISSING':
-        return 'Organization ID is missing from request.';
       case 'NO_CUSTOMER':
         return 'No Stripe customer found for this organization. Complete a checkout first.';
       default:
@@ -618,7 +616,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
             </AlertDescription>
           </Alert>
         )}
-        
+
         {/* Collapsible Debug Panel */}
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CollapsibleTrigger asChild>
@@ -637,7 +635,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                   </div>
                 </div>
               )}
-              
+
               {error.corr && (
                 <div>
                   <label className="font-medium text-muted-foreground">Correlation ID</label>
@@ -654,7 +652,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                   </div>
                 </div>
               )}
-              
+
               {error.hint && (
                 <div className="col-span-2">
                   <label className="font-medium text-muted-foreground">Hint</label>
@@ -664,7 +662,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                 </div>
               )}
             </div>
-            
+
             {error.message && (
               <div>
                 <label className="font-medium text-muted-foreground">Error Message</label>
@@ -673,7 +671,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                 </div>
               </div>
             )}
-            
+
             {error.details && (
               <div>
                 <label className="font-medium text-muted-foreground">Details</label>
@@ -682,10 +680,10 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                 </div>
               </div>
             )}
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
+
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => {
                 if (title.includes('Refresh')) setRefreshStatusError(null);
                 if (title.includes('Reconcile')) setReconcileError(null);
@@ -705,12 +703,12 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
   return (
     <div className="space-y-8">
       <AdminChecklistBanner />
-      <BillingTestPanel 
+      <BillingTestPanel
         currentOrgId={organizationId}
         billingStatus={billingStatus}
         onRefresh={fetchBillingStatus}
       />
-      
+
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Usage & Billing</h1>
@@ -748,17 +746,17 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
 
         {/* Refresh Status Debug Panel */}
         {refreshStatusError && renderDebugPanel(
-          refreshStatusError, 
-          refreshDebugOpen, 
-          setRefreshDebugOpen, 
+          refreshStatusError,
+          refreshDebugOpen,
+          setRefreshDebugOpen,
           'Billing Status Debug'
         )}
 
         {/* Reconcile Debug Panel */}
         {reconcileError && renderDebugPanel(
-          reconcileError, 
-          reconcileDebugOpen, 
-          setReconcileDebugOpen, 
+          reconcileError,
+          reconcileDebugOpen,
+          setReconcileDebugOpen,
           'Reconcile Debug'
         )}
 
@@ -819,8 +817,8 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={handleSyncSeats}
                 disabled={isSyncing}
               >
@@ -839,8 +837,8 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
 
               {/* Reconcile Billing Button - Admin Only */}
               {isAdmin && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={handleReconcileBilling}
                   disabled={isReconciling}
                   className="text-warning hover:text-warning-foreground"
@@ -858,10 +856,10 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                   )}
                 </Button>
               )}
-              
+
               {billingStatus?.status === 'active' ? (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={handleManageBilling}
                   disabled={isOpeningPortal}
                 >
@@ -877,7 +875,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                     </>
                   )}
                 </Button>
-                ) : (
+              ) : (
                 <div className="space-y-4">
                   {!organizationId ? (
                     <Alert variant="destructive">
@@ -886,7 +884,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                       </AlertDescription>
                     </Alert>
                   ) : null}
-                  
+
                   {/* Plan Selection */}
                   {availablePlans.length > 1 && (
                     <div className="space-y-2">
@@ -904,7 +902,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                       </select>
                     </div>
                   )}
-                  
+
                   {/* Billing Preflight Results */}
                   {preflightResults && (
                     <div className="space-y-3">
@@ -912,26 +910,26 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                         <h4 className="font-medium">Checkout Readiness Check</h4>
                         <Badge variant={
                           preflightResults.overallStatus === 'pass' ? 'secondary' :
-                          preflightResults.overallStatus === 'warning' ? 'secondary' : 'destructive'
+                            preflightResults.overallStatus === 'warning' ? 'secondary' : 'destructive'
                         }>
                           {getStatusIcon(preflightResults.overallStatus)} {preflightResults.overallStatus}
                         </Badge>
                       </div>
-                      
+
                       <div className="space-y-2">
                         {preflightResults.checks?.map((check: any, index: number) => (
                           <div key={check.id || index} className="flex items-start gap-3 p-3 border rounded-lg">
                             <span className="text-lg">{getStatusIcon(check.status)}</span>
                             <div className="flex-1">
-                               <div className="flex items-center justify-between">
-                                 <span className="font-medium">{check.message || check.id}</span>
-                                 <Badge variant="outline" className={getStatusColor(check.status)}>
-                                   {check.status}
-                                 </Badge>
-                               </div>
-                               {check.message && check.message !== check.id && (
-                                 <p className="text-sm text-muted-foreground mt-1">{check.message}</p>
-                               )}
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium">{check.message || check.id}</span>
+                                <Badge variant="outline" className={getStatusColor(check.status)}>
+                                  {check.status}
+                                </Badge>
+                              </div>
+                              {check.message && check.message !== check.id && (
+                                <p className="text-sm text-muted-foreground mt-1">{check.message}</p>
+                              )}
                               {check.hint && (
                                 <p className="text-sm text-orange-600 mt-1">💡 {check.hint}</p>
                               )}
@@ -948,7 +946,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                           </div>
                         ))}
                       </div>
-                      
+
                       {!preflightResults.canProceed && (
                         <Alert variant="destructive">
                           <AlertDescription>
@@ -957,26 +955,26 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                         </Alert>
                       )}
                     </div>
-                   )}
-                   
-                   {/* Preflight Debug Panel */}
-                   {preflightError && renderDebugPanel(
-                     preflightError, 
-                     preflightDebugOpen, 
-                     setPreflightDebugOpen, 
-                     'Preflight Debug'
-                   )}
-                   
-                   {/* Checkout Debug Panel */}
-                   {checkoutError && renderDebugPanel(
-                     checkoutError, 
-                     debugPanelOpen, 
-                     setDebugPanelOpen, 
-                     'Checkout Debug'
-                   )}
-                  
+                  )}
+
+                  {/* Preflight Debug Panel */}
+                  {preflightError && renderDebugPanel(
+                    preflightError,
+                    preflightDebugOpen,
+                    setPreflightDebugOpen,
+                    'Preflight Debug'
+                  )}
+
+                  {/* Checkout Debug Panel */}
+                  {checkoutError && renderDebugPanel(
+                    checkoutError,
+                    debugPanelOpen,
+                    setDebugPanelOpen,
+                    'Checkout Debug'
+                  )}
+
                   <div className="flex gap-2">
-                    <Button 
+                    <Button
                       variant="outline"
                       onClick={runPreflightCheck}
                       disabled={isRunningPreflight || !organizationId}
@@ -993,33 +991,33 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                         </>
                       )}
                     </Button>
-                    
-                      <Button 
-                        onClick={handleUpgrade}
-                        disabled={isUpgrading || !organizationId || !selectedPlan || (preflightResults && !preflightResults.canProceed) || (() => {
-                          const selectedPlanConfig = availablePlans.find(p => p.plan_key === selectedPlan)
-                          const priceValidation = validatePlanPrices(selectedPlanConfig)
-                          return !priceValidation.monthlyValid && !priceValidation.yearlyValid
-                        })()}
-                        className="flex-1"
-                      >
-                        {isUpgrading ? (
-                          <>
-                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                            Starting...
-                          </>
-                        ) : (
-                          <>
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            Upgrade Now {selectedPlan && `(${selectedPlan})`}
-                          </>
-                        )}
-                      </Button>
-                   </div>
-                 </div>
-               )}
-             </div>
-           </div>
+
+                    <Button
+                      onClick={handleUpgrade}
+                      disabled={isUpgrading || !organizationId || !selectedPlan || (preflightResults && !preflightResults.canProceed) || (() => {
+                        const selectedPlanConfig = availablePlans.find(p => p.plan_key === selectedPlan)
+                        const priceValidation = validatePlanPrices(selectedPlanConfig)
+                        return !priceValidation.monthlyValid && !priceValidation.yearlyValid
+                      })()}
+                      className="flex-1"
+                    >
+                      {isUpgrading ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Starting...
+                        </>
+                      ) : (
+                        <>
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Upgrade Now {selectedPlan && `(${selectedPlan})`}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </Card>
 
         {/* Upgrade Required Banner */}
@@ -1037,8 +1035,8 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                   </p>
                 </div>
               </div>
-              <Button 
-                onClick={handleUpgrade} 
+              <Button
+                onClick={handleUpgrade}
                 disabled={isUpgrading || !organizationId || (() => {
                   const selectedPlanConfig = availablePlans.find(p => p.plan_key === selectedPlan)
                   const priceValidation = validatePlanPrices(selectedPlanConfig)
@@ -1065,14 +1063,14 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                     {getUsagePercentage(usageData.minutes.used, usageData.minutes.limit)}%
                   </Badge>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Used: {usageData.minutes.used.toLocaleString()}</span>
                     <span className="text-muted-foreground">Limit: {usageData.minutes.limit.toLocaleString()}</span>
                   </div>
-                  <Progress 
-                    value={getUsagePercentage(usageData.minutes.used, usageData.minutes.limit)} 
+                  <Progress
+                    value={getUsagePercentage(usageData.minutes.used, usageData.minutes.limit)}
                     className={cn("h-2", getProgressColor(getUsagePercentage(usageData.minutes.used, usageData.minutes.limit)))}
                   />
                 </div>
@@ -1088,14 +1086,14 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                     {getUsagePercentage(usageData.calls.used, usageData.calls.limit)}%
                   </Badge>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Used: {usageData.calls.used.toLocaleString()}</span>
                     <span className="text-muted-foreground">Limit: {usageData.calls.limit.toLocaleString()}</span>
                   </div>
-                  <Progress 
-                    value={getUsagePercentage(usageData.calls.used, usageData.calls.limit)} 
+                  <Progress
+                    value={getUsagePercentage(usageData.calls.used, usageData.calls.limit)}
                     className={cn("h-2", getProgressColor(getUsagePercentage(usageData.calls.used, usageData.calls.limit)))}
                   />
                 </div>
@@ -1111,14 +1109,14 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                     {getUsagePercentage(usageData.tokens.used, usageData.tokens.limit)}%
                   </Badge>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Used: {usageData.tokens.used.toLocaleString()}</span>
                     <span className="text-muted-foreground">Limit: {usageData.tokens.limit.toLocaleString()}</span>
                   </div>
-                  <Progress 
-                    value={getUsagePercentage(usageData.tokens.used, usageData.tokens.limit)} 
+                  <Progress
+                    value={getUsagePercentage(usageData.tokens.used, usageData.tokens.limit)}
                     className={cn("h-2", getProgressColor(getUsagePercentage(usageData.tokens.used, usageData.tokens.limit)))}
                   />
                 </div>
@@ -1127,7 +1125,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
           )}
 
           {/* Concurrency Card */}
-          <ConcurrencyCard 
+          <ConcurrencyCard
             concurrency={concurrency}
             loading={usageLoading}
             onRefresh={refreshConcurrency}
@@ -1165,7 +1163,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
               {usageEvents.length} event{usageEvents.length !== 1 ? 's' : ''}
             </Badge>
           </div>
-          
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -1190,7 +1188,7 @@ export function UsageBilling({ organizationId }: UsageBillingProps) {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {event.resource_type && event.resource_id 
+                      {event.resource_type && event.resource_id
                         ? `${event.resource_type} operation (${event.resource_id.slice(0, 8)}...)`
                         : event.event_type}
                     </TableCell>

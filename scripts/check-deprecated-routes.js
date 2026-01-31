@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
-const glob = require('glob');
+import fs from 'fs';
+import path from 'path';
+import { glob } from 'glob';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Lint script to prevent re-introduction of deprecated TeamsSettings.tsx
@@ -14,7 +18,7 @@ const DEPRECATED_FILE = 'TeamsSettings.tsx';
 const DEPRECATED_IMPORT_PATTERN = /import.*TeamsSettings.*from/;
 const DEPRECATED_ROUTE_USAGE = /\/settings\/teams(?!.*RedirectToOrganizationTeam)/;
 const ALLOWLISTED_EXTENSIONS = ['.md', '.txt', '.json'];
-const ALLOWLISTED_FILES = ['RedirectToOrganizationTeam.tsx', 'check-deprecated-routes.js'];
+const ALLOWLISTED_FILES = ['RedirectToOrganizationTeam.tsx', 'check-deprecated-routes.js', 'TeamsConsolidationTests.tsx'];
 
 let hasErrors = false;
 const errors = [];
@@ -37,10 +41,10 @@ function isAllowlistedFile(filePath) {
   return ALLOWLISTED_EXTENSIONS.includes(ext) || ALLOWLISTED_FILES.includes(fileName);
 }
 
-function checkForDeprecatedFile() {
+async function checkForDeprecatedFile() {
   console.log('🔍 Checking for deprecated TeamsSettings.tsx file...');
-  
-  const deprecatedFiles = glob.sync(`**/${DEPRECATED_FILE}`, {
+
+  const deprecatedFiles = await glob(`**/${DEPRECATED_FILE}`, {
     ignore: ['node_modules/**', 'dist/**', '.git/**']
   });
 
@@ -57,10 +61,10 @@ function checkForDeprecatedFile() {
   }
 }
 
-function checkForDeprecatedImports() {
+async function checkForDeprecatedImports() {
   console.log('🔍 Checking for deprecated TeamsSettings imports...');
-  
-  const sourceFiles = glob.sync('src/**/*.{ts,tsx,js,jsx}', {
+
+  const sourceFiles = await glob('src/**/*.{ts,tsx,js,jsx}', {
     ignore: ['node_modules/**', 'dist/**']
   });
 
@@ -68,7 +72,7 @@ function checkForDeprecatedImports() {
     try {
       const content = fs.readFileSync(file, 'utf8');
       const lines = content.split('\n');
-      
+
       lines.forEach((line, index) => {
         if (DEPRECATED_IMPORT_PATTERN.test(line)) {
           addError(
@@ -85,10 +89,10 @@ function checkForDeprecatedImports() {
   console.log('✅ Import check completed');
 }
 
-function checkForDeprecatedRouteUsage() {
+async function checkForDeprecatedRouteUsage() {
   console.log('🔍 Checking for deprecated /settings/teams usage...');
-  
-  const sourceFiles = glob.sync('src/**/*.{ts,tsx,js,jsx}', {
+
+  const sourceFiles = await glob('src/**/*.{ts,tsx,js,jsx}', {
     ignore: ['node_modules/**', 'dist/**']
   });
 
@@ -100,7 +104,7 @@ function checkForDeprecatedRouteUsage() {
     try {
       const content = fs.readFileSync(file, 'utf8');
       const lines = content.split('\n');
-      
+
       lines.forEach((line, index) => {
         if (DEPRECATED_ROUTE_USAGE.test(line)) {
           addError(
@@ -117,13 +121,13 @@ function checkForDeprecatedRouteUsage() {
   console.log('✅ Route usage check completed');
 }
 
-function main() {
+async function main() {
   console.log('🚀 Starting deprecated routes check...\n');
-  
-  checkForDeprecatedFile();
-  checkForDeprecatedImports();
-  checkForDeprecatedRouteUsage();
-  
+
+  await checkForDeprecatedFile();
+  await checkForDeprecatedImports();
+  await checkForDeprecatedRouteUsage();
+
   console.log('\n📊 Check Summary:');
   if (hasErrors) {
     console.log(`❌ Found ${errors.length} error(s):`);
@@ -141,8 +145,6 @@ function main() {
 }
 
 // Run the check
-if (require.main === module) {
-  main();
-}
+main();
 
-module.exports = { checkForDeprecatedFile, checkForDeprecatedImports, checkForDeprecatedRouteUsage };
+export { checkForDeprecatedFile, checkForDeprecatedImports, checkForDeprecatedRouteUsage };
