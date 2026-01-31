@@ -11,6 +11,7 @@ ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
 -- SELECT: allowed if organization_id IS NULL OR is_org_member(organization_id)
 -- This allows viewing leads that are not org-bound (contact form submissions) 
 -- or leads belonging to the user's organization
+DROP POLICY IF EXISTS "leads_select_org_scoped" ON public.leads;
 CREATE POLICY "leads_select_org_scoped" ON public.leads
 FOR SELECT
 USING (
@@ -21,6 +22,7 @@ USING (
 -- INSERT: allowed if organization_id IS NULL OR is_org_member(organization_id)
 -- Anonymous contact form submissions can insert leads with NULL organization_id
 -- Authenticated users can insert leads into their own organizations
+DROP POLICY IF EXISTS "leads_insert_org_scoped" ON public.leads;
 CREATE POLICY "leads_insert_org_scoped" ON public.leads
 FOR INSERT
 WITH CHECK (
@@ -31,6 +33,7 @@ WITH CHECK (
 -- UPDATE: allowed only if is_org_member(organization_id)
 -- Only org members can update leads belonging to their organization
 -- Leads with NULL organization_id cannot be updated through this policy
+DROP POLICY IF EXISTS "leads_update_org_scoped" ON public.leads;
 CREATE POLICY "leads_update_org_scoped" ON public.leads
 FOR UPDATE
 USING (
@@ -44,6 +47,7 @@ WITH CHECK (
 
 -- DELETE: allowed only if is_org_member(organization_id)
 -- Only org members can delete leads belonging to their organization
+DROP POLICY IF EXISTS "leads_delete_org_scoped" ON public.leads;
 CREATE POLICY "leads_delete_org_scoped" ON public.leads
 FOR DELETE
 USING (

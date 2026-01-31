@@ -14,11 +14,24 @@ INSERT INTO public.superadmins (user_id)
 SELECT id FROM auth.users WHERE lower(email) = 'admin@axionstack.xyz'
 ON CONFLICT (user_id) DO NOTHING;
 
--- Set database GUC for fallback allowlist
-ALTER DATABASE postgres SET app.superadmin_emails = 'admin@axionstack.xyz';
+-- Set database GUC for fallback allowlist (safely skip if not permitted in local env)
+DO $$
+BEGIN
+  EXECUTE 'ALTER DATABASE postgres SET app.superadmin_emails = ''admin@axionstack.xyz''';
+EXCEPTION WHEN insufficient_privilege OR undefined_object THEN
+  -- Local Supabase may not allow custom GUC parameters; this is expected
+  RAISE NOTICE 'Skipping GUC parameter setting - not permitted in this environment';
+END;
+$$;
 
--- Reload configuration
-SELECT pg_reload_conf();
+-- Reload configuration (safely skip if not permitted)
+DO $$
+BEGIN
+  PERFORM pg_reload_conf();
+EXCEPTION WHEN insufficient_privilege THEN
+  RAISE NOTICE 'Skipping pg_reload_conf - not permitted in this environment';
+END;
+$$;
 
 -- Verify superadmin status
 SELECT 

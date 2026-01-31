@@ -190,11 +190,13 @@ DROP POLICY IF EXISTS "Org members can manage leads" ON public.leads;
 DROP POLICY IF EXISTS "Org members can view leads" ON public.leads;
 
 -- Create new strict RLS policies
+DROP POLICY IF EXISTS "leads_insert_service_only" ON public.leads;
 CREATE POLICY "leads_insert_service_only" 
 ON public.leads 
 FOR INSERT 
 WITH CHECK (false); -- Only service role can insert
 
+DROP POLICY IF EXISTS "leads_select_admin_only" ON public.leads;
 CREATE POLICY "leads_select_admin_only" 
 ON public.leads 
 FOR SELECT 
@@ -205,6 +207,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "leads_update_admin_only" ON public.leads;
 CREATE POLICY "leads_update_admin_only" 
 ON public.leads 
 FOR UPDATE 
@@ -221,6 +224,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS "leads_delete_admin_only" ON public.leads;
 CREATE POLICY "leads_delete_admin_only" 
 ON public.leads 
 FOR DELETE 

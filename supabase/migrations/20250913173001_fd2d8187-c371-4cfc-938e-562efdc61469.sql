@@ -19,11 +19,13 @@ CREATE TABLE IF NOT EXISTS public.usage_rollups (
 ALTER TABLE public.usage_rollups ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
+DROP POLICY IF EXISTS "Org members can view usage rollups" ON public.usage_rollups;
 CREATE POLICY "Org members can view usage rollups" 
 ON public.usage_rollups 
 FOR SELECT 
 USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "System can manage usage rollups" ON public.usage_rollups;
 CREATE POLICY "System can manage usage rollups" 
 ON public.usage_rollups 
 FOR ALL 

@@ -21,12 +21,13 @@ BEGIN
         EXECUTE 'ALTER TABLE organization_invitations DROP CONSTRAINT IF EXISTS organization_invitations_invite_token_key';
         EXECUTE 'ALTER TABLE organization_invitations DROP CONSTRAINT IF EXISTS unique_invite_token';
         EXECUTE 'ALTER TABLE organization_invitations DROP CONSTRAINT IF EXISTS organization_invitations_token_unique';
+        EXECUTE 'ALTER TABLE organization_invitations DROP CONSTRAINT IF EXISTS organization_invitations_invite_token_unique';
         
         -- Add single canonical constraint
-        ALTER TABLE organization_invitations ADD CONSTRAINT organization_invitations_invite_token_unique UNIQUE (invite_token);
+        EXECUTE 'ALTER TABLE organization_invitations ADD CONSTRAINT organization_invitations_invite_token_unique UNIQUE (invite_token)';
     ELSIF constraint_count = 0 THEN
         -- Add constraint if none exists
-        ALTER TABLE organization_invitations ADD CONSTRAINT organization_invitations_invite_token_unique UNIQUE (invite_token);
+        EXECUTE 'ALTER TABLE organization_invitations ADD CONSTRAINT organization_invitations_invite_token_unique UNIQUE (invite_token)';
     END IF;
 END $$;
 
@@ -51,12 +52,14 @@ BEGIN
         EXECUTE 'ALTER TABLE organization_members DROP CONSTRAINT IF EXISTS organization_members_organization_id_user_id_key';
         EXECUTE 'ALTER TABLE organization_members DROP CONSTRAINT IF EXISTS unique_org_member';
         EXECUTE 'ALTER TABLE organization_members DROP CONSTRAINT IF EXISTS organization_members_unique';
+        EXECUTE 'ALTER TABLE organization_members DROP CONSTRAINT IF EXISTS organization_members_org_user_unique';
+        EXECUTE 'ALTER TABLE organization_members DROP CONSTRAINT IF EXISTS organization_members_organization_id_user_id_unique';
         
         -- Add single canonical constraint
-        ALTER TABLE organization_members ADD CONSTRAINT organization_members_org_user_unique UNIQUE (organization_id, user_id);
+        EXECUTE 'ALTER TABLE organization_members ADD CONSTRAINT organization_members_org_user_unique UNIQUE (organization_id, user_id)';
     ELSIF constraint_count = 0 THEN
         -- Add constraint if none exists
-        ALTER TABLE organization_members ADD CONSTRAINT organization_members_org_user_unique UNIQUE (organization_id, user_id);
+        EXECUTE 'ALTER TABLE organization_members ADD CONSTRAINT organization_members_org_user_unique UNIQUE (organization_id, user_id)';
     END IF;
 END $$;
 
@@ -172,31 +175,46 @@ BEGIN
 END;
 $function$;
 
--- 6. Log the cleanup
-INSERT INTO public.audit_log (
-    organization_id,
-    actor_user_id,
-    actor_role_snapshot,
-    action,
-    target_type,
-    target_id,
-    status,
-    channel,
-    metadata
-) VALUES (
-    '00000000-0000-0000-0000-000000000000'::uuid,
-    NULL,
-    'system',
-    'schema.cleanup',
-    'database',
-    'schema_standardization',
-    'success',
-    'internal',
-    jsonb_build_object(
-        'cleanup_type', 'constraint_standardization',
-        'tables_affected', ARRAY['organization_invitations', 'organization_members'],
-        'backward_compatibility', 'org_subscriptions_legacy view created',
-        'health_check_added', true,
-        'timestamp', now()
-    )
-);
+-- 6. Log the cleanup (only if at least one organization exists)
+-- This is idempotent and safe for fresh/empty databases with no org rows yet.
+DO $$
+DECLARE
+    v_org_id UUID;
+BEGIN
+    -- Pick the first existing organization (or NULL if none exist)
+    SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
+
+    -- Only insert audit log if an organization exists
+    IF v_org_id IS NOT NULL THEN
+        INSERT INTO public.audit_log (
+            organization_id,
+            actor_user_id,
+            actor_role_snapshot,
+            action,
+            target_type,
+            target_id,
+            status,
+            channel,
+            metadata
+        ) VALUES (
+            v_org_id,
+            NULL,
+            'system',
+            'schema.cleanup',
+            'other',
+            'schema_standardization',
+            'success',
+            'internal',
+            jsonb_build_object(
+                'cleanup_type', 'constraint_standardization',
+                'tables_affected', ARRAY['organization_invitations', 'organization_members'],
+                'backward_compatibility', 'org_subscriptions_legacy view created',
+                'health_check_added', true,
+                'timestamp', now()
+            )
+        );
+        RAISE NOTICE 'Audit log entry created for schema cleanup (org_id: %)', v_org_id;
+    ELSE
+        RAISE NOTICE 'Skipping audit log: no organizations exist yet (empty database)';
+    END IF;
+END $$;

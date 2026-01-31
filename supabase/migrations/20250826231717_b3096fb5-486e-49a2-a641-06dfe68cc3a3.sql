@@ -135,6 +135,9 @@ END;
 $function$;
 
 -- 2. Create canonical role retrieval function
+-- Drop existing function first if it has a different return type
+DROP FUNCTION IF EXISTS public.get_user_org_role(uuid, uuid);
+
 CREATE OR REPLACE FUNCTION public.get_user_org_role(p_org_id uuid, p_user_id uuid DEFAULT auth.uid())
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -186,39 +189,51 @@ BEGIN
 END;
 $function$;
 
--- 3. Log the canonicalization
-INSERT INTO public.audit_log (
-  organization_id,
-  actor_user_id,
-  actor_role_snapshot,
-  action,
-  target_type,
-  target_id,
-  status,
-  channel,
-  metadata
-) VALUES (
-  '00000000-0000-0000-0000-000000000000'::uuid,
-  NULL,
-  'system',
-  'membership.canonicalization',
-  'database',
-  'canonical_helpers',
-  'success',
-  'internal',
-  jsonb_build_object(
-    'canonical_functions', ARRAY[
-      'check_org_membership',
-      'check_org_ownership', 
-      'check_admin_access',
-      'admin_toggle_member_seat',
-      'get_user_org_role'
-    ],
-    'canonical_tables', ARRAY[
-      'organizations.owner_user_id',
-      'organization_members'
-    ],
-    'legacy_removed', 'memberships table dependencies',
-    'timestamp', now()
-  )
-);
+-- 3. Log the canonicalization (only if at least one organization exists)
+DO $$
+DECLARE
+    v_org_id UUID;
+BEGIN
+    SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
+
+    IF v_org_id IS NOT NULL THEN
+        INSERT INTO public.audit_log (
+            organization_id,
+            actor_user_id,
+            actor_role_snapshot,
+            action,
+            target_type,
+            target_id,
+            status,
+            channel,
+            metadata
+        ) VALUES (
+            v_org_id,
+            NULL,
+            'system',
+            'membership.canonicalization',
+            'other',
+            'canonical_helpers',
+            'success',
+            'internal',
+            jsonb_build_object(
+                'canonical_functions', ARRAY[
+                    'check_org_membership',
+                    'check_org_ownership', 
+                    'check_admin_access',
+                    'admin_toggle_member_seat',
+                    'get_user_org_role'
+                ],
+                'canonical_tables', ARRAY[
+                    'organizations.owner_user_id',
+                    'organization_members'
+                ],
+                'legacy_removed', 'memberships table dependencies',
+                'timestamp', now()
+            )
+        );
+        RAISE NOTICE 'Membership canonicalization logged for org_id: %', v_org_id;
+    ELSE
+        RAISE NOTICE 'Skipping canonicalization log: no organizations exist yet';
+    END IF;
+END $$;

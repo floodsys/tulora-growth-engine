@@ -6,38 +6,55 @@ ADD CONSTRAINT organization_members_org_user_unique
 UNIQUE (organization_id, user_id);
 
 -- 2. Ensure role enum only allows specific values (no 'owner')
+-- This section is now a no-op. The org_role enum was already created correctly in earlier migrations.
+-- Attempting to rename and recreate it causes dependency issues with existing RLS policies.
 DO $$ 
 BEGIN
-  -- Check if the enum exists and has the right values
-  IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'org_role') THEN
-    -- Update the enum to ensure it only has the correct values
-    ALTER TYPE public.org_role RENAME TO org_role_old;
-    CREATE TYPE public.org_role AS ENUM ('admin', 'editor', 'viewer', 'user');
-    
-    -- Update all references to use the new enum
-    ALTER TABLE public.organization_members 
-    ALTER COLUMN role TYPE public.org_role USING role::text::public.org_role;
-    
-    ALTER TABLE public.organization_invitations 
-    ALTER COLUMN role TYPE public.org_role USING role::text::public.org_role;
-    
-    -- Drop the old enum
-    DROP TYPE public.org_role_old;
-  END IF;
+  -- Just log that we're skipping this migration step
+  RAISE NOTICE 'org_role enum conversion skipped - already handled by earlier migration 20250823211335';
 END $$;
 
 -- 3. Standardize status column naming (replace suspension_status with status)
-ALTER TABLE public.organizations 
-RENAME COLUMN suspension_status TO status;
+-- Only rename if suspension_status exists and status doesn't
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'organizations' 
+      AND column_name = 'suspension_status'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'organizations' 
+      AND column_name = 'status'
+  ) THEN
+    ALTER TABLE public.organizations RENAME COLUMN suspension_status TO status;
+  END IF;
+END $$;
 
--- Update status values to match new naming convention
-UPDATE public.organizations 
-SET status = CASE 
-  WHEN status = 'active' THEN 'active'
-  WHEN status = 'suspended' THEN 'suspended' 
-  WHEN status = 'canceled' THEN 'canceled'
-  ELSE 'active'
-END;
+-- Update status values to match new naming convention (disable trigger temporarily)
+DO $$
+BEGIN
+  -- Disable the updated_at trigger if it exists
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_organizations_updated_at') THEN
+    ALTER TABLE public.organizations DISABLE TRIGGER update_organizations_updated_at;
+  END IF;
+  
+  -- Update status values
+  UPDATE public.organizations 
+  SET status = CASE 
+    WHEN status = 'active' THEN 'active'
+    WHEN status = 'suspended' THEN 'suspended' 
+    WHEN status = 'canceled' THEN 'canceled'
+    ELSE 'active'
+  END;
+  
+  -- Re-enable the trigger if it exists
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_organizations_updated_at') THEN
+    ALTER TABLE public.organizations ENABLE TRIGGER update_organizations_updated_at;
+  END IF;
+END $$;
 
 -- 4. Create function to check if user is organization owner
 CREATE OR REPLACE FUNCTION public.is_organization_owner(org_id uuid, user_id uuid DEFAULT auth.uid())
@@ -235,16 +252,30 @@ USING (
   NOT public.would_leave_org_without_admins(organization_id, user_id)
 );
 
--- Create policy to prevent last admin role change  
-CREATE POLICY "prevent_last_admin_role_change" ON public.organization_members
-FOR UPDATE
-USING (
-  CASE 
-    WHEN OLD.role = 'admin'::org_role AND NEW.role != 'admin'::org_role THEN
-      NOT public.would_leave_org_without_admins(organization_id, user_id)
-    ELSE true
-  END
-);
+-- Create trigger function to prevent last admin role change (OLD/NEW not available in RLS policies)
+CREATE OR REPLACE FUNCTION public.check_last_admin_role_change()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Only check when role is being changed from admin to non-admin
+  IF OLD.role = 'admin'::org_role AND NEW.role != 'admin'::org_role THEN
+    IF public.would_leave_org_without_admins(OLD.organization_id, OLD.user_id) THEN
+      RAISE EXCEPTION 'Cannot change role: this would leave the organization without any admins';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- Create trigger to enforce last admin role change prevention
+DROP TRIGGER IF EXISTS trigger_check_last_admin_role_change ON public.organization_members;
+CREATE TRIGGER trigger_check_last_admin_role_change
+  BEFORE UPDATE ON public.organization_members
+  FOR EACH ROW
+  EXECUTE FUNCTION public.check_last_admin_role_change();
 
 -- 8. Update functions that reference suspension_status
 CREATE OR REPLACE FUNCTION public.is_org_suspended(org_id uuid)

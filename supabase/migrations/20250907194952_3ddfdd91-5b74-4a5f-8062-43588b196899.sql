@@ -168,5 +168,6 @@ CREATE TABLE IF NOT EXISTS public.processed_webhook_events (
 ALTER TABLE public.processed_webhook_events ENABLE ROW LEVEL SECURITY;
 
 -- Only system can manage webhook events
+DROP POLICY IF EXISTS "system_only_webhook_events" ON public.processed_webhook_events;
 CREATE POLICY "system_only_webhook_events" ON public.processed_webhook_events
 FOR ALL USING (false);

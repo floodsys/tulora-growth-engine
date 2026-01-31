@@ -26,18 +26,21 @@ ALTER TABLE public.org_stripe_subscriptions ENABLE ROW LEVEL SECURITY;
 -- ============================================================================
 
 -- SELECT: Org members can view their organization's subscriptions
+DROP POLICY IF EXISTS "org_subs_select_org_member" ON public.org_stripe_subscriptions;
 CREATE POLICY "org_subs_select_org_member"
 ON public.org_stripe_subscriptions
 FOR SELECT
 USING (is_org_member(organization_id));
 
 -- INSERT: Only org admins can insert subscriptions for their organization
+DROP POLICY IF EXISTS "org_subs_insert_org_admin" ON public.org_stripe_subscriptions;
 CREATE POLICY "org_subs_insert_org_admin"
 ON public.org_stripe_subscriptions
 FOR INSERT
 WITH CHECK (is_org_admin(organization_id));
 
 -- UPDATE: Only org admins can update their organization's subscriptions
+DROP POLICY IF EXISTS "org_subs_update_org_admin" ON public.org_stripe_subscriptions;
 CREATE POLICY "org_subs_update_org_admin"
 ON public.org_stripe_subscriptions
 FOR UPDATE
@@ -45,6 +48,7 @@ USING (is_org_admin(organization_id))
 WITH CHECK (is_org_admin(organization_id));
 
 -- DELETE: Only org admins can delete their organization's subscriptions
+DROP POLICY IF EXISTS "org_subs_delete_org_admin" ON public.org_stripe_subscriptions;
 CREATE POLICY "org_subs_delete_org_admin"
 ON public.org_stripe_subscriptions
 FOR DELETE

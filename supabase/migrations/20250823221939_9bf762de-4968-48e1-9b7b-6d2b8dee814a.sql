@@ -102,25 +102,31 @@ ALTER TABLE public.org_stripe_subscriptions ENABLE ROW LEVEL SECURITY;
 -- RLS Policies for org isolation
 
 -- Plan configs are publicly readable (for pricing page)
+DROP POLICY IF EXISTS "Plan configs are publicly readable" ON public.plan_configs;
 CREATE POLICY "Plan configs are publicly readable" ON public.plan_configs
 FOR SELECT USING (is_active = true);
 
 -- Activity logs: only org members can view their org's logs
+DROP POLICY IF EXISTS "Org members can view activity logs" ON public.activity_logs;
 CREATE POLICY "Org members can view activity logs" ON public.activity_logs
 FOR SELECT USING (is_org_member(organization_id));
 
 -- System can insert activity logs (via edge functions)
+DROP POLICY IF EXISTS "System can insert activity logs" ON public.activity_logs;
 CREATE POLICY "System can insert activity logs" ON public.activity_logs
 FOR INSERT WITH CHECK (true);
 
 -- Demo sessions: publicly accessible for sandbox
+DROP POLICY IF EXISTS "Demo sessions public access" ON public.demo_sessions;
 CREATE POLICY "Demo sessions public access" ON public.demo_sessions
 FOR ALL USING (true);
 
 -- Org subscriptions: org members can view, system can modify
+DROP POLICY IF EXISTS "Org members can view subscriptions" ON public.org_stripe_subscriptions;
 CREATE POLICY "Org members can view subscriptions" ON public.org_stripe_subscriptions
 FOR SELECT USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "System can manage subscriptions" ON public.org_stripe_subscriptions;
 CREATE POLICY "System can manage subscriptions" ON public.org_stripe_subscriptions
 FOR ALL USING (true);
 
@@ -162,7 +168,7 @@ CREATE OR REPLACE FUNCTION public.log_activity(
   p_action TEXT,
   p_resource_type TEXT DEFAULT NULL,
   p_resource_id UUID DEFAULT NULL,
-  p_details JSONB DEFAULT '{}'
+  p_details JSONB DEFAULT '{}'::jsonb
 )
 RETURNS UUID
 LANGUAGE plpgsql
@@ -189,6 +195,31 @@ BEGIN
   ) RETURNING id INTO log_id;
   
   RETURN log_id;
+END;
+$$;
+
+-- Compatibility overload (5-arg) for callers without p_user_id
+CREATE OR REPLACE FUNCTION public.log_activity(
+  p_org_id UUID,
+  p_action TEXT,
+  p_resource_type TEXT DEFAULT NULL,
+  p_resource_id UUID DEFAULT NULL,
+  p_details JSONB DEFAULT '{}'::jsonb
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+  RETURN public.log_activity(
+    p_org_id        => p_org_id,
+    p_user_id       => NULL,
+    p_action        => p_action,
+    p_resource_type => p_resource_type,
+    p_resource_id   => p_resource_id,
+    p_details       => p_details
+  );
 END;
 $$;
 

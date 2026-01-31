@@ -17,9 +17,11 @@ CREATE TABLE public.usage_rollups (
 ALTER TABLE public.usage_rollups ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies for usage_rollups
+DROP POLICY IF EXISTS "Org admins can view usage_rollups" ON public.usage_rollups;
 CREATE POLICY "Org admins can view usage_rollups" ON public.usage_rollups
   FOR SELECT USING (is_org_admin(organization_id));
 
+DROP POLICY IF EXISTS "System can manage usage_rollups" ON public.usage_rollups;
 CREATE POLICY "System can manage usage_rollups" ON public.usage_rollups
   FOR ALL USING (false);
 
@@ -32,6 +34,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_usage_rollups_updated_at ON public.usage_rollups;
 CREATE TRIGGER update_usage_rollups_updated_at
   BEFORE UPDATE ON public.usage_rollups
   FOR EACH ROW

@@ -1,11 +1,9 @@
 -- Fix check_admin_access and check_org_membership functions to avoid parameter shadowing
 
--- Drop existing functions to recreate them
-DROP FUNCTION IF EXISTS public.check_admin_access(uuid, uuid);
-DROP FUNCTION IF EXISTS public.check_org_membership(uuid, uuid);
+-- Use CREATE OR REPLACE instead of DROP to avoid breaking dependent RLS policies
 
--- Create fixed check_admin_access function
-CREATE OR REPLACE FUNCTION public.check_admin_access(p_org_id uuid, p_user_id uuid DEFAULT auth.uid())
+-- Create fixed check_admin_access function (keep original param names to avoid rename error)
+CREATE OR REPLACE FUNCTION public.check_admin_access(org_id uuid, user_id uuid DEFAULT auth.uid())
 RETURNS boolean
 LANGUAGE sql
 STABLE SECURITY DEFINER
@@ -13,18 +11,18 @@ SET search_path TO 'public'
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.organizations o
-    WHERE o.id = p_org_id AND o.owner_user_id = COALESCE(p_user_id, auth.uid())
+    WHERE o.id = org_id AND o.owner_user_id = COALESCE(check_admin_access.user_id, auth.uid())
   ) OR EXISTS (
     SELECT 1 FROM public.organization_members om
-    WHERE om.organization_id = p_org_id 
-      AND om.user_id = COALESCE(p_user_id, auth.uid())
+    WHERE om.organization_id = org_id 
+      AND om.user_id = COALESCE(check_admin_access.user_id, auth.uid())
       AND om.role = 'admin'::org_role 
       AND om.seat_active = true
   );
 $$;
 
--- Create fixed check_org_membership function
-CREATE OR REPLACE FUNCTION public.check_org_membership(p_org_id uuid, p_user_id uuid DEFAULT auth.uid())
+-- Create fixed check_org_membership function (keep original param names to avoid rename error)
+CREATE OR REPLACE FUNCTION public.check_org_membership(org_id uuid, user_id uuid DEFAULT auth.uid())
 RETURNS boolean
 LANGUAGE sql
 STABLE SECURITY DEFINER
@@ -32,11 +30,11 @@ SET search_path TO 'public'
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.organizations o
-    WHERE o.id = p_org_id AND o.owner_user_id = COALESCE(p_user_id, auth.uid())
+    WHERE o.id = org_id AND o.owner_user_id = COALESCE(check_org_membership.user_id, auth.uid())
   ) OR EXISTS (
     SELECT 1 FROM public.organization_members om
-    WHERE om.organization_id = p_org_id 
-      AND om.user_id = COALESCE(p_user_id, auth.uid())
+    WHERE om.organization_id = org_id 
+      AND om.user_id = COALESCE(check_org_membership.user_id, auth.uid())
       AND om.seat_active = true
   );
 $$;
