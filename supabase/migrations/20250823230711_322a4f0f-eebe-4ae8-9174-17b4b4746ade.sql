@@ -39,6 +39,7 @@ ON CONFLICT (plan_key) DO UPDATE SET
 ALTER TABLE public.plan_configs ENABLE ROW LEVEL SECURITY;
 
 -- Create policy for plan configs to be publicly readable
+DROP POLICY IF EXISTS "Plan configs are publicly readable" ON public.plan_configs;
 CREATE POLICY "Plan configs are publicly readable" ON public.plan_configs
 FOR SELECT USING (is_active = true);
 
@@ -65,6 +66,7 @@ CREATE TABLE IF NOT EXISTS public.org_subscriptions (
 ALTER TABLE public.org_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- Create policy for org members to read their org's subscription
+DROP POLICY IF EXISTS "org_subscriptions read for members" ON public.org_subscriptions;
 CREATE POLICY "org_subscriptions read for members" ON public.org_subscriptions
 FOR SELECT USING (
   EXISTS (
@@ -83,6 +85,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = 'public';
 
+DROP TRIGGER IF EXISTS update_org_subscriptions_updated_at ON public.org_subscriptions;
 CREATE TRIGGER update_org_subscriptions_updated_at
   BEFORE UPDATE ON public.org_subscriptions
   FOR EACH ROW

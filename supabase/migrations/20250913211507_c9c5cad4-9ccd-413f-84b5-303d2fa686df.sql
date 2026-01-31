@@ -69,21 +69,25 @@ ALTER TABLE public.sms_campaigns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sms_messages ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for SMS Brands
+DROP POLICY IF EXISTS "Org members can view sms_brands" ON public.sms_brands;
 CREATE POLICY "Org members can view sms_brands" 
 ON public.sms_brands 
 FOR SELECT 
 USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "Org members can manage sms_brands" ON public.sms_brands;
 CREATE POLICY "Org members can manage sms_brands" 
 ON public.sms_brands 
 FOR ALL 
 USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "sms_brands_insert_active_only" ON public.sms_brands;
 CREATE POLICY "sms_brands_insert_active_only" 
 ON public.sms_brands 
 FOR INSERT 
 WITH CHECK (is_org_active(organization_id) AND is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "sms_brands_update_active_only" ON public.sms_brands;
 CREATE POLICY "sms_brands_update_active_only" 
 ON public.sms_brands 
 FOR UPDATE 
@@ -91,21 +95,25 @@ USING (is_org_active(organization_id) AND is_org_member(organization_id))
 WITH CHECK (is_org_active(organization_id) AND is_org_member(organization_id));
 
 -- RLS Policies for SMS Campaigns
+DROP POLICY IF EXISTS "Org members can view sms_campaigns" ON public.sms_campaigns;
 CREATE POLICY "Org members can view sms_campaigns" 
 ON public.sms_campaigns 
 FOR SELECT 
 USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "Org members can manage sms_campaigns" ON public.sms_campaigns;
 CREATE POLICY "Org members can manage sms_campaigns" 
 ON public.sms_campaigns 
 FOR ALL 
 USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "sms_campaigns_insert_active_only" ON public.sms_campaigns;
 CREATE POLICY "sms_campaigns_insert_active_only" 
 ON public.sms_campaigns 
 FOR INSERT 
 WITH CHECK (is_org_active(organization_id) AND is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "sms_campaigns_update_active_only" ON public.sms_campaigns;
 CREATE POLICY "sms_campaigns_update_active_only" 
 ON public.sms_campaigns 
 FOR UPDATE 
@@ -113,16 +121,19 @@ USING (is_org_active(organization_id) AND is_org_member(organization_id))
 WITH CHECK (is_org_active(organization_id) AND is_org_member(organization_id));
 
 -- RLS Policies for SMS Messages
+DROP POLICY IF EXISTS "Org members can view sms_messages" ON public.sms_messages;
 CREATE POLICY "Org members can view sms_messages" 
 ON public.sms_messages 
 FOR SELECT 
 USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "Org members can manage sms_messages" ON public.sms_messages;
 CREATE POLICY "Org members can manage sms_messages" 
 ON public.sms_messages 
 FOR ALL 
 USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "sms_messages_insert_active_only" ON public.sms_messages;
 CREATE POLICY "sms_messages_insert_active_only" 
 ON public.sms_messages 
 FOR INSERT 
@@ -157,16 +168,19 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_sms_brands_updated_at ON public.sms_brands;
 CREATE TRIGGER update_sms_brands_updated_at
 BEFORE UPDATE ON public.sms_brands
 FOR EACH ROW
 EXECUTE FUNCTION public.update_sms_brands_updated_at();
 
+DROP TRIGGER IF EXISTS update_sms_campaigns_updated_at ON public.sms_campaigns;
 CREATE TRIGGER update_sms_campaigns_updated_at
 BEFORE UPDATE ON public.sms_campaigns
 FOR EACH ROW
 EXECUTE FUNCTION public.update_sms_campaigns_updated_at();
 
+DROP TRIGGER IF EXISTS update_sms_messages_updated_at ON public.sms_messages;
 CREATE TRIGGER update_sms_messages_updated_at
 BEFORE UPDATE ON public.sms_messages
 FOR EACH ROW

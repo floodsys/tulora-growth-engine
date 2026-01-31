@@ -1,22 +1,66 @@
 -- Fix owner role management with proper policy handling
+-- This migration is idempotent and guards against duplicate constraints/policies
 
--- 1. Add unique constraint on organization_members to prevent duplicate memberships
-ALTER TABLE public.organization_members 
-ADD CONSTRAINT organization_members_org_user_unique 
-UNIQUE (organization_id, user_id);
+-- 1. Add unique constraint on organization_members (guard: check if exists)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conrelid = 'public.organization_members'::regclass 
+      AND conname = 'organization_members_org_user_unique'
+  ) THEN
+    ALTER TABLE public.organization_members 
+    ADD CONSTRAINT organization_members_org_user_unique 
+    UNIQUE (organization_id, user_id);
+  END IF;
+END $$;
 
--- 2. Standardize status column naming (replace suspension_status with status)
-ALTER TABLE public.organizations 
-RENAME COLUMN suspension_status TO status;
+-- 2. Standardize status column naming (guard: only if suspension_status exists and status doesn't)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'organizations' 
+      AND column_name = 'suspension_status'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'organizations' 
+      AND column_name = 'status'
+  ) THEN
+    ALTER TABLE public.organizations RENAME COLUMN suspension_status TO status;
+  END IF;
+END $$;
 
--- Update status values to match new naming convention  
-UPDATE public.organizations 
-SET status = CASE 
-  WHEN status = 'active' THEN 'active'
-  WHEN status = 'suspended' THEN 'suspended' 
-  WHEN status = 'canceled' THEN 'canceled'
-  ELSE 'active'
-END;
+-- Update status values to match new naming convention (guard with trigger disable)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'organizations' 
+      AND column_name = 'status'
+  ) THEN
+    -- Disable the updated_at trigger if it exists
+    IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_organizations_updated_at') THEN
+      EXECUTE 'ALTER TABLE public.organizations DISABLE TRIGGER update_organizations_updated_at';
+    END IF;
+    
+    UPDATE public.organizations 
+    SET status = CASE 
+      WHEN status = 'active' THEN 'active'
+      WHEN status = 'suspended' THEN 'suspended' 
+      WHEN status = 'canceled' THEN 'canceled'
+      ELSE 'active'
+    END;
+    
+    -- Re-enable the trigger if it exists
+    IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_organizations_updated_at') THEN
+      EXECUTE 'ALTER TABLE public.organizations ENABLE TRIGGER update_organizations_updated_at';
+    END IF;
+  END IF;
+END $$;
 
 -- 3. Create function to check if user is organization owner
 CREATE OR REPLACE FUNCTION public.is_organization_owner(org_id uuid, user_id uuid DEFAULT auth.uid())
@@ -183,9 +227,8 @@ BEGIN
 END;
 $$;
 
--- 6. Create RLS policies to protect owner membership
-
--- Policy to prevent owner membership deletion
+-- 6. Create RLS policies to protect owner membership (guard: drop first if exists)
+DROP POLICY IF EXISTS "prevent_owner_membership_deletion" ON public.organization_members;
 CREATE POLICY "prevent_owner_membership_deletion" ON public.organization_members
 FOR DELETE
 USING (
@@ -196,7 +239,7 @@ USING (
   )
 );
 
--- Policy to prevent owner role changes
+DROP POLICY IF EXISTS "prevent_owner_role_changes" ON public.organization_members;
 CREATE POLICY "prevent_owner_role_changes" ON public.organization_members
 FOR UPDATE
 USING (
@@ -207,23 +250,15 @@ USING (
   )
 );
 
--- Policy to prevent last admin removal
+DROP POLICY IF EXISTS "prevent_last_admin_removal" ON public.organization_members;
 CREATE POLICY "prevent_last_admin_removal" ON public.organization_members
 FOR DELETE
 USING (
   NOT public.would_leave_org_without_admins(organization_id, user_id)
 );
 
--- Policy to prevent last admin role change  
-CREATE POLICY "prevent_last_admin_role_change" ON public.organization_members
-FOR UPDATE
-USING (
-  CASE 
-    WHEN OLD.role::text = 'admin' AND NEW.role::text != 'admin' THEN
-      NOT public.would_leave_org_without_admins(organization_id, user_id)
-    ELSE true
-  END
-);
+-- Note: prevent_last_admin_role_change is implemented as a trigger in 20250825042120 migration
+-- because RLS policies cannot access OLD and NEW values.
 
 -- 7. Update functions that reference suspension_status to use status
 CREATE OR REPLACE FUNCTION public.is_org_suspended(org_id uuid)

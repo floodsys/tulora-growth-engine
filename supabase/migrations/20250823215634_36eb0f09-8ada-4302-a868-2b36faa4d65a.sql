@@ -36,7 +36,16 @@ CREATE TABLE IF NOT EXISTS public.plan_configs (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- Insert high-ticket plan configurations (Pro -> Starter, add Business)
+-- Insert high-ticket plan configurations (Pro -> Starter, add Business, add Trial)
+-- MUST insert trial FIRST so FK constraint can be satisfied
+INSERT INTO public.plan_configs (plan_key, display_name, price_monthly, price_yearly, limits, features, stripe_price_id_monthly, stripe_price_id_yearly) VALUES
+('trial', 'Trial', 0, 0,
+ '{"agents": 2, "seats": 3, "calls_per_month": 50, "storage_gb": 5, "integrations": ["basic_calendar"]}',
+ '{"basic_calendar", "email_support"}',
+ NULL, NULL
+)
+ON CONFLICT (plan_key) DO NOTHING;
+
 INSERT INTO public.plan_configs (plan_key, display_name, price_monthly, price_yearly, limits, features, stripe_price_id_monthly, stripe_price_id_yearly) VALUES
 ('starter', 'Starter', 49700, 497000, 
  '{"agents": 5, "seats": 10, "calls_per_month": 1000, "storage_gb": 25, "integrations": ["basic_calendar", "email"]}',
@@ -58,12 +67,43 @@ ON CONFLICT (plan_key) DO UPDATE SET
   stripe_price_id_yearly = EXCLUDED.stripe_price_id_yearly,
   updated_at = now();
 
--- Add trial and demo columns to organizations
+-- Add trial and demo columns to organizations (NO inline FK to avoid immediate check failure)
 ALTER TABLE public.organizations 
-ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMP WITH TIME ZONE,
-ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP WITH TIME ZONE,
-ADD COLUMN IF NOT EXISTS is_demo BOOLEAN DEFAULT false,
-ADD COLUMN IF NOT EXISTS plan_key TEXT DEFAULT 'trial' REFERENCES public.plan_configs(plan_key);
+  ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS is_demo BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS plan_key TEXT;
+
+-- Default for future inserts only
+ALTER TABLE public.organizations
+  ALTER COLUMN plan_key SET DEFAULT 'trial';
+
+-- Backfill existing rows
+UPDATE public.organizations
+  SET plan_key = 'trial'
+  WHERE plan_key IS NULL;
+
+-- Add FK constraint if missing (use NOT VALID then VALIDATE for safer locking)
+DO $$
+BEGIN
+  IF to_regclass('public.organizations') IS NULL OR to_regclass('public.plan_configs') IS NULL THEN
+    RETURN;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'organizations_plan_key_fkey'
+      AND conrelid = 'public.organizations'::regclass
+  ) THEN
+    ALTER TABLE public.organizations
+      ADD CONSTRAINT organizations_plan_key_fkey
+      FOREIGN KEY (plan_key) REFERENCES public.plan_configs(plan_key) NOT VALID;
+
+    ALTER TABLE public.organizations
+      VALIDATE CONSTRAINT organizations_plan_key_fkey;
+  END IF;
+END $$;
 
 -- Create activity_logs table for audit trail
 CREATE TABLE IF NOT EXISTS public.activity_logs (
@@ -96,9 +136,28 @@ CREATE TABLE IF NOT EXISTS public.org_stripe_subscriptions (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- Update organization_members table to use proper role enum
-ALTER TABLE public.organization_members 
-ALTER COLUMN role TYPE public.org_role USING role::public.org_role;
+-- Update organization_members table to use proper role enum (idempotent check)
+DO $$
+DECLARE t regtype;
+BEGIN
+  IF to_regclass('public.organization_members') IS NULL THEN RETURN; END IF;
+
+  SELECT a.atttypid::regtype INTO t
+  FROM pg_attribute a
+  WHERE a.attrelid='public.organization_members'::regclass
+    AND a.attname='role'
+    AND a.attnum>0
+    AND NOT a.attisdropped;
+
+  IF t::text IN ('org_role','public.org_role') THEN
+    -- already correct, do nothing
+    RETURN;
+  END IF;
+
+  -- If not org_role, DO NOT convert here (it can fail due to RLS policy dependencies);
+  -- conversion is handled earlier in 20250823211335.
+  RAISE NOTICE 'Skipping organization_members.role conversion here; handled earlier.';
+END$$;
 
 -- Enable RLS on all new tables
 ALTER TABLE public.demo_sessions ENABLE ROW LEVEL SECURITY;
@@ -109,25 +168,31 @@ ALTER TABLE public.org_stripe_subscriptions ENABLE ROW LEVEL SECURITY;
 -- RLS Policies for org isolation
 
 -- Plan configs are publicly readable (for pricing page)
+DROP POLICY IF EXISTS "Plan configs are publicly readable" ON public.plan_configs;
 CREATE POLICY "Plan configs are publicly readable" ON public.plan_configs
 FOR SELECT USING (is_active = true);
 
 -- Activity logs: only org members can view their org's logs
+DROP POLICY IF EXISTS "Org members can view activity logs" ON public.activity_logs;
 CREATE POLICY "Org members can view activity logs" ON public.activity_logs
 FOR SELECT USING (is_org_member(organization_id));
 
 -- System can insert activity logs (via edge functions)
+DROP POLICY IF EXISTS "System can insert activity logs" ON public.activity_logs;
 CREATE POLICY "System can insert activity logs" ON public.activity_logs
 FOR INSERT WITH CHECK (true);
 
 -- Demo sessions: publicly accessible for sandbox
+DROP POLICY IF EXISTS "Demo sessions public access" ON public.demo_sessions;
 CREATE POLICY "Demo sessions public access" ON public.demo_sessions
 FOR ALL USING (true);
 
 -- Org subscriptions: org members can view, system can modify
+DROP POLICY IF EXISTS "Org members can view subscriptions" ON public.org_stripe_subscriptions;
 CREATE POLICY "Org members can view subscriptions" ON public.org_stripe_subscriptions
 FOR SELECT USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "System can manage subscriptions" ON public.org_stripe_subscriptions;
 CREATE POLICY "System can manage subscriptions" ON public.org_stripe_subscriptions
 FOR ALL USING (true);
 
@@ -140,11 +205,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_plan_configs_updated_at ON public.plan_configs;
 CREATE TRIGGER update_plan_configs_updated_at
   BEFORE UPDATE ON public.plan_configs
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_org_stripe_subscriptions_updated_at ON public.org_stripe_subscriptions;
 CREATE TRIGGER update_org_stripe_subscriptions_updated_at
   BEFORE UPDATE ON public.org_stripe_subscriptions
   FOR EACH ROW
@@ -155,11 +222,11 @@ CREATE TRIGGER update_org_stripe_subscriptions_updated_at
 -- Log user activities
 CREATE OR REPLACE FUNCTION public.log_activity(
   p_org_id UUID,
-  p_user_id UUID DEFAULT NULL,
+  p_user_id UUID,
   p_action TEXT,
   p_resource_type TEXT DEFAULT NULL,
   p_resource_id UUID DEFAULT NULL,
-  p_details JSONB DEFAULT '{}'
+  p_details JSONB DEFAULT '{}'::jsonb
 )
 RETURNS UUID
 LANGUAGE plpgsql
@@ -186,6 +253,31 @@ BEGIN
   ) RETURNING id INTO log_id;
   
   RETURN log_id;
+END;
+$$;
+
+-- 5-arg compatibility overload (omits p_user_id for positional callers)
+CREATE OR REPLACE FUNCTION public.log_activity(
+  p_org_id UUID,
+  p_action TEXT,
+  p_resource_type TEXT DEFAULT NULL,
+  p_resource_id UUID DEFAULT NULL,
+  p_details JSONB DEFAULT '{}'::jsonb
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+  RETURN public.log_activity(
+    p_org_id        => p_org_id,
+    p_user_id       => NULL,
+    p_action        => p_action,
+    p_resource_type => p_resource_type,
+    p_resource_id   => p_resource_id,
+    p_details       => p_details
+  );
 END;
 $$;
 
@@ -332,5 +424,6 @@ COMMENT ON TABLE public.org_stripe_subscriptions IS 'Stripe subscription sync da
 
 COMMENT ON FUNCTION public.has_feature IS 'Check if organization has access to specific feature';
 COMMENT ON FUNCTION public.can_perform_action IS 'Check if organization can perform action based on plan limits';
-COMMENT ON FUNCTION public.log_activity IS 'Log user activity for audit and analytics purposes';
+COMMENT ON FUNCTION public.log_activity(uuid, uuid, text, text, uuid, jsonb) IS 'Log user activity for audit and analytics purposes (6-arg version with user_id)';
+COMMENT ON FUNCTION public.log_activity(uuid, text, text, uuid, jsonb) IS 'Log user activity for audit and analytics purposes (5-arg compatibility overload without user_id)';
 COMMENT ON FUNCTION public.create_organization_with_owner IS 'Create organization with proper owner setup';

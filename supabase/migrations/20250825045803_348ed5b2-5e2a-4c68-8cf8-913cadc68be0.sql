@@ -1,6 +1,3 @@
--- Drop and recreate the cleanup function with new return type
-DROP FUNCTION IF EXISTS public.cleanup_expired_logs();
-
 -- Add legal hold and export settings to organizations
 ALTER TABLE public.organizations 
 ADD COLUMN IF NOT EXISTS legal_hold_enabled boolean DEFAULT false,

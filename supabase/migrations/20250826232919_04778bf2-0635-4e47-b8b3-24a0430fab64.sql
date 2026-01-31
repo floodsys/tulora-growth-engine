@@ -1,4 +1,4 @@
--- Subscriptions Table Consolidation Migration
+-- Subscriptions Table Consolidation Migration (idempotent v4)
 -- Canonicalize on org_stripe_subscriptions and create compatibility view
 
 -- 1. First, ensure the canonical table has proper uniqueness constraint
@@ -14,53 +14,69 @@ BEGIN
     END IF;
 END $$;
 
--- 2. Migrate data from org_subscriptions to org_stripe_subscriptions where not already present
-INSERT INTO public.org_stripe_subscriptions (
-  organization_id,
-  stripe_subscription_id,
-  stripe_customer_id,
-  plan_key,
-  status,
-  quantity,
-  current_period_start,
-  current_period_end,
-  cancel_at_period_end,
-  trial_end,
-  created_at,
-  updated_at
-)
-SELECT 
-  os.org_id as organization_id,
-  os.stripe_subscription_id,
-  NULL as stripe_customer_id, -- Will need to be populated later if needed
-  NULL as plan_key, -- Will need to be populated later if needed
-  os.status,
-  os.quantity,
-  os.current_period_start,
-  os.current_period_end,
-  os.cancel_at_period_end,
-  os.trial_end,
-  os.created_at,
-  os.updated_at
-FROM public.org_subscriptions os
-WHERE os.stripe_subscription_id IS NOT NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM public.org_stripe_subscriptions oss
-    WHERE oss.stripe_subscription_id = os.stripe_subscription_id
-  );
+-- 2. Migrate data from org_subscriptions TABLE (not VIEW) to org_stripe_subscriptions
+-- Skip if org_subscriptions is already a view or doesn't exist as a table
+DO $$
+BEGIN
+    -- Only migrate if org_subscriptions is a TABLE (not a VIEW)
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name = 'org_subscriptions' 
+          AND table_type = 'BASE TABLE'
+    ) THEN
+        INSERT INTO public.org_stripe_subscriptions (
+            organization_id,
+            stripe_subscription_id,
+            stripe_customer_id,
+            plan_key,
+            status,
+            quantity,
+            current_period_start,
+            current_period_end,
+            cancel_at_period_end,
+            trial_end,
+            created_at,
+            updated_at
+        )
+        SELECT 
+            os.org_id as organization_id,
+            os.stripe_subscription_id,
+            NULL as stripe_customer_id,
+            NULL as plan_key,
+            os.status,
+            os.quantity,
+            os.current_period_start,
+            os.current_period_end,
+            os.cancel_at_period_end,
+            os.trial_end,
+            os.created_at,
+            os.updated_at
+        FROM public.org_subscriptions os
+        WHERE os.stripe_subscription_id IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM public.org_stripe_subscriptions oss
+            WHERE oss.stripe_subscription_id = os.stripe_subscription_id
+          );
+        RAISE NOTICE 'Migrated data from org_subscriptions table';
+    ELSE
+        RAISE NOTICE 'Skipping data migration: org_subscriptions is not a table (may already be a view)';
+    END IF;
+END $$;
 
--- 3. Drop the old table
+-- 3. Drop the old table OR view (handle both cases - VIEW first!)
+DROP VIEW IF EXISTS public.org_subscriptions CASCADE;
 DROP TABLE IF EXISTS public.org_subscriptions CASCADE;
 
 -- 4. Create a compatibility view with the old table name and column mappings
-CREATE VIEW public.org_subscriptions AS
+CREATE OR REPLACE VIEW public.org_subscriptions AS
 SELECT
   id,
   organization_id as org_id,
   stripe_subscription_id,
-  NULL as product_id, -- Legacy column, not in canonical table
-  NULL as price_id, -- Legacy column, not in canonical table
-  NULL as subscription_item_id, -- Legacy column, not in canonical table
+  NULL::text as product_id,
+  NULL::text as price_id,
+  NULL::text as subscription_item_id,
   status,
   quantity,
   current_period_start,

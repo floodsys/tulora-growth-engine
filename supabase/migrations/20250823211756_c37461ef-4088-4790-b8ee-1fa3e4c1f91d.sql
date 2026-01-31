@@ -29,7 +29,7 @@ CREATE POLICY "organizations_select_policy" ON public.organizations
         -- Check if user is any member of the organization
         EXISTS (
             SELECT 1 FROM public.organization_members 
-            WHERE organization_id = organizations.id 
+            WHERE org_id = organizations.id 
             AND user_id = auth.uid() 
             AND seat_active = true
         )
@@ -44,7 +44,7 @@ CREATE POLICY "organizations_update_policy" ON public.organizations
         -- Check if user is an admin member
         EXISTS (
             SELECT 1 FROM public.organization_members 
-            WHERE organization_id = organizations.id 
+            WHERE org_id = organizations.id 
             AND user_id = auth.uid() 
             AND role = 'admin'::public.org_role 
             AND seat_active = true
@@ -62,14 +62,14 @@ CREATE POLICY "organization_members_select_policy" ON public.organization_member
         -- Check if user is the owner of the organization
         EXISTS (
             SELECT 1 FROM public.organizations 
-            WHERE id = organization_members.organization_id 
+            WHERE id = organization_members.org_id 
             AND owner_user_id = auth.uid()
         )
         OR 
         -- Check if user is any member of the organization
         EXISTS (
             SELECT 1 FROM public.organization_members om
-            WHERE om.organization_id = organization_members.organization_id 
+            WHERE om.org_id = organization_members.org_id 
             AND om.user_id = auth.uid() 
             AND om.seat_active = true
         )
@@ -81,14 +81,14 @@ CREATE POLICY "organization_members_insert_policy" ON public.organization_member
         -- Check if user is the owner of the organization
         EXISTS (
             SELECT 1 FROM public.organizations 
-            WHERE id = organization_members.organization_id 
+            WHERE id = organization_members.org_id 
             AND owner_user_id = auth.uid()
         )
         OR 
         -- Check if user is an admin member
         EXISTS (
             SELECT 1 FROM public.organization_members om
-            WHERE om.organization_id = organization_members.organization_id 
+            WHERE om.org_id = organization_members.org_id 
             AND om.user_id = auth.uid() 
             AND om.role = 'admin'::public.org_role 
             AND om.seat_active = true
@@ -101,14 +101,14 @@ CREATE POLICY "organization_members_update_policy" ON public.organization_member
         -- Check if user is the owner of the organization
         EXISTS (
             SELECT 1 FROM public.organizations 
-            WHERE id = organization_members.organization_id 
+            WHERE id = organization_members.org_id 
             AND owner_user_id = auth.uid()
         )
         OR 
         -- Check if user is an admin member
         EXISTS (
             SELECT 1 FROM public.organization_members om
-            WHERE om.organization_id = organization_members.organization_id 
+            WHERE om.org_id = organization_members.org_id 
             AND om.user_id = auth.uid() 
             AND om.role = 'admin'::public.org_role 
             AND om.seat_active = true
@@ -121,14 +121,14 @@ CREATE POLICY "organization_members_delete_policy" ON public.organization_member
         -- Check if user is the owner of the organization
         EXISTS (
             SELECT 1 FROM public.organizations 
-            WHERE id = organization_members.organization_id 
+            WHERE id = organization_members.org_id 
             AND owner_user_id = auth.uid()
         )
         OR 
         -- Check if user is an admin member
         EXISTS (
             SELECT 1 FROM public.organization_members om
-            WHERE om.organization_id = organization_members.organization_id 
+            WHERE om.org_id = organization_members.org_id 
             AND om.user_id = auth.uid() 
             AND om.role = 'admin'::public.org_role 
             AND om.seat_active = true
@@ -149,7 +149,7 @@ CREATE POLICY "organization_invitations_select_policy" ON public.organization_in
         -- Check if user is an admin member
         EXISTS (
             SELECT 1 FROM public.organization_members om
-            WHERE om.organization_id = organization_invitations.organization_id 
+            WHERE om.org_id = organization_invitations.organization_id 
             AND om.user_id = auth.uid() 
             AND om.role = 'admin'::public.org_role 
             AND om.seat_active = true
@@ -169,7 +169,7 @@ CREATE POLICY "organization_invitations_insert_policy" ON public.organization_in
         -- Check if user is an admin member
         EXISTS (
             SELECT 1 FROM public.organization_members om
-            WHERE om.organization_id = organization_invitations.organization_id 
+            WHERE om.org_id = organization_invitations.organization_id 
             AND om.user_id = auth.uid() 
             AND om.role = 'admin'::public.org_role 
             AND om.seat_active = true
@@ -189,7 +189,7 @@ CREATE POLICY "organization_invitations_update_policy" ON public.organization_in
         -- Check if user is an admin member
         EXISTS (
             SELECT 1 FROM public.organization_members om
-            WHERE om.organization_id = organization_invitations.organization_id 
+            WHERE om.org_id = organization_invitations.organization_id 
             AND om.user_id = auth.uid() 
             AND om.role = 'admin'::public.org_role 
             AND om.seat_active = true
@@ -209,7 +209,7 @@ CREATE POLICY "organization_invitations_delete_policy" ON public.organization_in
         -- Check if user is an admin member
         EXISTS (
             SELECT 1 FROM public.organization_members om
-            WHERE om.organization_id = organization_invitations.organization_id 
+            WHERE om.org_id = organization_invitations.organization_id 
             AND om.user_id = auth.uid() 
             AND om.role = 'admin'::public.org_role 
             AND om.seat_active = true

@@ -5,11 +5,13 @@ DROP POLICY IF EXISTS "Users can update their own avatar v2" ON storage.objects;
 DROP POLICY IF EXISTS "Users can delete their own avatar v2" ON storage.objects;
 
 -- Create simplified storage policies for avatars bucket
+DROP POLICY IF EXISTS "Avatar images are publicly accessible" ON storage.objects;
 CREATE POLICY "Avatar images are publicly accessible" 
 ON storage.objects 
 FOR SELECT 
 USING (bucket_id = 'avatars');
 
+DROP POLICY IF EXISTS "Users can upload avatars" ON storage.objects;
 CREATE POLICY "Users can upload avatars" 
 ON storage.objects 
 FOR INSERT 
@@ -19,6 +21,7 @@ WITH CHECK (
   AND name ~ ('^' || auth.uid()::text || '/')
 );
 
+DROP POLICY IF EXISTS "Users can update avatars" ON storage.objects;
 CREATE POLICY "Users can update avatars" 
 ON storage.objects 
 FOR UPDATE 
@@ -28,6 +31,7 @@ USING (
   AND name ~ ('^' || auth.uid()::text || '/')
 );
 
+DROP POLICY IF EXISTS "Users can delete avatars" ON storage.objects;
 CREATE POLICY "Users can delete avatars" 
 ON storage.objects 
 FOR DELETE 

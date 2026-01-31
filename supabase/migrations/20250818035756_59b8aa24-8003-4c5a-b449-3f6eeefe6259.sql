@@ -34,17 +34,20 @@ CREATE TABLE IF NOT EXISTS public.agent_profiles (
 ALTER TABLE public.agent_profiles ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies
+DROP POLICY IF EXISTS "Org members can view agent profiles" ON public.agent_profiles;
 CREATE POLICY "Org members can view agent profiles" 
 ON public.agent_profiles 
 FOR SELECT 
 USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "Org members can manage agent profiles" ON public.agent_profiles;
 CREATE POLICY "Org members can manage agent profiles" 
 ON public.agent_profiles 
 FOR ALL 
 USING (is_org_member(organization_id));
 
 -- Create trigger for updated_at
+DROP TRIGGER IF EXISTS update_agent_profiles_updated_at ON public.agent_profiles;
 CREATE TRIGGER update_agent_profiles_updated_at
 BEFORE UPDATE ON public.agent_profiles
 FOR EACH ROW
@@ -67,6 +70,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS ensure_single_default_agent_trigger ON public.agent_profiles;
 CREATE TRIGGER ensure_single_default_agent_trigger
 AFTER UPDATE OF is_default ON public.agent_profiles
 FOR EACH ROW

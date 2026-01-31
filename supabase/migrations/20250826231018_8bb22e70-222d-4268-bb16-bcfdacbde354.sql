@@ -17,11 +17,12 @@ BEGIN
     -- Only add if it doesn't exist
     IF NOT constraint_exists THEN
         -- Check for any existing unique constraint on invite_token and drop duplicates
-        DROP INDEX IF EXISTS organization_invitations_invite_token_key;
+        EXECUTE 'DROP INDEX IF EXISTS organization_invitations_invite_token_key';
+        EXECUTE 'ALTER TABLE organization_invitations DROP CONSTRAINT IF EXISTS organization_invitations_invite_token_key';
+        EXECUTE 'ALTER TABLE organization_invitations DROP CONSTRAINT IF EXISTS organization_invitations_invite_token_unique';
         
         -- Add the canonical constraint
-        ALTER TABLE organization_invitations 
-        ADD CONSTRAINT organization_invitations_invite_token_unique UNIQUE (invite_token);
+        EXECUTE 'ALTER TABLE organization_invitations ADD CONSTRAINT organization_invitations_invite_token_unique UNIQUE (invite_token)';
     END IF;
 END $$;
 
@@ -40,9 +41,13 @@ BEGIN
     
     -- Only add if it doesn't exist
     IF NOT constraint_exists THEN
+        -- Drop any existing variants first
+        EXECUTE 'ALTER TABLE organization_members DROP CONSTRAINT IF EXISTS organization_members_organization_id_user_id_key';
+        EXECUTE 'ALTER TABLE organization_members DROP CONSTRAINT IF EXISTS organization_members_organization_id_user_id_unique';
+        EXECUTE 'ALTER TABLE organization_members DROP CONSTRAINT IF EXISTS organization_members_org_user_unique';
+        
         -- Add the canonical constraint
-        ALTER TABLE organization_members 
-        ADD CONSTRAINT organization_members_org_user_unique UNIQUE (organization_id, user_id);
+        EXECUTE 'ALTER TABLE organization_members ADD CONSTRAINT organization_members_org_user_unique UNIQUE (organization_id, user_id)';
     END IF;
 END $$;
 
@@ -163,28 +168,43 @@ BEGIN
     END IF;
 END $$;
 
--- 5. Log the schema cleanup
-PERFORM public.log_event(
-    '00000000-0000-0000-0000-000000000000'::uuid,
-    'schema.cleanup_v2',
-    'database',
-    NULL,
-    'system',
-    'schema_standardization',
-    'success',
-    'internal',
-    jsonb_build_object(
-        'cleanup_actions', ARRAY[
-            'standardized_unique_constraints',
-            'added_health_check_function',
-            'created_backward_compatibility_view'
-        ],
-        'canonical_tables', ARRAY[
-            'organizations',
-            'organization_members', 
-            'organization_invitations',
-            'org_stripe_subscriptions'
-        ],
-        'migration_timestamp', now()
-    )
-);
+-- 5. Log the schema cleanup (only if at least one organization exists)
+-- This is idempotent and safe for fresh/empty databases with no org rows yet.
+DO $$
+DECLARE
+    v_org_id UUID;
+BEGIN
+    -- Pick the first existing organization (or NULL if none exist)
+    SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
+
+    -- Only log if an organization exists
+    IF v_org_id IS NOT NULL THEN
+        PERFORM public.log_event(
+            v_org_id,
+            'schema.cleanup_v2',
+            'other',
+            NULL,
+            'system',
+            'schema_standardization',
+            'success',
+            'internal',
+            jsonb_build_object(
+                'cleanup_actions', ARRAY[
+                    'standardized_unique_constraints',
+                    'added_health_check_function',
+                    'created_backward_compatibility_view'
+                ],
+                'canonical_tables', ARRAY[
+                    'organizations',
+                    'organization_members', 
+                    'organization_invitations',
+                    'org_stripe_subscriptions'
+                ],
+                'migration_timestamp', now()
+            )
+        );
+        RAISE NOTICE 'Schema cleanup v2 logged for org_id: %', v_org_id;
+    ELSE
+        RAISE NOTICE 'Skipping schema cleanup log: no organizations exist yet (empty database)';
+    END IF;
+END $$;

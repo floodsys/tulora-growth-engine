@@ -12,8 +12,9 @@ AS $$
     SELECT 1 FROM public.organizations o
     WHERE o.owner_user_id = user_id
       AND o.id = (
-        SELECT MIN(id) FROM public.organizations 
+        SELECT id FROM public.organizations 
         WHERE owner_user_id = user_id
+        ORDER BY id LIMIT 1
       )
   );
 $$;
