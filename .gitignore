@@ -58,3 +58,6 @@ cline_diff.patchgit
 
 # Windows stray null device file
 nul
+
+# local test artifacts
+test-reports/

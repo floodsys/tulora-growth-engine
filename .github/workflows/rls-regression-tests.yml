@@ -19,7 +19,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
         
     - name: Install dependencies
@@ -31,7 +31,7 @@ jobs:
       run: node scripts/check-rls-tautologies.js
       
     - name: Upload tautology check results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: rls-tautology-results
@@ -49,7 +49,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
         
     - name: Install dependencies
@@ -63,7 +63,7 @@ jobs:
       run: node scripts/rls-smoke-tests.js
       
     - name: Upload smoke test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: rls-smoke-test-results
@@ -77,7 +77,7 @@ jobs:
     
     steps:
     - name: Download all artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       
     - name: Create combined report
       run: |
