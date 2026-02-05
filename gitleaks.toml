@@ -1,0 +1,22 @@
+# Gitleaks Configuration
+# See: https://github.com/gitleaks/gitleaks#configuration
+
+title = "Tulora Growth Engine - Gitleaks Config"
+
+# Extend the default ruleset
+[extend]
+useDefault = true
+
+# Global allowlist for specific paths
+[allowlist]
+paths = [
+  # Debug output files (local dev output with UUIDs/tokens, not actual secrets)
+  '''supabase_db_reset_debug\.txt''',
+  '''supabase_start_debug\.txt''',
+  # Local environment files (never committed, in .gitignore)
+  '''(^|[\\/])\.env$''',
+  # Local IDE/tool configs (never committed, in .gitignore)
+  '''\.cline[\\/]''',
+  # Build output directory (never committed, in .gitignore)
+  '''(^|[\\/])dist[\\/]''',
+]

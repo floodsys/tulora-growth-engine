@@ -1,0 +1,109 @@
+# Gitleaks Ignore File
+# See: https://github.com/gitleaks/gitleaks#gitleaksignore
+# Each line is a fingerprint of a finding that should be ignored.
+# Format: <file>:<rule>:<line> (stable, commit-independent)
+
+# ============================================================================
+# Supabase Public Anon Keys (intentionally public, not secrets)
+# These are publishable/anon keys designed to be in client-side code
+# ============================================================================
+
+# src/config/publicConfig.ts - SUPABASE_ANON (public anon key)
+src/config/publicConfig.ts:jwt:5
+
+# src/integrations/supabase/client.ts - SUPABASE_PUBLISHABLE_KEY
+src/integrations/supabase/client.ts:jwt:6
+
+# ============================================================================
+# Supabase Local Development Demo Tokens (standard supabase-demo tokens)
+# These are well-known development tokens from `supabase start`
+# ============================================================================
+
+# tests/edge-function-rls.spec.ts - local dev ANON_KEY fallback
+tests/edge-function-rls.spec.ts:jwt:26
+
+# tests/edge-function-rls.spec.ts - local dev SERVICE_ROLE_KEY fallback  
+tests/edge-function-rls.spec.ts:jwt:27
+
+# tests/edge-function-rls.spec.ts - mock expired token for testing
+tests/edge-function-rls.spec.ts:jwt:734
+
+# ============================================================================
+# Test Files with Public Anon Keys
+# ============================================================================
+
+# test-admin-contact-sales.js - SUPABASE_ANON_KEY (public)
+test-admin-contact-sales.js:jwt:5
+
+# test-multiselect-quick.js - SUPABASE_ANON_KEY (public)
+test-multiselect-quick.js:jwt:5
+
+# supabase/functions/contact-sales/test-multiselect.ts - SUPABASE_ANON_KEY (public)
+supabase/functions/contact-sales/test-multiselect.ts:jwt:5
+
+# ============================================================================
+# Edge Function Test Configurations (using public anon keys)
+# ============================================================================
+
+# supabase/functions/test-suitecrm-connection/index.ts - test config with anon key
+supabase/functions/test-suitecrm-connection/index.ts:jwt:226
+
+# ============================================================================
+# Component/Page Files with Anon Keys for API Calls
+# ============================================================================
+
+# src/pages/AdminDiagnostic.tsx - diagnostic display of anon key
+src/pages/AdminDiagnostic.tsx:jwt:270
+src/pages/AdminDiagnostic.tsx:jwt:626
+
+# src/components/admin/SuspensionSystemTest.tsx - test component with anon key
+src/components/admin/SuspensionSystemTest.tsx:jwt:133
+
+# ============================================================================
+# Retell Tools JSON Configs (using public anon keys)
+# ============================================================================
+
+# retell-tools/create_booking.json - Bearer token using anon key
+retell-tools/create_booking.json:jwt:46
+
+# retell-tools/create_booking_stub.json - Bearer token using anon key
+retell-tools/create_booking_stub.json:jwt:46
+
+# ============================================================================
+# SQL Migrations with Anon Key in md5() for test data generation
+# ============================================================================
+
+# supabase/migrations/20250826053309_*.sql - md5 hash seed using anon key
+supabase/migrations/20250826053309_97126e35-41f3-4341-a36f-8dc360b5eaea.sql:jwt:126
+
+# ============================================================================
+# SQL Migrations - UUIDs (user IDs, not API keys)
+# ============================================================================
+
+# supabase/migrations/*_72be4c60-*.sql - superadmin UUID checks
+supabase/migrations/20250825183745_72be4c60-1b24-48fd-8076-30d18e8de18b.sql:generic-api-key:4
+supabase/migrations/20250825183745_72be4c60-1b24-48fd-8076-30d18e8de18b.sql:generic-api-key:10
+
+# supabase/migrations/*_c21df257-*.sql - superadmin UUID checks
+supabase/migrations/20250825193201_c21df257-2359-4412-acff-7413be3652f6.sql:generic-api-key:92
+
+# supabase/migrations/*_07c41be6-*.sql - superadmin UUID checks
+supabase/migrations/20250825193234_07c41be6-8446-41c6-be83-98b254c2b2bb.sql:generic-api-key:78
+
+# ============================================================================
+# Example/Placeholder API Keys in UI Components (mock demo values)
+# ============================================================================
+
+# src/components/dashboard/AccessControlSettings.tsx - example key prefix
+src/components/dashboard/AccessControlSettings.tsx:generic-api-key:54
+
+# src/pages/AbusePrevention.tsx - reCAPTCHA site/secret keys (examples)
+src/pages/AbusePrevention.tsx:generic-api-key:15
+src/pages/AbusePrevention.tsx:generic-api-key:16
+
+# src/pages/AccessControl.tsx - example sk_live/sk_test keys
+src/pages/AccessControl.tsx:generic-api-key:18
+src/pages/AccessControl.tsx:generic-api-key:27
+
+# src/pages/ChatWidget.tsx - example wk_live key
+src/pages/ChatWidget.tsx:generic-api-key:16
