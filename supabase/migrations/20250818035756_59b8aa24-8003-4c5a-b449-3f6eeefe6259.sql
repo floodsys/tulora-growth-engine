@@ -34,6 +34,9 @@ CREATE TABLE IF NOT EXISTS public.agent_profiles (
 ALTER TABLE public.agent_profiles ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies
+DROP POLICY IF EXISTS "Org members can view agent profiles" ON public.agent_profiles;
+DROP POLICY IF EXISTS "Org members can manage agent profiles" ON public.agent_profiles;
+
 CREATE POLICY "Org members can view agent profiles" 
 ON public.agent_profiles 
 FOR SELECT 
