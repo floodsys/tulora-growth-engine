@@ -41,7 +41,7 @@ AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.organization_members
     WHERE organization_id = org_id 
-      AND user_id = user_id 
+      AND organization_members.user_id = check_org_membership.user_id 
       AND seat_active = true
   );
 $$;
@@ -60,7 +60,7 @@ AS $$
     EXISTS (
       SELECT 1 FROM public.organization_members
       WHERE organization_id = org_id 
-        AND user_id = user_id 
+        AND organization_members.user_id = check_admin_access.user_id 
         AND role = 'admin'::org_role
         AND seat_active = true
     ) OR

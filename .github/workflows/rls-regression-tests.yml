@@ -40,7 +40,6 @@ jobs:
   rls-smoke-tests:
     name: RLS Function Smoke Tests
     runs-on: ubuntu-latest
-    environment: testing
     
     steps:
     - name: Checkout code
@@ -51,16 +50,49 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
+
+    - name: Setup Supabase CLI
+      uses: supabase/setup-cli@v1
+      with:
+        version: latest
+
+    - name: Start Supabase local instance
+      run: |
+        supabase start
+        
+    - name: Export Supabase credentials
+      id: supabase
+      run: |
+        # Parse supabase status JSON output
+        STATUS=$(supabase status --output json)
+        
+        # Extract values using jq
+        API_URL=$(echo "$STATUS" | jq -r '.API_URL')
+        ANON_KEY=$(echo "$STATUS" | jq -r '.ANON_KEY')
+        SERVICE_ROLE_KEY=$(echo "$STATUS" | jq -r '.SERVICE_ROLE_KEY')
+        
+        # Export to GITHUB_ENV for subsequent steps
+        echo "VITE_SUPABASE_URL=$API_URL" >> $GITHUB_ENV
+        echo "VITE_SUPABASE_PUBLISHABLE_KEY=$ANON_KEY" >> $GITHUB_ENV
+        echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> $GITHUB_ENV
+        
+        # Log for debugging (without exposing secrets)
+        echo "✅ Supabase credentials exported"
+        echo "   API URL: $API_URL"
         
     - name: Install dependencies
       run: npm ci
       
     - name: Run RLS smoke tests
       env:
-        VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-        VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        VITE_SUPABASE_URL: ${{ env.VITE_SUPABASE_URL }}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${{ env.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
       run: node scripts/rls-smoke-tests.js
+
+    - name: Stop Supabase
+      if: always()
+      run: supabase stop
       
     - name: Upload smoke test results
       uses: actions/upload-artifact@v4
@@ -74,6 +106,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [rls-tautology-check, rls-smoke-tests]
     if: always()
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
     
     steps:
     - name: Download all artifacts
@@ -114,7 +150,9 @@ jobs:
     - name: Comment on PR
       if: github.event_name == 'pull_request'
       uses: actions/github-script@v6
+      continue-on-error: true
       with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
           const fs = require('fs');
           let comment = '## 🛡️ RLS Regression Test Results\n\n';
