@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
-import { requireSuperadmin } from '../_shared/requireSuperadmin.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,25 +11,46 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Enforce superadmin access
-  const guardResult = await requireSuperadmin(req, 'admin-superadmin-debug');
-  if (!guardResult.ok) {
-    return guardResult.response!;
+  // ── Superadmin authorization gate (anon-key + user JWT) ──
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Authentication required' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
-  const user = guardResult.user!;
+  const supabaseClient = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+    {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false },
+    }
+  );
+
+  const { data: { user: authUser }, error: authError } = await supabaseClient.auth.getUser();
+  if (authError || !authUser) {
+    return new Response(JSON.stringify({ error: 'Authentication required' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin');
+  if (superadminError || !isSuperadmin) {
+    console.error('Superadmin check failed:', { error: superadminError, isSuperadmin, userId: authUser.id });
+    return new Response(JSON.stringify({ error: 'Superadmin access required' }), {
+      status: 403,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const user = authUser;
 
   try {
-    // Create user client to get fresh user data
-    const userClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    );
+    // Re-use the already-created user client for fresh user data
+    const userClient = supabaseClient;
 
     // Create service client to check superadmins table
     const serviceClient = createClient(
@@ -57,9 +77,9 @@ Deno.serve(async (req) => {
     // Get environment info
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "NOT_SET";
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "NOT_SET";
-    
+
     // Mask most of the anon key for security, show first/last few chars
-    const maskedAnonKey = anonKey.length > 20 
+    const maskedAnonKey = anonKey.length > 20
       ? `${anonKey.substring(0, 8)}...${anonKey.substring(anonKey.length - 8)}`
       : anonKey;
 
@@ -106,9 +126,9 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Superadmin debug error:', error);
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       error: 'Debug failed',
-      details: error.message 
+      details: error.message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

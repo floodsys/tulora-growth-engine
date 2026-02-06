@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
-import { requireSuperadmin } from '../_shared/requireSuperadmin.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,20 +19,49 @@ interface RequestBody {
 Deno.serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { 
-      status: 204, 
-      headers: corsHeaders 
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
     });
   }
 
   try {
-    // Require superadmin authentication
-    const authResult = await requireSuperadmin(req, 'admin-set-org-access');
-    if (!authResult.ok) {
-      return authResult.response!;
+    // ── Superadmin authorization gate (anon-key + user JWT) ──
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    const user = authResult.user;
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: { headers: { Authorization: authHeader } },
+        auth: { persistSession: false },
+      }
+    );
+
+    const { data: { user: authUser }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !authUser) {
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin');
+    if (superadminError || !isSuperadmin) {
+      console.error('Superadmin check failed:', { error: superadminError, isSuperadmin, userId: authUser.id });
+      return new Response(JSON.stringify({ error: 'Superadmin access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const user = authUser;
 
     // Only allow POST requests
     if (req.method !== 'POST') {
@@ -93,7 +121,7 @@ Deno.serve(async (req: Request) => {
     if (manual.active === true) {
       // Calculate ends_at if not provided (90 days from now)
       const endsAt = manual.ends_at || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
-      
+
       // Activate manual access
       const manualActivationData = {
         active: true,
@@ -215,8 +243,8 @@ Deno.serve(async (req: Request) => {
       manual_activation: updateResult.entitlements?.manual_activation || null
     }), {
       status: 200,
-      headers: { 
-        ...corsHeaders, 
+      headers: {
+        ...corsHeaders,
         'Content-Type': 'application/json',
         'X-Function': 'admin-set-org-access',
         'X-Version': '1.0'

@@ -1,7 +1,8 @@
 -- Insert sample agent profiles for testing
--- First create a sample organization and user
+-- First create a sample organization and user (idempotent)
 INSERT INTO public.organizations (id, name, slug) 
-VALUES ('00000000-0000-0000-0000-000000000001', 'Demo Organization', 'demo-org');
+VALUES ('00000000-0000-0000-0000-000000000001', 'Demo Organization', 'demo-org')
+ON CONFLICT (slug) DO NOTHING;
 
 -- Insert sample agent profiles
 INSERT INTO public.agent_profiles (
@@ -79,4 +80,5 @@ INSERT INTO public.agent_profiles (
   false,
   null,
   '{"follow_up_settings": {"max_attempts": 3}}'::jsonb
-);
+)
+ON CONFLICT (id) DO NOTHING;
