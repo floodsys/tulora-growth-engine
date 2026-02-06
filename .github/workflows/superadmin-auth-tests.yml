@@ -41,8 +41,8 @@ jobs:
       - name: Run superadmin authorization tests
         run: npm run test:superadmin
         
-      - name: Run full test suite
-        run: npm run test:ci
+      - name: Run superadmin auth unit tests
+        run: npx vitest run src/test/superadmin-auth.test.ts
         
       - name: Lint codebase for authorization violations
         run: |

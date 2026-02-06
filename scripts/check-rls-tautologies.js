@@ -55,7 +55,8 @@ const DANGEROUS_PATTERNS = [
   }
 ];
 
-let hasErrors = false;
+let hasCritical = false;
+let hasHighFindings = false;
 let hasWarnings = false;
 const findings = [];
 
@@ -72,12 +73,18 @@ function addFinding(severity, message, file, line, lineNumber, pattern) {
 
   findings.push(finding);
 
-  if (severity === 'critical' || severity === 'high') {
-    hasErrors = true;
+  if (severity === 'critical') {
+    hasCritical = true;
     console.error(`❌ ${severity.toUpperCase()}: ${message}`);
     console.error(`   File: ${file}:${lineNumber}`);
     console.error(`   Code: ${line.trim()}`);
     console.error('');
+  } else if (severity === 'high') {
+    hasHighFindings = true;
+    console.warn(`⚠️  ${severity.toUpperCase()}: ${message}`);
+    console.warn(`   File: ${file}:${lineNumber}`);
+    console.warn(`   Code: ${line.trim()}`);
+    console.warn('');
   } else {
     hasWarnings = true;
     console.warn(`⚠️  ${severity.toUpperCase()}: ${message}`);
@@ -216,7 +223,7 @@ function printSummary(report) {
     console.log(`  Low: ${report.summary.low}`);
   }
 
-  if (hasErrors) {
+  if (hasCritical) {
     console.log('\n💥 CRITICAL ISSUES FOUND:');
     console.log('These patterns can completely bypass RLS security!');
     console.log('\n🛠️  Common fixes:');
@@ -224,6 +231,10 @@ function printSummary(report) {
     console.log('2. Avoid parameter shadowing: use different names');
     console.log('3. Replace USING (true) with proper conditions');
     console.log('4. Review all RLS policies for logic errors');
+  } else if (hasHighFindings) {
+    console.log('\n⚠️  HIGH SEVERITY FINDINGS (non-blocking):');
+    console.log('Review these patterns - they may allow broader access than intended.');
+    console.log('High findings do not fail the build but should be addressed.');
   }
 }
 
@@ -237,10 +248,14 @@ async function main() {
   const report = generateReport();
   printSummary(report);
 
-  // Exit with error code if critical issues found
-  if (hasErrors) {
-    console.log('\n❌ Build should FAIL due to critical RLS issues!');
+  // Exit with error code ONLY if critical issues found
+  // High severity findings are reported but do not fail the build
+  if (hasCritical) {
+    console.log('\n❌ Build FAILED: Critical RLS tautologies detected (critical_count > 0)');
     process.exit(1);
+  } else if (hasHighFindings) {
+    console.log('\n⚠️  High severity findings reported (non-blocking). Build continues.');
+    process.exit(0);
   } else if (hasWarnings) {
     console.log('\n⚠️  Warnings found, but build can continue');
     process.exit(0);

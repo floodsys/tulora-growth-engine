@@ -61,3 +61,7 @@ nul
 
 # local test artifacts
 test-reports/
+test-results/
+
+# Gitleaks binary
+gitleaks.exe
