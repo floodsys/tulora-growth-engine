@@ -48,6 +48,7 @@ FOR ALL
 USING (is_org_member(organization_id));
 
 -- Create trigger for updated_at
+DROP TRIGGER IF EXISTS update_agent_profiles_updated_at ON public.agent_profiles;
 CREATE TRIGGER update_agent_profiles_updated_at
 BEFORE UPDATE ON public.agent_profiles
 FOR EACH ROW
@@ -70,6 +71,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS ensure_single_default_agent_trigger ON public.agent_profiles;
 CREATE TRIGGER ensure_single_default_agent_trigger
 AFTER UPDATE OF is_default ON public.agent_profiles
 FOR EACH ROW
