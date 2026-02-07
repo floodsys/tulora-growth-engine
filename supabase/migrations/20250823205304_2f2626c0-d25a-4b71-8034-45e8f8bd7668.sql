@@ -14,6 +14,19 @@ CREATE TABLE IF NOT EXISTS public.organizations (
   updated_at timestamp with time zone NOT NULL DEFAULT now()
 );
 
+-- Add owner_user_id column if table already existed without it
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name  = 'organizations'
+      AND column_name = 'owner_user_id'
+  ) THEN
+    ALTER TABLE public.organizations
+      ADD COLUMN owner_user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
 -- Create organization_members table if it doesn't exist
 CREATE TABLE IF NOT EXISTS public.organization_members (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -24,6 +37,62 @@ CREATE TABLE IF NOT EXISTS public.organization_members (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   UNIQUE(organization_id, user_id)
 );
+
+-- Align organization_members schema if it already existed with different column names
+DO $$ BEGIN
+  -- Drop old RLS policies that reference the old org_id column name
+  DROP POLICY IF EXISTS "organization_members read self org" ON public.organization_members;
+
+  -- Rename org_id → organization_id if the old column exists and the new one does not
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'organization_members' AND column_name = 'org_id'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'organization_members' AND column_name = 'organization_id'
+  ) THEN
+    ALTER TABLE public.organization_members RENAME COLUMN org_id TO organization_id;
+  END IF;
+
+  -- Add id column if missing (old table used composite PK)
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'organization_members' AND column_name = 'id'
+  ) THEN
+    ALTER TABLE public.organization_members ADD COLUMN id uuid NOT NULL DEFAULT gen_random_uuid();
+  END IF;
+
+  -- Add seat_active column if missing
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'organization_members' AND column_name = 'seat_active'
+  ) THEN
+    ALTER TABLE public.organization_members ADD COLUMN seat_active boolean NOT NULL DEFAULT true;
+  END IF;
+
+  -- Add created_at column if missing
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'organization_members' AND column_name = 'created_at'
+  ) THEN
+    ALTER TABLE public.organization_members ADD COLUMN created_at timestamp with time zone NOT NULL DEFAULT now();
+  END IF;
+END $$;
+
+-- Also rename org_id → organization_id in org_subscriptions if needed
+DO $$ BEGIN
+  DROP POLICY IF EXISTS "org_subscriptions read for members" ON public.org_subscriptions;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'org_subscriptions' AND column_name = 'org_id'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'org_subscriptions' AND column_name = 'organization_id'
+  ) THEN
+    ALTER TABLE public.org_subscriptions RENAME COLUMN org_id TO organization_id;
+  END IF;
+END $$;
 
 -- Create organization_invitations table if it doesn't exist
 CREATE TABLE IF NOT EXISTS public.organization_invitations (
@@ -51,10 +120,6 @@ STABLE SECURITY DEFINER
 SET search_path TO 'public'
 AS $$
   SELECT EXISTS (
-    SELECT 1 FROM public.organizations o
-    WHERE o.id = org_id 
-      AND o.owner_user_id = auth.uid()
-  ) OR EXISTS (
     SELECT 1 FROM public.organization_members om
     WHERE om.organization_id = org_id
       AND om.user_id = auth.uid()
@@ -70,10 +135,6 @@ STABLE SECURITY DEFINER
 SET search_path TO 'public'
 AS $$
   SELECT EXISTS (
-    SELECT 1 FROM public.organizations o
-    WHERE o.id = org_id 
-      AND o.owner_user_id = auth.uid()
-  ) OR EXISTS (
     SELECT 1 FROM public.organization_members om
     WHERE om.organization_id = org_id
       AND om.user_id = auth.uid()
@@ -187,7 +248,7 @@ BEGIN
   ) VALUES (
     p_org,
     p_email,
-    p_role::public.org_role,
+    p_role,
     auth.uid(),
     encode(gen_random_bytes(32), 'hex'),
     now() + interval '7 days'
