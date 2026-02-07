@@ -108,7 +108,7 @@ jobs:
     if: always()
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: write
       issues: write
     
     steps:
@@ -148,7 +148,7 @@ jobs:
         fi
         
     - name: Comment on PR
-      if: github.event_name == 'pull_request'
+      if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
       uses: actions/github-script@v6
       continue-on-error: true
       with:

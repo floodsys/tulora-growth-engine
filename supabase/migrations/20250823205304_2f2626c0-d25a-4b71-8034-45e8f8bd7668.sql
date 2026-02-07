@@ -44,7 +44,7 @@ ALTER TABLE public.organization_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.organization_invitations ENABLE ROW LEVEL SECURITY;
 
 -- Helper function: is_org_admin
-CREATE OR REPLACE FUNCTION public.is_org_admin(org_uuid uuid)
+CREATE OR REPLACE FUNCTION public.is_org_admin(org_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE SECURITY DEFINER
@@ -52,18 +52,18 @@ SET search_path TO 'public'
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.organizations o
-    WHERE o.id = org_uuid 
+    WHERE o.id = org_id 
       AND o.owner_user_id = auth.uid()
   ) OR EXISTS (
     SELECT 1 FROM public.organization_members om
-    WHERE om.organization_id = org_uuid
+    WHERE om.organization_id = org_id
       AND om.user_id = auth.uid()
       AND om.role = 'admin'
   );
 $$;
 
 -- Helper function: is_org_member
-CREATE OR REPLACE FUNCTION public.is_org_member(org_uuid uuid)
+CREATE OR REPLACE FUNCTION public.is_org_member(org_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE SECURITY DEFINER
@@ -71,11 +71,11 @@ SET search_path TO 'public'
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.organizations o
-    WHERE o.id = org_uuid 
+    WHERE o.id = org_id 
       AND o.owner_user_id = auth.uid()
   ) OR EXISTS (
     SELECT 1 FROM public.organization_members om
-    WHERE om.organization_id = org_uuid
+    WHERE om.organization_id = org_id
       AND om.user_id = auth.uid()
   );
 $$;
