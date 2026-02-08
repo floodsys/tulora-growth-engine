@@ -205,42 +205,13 @@ INSERT INTO public.profiles (user_id, full_name)
 VALUES ('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 'CI Test User')
 ON CONFLICT (user_id) DO UPDATE SET full_name = EXCLUDED.full_name;
 
--- Create the deterministic CI test organization
--- UUID: 11111111-1111-1111-1111-111111111111
--- This is the value to use for VITE_TEST_ORG_ID in CI
-INSERT INTO public.organizations (
-    id,
-    name,
-    owner_user_id,
-    created_at,
-    updated_at
-)
-VALUES (
-    '11111111-1111-1111-1111-111111111111',
-    'CI Test Organization',
-    'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
-    now(),
-    now()
-)
-ON CONFLICT (id) DO UPDATE SET
-    name = EXCLUDED.name,
-    updated_at = now();
-
--- Add CI test user as owner member of the CI test organization
-INSERT INTO public.organization_members (
-    organization_id,
-    user_id,
-    role,
-    joined_at
-)
-VALUES (
-    '11111111-1111-1111-1111-111111111111',
-    'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
-    'owner',
-    now()
-)
-ON CONFLICT (organization_id, user_id) DO UPDATE SET
-    role = EXCLUDED.role;
+-- Update the trigger-created CI test organization to have a deterministic name
+-- The handle_new_user_signup trigger already created an organization for this user,
+-- so we just update its name. We don't try to insert a second org because
+-- organizations_owner_user_id_unique prevents multiple orgs per owner.
+UPDATE public.organizations
+SET name = 'CI Test Organization'
+WHERE owner_user_id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
 
 -- ============================================================================
 -- End of seed data

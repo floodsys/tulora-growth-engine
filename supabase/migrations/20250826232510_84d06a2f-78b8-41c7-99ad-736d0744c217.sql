@@ -1,10 +1,30 @@
--- Subscriptions Table Consolidation Migration
 -- Canonicalize on org_stripe_subscriptions and create compatibility view
 
 -- 1. First, ensure the canonical table has proper uniqueness constraint
-ALTER TABLE public.org_stripe_subscriptions 
-ADD CONSTRAINT IF NOT EXISTS org_stripe_subscriptions_stripe_subscription_id_unique 
-UNIQUE (stripe_subscription_id);
+DO $$
+BEGIN
+  IF to_regclass('public.org_stripe_subscriptions') IS NULL THEN
+    RAISE NOTICE 'Skipping constraint add; public.org_stripe_subscriptions does not exist';
+    RETURN;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'org_stripe_subscriptions_stripe_subscription_id_unique'
+  ) THEN
+    BEGIN
+      ALTER TABLE public.org_stripe_subscriptions
+        ADD CONSTRAINT org_stripe_subscriptions_stripe_subscription_id_unique
+        UNIQUE (stripe_subscription_id);
+    EXCEPTION
+      WHEN duplicate_object THEN
+        RAISE NOTICE 'Constraint org_stripe_subscriptions_stripe_subscription_id_unique already exists; skipping';
+    END;
+  ELSE
+    RAISE NOTICE 'Constraint org_stripe_subscriptions_stripe_subscription_id_unique already exists; skipping';
+  END IF;
+END $$;
 
 -- 2. Migrate data from org_subscriptions to org_stripe_subscriptions where not already present
 INSERT INTO public.org_stripe_subscriptions (
@@ -22,7 +42,7 @@ INSERT INTO public.org_stripe_subscriptions (
   updated_at
 )
 SELECT 
-  os.org_id as organization_id,
+  os.organization_id,
   os.stripe_subscription_id,
   NULL as stripe_customer_id, -- Will need to be populated later if needed
   NULL as plan_key, -- Will need to be populated later if needed
@@ -66,31 +86,36 @@ FROM public.org_stripe_subscriptions;
 -- 5. Create RLS policies for the new view (inherits from canonical table)
 -- Note: Views inherit RLS from underlying tables, but we'll add explicit rules for clarity
 
--- 6. Log the consolidation
-INSERT INTO public.audit_log (
-  organization_id,
-  actor_user_id,
-  actor_role_snapshot,
-  action,
-  target_type,
-  target_id,
-  status,
-  channel,
-  metadata
-) VALUES (
-  '00000000-0000-0000-0000-000000000000'::uuid,
-  NULL,
-  'system',
-  'subscriptions.consolidated',
-  'database',
-  'org_stripe_subscriptions',
-  'success',
-  'internal',
-  jsonb_build_object(
-    'canonical_table', 'org_stripe_subscriptions',
-    'legacy_table_replaced', 'org_subscriptions',
-    'view_created', 'org_subscriptions (compatibility)',
-    'uniqueness_constraint', 'stripe_subscription_id',
-    'timestamp', now()
-  )
-);
+-- 6. Log the consolidation (wrapped to tolerate audit_log_target_type_check)
+DO $$
+BEGIN
+  INSERT INTO public.audit_log (
+    organization_id,
+    actor_user_id,
+    actor_role_snapshot,
+    action,
+    target_type,
+    target_id,
+    status,
+    channel,
+    metadata
+  ) VALUES (
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    NULL,
+    'system',
+    'subscriptions.consolidated',
+    'subscription',
+    'org_stripe_subscriptions',
+    'success',
+    'internal',
+    jsonb_build_object(
+      'canonical_table', 'org_stripe_subscriptions',
+      'legacy_table_replaced', 'org_subscriptions',
+      'view_created', 'org_subscriptions (compatibility)',
+      'uniqueness_constraint', 'stripe_subscription_id',
+      'timestamp', now()
+    )
+  );
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Skipping audit_log insert: % — %', SQLSTATE, SQLERRM;
+END $$;
