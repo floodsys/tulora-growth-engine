@@ -1,0 +1,4 @@
+# Force LF line endings for Supabase SQL files (Windows-safe)
+# See: https://docs.github.com/en/get-started/getting-started-with-git/configuring-git-to-handle-line-endings
+supabase/migrations/*.sql text eol=lf
+supabase/seed.sql         text eol=lf
