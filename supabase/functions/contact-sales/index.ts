@@ -732,6 +732,26 @@ serve(async (req) => {
       }, 400, origin);
     }
 
+    // Enforce Turnstile captcha — fail closed if missing or invalid
+    if (!data.turnstile_token) {
+      logStep('turnstile_missing', undefined, 'blocked');
+      return createResponse({
+        success: false,
+        error: 'Missing Turnstile captcha token',
+        error_code: 'turnstile_missing'
+      }, 400, origin);
+    }
+
+    const turnstileValid = await verifyTurnstileToken(data.turnstile_token, clientIP);
+    if (!turnstileValid) {
+      logStep('turnstile_failed', undefined, 'blocked');
+      return createResponse({
+        success: false,
+        error: 'Turnstile captcha verification failed',
+        error_code: 'turnstile_failed'
+      }, 403, origin);
+    }
+
     // Validate payload with normalized data
     const validationErrors = validatePayload(data, uniqueNormalized, raw);
     if (validationErrors.length > 0) {
