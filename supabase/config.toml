@@ -31,25 +31,25 @@ double_confirm_changes = true
 enable_confirmations = false
 
 [functions.agents]
-verify_jwt = false
+verify_jwt = true
 
 [functions.retell-dial]
-verify_jwt = false
+verify_jwt = true
 
 [functions.org-billing-webhook]
 verify_jwt = false
 
 [functions.guard-tests]
-verify_jwt = false
+verify_jwt = true
 
-[functions.smoke-tests]  
-verify_jwt = false
+[functions.smoke-tests]
+verify_jwt = true
 
 [functions.retell-webhook]
 verify_jwt = false
 
 [functions.voice-demo-health]
-verify_jwt = false
+verify_jwt = true
 
 [functions.test-suitecrm-connection]
 verify_jwt = true
