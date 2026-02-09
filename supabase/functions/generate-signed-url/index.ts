@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface GenerateSignedUrlRequest {
   resource_type: 'recording' | 'transcript' | 'analysis'
@@ -32,6 +32,7 @@ async function createSignedToken(payload: any, secret: string): Promise<string> 
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }

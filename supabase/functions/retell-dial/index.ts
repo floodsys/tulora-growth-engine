@@ -3,11 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 import { requireOrgActive, createBlockedResponse } from '../_shared/org-guard.ts'
 import { checkUsageQuota, isUsageQuotaError, usageQuotaErrorResponse, type UsageQuotaError } from '../_shared/billingUsage.ts'
 import { checkAgentForCalls, createAgentStatusErrorResponse } from '../_shared/agentStatus.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface DialRequest {
   agentId: string
@@ -16,6 +12,7 @@ interface DialRequest {
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
