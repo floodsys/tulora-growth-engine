@@ -17,9 +17,9 @@ export const useTurnstile = (containerId: string, options: TurnstileOptions = {}
 
   // Check if script is already loaded
   const isScriptLoaded = useCallback(() => {
-    return typeof window !== 'undefined' && 
-           window.turnstile && 
-           document.querySelector('script[src*="turnstile"]');
+    return typeof window !== 'undefined' &&
+      window.turnstile &&
+      document.querySelector('script[src*="turnstile"]');
   }, []);
 
   // Load Turnstile script
@@ -41,7 +41,7 @@ export const useTurnstile = (containerId: string, options: TurnstileOptions = {}
         variant: "destructive"
       });
     };
-    
+
     document.head.appendChild(script);
 
     return () => {
@@ -81,7 +81,7 @@ export const useTurnstile = (containerId: string, options: TurnstileOptions = {}
           options.onExpired?.();
         }
       });
-      
+
       setWidgetId(id);
     } catch (error) {
       console.error('Turnstile render error:', error);
@@ -116,7 +116,7 @@ export const useTurnstile = (containerId: string, options: TurnstileOptions = {}
 // Global Turnstile type definition
 declare global {
   interface Window {
-    turnstile: {
+    turnstile?: {
       render: (element: string | HTMLElement, options: {
         sitekey: string;
         theme?: 'light' | 'dark' | 'auto';
@@ -125,6 +125,7 @@ declare global {
         'expired-callback'?: () => void;
       }) => string;
       reset: (widgetId?: string) => void;
+      remove: (widgetId?: string) => void;
     };
   }
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Navigation from "@/components/Navigation";
@@ -17,7 +17,7 @@ import talkToUsGraphic from "@/assets/talk-to-us-graphic.png";
 import logoSvg from "@/assets/logo.svg";
 import { SUPABASE_URL, SUPABASE_ANON } from "@/config/publicConfig";
 import { useContactFormSecurity } from "@/hooks/useContactFormSecurity";
-// import { useTurnstile } from "@/hooks/useTurnstile";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 
 const TalkToUs = () => {
@@ -35,10 +35,11 @@ const TalkToUs = () => {
     website: ""
   });
 
-  // Disable Turnstile for testing
-  // const { token: turnstileToken, isReady: turnstileReady } = useTurnstile('turnstile-widget', { theme: 'light' });
-  const turnstileToken = "test-token"; // Mock token for testing
-  const turnstileReady = true;
+  // Turnstile token state
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileResetRef = useRef<(() => void) | null>(null);
+  const handleTurnstileToken = useCallback((token: string) => setTurnstileToken(token), []);
+  const handleTurnstileClear = useCallback(() => setTurnstileToken(""), []);
 
   // Apply security headers for contact forms
   useContactFormSecurity();
@@ -50,7 +51,7 @@ const TalkToUs = () => {
     console.log('publicConfig.SUPABASE_URL:', SUPABASE_URL);
     console.log('publicConfig.SUPABASE_ANON_KEY (masked):', SUPABASE_ANON ? `${SUPABASE_ANON.substring(0, 20)}...` : 'MISSING');
     console.log('supabase.functions.url:', SUPABASE_URL + '/functions/v1');
-    
+
     // Additional SW check for debugging
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(registrations => {
@@ -64,7 +65,7 @@ const TalkToUs = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
+
     if (name === 'phone') {
       // Only allow numbers for phone field
       const numbersOnly = value.replace(/\D/g, '');
@@ -82,21 +83,20 @@ const TalkToUs = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     console.log('CONTACT_SUBMIT start');
-    
+
     // Honeypot neutralized for preview - let server handle rejection
 
-    // Turnstile disabled for testing
-    // if (!turnstileToken) {
-    //   toast({
-    //     title: "Please complete verification",
-    //     description: "Please complete the security check to continue",
-    //     variant: "destructive"
-    //   });
-    //   return;
-    // }
-    
+    if (!turnstileToken) {
+      toast({
+        title: "Please complete verification",
+        description: "Please complete the security check to continue",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Basic validation - required fields including phone and company
     if (!formData.fullName || !formData.email || !formData.phone || !formData.company || !formData.project) {
       toast({
@@ -112,7 +112,7 @@ const TalkToUs = () => {
     try {
       setSubmitError(null);
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       // Build canonical payload - only allowed snake_case keys
       const payload = buildContactPayload('contact', {
         fullName: formData.fullName,
@@ -122,9 +122,9 @@ const TalkToUs = () => {
         project: formData.project, // maps to message
         website: formData.website // honeypot
       });
-      
+
       console.log('Built payload keys:', Object.keys(payload));
-      
+
       // Validate payload
       const validationErrors = validateContactPayload(payload);
       if (validationErrors.length > 0) {
@@ -137,9 +137,9 @@ const TalkToUs = () => {
       }
 
       console.log('invoke called');
-      
+
       const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
-        body: payload,
+        body: { ...payload, turnstile_token: turnstileToken },
         headers: {
           'Cache-Control': 'no-store',
           ...(session?.access_token ? {
@@ -158,6 +158,8 @@ const TalkToUs = () => {
       if (data?.success) {
         setIsSubmitted(true);
         setSubmitError(null);
+        setTurnstileToken("");
+        turnstileResetRef.current?.();
         // Reset form
         setFormData({
           fullName: "",
@@ -167,7 +169,6 @@ const TalkToUs = () => {
           project: "",
           website: ""
         });
-        // Form reset handled by hook
       } else {
         setSubmitError({
           message: data?.error || 'Failed to submit form',
@@ -179,9 +180,9 @@ const TalkToUs = () => {
         name: error?.name || 'No name',
         message: error?.message || 'No message',
         'error.response.status': error?.response?.status || 'No response.status',
-        'error.response.text (first 200 chars)': error?.response?.text ? 
-          (typeof error.response.text === 'string' ? error.response.text.substring(0, 200) : 
-           typeof error.response.text === 'function' ? '[function]' : String(error.response.text).substring(0, 200)) 
+        'error.response.text (first 200 chars)': error?.response?.text ?
+          (typeof error.response.text === 'string' ? error.response.text.substring(0, 200) :
+            typeof error.response.text === 'function' ? '[function]' : String(error.response.text).substring(0, 200))
           : 'No response.text',
         fullError: error
       });
@@ -214,9 +215,9 @@ const TalkToUs = () => {
 
               {/* Illustration */}
               <div className="flex justify-center md:justify-start">
-                <img 
-                  src={talkToUsGraphic} 
-                  alt="Contact us illustration" 
+                <img
+                  src={talkToUsGraphic}
+                  alt="Contact us illustration"
                   className="w-full max-w-sm md:max-w-md h-auto"
                 />
               </div>
@@ -243,8 +244,8 @@ const TalkToUs = () => {
                           Look for a confirmation email in your inbox. We’ll follow up soon to refine your requirements and outline scope and timeline.
                         </p>
                       </div>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         onClick={() => setIsSubmitted(false)}
                         className="w-full"
                       >
@@ -252,130 +253,137 @@ const TalkToUs = () => {
                       </Button>
                     </div>
                   ) : (
-                     // Form
-                     <div>
-                       {submitError && (
-                         <ApiErrorPanel 
-                           error={submitError} 
-                           onDismiss={() => setSubmitError(null)}
-                         />
-                       )}
-                       <form onSubmit={handleSubmit} className="space-y-6">
-                      {/* Full Name */}
-                      <div className="space-y-2">
-                        <Label htmlFor="fullName" className="text-foreground font-medium">
-                          Full Name *
-                        </Label>
-                        <Input
-                          id="fullName"
-                          name="fullName"
+                    // Form
+                    <div>
+                      {submitError && (
+                        <ApiErrorPanel
+                          error={submitError}
+                          onDismiss={() => setSubmitError(null)}
+                        />
+                      )}
+                      <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Full Name */}
+                        <div className="space-y-2">
+                          <Label htmlFor="fullName" className="text-foreground font-medium">
+                            Full Name *
+                          </Label>
+                          <Input
+                            id="fullName"
+                            name="fullName"
+                            type="text"
+                            placeholder="Your name"
+                            value={formData.fullName}
+                            onChange={handleInputChange}
+                            required
+                            className="h-12"
+                            disabled={isSubmitting}
+                          />
+                        </div>
+
+                        {/* Email */}
+                        <div className="space-y-2">
+                          <Label htmlFor="email" className="text-foreground font-medium">
+                            Email *
+                          </Label>
+                          <Input
+                            id="email"
+                            name="email"
+                            type="email"
+                            placeholder="name@example.com"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            required
+                            className="h-12"
+                            disabled={isSubmitting}
+                          />
+                        </div>
+
+                        {/* Phone Number - required */}
+                        <div className="space-y-2">
+                          <Label htmlFor="phone" className="text-foreground font-medium">
+                            Phone Number *
+                          </Label>
+                          <Input
+                            id="phone"
+                            name="phone"
+                            type="tel"
+                            placeholder="xxx xxx xxxx"
+                            value={formData.phone}
+                            onChange={handleInputChange}
+                            required
+                            className="h-12"
+                            disabled={isSubmitting}
+                            autoComplete="tel"
+                          />
+                        </div>
+
+                        {/* Company - required */}
+                        <div className="space-y-2">
+                          <Label htmlFor="company" className="text-foreground font-medium">
+                            Company *
+                          </Label>
+                          <Input
+                            id="company"
+                            name="company"
+                            type="text"
+                            placeholder="Company name"
+                            value={formData.company}
+                            onChange={handleInputChange}
+                            required
+                            className="h-12"
+                            disabled={isSubmitting}
+                          />
+                        </div>
+
+                        {/* Project Description */}
+                        <div className="space-y-2">
+                          <Label htmlFor="project" className="text-foreground font-medium">
+                            What would you like to build in Tulora? *
+                          </Label>
+                          <Textarea
+                            id="project"
+                            name="project"
+                            placeholder="Tell us what you want to build—we'll tailor examples and templates to match"
+                            value={formData.project}
+                            onChange={handleInputChange}
+                            required
+                            className="min-h-[120px] resize-none"
+                            disabled={isSubmitting}
+                          />
+                        </div>
+
+                        {/* Honeypot field - hidden from users */}
+                        <input
                           type="text"
-                          placeholder="Your name"
-                          value={formData.fullName}
+                          name={`website_${Math.random().toString(36).substr(2, 9)}`}
+                          value={formData.website}
                           onChange={handleInputChange}
-                          required
-                          className="h-12"
-                          disabled={isSubmitting}
+                          style={{ display: 'none' }}
+                          tabIndex={-1}
+                          autoComplete="off"
                         />
-                      </div>
 
-                      {/* Email */}
-                      <div className="space-y-2">
-                        <Label htmlFor="email" className="text-foreground font-medium">
-                          Email *
-                        </Label>
-                        <Input
-                          id="email"
-                          name="email"
-                          type="email"
-                          placeholder="name@example.com"
-                          value={formData.email}
-                          onChange={handleInputChange}
-                          required
-                          className="h-12"
-                          disabled={isSubmitting}
-                        />
-                      </div>
+                        {/* Turnstile Widget */}
+                        <div className="flex justify-center">
+                          <TurnstileWidget
+                            onToken={handleTurnstileToken}
+                            onExpire={handleTurnstileClear}
+                            onError={handleTurnstileClear}
+                            resetRef={turnstileResetRef}
+                          />
+                        </div>
 
-                       {/* Phone Number - required */}
-                       <div className="space-y-2">
-                         <Label htmlFor="phone" className="text-foreground font-medium">
-                           Phone Number *
-                         </Label>
-                         <Input
-                           id="phone"
-                           name="phone"
-                           type="tel"
-                           placeholder="xxx xxx xxxx"
-                           value={formData.phone}
-                           onChange={handleInputChange}
-                           required
-                           className="h-12"
-                           disabled={isSubmitting}
-                           autoComplete="tel"
-                         />
-                       </div>
-
-                       {/* Company - required */}
-                       <div className="space-y-2">
-                         <Label htmlFor="company" className="text-foreground font-medium">
-                           Company *
-                         </Label>
-                         <Input
-                           id="company"
-                           name="company"
-                           type="text"
-                           placeholder="Company name"
-                           value={formData.company}
-                           onChange={handleInputChange}
-                           required
-                           className="h-12"
-                           disabled={isSubmitting}
-                         />
-                       </div>
-
-                      {/* Project Description */}
-                      <div className="space-y-2">
-                        <Label htmlFor="project" className="text-foreground font-medium">
-                          What would you like to build in Tulora? *
-                        </Label>
-                         <Textarea
-                           id="project"
-                           name="project"
-                           placeholder="Tell us what you want to build—we'll tailor examples and templates to match"
-                           value={formData.project}
-                           onChange={handleInputChange}
-                           required
-                           className="min-h-[120px] resize-none"
-                           disabled={isSubmitting}
-                         />
-                      </div>
-
-                       {/* Honeypot field - hidden from users */}
-                      <input
-                        type="text"
-                        name={`website_${Math.random().toString(36).substr(2, 9)}`}
-                        value={formData.website}
-                        onChange={handleInputChange}
-                        style={{ display: 'none' }}
-                        tabIndex={-1}
-                        autoComplete="off"
-                      />
-
-                        {/* Turnstile Widget - Disabled for testing */}
-                      {/* <div id="turnstile-widget" className="flex justify-center"></div> */}
-
-                       {/* Submit Button */}
-                      <Button 
-                        type="submit" 
-                        size="lg" 
-                        className="w-full h-12 text-lg font-semibold"
-                        variant="brand"
-                        disabled={isSubmitting || !turnstileToken}
-                      >
-                         {isSubmitting ? "Sending..." : "Send message"}
-                       </Button>
-                     </form>
+                        {/* Submit Button */}
+                        <Button
+                          type="submit"
+                          size="lg"
+                          className="w-full h-12 text-lg font-semibold"
+                          variant="brand"
+                          disabled={isSubmitting || !turnstileToken}
+                        >
+                          {isSubmitting ? "Sending..." : "Send message"}
+                        </Button>
+                      </form>
                     </div>
                   )}
                 </CardContent>
