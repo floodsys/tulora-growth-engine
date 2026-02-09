@@ -1,11 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
 import { requireSuperadmin } from '../_shared/requireSuperadmin.ts';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Expose-Headers': 'X-Function, X-Version',
-};
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface RequestBody {
   orgId: string;
@@ -18,11 +13,12 @@ interface RequestBody {
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = { ...getCorsHeaders(req), 'Access-Control-Expose-Headers': 'X-Function, X-Version' };
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { 
-      status: 204, 
-      headers: corsHeaders 
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
     });
   }
 
@@ -93,7 +89,7 @@ Deno.serve(async (req: Request) => {
     if (manual.active === true) {
       // Calculate ends_at if not provided (90 days from now)
       const endsAt = manual.ends_at || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
-      
+
       // Activate manual access
       const manualActivationData = {
         active: true,
@@ -215,8 +211,8 @@ Deno.serve(async (req: Request) => {
       manual_activation: updateResult.entitlements?.manual_activation || null
     }), {
       status: 200,
-      headers: { 
-        ...corsHeaders, 
+      headers: {
+        ...corsHeaders,
         'Content-Type': 'application/json',
         'X-Function': 'admin-set-org-access',
         'X-Version': '1.0'

@@ -1,16 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface CheckAlertsRequest {
   organization_id: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -22,7 +19,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     const { organization_id }: CheckAlertsRequest = await req.json();
-    
+
     if (!organization_id) {
       return new Response(
         JSON.stringify({ error: 'Organization ID is required' }),
@@ -50,7 +47,7 @@ const handler = async (req: Request): Promise<Response> => {
     // If alerts were triggered, send notifications
     if (alertData?.triggered_alerts && alertData.triggered_alerts.length > 0) {
       console.log(`${alertData.triggered_alerts.length} alerts triggered, sending notifications`);
-      
+
       // Call notification function for each triggered alert
       for (const alert of alertData.triggered_alerts) {
         try {

@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface ExportRequest {
   organization_id: string;
@@ -15,6 +11,7 @@ interface ExportRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -57,8 +54,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Exporting audit logs for organization: ${organization_id}, format: ${format}`);
 
     // Verify user has admin access to the organization
-    const { data: isAdmin, error: adminError } = await supabase.rpc('is_org_admin', { 
-      org_id: organization_id 
+    const { data: isAdmin, error: adminError } = await supabase.rpc('is_org_admin', {
+      org_id: organization_id
     });
 
     if (adminError || !isAdmin) {
@@ -159,10 +156,10 @@ const handler = async (req: Request): Promise<Response> => {
 
       const csvContent = [
         csvHeaders.join(','),
-        ...csvRows.map(row => 
-          row.map(field => 
-            typeof field === 'string' && field.includes(',') 
-              ? `"${field.replace(/"/g, '""')}"` 
+        ...csvRows.map(row =>
+          row.map(field =>
+            typeof field === 'string' && field.includes(',')
+              ? `"${field.replace(/"/g, '""')}"`
               : field
           ).join(',')
         )
