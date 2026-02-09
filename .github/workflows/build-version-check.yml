@@ -100,12 +100,12 @@ jobs:
             dist/version.json
           retention-days: 30
           
-       - name: Upload build artifacts  
-         uses: actions/upload-artifact@v4
-         with:
-           name: build-${{ steps.version-check.outputs.commit-sha }}
-           path: dist/
-           retention-days: 7
+      - name: Upload build artifacts  
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ steps.version-check.outputs.commit-sha }}
+          path: dist/
+          retention-days: 7
 
   release-tagging:
     name: Create Release Tag and Changelog
