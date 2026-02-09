@@ -19,16 +19,17 @@ jobs:
       - name: Run gitleaks (working-tree only)
         run: >
           gitleaks detect
-          --source /repo
+          --source "${{ github.workspace }}"
           --no-git
           --redact
           --report-format json
-          --report-path gitleaks-report.json
+          --report-path "${{ github.workspace }}/gitleaks-report.json"
 
       - name: Upload gitleaks report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: gitleaks-report
-          path: gitleaks-report.json
+          path: ${{ github.workspace }}/gitleaks-report.json
+          if-no-files-found: ignore
           retention-days: 30
