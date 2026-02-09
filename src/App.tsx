@@ -107,8 +107,8 @@ function App() {
                   <Route path="/activity-logs" element={<ActivityLogs />} />
                   <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
                   <Route path="/admin/access-denied" element={<AdminAccessDenied />} />
-                  <Route path="/admin-setup" element={<AdminSetup />} />
-                  <Route path="/admin/logs/org/:orgId" element={<AdminOrgLogs />} />
+                  <Route path="/admin-setup" element={<AdminGuard><AdminSetup /></AdminGuard>} />
+                  <Route path="/admin/logs/org/:orgId" element={<AdminGuard><AdminOrgLogs /></AdminGuard>} />
                   <Route path="/admin/agents" element={<AdminGuard><AdminAgents /></AdminGuard>} />
                   <Route path="/admin/calls" element={<AdminGuard><AdminCalls /></AdminGuard>} />
                   <Route path="/admin/observability" element={<AdminGuard><ObservabilityDashboard /></AdminGuard>} />
@@ -116,7 +116,7 @@ function App() {
                   <Route path="/admin/notifications" element={<AdminGuard><AdminNotifications /></AdminGuard>} />
                   <Route path="/admin/stripe-config" element={<AdminGuard><AdminStripeConfig /></AdminGuard>} />
                   <Route path="/admin/billing-verification" element={<AdminGuard><AdminBillingVerification /></AdminGuard>} />
-                  <Route path="/admin/self-check" element={<AdminSelfCheck />} />
+                  <Route path="/admin/self-check" element={<AdminGuard><AdminSelfCheck /></AdminGuard>} />
                   <Route path="/pricing" element={<Pricing />} />
                   <Route path="/contact/sales" element={<ContactSales />} />
                   <Route path="*" element={<NotFound />} />
