@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import { SUPABASE_URL, SUPABASE_ANON } from "@/config/publicConfig";
 import { useContactFormSecurity } from "@/hooks/useContactFormSecurity";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-// import { useTurnstile } from "@/hooks/useTurnstile";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 export default function ContactSales() {
   const [searchParams] = useSearchParams();
@@ -38,10 +38,11 @@ export default function ContactSales() {
     website: ""
   });
 
-  // Disable Turnstile for testing
-  // const { token: turnstileToken, isReady: turnstileReady } = useTurnstile('turnstile-widget-contact', { theme: 'light' });
-  const turnstileToken = "test-token"; // Mock token for testing
-  const turnstileReady = true;
+  // Turnstile token state
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileResetRef = useRef<(() => void) | null>(null);
+  const handleTurnstileToken = useCallback((token: string) => setTurnstileToken(token), []);
+  const handleTurnstileClear = useCallback(() => setTurnstileToken(""), []);
 
   // Apply security headers for contact forms
   useContactFormSecurity();
@@ -53,7 +54,7 @@ export default function ContactSales() {
     console.log('publicConfig.SUPABASE_URL:', SUPABASE_URL);
     console.log('publicConfig.SUPABASE_ANON_KEY (masked):', SUPABASE_ANON ? `${SUPABASE_ANON.substring(0, 20)}...` : 'MISSING');
     console.log('supabase.functions.url:', SUPABASE_URL + '/functions/v1');
-    
+
     // Additional SW check for debugging
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(registrations => {
@@ -104,26 +105,25 @@ export default function ContactSales() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     console.log('CONTACT_SUBMIT start');
-    
+
     // Honeypot neutralized for preview - let server handle rejection
 
-    // Turnstile disabled for testing
-    // if (!turnstileToken) {
-    //   toast({
-    //     title: "Please complete verification",
-    //     description: "Please complete the security check to continue",
-    //     variant: "destructive"
-    //   });
-    //   return;
-    // }
-    
+    if (!turnstileToken) {
+      toast({
+        title: "Please complete verification",
+        description: "Please complete the security check to continue",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       // Build canonical payload - only required keys for enterprise
       const payload = buildContactPayload('enterprise', {
         name: formData.name, // maps to full_name
@@ -135,12 +135,12 @@ export default function ContactSales() {
         expected_volume: formData.expected_volume,
         website: formData.website // honeypot
       });
-      
+
       console.log('Built payload keys:', Object.keys(payload));
-      
+
       // Validate payload
-      const validationErrors = validateContactPayload(payload, { 
-        requireEnterpriseExtras 
+      const validationErrors = validateContactPayload(payload, {
+        requireEnterpriseExtras
       });
       if (validationErrors.length > 0) {
         setSubmitError({
@@ -152,9 +152,9 @@ export default function ContactSales() {
       }
 
       console.log('invoke called');
-      
+
       const { data, error } = await supabase.functions.invoke(CONTACT_SALES_FN, {
-        body: payload,
+        body: { ...payload, turnstile_token: turnstileToken },
         headers: {
           'Cache-Control': 'no-store',
           ...(session?.access_token ? {
@@ -181,6 +181,8 @@ export default function ContactSales() {
       if (data?.success) {
         setIsSubmitted(true);
         setSubmitError(null);
+        setTurnstileToken("");
+        turnstileResetRef.current?.();
         toast({
           title: "Request Submitted",
           description: "Thank you! Our sales team will contact you within 24 hours.",
@@ -205,9 +207,9 @@ export default function ContactSales() {
         name: error?.name || 'No name',
         message: error?.message || 'No message',
         'error.response.status': error?.response?.status || 'No response.status',
-        'error.response.text (first 200 chars)': error?.response?.text ? 
-          (typeof error.response.text === 'string' ? error.response.text.substring(0, 200) : 
-           typeof error.response.text === 'function' ? '[function]' : String(error.response.text).substring(0, 200)) 
+        'error.response.text (first 200 chars)': error?.response?.text ?
+          (typeof error.response.text === 'string' ? error.response.text.substring(0, 200) :
+            typeof error.response.text === 'function' ? '[function]' : String(error.response.text).substring(0, 200))
           : 'No response.text',
         fullError: error
       });
@@ -224,7 +226,7 @@ export default function ContactSales() {
   const handleProductInterestChange = (product: string, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
-      product_interest: checked 
+      product_interest: checked
         ? [...prev.product_interest, product]
         : prev.product_interest.filter(p => p !== product)
     }));
@@ -238,7 +240,7 @@ export default function ContactSales() {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        
+
         <main className="container mx-auto px-4 py-20">
           <div className="max-w-2xl mx-auto text-center">
             <Card className="border-green-200 bg-green-50">
@@ -269,7 +271,7 @@ export default function ContactSales() {
             </Card>
           </div>
         </main>
-        
+
         <Footer />
       </div>
     );
@@ -278,7 +280,7 @@ export default function ContactSales() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      
+
       <main className="container mx-auto px-4 py-20">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
@@ -296,8 +298,8 @@ export default function ContactSales() {
             </CardHeader>
             <CardContent>
               {submitError && (
-                <ApiErrorPanel 
-                  error={submitError} 
+                <ApiErrorPanel
+                  error={submitError}
                   onDismiss={() => setSubmitError(null)}
                 />
               )}
@@ -350,7 +352,7 @@ export default function ContactSales() {
                           checked={formData.product_interest.includes(product)}
                           onCheckedChange={(checked) => handleProductInterestChange(product, checked as boolean)}
                         />
-                        <Label 
+                        <Label
                           htmlFor={`product_${product.replace(/\s+/g, '_').toLowerCase()}`}
                           className="text-sm font-normal cursor-pointer"
                         >
@@ -363,8 +365,8 @@ export default function ContactSales() {
 
                 <div>
                   <Label htmlFor="expected_volume">Expected Volume {requireEnterpriseExtras ? '*' : '(Optional)'}</Label>
-                  <Select 
-                    value={formData.expected_volume} 
+                  <Select
+                    value={formData.expected_volume}
                     onValueChange={(value) => handleInputChange('expected_volume', value)}
                   >
                     <SelectTrigger className="z-50">
@@ -404,8 +406,15 @@ export default function ContactSales() {
                   autoComplete="off"
                 />
 
-                {/* Turnstile Widget - Disabled for testing */}
-                {/* <div id="turnstile-widget-contact" className="flex justify-center"></div> */}
+                {/* Turnstile Widget */}
+                <div className="flex justify-center">
+                  <TurnstileWidget
+                    onToken={handleTurnstileToken}
+                    onExpire={handleTurnstileClear}
+                    onError={handleTurnstileClear}
+                    resetRef={turnstileResetRef}
+                  />
+                </div>
 
                 <div className="flex gap-4">
                   <Button
@@ -420,11 +429,10 @@ export default function ContactSales() {
                   <Button
                     type="submit"
                     disabled={
-                      isSubmitting || 
-                      !turnstileToken || 
-                      !turnstileReady || 
-                      !formData.name || 
-                      !formData.email || 
+                      isSubmitting ||
+                      !turnstileToken ||
+                      !formData.name ||
+                      !formData.email ||
                       !formData.company ||
                       !formData.additional_requirements ||
                       (requireEnterpriseExtras && (
@@ -443,7 +451,7 @@ export default function ContactSales() {
           </Card>
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );

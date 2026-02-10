@@ -2,11 +2,11 @@
 // Run with: deno run --allow-net --allow-env test-multiselect.ts
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || 'https://nkjxbeypbiclvouqfjyc.supabase.co';
-const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ranhiZXlwYmljbHZvdXFmanljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0Nzg2NDEsImV4cCI6MjA3MTA1NDY0MX0.iuFFcJSX97MKkiBvSYLmIao9aTMrQm7zqnf4kEDraQg';
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''; // set SUPABASE_ANON_KEY env var
 
 async function testMultiSelectProductInterest() {
   console.log('🧪 Testing multi-select product interest...');
-  
+
   const testPayload = {
     inquiry_type: 'enterprise',
     full_name: 'Test User MultiSelect',
@@ -30,7 +30,7 @@ async function testMultiSelectProductInterest() {
     });
 
     const result = await response.json();
-    
+
     console.log('📊 Response Status:', response.status);
     console.log('🎯 Response Data:', result);
     console.log('📋 CRM Status:', response.headers.get('X-CRM-Status'));
@@ -38,17 +38,17 @@ async function testMultiSelectProductInterest() {
     // Verify expectations
     if (response.status === 200) {
       console.log('✅ SUCCESS: Multi-select returned 200');
-      
+
       if (response.headers.get('X-CRM-Status') === 'success') {
         console.log('✅ SUCCESS: X-CRM-Status is success');
       } else {
         console.log('⚠️  WARNING: X-CRM-Status is not success');
       }
-      
+
       // Check if lead was created with expected properties
       if (result.lead_id) {
         console.log('✅ SUCCESS: Lead was created with ID:', result.lead_id);
-        
+
         // The backend should have:
         // - Set product_line to first selected (leadgen)
         // - Added both to source_metadata.product_interests
@@ -69,7 +69,7 @@ async function testMultiSelectProductInterest() {
 
 async function testSingleSelectProductInterest() {
   console.log('\n🧪 Testing single-select product interest (backward compatibility)...');
-  
+
   const testPayload = {
     inquiry_type: 'enterprise',
     full_name: 'Test User Single',
@@ -93,7 +93,7 @@ async function testSingleSelectProductInterest() {
     });
 
     const result = await response.json();
-    
+
     console.log('📊 Response Status:', response.status);
     console.log('🎯 Response Data:', result);
 
@@ -110,7 +110,7 @@ async function testSingleSelectProductInterest() {
 
 async function testInvalidProductInterest() {
   console.log('\n🧪 Testing invalid product interest...');
-  
+
   const testPayload = {
     inquiry_type: 'enterprise',
     full_name: 'Test User Invalid',
@@ -133,18 +133,18 @@ async function testInvalidProductInterest() {
     });
 
     const result = await response.json();
-    
+
     console.log('📊 Response Status:', response.status);
     console.log('🎯 Response Data:', result);
 
     if (response.status === 422) {
       console.log('✅ SUCCESS: Invalid values correctly rejected with 422');
-      
+
       // Check if the error message mentions the invalid value
-      const hasFieldError = result.details?.some((error: any) => 
+      const hasFieldError = result.details?.some((error: any) =>
         error.field === 'product_interest' && error.message.includes('Invalid Product')
       );
-      
+
       if (hasFieldError) {
         console.log('✅ SUCCESS: Field-specific error returned');
       } else {

@@ -15,30 +15,18 @@ const getAllowedOrigins = () => {
     'https://82f60040-b989-4e09-8aaf-a5888522b1a2.sandbox.lovable.dev',
     'http://localhost:8080'
   ];
-  
+
   return envOrigins ? envOrigins.split(',').map(origin => origin.trim()) : fallbackOrigins;
 };
 
 const getOriginSpecificHeaders = (requestOrigin: string | null) => {
   const allowedOrigins = getAllowedOrigins();
-  const corsDebugWildcard = true; // Temporarily enable debug wildcard
-  
-  // If debug wildcard is enabled, use wildcard
-  if (corsDebugWildcard) {
-    return {
-      'Access-Control-Allow-Origin': '*',
-      'Vary': 'Origin',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey, cache-control',
-      'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status'
-    };
-  }
-  
+
   // Check if the origin is allowed
-  const allowedOrigin = requestOrigin && allowedOrigins.includes(requestOrigin) 
-    ? requestOrigin 
+  const allowedOrigin = requestOrigin && allowedOrigins.includes(requestOrigin)
+    ? requestOrigin
     : allowedOrigins[0]; // fallback to first allowed origin
-  
+
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Vary': 'Origin',
@@ -63,11 +51,11 @@ const createResponse = (data: any, status: number = 200, requestOrigin: string |
     'X-Version': VERSION,
     ...getOriginSpecificHeaders(requestOrigin)
   };
-  
+
   if (crmStatus) {
     headers['X-CRM-Status'] = crmStatus;
   }
-  
+
   return new Response(JSON.stringify(data), {
     status,
     headers
@@ -94,18 +82,18 @@ function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
   const now = Date.now()
   const windowMs = 60 * 1000 // 1 minute
   const maxRequests = 10
-  
+
   const current = rateLimitMap.get(ip)
-  
+
   if (!current || now > current.resetTime) {
     rateLimitMap.set(ip, { count: 1, resetTime: now + windowMs })
     return { allowed: true, remaining: maxRequests - 1 }
   }
-  
+
   if (current.count >= maxRequests) {
     return { allowed: false, remaining: 0 }
   }
-  
+
   current.count++
   return { allowed: true, remaining: maxRequests - current.count }
 }
@@ -128,20 +116,20 @@ function checkSuiteCRMEnv() {
   const client_id = Deno.env.get('SUITECRM_CLIENT_ID')
   const client_secret = Deno.env.get('SUITECRM_CLIENT_SECRET')
   const auth_mode = Deno.env.get('SUITECRM_AUTH_MODE')
-  
+
   const envPresent = {
     base_url: !!base_url,
     client_id: !!client_id,
     client_secret: !!client_secret,
     auth_mode: !!auth_mode
   }
-  
+
   const present = Object.entries(envPresent)
     .filter(([_, isPresent]) => isPresent)
     .map(([key, _]) => key)
-  
+
   console.log(`[CFG] suitecrm env present: ${present.join(', ')}`)
-  
+
   return {
     envPresent,
     config: { base_url, client_id, client_secret, auth_mode }
@@ -151,12 +139,12 @@ function checkSuiteCRMEnv() {
 async function testSuiteCRMConnection() {
   const { envPresent, config } = checkSuiteCRMEnv()
   const { base_url, client_id, client_secret, auth_mode } = config
-  
+
   // Check if all required env vars are present
   const missingVars = Object.entries(envPresent)
     .filter(([_, isPresent]) => !isPresent)
     .map(([key, _]) => key)
-  
+
   if (missingVars.length > 0) {
     return {
       success: false,
@@ -164,10 +152,10 @@ async function testSuiteCRMConnection() {
       env_present: envPresent
     }
   }
-  
+
   // Clean up base URL
   const cleanBaseUrl = base_url!.replace(/\/$/, '')
-  
+
   try {
     let authPayload: any = {
       grant_type: auth_mode === 'v8_client_credentials' ? 'client_credentials' : 'password',
@@ -207,7 +195,7 @@ async function testSuiteCRMConnection() {
       // Scrub any potential secrets from error messages
       const scrubbed_error = errorText.substring(0, 100).replace(/[a-zA-Z0-9+/=]{20,}/g, '[REDACTED]')
       console.error(`[CRM] auth failed ${response.status}: ${scrubbed_error}`)
-      
+
       // Provide sanitized error information (no secrets)
       let errorMessage = `OAuth failed: ${response.status} ${response.statusText}`
       if (errorText) {
@@ -223,7 +211,7 @@ async function testSuiteCRMConnection() {
           errorMessage += ` - ${scrubbed_error}`
         }
       }
-      
+
       return {
         success: false,
         error: errorMessage,
@@ -244,7 +232,7 @@ async function testSuiteCRMConnection() {
           'Accept': 'application/vnd.api+json'
         }
       })
-      
+
       if (primaryModuleResponse.ok) {
         moduleEndpointStatus = 'legacy-ok'
       } else {
@@ -255,7 +243,7 @@ async function testSuiteCRMConnection() {
             'Accept': 'application/vnd.api+json'
           }
         })
-        
+
         moduleEndpointStatus = fallbackModuleResponse.ok ? 'fallback-ok' : 'both-failed'
       }
     } catch (error) {
@@ -272,12 +260,12 @@ async function testSuiteCRMConnection() {
       })
 
       let oauth_user = 'tulora-api' // default fallback
-      
+
       if (userResponse.ok) {
         const userData = await userResponse.json()
         oauth_user = userData.data?.attributes?.user_name || 'tulora-api'
       }
-      
+
       return {
         success: true,
         message: `OAuth successful`,
@@ -316,32 +304,32 @@ const checkSuperadmin = async (request: Request) => {
   if (!authHeader?.startsWith('Bearer ')) {
     return { valid: false, error: 'Missing or invalid authorization header' };
   }
-  
+
   const token = authHeader.substring(7);
-  
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
+
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    
+
     if (userError || !user) {
       return { valid: false, error: 'Invalid token or user not found' };
     }
-    
+
     const { data: isSuperadmin, error: superadminError } = await supabase
       .rpc('is_superadmin', { user_id: user.id });
-    
+
     if (superadminError) {
       return { valid: false, error: `Superadmin check failed: ${superadminError.message}` };
     }
-    
+
     if (!isSuperadmin) {
       return { valid: false, error: 'User is not a superadmin' };
     }
-    
+
     return { valid: true, user };
   } catch (error) {
     return { valid: false, error: `Authentication error: ${error.message}` };
@@ -350,7 +338,7 @@ const checkSuperadmin = async (request: Request) => {
 
 serve(async (req) => {
   const requestOrigin = req.headers.get('origin');
-  
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -358,7 +346,7 @@ serve(async (req) => {
       headers: preflightHeaders(requestOrigin)
     });
   }
-  
+
   // Only allow POST method
   if (req.method !== 'POST') {
     return createResponse(
@@ -367,7 +355,7 @@ serve(async (req) => {
       requestOrigin
     );
   }
-  
+
   // Rate limiting
   const clientIP = getClientIP(req);
   if (!checkRateLimit(clientIP)) {
@@ -377,7 +365,7 @@ serve(async (req) => {
       requestOrigin
     );
   }
-  
+
   // Check superadmin authentication
   const authCheck = await checkSuperadmin(req);
   if (!authCheck.valid) {
@@ -387,11 +375,11 @@ serve(async (req) => {
       requestOrigin
     );
   }
-  
+
   try {
     const result = await testSuiteCRMConnection();
     const crmStatus = result.success ? 'connected' : 'failed';
-    
+
     return createResponse(
       {
         ...result,
