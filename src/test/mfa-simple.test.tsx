@@ -4,7 +4,6 @@ import { render, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from '@/contexts/AuthContext';
 import { MFASetup } from '@/components/admin/MFASetup';
 import { MFAVerification } from '@/components/admin/MFAVerification';
 
@@ -86,6 +85,20 @@ vi.mock('@/lib/mfa-observability', () => ({
   },
 }));
 
+// Mock AuthContext so the real AuthProvider never fires async state updates
+vi.mock('@/contexts/AuthContext', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAuth: () => ({
+    user: { id: 'test-user-id', email: 'test@example.com' },
+    session: { user: { id: 'test-user-id', email: 'test@example.com' } },
+    loading: false,
+    signOut: vi.fn(),
+  }),
+}));
+
+// Import the mocked AuthProvider (synchronous, no async effects)
+const { AuthProvider } = await import('@/contexts/AuthContext');
+
 const TestWrapper = ({ children }: { children: React.ReactNode }) => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -96,7 +109,7 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AuthProvider>
           {children}
         </AuthProvider>

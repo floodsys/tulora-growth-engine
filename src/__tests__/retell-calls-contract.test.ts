@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook } from '@testing-library/react'
+import { renderHook, waitFor } from '@testing-library/react'
 
 // vi.hoisted runs before vi.mock hoisting, so the reference is available
 const { mockInvoke } = vi.hoisted(() => ({
@@ -54,8 +54,10 @@ describe('Retell Calls Contract Test', () => {
 
     const { result } = renderHook(() => useRetellCalls())
 
-    // Wait for the hook to finish loading
-    await new Promise(resolve => setTimeout(resolve, 100))
+    // Wait for the hook to finish loading (inside act via waitFor)
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
 
     // Verify exact response shape is handled correctly
     expect(result.current.calls).toEqual([])
@@ -87,8 +89,10 @@ describe('Retell Calls Contract Test', () => {
 
     const { result } = renderHook(() => useRetellCalls())
 
-    // Wait for the hook to finish loading
-    await new Promise(resolve => setTimeout(resolve, 100))
+    // Wait for the hook to finish loading (inside act via waitFor)
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
 
     // Should still work with extra fields (graceful handling)
     expect(result.current.calls).toEqual([])
@@ -114,8 +118,10 @@ describe('Retell Calls Contract Test', () => {
 
     const { result } = renderHook(() => useRetellCalls())
 
-    // Wait for the hook to finish loading
-    await new Promise(resolve => setTimeout(resolve, 100))
+    // Wait for the hook to finish loading (inside act via waitFor)
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
 
     // Should fallback to default pagination when missing
     expect(result.current.calls).toEqual([])
