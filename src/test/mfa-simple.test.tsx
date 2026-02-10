@@ -1,11 +1,32 @@
+import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { MFASetup } from '@/components/admin/MFASetup';
 import { MFAVerification } from '@/components/admin/MFAVerification';
+
+// Mock `input-otp` to prevent it from scheduling DOM-dependent timers
+// (elementFromPoint, window refs) that fire after jsdom teardown.
+vi.mock('input-otp', () => {
+  const SlotContext = React.createContext({
+    slots: Array.from({ length: 6 }, () => ({
+      char: '',
+      hasFakeCaret: false,
+      isActive: false,
+    })),
+  });
+  return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    OTPInput: React.forwardRef<HTMLDivElement, any>(
+      ({ containerClassName, children, ...rest }: any, ref: any) =>
+        React.createElement('div', { ref, className: containerClassName, 'data-testid': 'otp-input' }, children),
+    ),
+    OTPInputContext: SlotContext,
+  };
+});
 
 // Mock Supabase
 vi.mock('@/integrations/supabase/client', () => ({
@@ -91,6 +112,7 @@ describe('MFA Components', () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.clearAllTimers();
     vi.useRealTimers();
   });
