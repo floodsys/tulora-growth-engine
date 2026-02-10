@@ -42,6 +42,7 @@ supabase/.temp/
 MERGED_AUDIT_STATUS.md
 db_reset_output*.txt
 test-reports/
+test-results/
 
 # ===== PRE-PUSH HARDENING (added) =====
 
