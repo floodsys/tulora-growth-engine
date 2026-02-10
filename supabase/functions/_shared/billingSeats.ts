@@ -46,14 +46,16 @@ export async function syncStripeSeatsForOrg(
   console.log(`${logPrefix} Starting seat sync for org ${orgId}`);
 
   try {
-    // Get Stripe API key
+    // Get Stripe API key — FAIL-CLOSED: missing key is an error, never silently skip
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
     if (!stripeKey) {
-      console.warn(`${logPrefix} STRIPE_SECRET_KEY not configured, skipping seat sync`);
+      const errMsg = 'STRIPE_SECRET_KEY is not configured. Billing seat sync cannot proceed. ' +
+        'Set STRIPE_SECRET_KEY in your environment (see supabase/functions/.env.example).';
+      console.error(`${logPrefix} ${errMsg}`);
       return {
-        success: true,
-        skipped: true,
-        message: 'Stripe not configured, seat sync skipped',
+        success: false,
+        message: errMsg,
+        error: 'STRIPE_SECRET_KEY_MISSING',
       };
     }
 
@@ -334,7 +336,16 @@ export function syncStripeSeatsForOrgAsync(
   const corr = correlationId || crypto.randomUUID();
 
   // Fire and forget - errors are logged but not propagated
-  syncStripeSeatsForOrg(supabase, orgId, corr, stripeFactory).catch((error) => {
-    console.error(`[billingSeats][${corr}] Async seat sync failed for org ${orgId}:`, error);
-  });
+  syncStripeSeatsForOrg(supabase, orgId, corr, stripeFactory)
+    .then((result) => {
+      if (!result.success) {
+        console.error(
+          `[billingSeats][${corr}] Async seat sync returned failure for org ${orgId}: ` +
+          `${result.error || result.message}`
+        );
+      }
+    })
+    .catch((error) => {
+      console.error(`[billingSeats][${corr}] Async seat sync threw for org ${orgId}:`, error);
+    });
 }

@@ -73,8 +73,8 @@ serve(async (req) => {
 
     logStep('Seat sync result', { corr, ...result })
 
-    if (!result.success && !result.skipped) {
-      return new Response(JSON.stringify({ 
+    if (!result.success) {
+      return new Response(JSON.stringify({
         error: result.error || 'Seat sync failed',
         message: result.message
       }), {
@@ -83,7 +83,7 @@ serve(async (req) => {
       })
     }
 
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       success: true,
       message: result.message,
       oldQuantity: result.oldQuantity,
