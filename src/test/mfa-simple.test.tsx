@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { BrowserRouter } from 'react-router-dom';
@@ -12,16 +12,19 @@ vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     auth: {
       getSession: vi.fn().mockResolvedValue({
-        data: { 
-          session: { 
-            user: { id: 'test-user-id', email: 'test@example.com' } 
-          } 
+        data: {
+          session: {
+            user: { id: 'test-user-id', email: 'test@example.com' }
+          }
         }
       }),
       getUser: vi.fn().mockResolvedValue({
-        data: { 
-          user: { id: 'test-user-id', email: 'test@example.com' } 
+        data: {
+          user: { id: 'test-user-id', email: 'test@example.com' }
         }
+      }),
+      onAuthStateChange: vi.fn().mockReturnValue({
+        data: { subscription: { unsubscribe: vi.fn() } },
       }),
       mfa: {
         enroll: vi.fn(),
@@ -83,7 +86,13 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => {
 
 describe('MFA Components', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   describe('MFASetup', () => {
@@ -108,7 +117,7 @@ describe('MFA Components', () => {
 
       const { container } = render(
         <TestWrapper>
-          <MFAVerification 
+          <MFAVerification
             onVerificationSuccess={mockOnSuccess}
             onCancel={mockOnCancel}
           />
