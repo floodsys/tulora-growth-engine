@@ -7,6 +7,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   rls-tautology-check:
     name: Check for RLS Tautologies
@@ -28,14 +32,19 @@ jobs:
         npm install -g glob
       
     - name: Run RLS tautology detection
-      run: node scripts/check-rls-tautologies.js
+      run: node scripts/check-rls-tautologies.cjs
       
+    - name: Ensure test-results directory exists
+      if: always()
+      run: mkdir -p test-results
+
     - name: Upload tautology check results
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: rls-tautology-results
         path: test-results/rls-tautology-check.json
+        if-no-files-found: ignore
 
   rls-smoke-tests:
     name: RLS Function Smoke Tests
@@ -62,12 +71,17 @@ jobs:
         SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       run: node scripts/rls-smoke-tests.js
       
+    - name: Ensure test-results directory exists
+      if: always()
+      run: mkdir -p test-results
+
     - name: Upload smoke test results
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: rls-smoke-test-results
         path: test-results/rls-smoke-tests.json
+        if-no-files-found: ignore
 
   report-results:
     name: Report Test Results
