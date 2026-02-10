@@ -141,9 +141,9 @@ PRs will be **blocked** if:
 ### Manual Verification
 
 ```bash
-# Test specific endpoint manually
+# Test specific endpoint manually (replace <TOKEN> with a valid JWT)
 curl -X POST https://your-project.supabase.co/functions/v1/admin-billing-actions \
-  -H "Authorization: Bearer YOUR-JWT" \
+  -H "Authorization: Bearer <TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"action":"test"}'
 
