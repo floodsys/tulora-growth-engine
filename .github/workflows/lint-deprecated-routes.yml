@@ -24,7 +24,7 @@ jobs:
       run: npm ci
       
     - name: Check for deprecated routes and components
-      run: node scripts/check-deprecated-routes.js
+      run: node scripts/check-deprecated-routes.cjs
       
     - name: Report results
       if: failure()
