@@ -439,12 +439,28 @@ const validateEmail = (email: string): boolean => {
   return emailRegex.test(email);
 }
 
-const verifyTurnstileToken = async (token: string, remoteIP?: string): Promise<boolean> => {
+// Allowed hostnames for Turnstile hostname validation (fail-closed)
+const TURNSTILE_ALLOWED_HOSTNAMES: string[] = (() => {
+  const envHosts = Deno.env.get('TURNSTILE_ALLOWED_HOSTNAMES');
+  if (envHosts) return envHosts.split(',').map(h => h.trim().toLowerCase());
+  // Derive from ALLOWED_ORIGINS by extracting hostnames
+  return ALLOWED_ORIGINS.map(origin => {
+    try { return new URL(origin).hostname.toLowerCase(); } catch { return ''; }
+  }).filter(Boolean);
+})();
+
+interface TurnstileVerifyResult {
+  valid: boolean;
+  /** If invalid, a machine-readable code */
+  code?: 'missing_secret' | 'siteverify_rejected' | 'hostname_mismatch' | 'network_error';
+}
+
+const verifyTurnstileToken = async (token: string, remoteIP?: string): Promise<TurnstileVerifyResult> => {
   const secretKey = Deno.env.get('CLOUDFLARE_TURNSTILE_SECRET_KEY');
 
   if (!secretKey) {
-    console.warn('Turnstile secret key not configured');
-    return false;
+    console.error('[TURNSTILE] secret key not configured — fail closed');
+    return { valid: false, code: 'missing_secret' };
   }
 
   try {
@@ -461,10 +477,38 @@ const verifyTurnstileToken = async (token: string, remoteIP?: string): Promise<b
     });
 
     const result = await response.json();
-    return result.success === true;
+
+    if (result.success !== true) {
+      console.warn('[TURNSTILE] siteverify rejected', {
+        error_codes: result['error-codes'],
+      });
+      return { valid: false, code: 'siteverify_rejected' };
+    }
+
+    // Hostname check — if Turnstile returns a hostname, verify it against allowlist
+    if (result.hostname && TURNSTILE_ALLOWED_HOSTNAMES.length > 0) {
+      const returnedHost = result.hostname.toLowerCase();
+      const hostAllowed = TURNSTILE_ALLOWED_HOSTNAMES.some(
+        (allowed) => returnedHost === allowed || returnedHost.endsWith('.' + allowed)
+      );
+      if (!hostAllowed) {
+        console.warn('[TURNSTILE] hostname mismatch — fail closed', {
+          returned: returnedHost,
+          allowed: TURNSTILE_ALLOWED_HOSTNAMES,
+        });
+        return { valid: false, code: 'hostname_mismatch' };
+      }
+    }
+
+    // Log action if present (informational, not enforced unless env set)
+    if (result.action) {
+      console.log(`[TURNSTILE] action=${result.action}`);
+    }
+
+    return { valid: true };
   } catch (error) {
-    console.error('Turnstile verification error:', error);
-    return false;
+    console.error('[TURNSTILE] verification network error — fail closed:', error);
+    return { valid: false, code: 'network_error' };
   }
 }
 
@@ -742,14 +786,15 @@ serve(async (req) => {
       }, 400, origin);
     }
 
-    const turnstileValid = await verifyTurnstileToken(data.turnstile_token, clientIP);
-    if (!turnstileValid) {
-      logStep('turnstile_failed', undefined, 'blocked');
+    const turnstileResult = await verifyTurnstileToken(data.turnstile_token, clientIP);
+    if (!turnstileResult.valid) {
+      logStep('turnstile_failed', undefined, 'blocked', { code: turnstileResult.code });
+      const status = turnstileResult.code === 'hostname_mismatch' ? 403 : 403;
       return createResponse({
         success: false,
         error: 'Turnstile captcha verification failed',
-        error_code: 'turnstile_failed'
-      }, 403, origin);
+        error_code: `turnstile_${turnstileResult.code || 'failed'}`
+      }, status, origin);
     }
 
     // Validate payload with normalized data
