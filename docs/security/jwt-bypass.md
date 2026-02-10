@@ -123,11 +123,7 @@ The following functions are configured with `verify_jwt = true` or use the defau
 
 ## Flagged Issues
 
-### `retell-webhook-enhanced` — Dead Code, No Signature Verification
-
-- **Status:** Not referenced in codebase. No config entry (defaults to `verify_jwt = true`).
-- **Risk:** Contains NO webhook signature verification — processes raw POST body directly.
-- **Recommendation:** Delete this function. It is superseded by `retell-webhook` which has proper HMAC-SHA256 signature verification.
+_None. All previously flagged issues have been resolved._
 
 ---
 
@@ -136,7 +132,7 @@ The following functions are configured with `verify_jwt = true` or use the defau
 | Date | Change | Before → After |
 |---|---|---|
 | 2026-02-10 | Initial audit + `sms-webhook` added to bypass allowlist | 6 → 7 |
-| 2026-02-10 | `retell-webhook-enhanced` flagged for deletion (dead code, no sig verification) | — |
+| 2026-02-10 | `retell-webhook-enhanced` deleted (dead code, no sig verification) — closes U2/U4 | — |
 
 ---
 
