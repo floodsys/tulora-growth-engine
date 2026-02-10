@@ -42,3 +42,24 @@ supabase/.temp/
 MERGED_AUDIT_STATUS.md
 db_reset_output*.txt
 test-reports/
+
+# ===== PRE-PUSH HARDENING (added) =====
+
+# Supabase local state (contains local credentials/config)
+.supabase/
+
+# Supabase branch tracking (local development state)
+supabase/.branches/
+
+# Debug and output files (may contain sensitive data)
+diff_output.txt
+reset_output.txt
+*_debug.txt
+supabase_*debug*.txt
+supabase_db_reset*.txt
+
+# Patch files
+cline_diff.patchgit
+
+# Windows stray null device file
+nul
