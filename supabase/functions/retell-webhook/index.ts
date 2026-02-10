@@ -2,42 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RETELL_WEBHOOK_SECRET } from '../_shared/env.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
-
-// Helper function to verify webhook signature
-async function verifyWebhookSignature(
-  signature: string,
-  body: string,
-  secret: string
-): Promise<boolean> {
-  try {
-    const encoder = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-      'raw',
-      encoder.encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-    
-    const expectedSignature = await crypto.subtle.sign(
-      'HMAC',
-      key,
-      encoder.encode(body)
-    );
-    
-    const expectedHex = Array.from(new Uint8Array(expectedSignature))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-    
-    // Remove 'sha256=' prefix if present
-    const cleanSignature = signature.replace('sha256=', '');
-    
-    return cleanSignature === expectedHex;
-  } catch (error) {
-    console.error('Error verifying webhook signature:', error);
-    return false;
-  }
-}
+import { verifyWebhookSignature } from '../_shared/retellSignature.ts'
 
 interface RetellWebhookEvent {
   event: string
@@ -78,12 +43,12 @@ async function getOrganizationFromAgent(supabase: any, agentId: string): Promise
       .select('organization_id')
       .eq('agent_id', agentId)
       .single()
-    
+
     if (error || !data) {
       console.error('Could not find organization for agent:', agentId, error)
       return null
     }
-    
+
     return data.organization_id
   } catch (error) {
     console.error('Error finding organization for agent:', error)
@@ -123,13 +88,13 @@ function extractAnalysisFields(callAnalysis: any) {
       const extraction = callAnalysis.inbound_phone_call_summary.evaluation.extraction
       // Try to compute a lead score from various factors
       let score = 50 // Base score
-      
+
       if (outcome === 'positive') score += 30
       else if (outcome === 'negative') score -= 30
-      
+
       if (sentiment === 'positive') score += 20
       else if (sentiment === 'negative') score -= 20
-      
+
       leadScore = Math.max(0, Math.min(100, score))
     }
 
@@ -138,7 +103,7 @@ function extractAnalysisFields(callAnalysis: any) {
       // Simple keyword extraction - in production, you might use NLP
       const keywords = callAnalysis.call_summary.toLowerCase()
         .split(/\s+/)
-        .filter(word => word.length > 4)
+        .filter((word: string) => word.length > 4)
         .slice(0, 10) // Limit to 10 keywords
       topics = keywords
     }
@@ -201,7 +166,7 @@ async function handleCallEnded(supabase: any, event: RetellWebhookEvent, organiz
 
 async function handleCallAnalyzed(supabase: any, event: RetellWebhookEvent, organizationId: string) {
   const analysisFields = extractAnalysisFields(event.call_analysis)
-  
+
   const updateData = {
     analysis_json: event.call_analysis || {},
     outcome: analysisFields.outcome,
@@ -230,7 +195,7 @@ async function handleGenericEvent(supabase: any, event: RetellWebhookEvent, orga
   // For any other event types, just update the raw webhook data
   const { data, error } = await supabase
     .from('retell_calls')
-    .update({ 
+    .update({
       raw_webhook_data: event,
       updated_at: new Date().toISOString()
     })
@@ -249,7 +214,7 @@ async function handleGenericEvent(supabase: any, event: RetellWebhookEvent, orga
 // Helper function to process different event types
 async function processWebhookEvent(supabase: any, event: RetellWebhookEvent) {
   const organizationId = event.agent_id ? await getOrganizationFromAgent(supabase, event.agent_id) : null
-  
+
   if (!organizationId) {
     console.error('Could not determine organization for event:', event)
     return null
@@ -260,14 +225,14 @@ async function processWebhookEvent(supabase: any, event: RetellWebhookEvent) {
   switch (event.event) {
     case 'call_started':
       return await handleCallStarted(supabase, event, organizationId)
-    
+
     case 'call_ended':
       return await handleCallEnded(supabase, event, organizationId)
-    
+
     case 'call_analyzed':
     case 'analysis_completed':
       return await handleCallAnalyzed(supabase, event, organizationId)
-    
+
     default:
       console.log('Unknown event type:', event.event)
       return await handleGenericEvent(supabase, event, organizationId)
@@ -295,7 +260,7 @@ serve(async (req) => {
     if (req.method !== 'POST') {
       return new Response(
         JSON.stringify({ error: 'Method not allowed' }),
-        { 
+        {
           status: 405,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
@@ -308,13 +273,13 @@ serve(async (req) => {
 
     // REQUIRED: Verify webhook signature (hardened - no processing without valid signature)
     const signature = req.headers.get('x-retell-signature');
-    
+
     // Fail immediately if signature header is missing
     if (!signature) {
       console.error('Missing x-retell-signature header - rejecting request');
       return new Response(
         JSON.stringify({ error: 'Missing webhook signature' }),
-        { 
+        {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
@@ -327,7 +292,7 @@ serve(async (req) => {
       console.error('RETELL_WEBHOOK_SECRET environment variable not configured');
       return new Response(
         JSON.stringify({ error: 'Webhook signature verification not configured' }),
-        { 
+        {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
@@ -335,19 +300,19 @@ serve(async (req) => {
     }
 
     const isValidSignature = await verifyWebhookSignature(signature, rawBody, webhookSecret);
-    
+
     // Fail if signature does not match
     if (!isValidSignature) {
       console.error('Invalid webhook signature - computed HMAC does not match header');
       return new Response(
         JSON.stringify({ error: 'Invalid webhook signature' }),
-        { 
+        {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
-    
+
     console.log('Webhook signature verified successfully');
 
     // Parse the webhook body ONLY after signature verification passes
@@ -358,27 +323,27 @@ serve(async (req) => {
     const result = await processWebhookEvent(supabase, webhookBody);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: "Webhook processed successfully",
         event: webhookBody.event,
         call_id: webhookBody.call_id,
         data: result
       }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
 
   } catch (error) {
     console.error("Error processing webhook:", error);
-    
+
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: "Internal server error",
-        details: error.message
+        details: error instanceof Error ? error.message : String(error)
       }),
-      { 
+      {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
