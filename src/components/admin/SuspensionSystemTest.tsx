@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SUPABASE_URL, SUPABASE_ANON } from '@/config/publicConfig';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,18 +42,18 @@ export function SuspensionSystemTest() {
   const { toast } = useToast();
 
   const updateResult = (
-    name: string, 
+    name: string,
     category: string,
-    status: TestResult['status'], 
+    status: TestResult['status'],
     expectedStatus?: number,
     actualStatus?: number,
     expectedCode?: string,
     actualCode?: string,
-    message?: string, 
+    message?: string,
     details?: any
   ) => {
     if (!testSession) return;
-    
+
     const result: TestResult = {
       name,
       category,
@@ -65,18 +66,18 @@ export function SuspensionSystemTest() {
       details,
       timestamp: new Date().toISOString()
     };
-    
+
     setTestSession(prev => {
       if (!prev) return prev;
       const existingIndex = prev.results.findIndex(r => r.name === name);
       const newResults = [...prev.results];
-      
+
       if (existingIndex >= 0) {
         newResults[existingIndex] = result;
       } else {
         newResults.push(result);
       }
-      
+
       // Update summary
       const summary = {
         total: newResults.length,
@@ -84,7 +85,7 @@ export function SuspensionSystemTest() {
         failed: newResults.filter(r => r.status === 'fail').length,
         errors: newResults.filter(r => r.status === 'error').length
       };
-      
+
       return {
         ...prev,
         results: newResults,
@@ -94,9 +95,9 @@ export function SuspensionSystemTest() {
   };
 
   const runTest = async (
-    testName: string, 
+    testName: string,
     category: string,
-    testFn: () => Promise<{ 
+    testFn: () => Promise<{
       expectedStatus?: number;
       actualStatus?: number;
       expectedCode?: string;
@@ -108,10 +109,10 @@ export function SuspensionSystemTest() {
     try {
       const result = await testFn();
       updateResult(
-        testName, 
-        category, 
-        'pass', 
-        result.expectedStatus, 
+        testName,
+        category,
+        'pass',
+        result.expectedStatus,
         result.actualStatus,
         result.expectedCode,
         result.actualCode,
@@ -125,20 +126,20 @@ export function SuspensionSystemTest() {
   const testEdgeFunction = async (functionName: string, payload: any, expectedStatus: number, expectedCode?: string) => {
     try {
       const response = await fetch(
-        `https://nkjxbeypbiclvouqfjyc.supabase.co/functions/v1/${functionName}`,
+        `${SUPABASE_URL}/functions/v1/${functionName}`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ranhiZXlwYmljbHZvdXFmanljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0Nzg2NDEsImV4cCI6MjA3MTA1NDY0MX0.iuFFcJSX97MKkiBvSYLmIao9aTMrQm7zqnf4kEDraQg`,
+            'Authorization': `Bearer ${SUPABASE_ANON}`,
           },
           body: JSON.stringify(payload)
         }
       );
-      
+
       const actualStatus = response.status;
       let actualCode = '';
-      
+
       if (!response.ok) {
         try {
           const errorData = await response.json();
@@ -147,15 +148,15 @@ export function SuspensionSystemTest() {
           // Ignore JSON parse errors
         }
       }
-      
+
       if (actualStatus !== expectedStatus) {
         throw new Error(`Expected ${expectedStatus}, got ${actualStatus}`);
       }
-      
+
       if (expectedCode && actualCode !== expectedCode) {
         throw new Error(`Expected code ${expectedCode}, got ${actualCode}`);
       }
-      
+
       return { actualStatus, actualCode, expectedStatus, expectedCode };
     } catch (error: any) {
       throw new Error(`Edge function test failed: ${error.message}`);
@@ -174,7 +175,7 @@ export function SuspensionSystemTest() {
 
     setIsRunning(true);
     const sessionId = `suspension-test-${Date.now()}`;
-    
+
     setTestSession({
       sessionId,
       orgId: orgId.trim(),
@@ -189,16 +190,16 @@ export function SuspensionSystemTest() {
         p_org_id: orgId,
         p_reason: 'Automated sanity check testing'
       });
-      
+
       if (error) throw error;
       const result = data as any;
       if (!result?.success) throw new Error(result?.error || 'Suspension failed');
-      
+
       return { message: 'Organization suspended successfully' };
     });
 
     // === PHASE 2: VERIFY BLOCKING (HTTP 423 + ORG_SUSPENDED) ===
-    
+
     // Test agent-related endpoints
     await runTest('Block Agent Management', 'API Blocking', async () => {
       const result = await testEdgeFunction('agent-management', {
@@ -259,19 +260,19 @@ export function SuspensionSystemTest() {
     });
 
     // === PHASE 3: VERIFY RLS BLOCKS DIRECT DB ACCESS ===
-    
+
     await runTest('RLS Blocks Agent Profiles Insert', 'RLS Defense', async () => {
       const { error } = await supabase.from('agent_profiles').insert({
         organization_id: orgId,
         name: 'Direct Insert Test Agent',
         retell_agent_id: 'test_direct_' + Date.now()
       });
-      
+
       if (!error) throw new Error('Direct agent insert should have been blocked by RLS');
       if (!error.message.includes('is_org_active')) {
         throw new Error(`Expected RLS block with is_org_active, got: ${error.message}`);
       }
-      
+
       return { message: 'RLS correctly blocked direct agent insert' };
     });
 
@@ -282,12 +283,12 @@ export function SuspensionSystemTest() {
         role: 'user',
         invite_token: 'direct_test_token_' + Date.now()
       });
-      
+
       if (!error) throw new Error('Direct invitation insert should have been blocked by RLS');
       if (!error.message.includes('is_org_active')) {
         throw new Error(`Expected RLS block with is_org_active, got: ${error.message}`);
       }
-      
+
       return { message: 'RLS correctly blocked direct invitation insert' };
     });
 
@@ -297,17 +298,17 @@ export function SuspensionSystemTest() {
         event_type: 'test_call',
         cost_cents: 100
       });
-      
+
       if (!error) throw new Error('Direct usage event insert should have been blocked by RLS');
       if (!error.message.includes('is_org_active')) {
         throw new Error(`Expected RLS block with is_org_active, got: ${error.message}`);
       }
-      
+
       return { message: 'RLS correctly blocked direct usage event insert' };
     });
 
     // === PHASE 4: VERIFY BILLING/PORTAL STILL WORKS ===
-    
+
     await runTest('Billing Portal Access', 'Exempted Services', async () => {
       const result = await testEdgeFunction('org-customer-portal', {
         organizationId: orgId
@@ -316,7 +317,7 @@ export function SuspensionSystemTest() {
     });
 
     // === PHASE 5: CHECK AUDIT LOG ENTRIES ===
-    
+
     await runTest('Verify Suspension Audit Log', 'Audit Logging', async () => {
       const { data, error } = await supabase
         .from('audit_log')
@@ -325,12 +326,12 @@ export function SuspensionSystemTest() {
         .eq('action', 'org.suspended')
         .order('created_at', { ascending: false })
         .limit(1);
-      
+
       if (error) throw error;
       if (!data || data.length === 0) {
         throw new Error('No audit log entry found for org.suspended');
       }
-      
+
       return { message: `Found suspension audit log: ${data[0].id}` };
     });
 
@@ -342,60 +343,60 @@ export function SuspensionSystemTest() {
         .eq('action', 'org.blocked_operation')
         .order('created_at', { ascending: false })
         .limit(5);
-      
+
       if (error) throw error;
       if (!data || data.length === 0) {
         throw new Error('No blocked operation audit logs found');
       }
-      
+
       return { message: `Found ${data.length} blocked operation logs` };
     });
 
     // === PHASE 6: REINSTATE ORGANIZATION ===
-    
+
     await runTest('Reinstate Organization', 'Setup', async () => {
       const { data, error } = await supabase.rpc('reinstate_organization', {
         p_org_id: orgId,
         p_reason: 'Sanity check testing completed'
       });
-      
+
       if (error) throw error;
       const result = data as any;
       if (!result?.success) throw new Error(result?.error || 'Reinstatement failed');
-      
+
       return { message: 'Organization reinstated successfully' };
     });
 
     // === PHASE 7: VERIFY OPERATIONS RESUME ===
-    
+
     await runTest('Allow Agent Creation After Reinstate', 'Post-Reinstate', async () => {
       const { data, error } = await supabase.from('agent_profiles').insert({
         organization_id: orgId,
         name: 'Test Agent After Reinstate',
         retell_agent_id: 'test_active_' + Date.now()
       }).select().single();
-      
+
       if (error) throw error;
-      
+
       // Clean up - delete the test agent
       await supabase.from('agent_profiles').delete().eq('id', data.id);
-      
+
       return { message: 'Agent creation works after reinstatement' };
     });
 
     // === PHASE 8: OPTIONAL CANCELED ORG TEST ===
-    
+
     if (includeCanceled) {
       await runTest('Cancel Organization', 'Canceled Testing', async () => {
         const { data, error } = await supabase.rpc('cancel_organization', {
           p_org_id: orgId,
           p_reason: 'Testing canceled status'
         });
-        
+
         if (error) throw error;
         const result = data as any;
         if (!result?.success) throw new Error(result?.error || 'Cancellation failed');
-        
+
         return { message: 'Organization canceled for testing' };
       });
 
@@ -421,11 +422,11 @@ export function SuspensionSystemTest() {
           p_org_id: orgId,
           p_reason: 'Reset after canceled status testing'
         });
-        
+
         if (error) throw error;
         const result = data as any;
         if (!result?.success) throw new Error(result?.error || 'Reset failed');
-        
+
         return { message: 'Organization reset to active after canceled test' };
       });
     }
@@ -440,11 +441,11 @@ export function SuspensionSystemTest() {
     });
 
     setIsRunning(false);
-    
+
     const session = testSession!;
     const passedTests = session.summary.passed;
     const totalTests = session.summary.total;
-    
+
     toast({
       title: "Suspension System Test Complete",
       description: `${passedTests}/${totalTests} tests passed`,
@@ -454,18 +455,18 @@ export function SuspensionSystemTest() {
 
   const exportResults = () => {
     if (!testSession) return;
-    
+
     const exportData = {
       session: testSession,
       exported_at: new Date().toISOString(),
       test_environment: import.meta.env.MODE,
       runbook_version: '1.0'
     };
-    
+
     const blob = new Blob([JSON.stringify(exportData, null, 2)], {
       type: 'application/json'
     });
-    
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -474,7 +475,7 @@ export function SuspensionSystemTest() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     toast({
       title: "Test Results Exported",
       description: "Results saved to downloads folder"
@@ -493,11 +494,11 @@ export function SuspensionSystemTest() {
   const getStatusBadge = (status: TestResult['status']) => {
     const variants = {
       pass: 'default',
-      fail: 'destructive', 
+      fail: 'destructive',
       error: 'secondary',
       pending: 'outline'
     } as const;
-    
+
     return <Badge variant={variants[status]}>{status}</Badge>;
   };
 
@@ -530,7 +531,7 @@ export function SuspensionSystemTest() {
                 className="w-full px-3 py-2 border rounded-md mt-1"
               />
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <input
                 type="checkbox"
@@ -544,18 +545,18 @@ export function SuspensionSystemTest() {
               </label>
             </div>
           </div>
-          
+
           <div className="flex items-end space-x-2">
-            <Button 
+            <Button
               onClick={runSuspensionTests}
               disabled={isRunning || !orgId.trim()}
               className="flex-1"
             >
               {isRunning ? 'Running Tests...' : 'Run Sanity Check'}
             </Button>
-            
+
             {testSession && (
-              <Button 
+              <Button
                 onClick={exportResults}
                 variant="outline"
                 className="flex items-center gap-2"
@@ -578,7 +579,7 @@ export function SuspensionSystemTest() {
                 <span className="text-muted-foreground">Total: {testSession.summary.total}</span>
               </div>
             </div>
-            
+
             {Object.entries(groupedResults).map(([category, categoryResults]) => (
               <div key={category} className="space-y-2">
                 <h4 className="font-medium text-primary">{category}</h4>
@@ -624,7 +625,7 @@ export function SuspensionSystemTest() {
             <li>• Set TEST_ORG_ID to a shadow org (not customer)</li>
             <li>• Ensure emails/webhooks in test mode</li>
           </ul>
-          
+
           <p><strong>Test Coverage:</strong></p>
           <ul className="space-y-1 ml-4 text-xs">
             <li>• API blocking with HTTP 423/410 + proper error codes</li>

@@ -1,8 +1,8 @@
 // Public config for frontend; no server secrets here.
 
-// Supabase configuration
-export const SUPABASE_URL = "https://nkjxbeypbiclvouqfjyc.supabase.co";
-export const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ranhiZXlwYmljbHZvdXFmanljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0Nzg2NDEsImV4cCI6MjA3MTA1NDY0MX0.iuFFcJSX97MKkiBvSYLmIao9aTMrQm7zqnf4kEDraQg";
+// Supabase configuration – values come from env; the anon key is a *public* publishable key.
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://nkjxbeypbiclvouqfjyc.supabase.co";
+export const SUPABASE_ANON: string = import.meta.env.VITE_SUPABASE_ANON_KEY || ""; // set VITE_SUPABASE_ANON_KEY in env
 
 // Application URL
 export const APP_URL = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080';
