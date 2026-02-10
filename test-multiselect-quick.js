@@ -1,12 +1,12 @@
 // Quick test for multi-select product interest functionality
 // Run with: node test-multiselect-quick.js
 
-const SUPABASE_URL = 'https://nkjxbeypbiclvouqfjyc.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ranhiZXlwYmljbHZvdXFmanljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0Nzg2NDEsImV4cCI6MjA3MTA1NDY0MX0.iuFFcJSX97MKkiBvSYLmIao9aTMrQm7zqnf4kEDraQg';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nkjxbeypbiclvouqfjyc.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''; // set SUPABASE_ANON_KEY env var
 
 async function testMultiSelectProductInterest() {
   console.log('🧪 Testing multi-select product interest...');
-  
+
   const testPayload = {
     inquiry_type: 'enterprise',
     full_name: 'Test User MultiSelect',
@@ -31,7 +31,7 @@ async function testMultiSelectProductInterest() {
 
     const responseText = await response.text();
     const first200Chars = responseText.substring(0, 200);
-    
+
     console.log('📊 Response Status:', response.status);
     console.log('📋 Headers:');
     console.log('  X-Function:', response.headers.get('X-Function'));

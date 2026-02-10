@@ -13,7 +13,7 @@
  * still enforce ACTIVE-only via checkAgentForCalls.
  */
 
-import { corsHeaders } from '../_shared/cors.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { checkUsageQuota } from '../_shared/billingUsage.ts'
 import { checkAgentForTestCalls, createAgentStatusErrorResponse } from '../_shared/agentStatus.ts'
@@ -25,6 +25,7 @@ interface TestCallRequest {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
     // Trace ID for logging
     const traceId = `trace_${Date.now()}_${crypto.randomUUID().slice(0, 10)}`
     const log = (msg: string) => console.log(`[${traceId}] ${msg}`)

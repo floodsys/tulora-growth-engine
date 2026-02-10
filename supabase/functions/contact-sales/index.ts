@@ -22,8 +22,6 @@ const ALLOWED_ORIGINS = Deno.env.get('ALLOWED_ORIGINS')?.split(',').map(o => o.t
   'https://82f60040-b989-4e09-8aaf-a5888522b1a2.sandbox.lovable.dev',
   'http://localhost:8080'
 ];
-const CORS_DEBUG_WILDCARD = true; // Debug setting - temporary wildcard CORS
-
 function getCorsHeaders(origin: string | null): Record<string, string> {
   const headers: Record<string, string> = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -33,15 +31,11 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
     'Access-Control-Expose-Headers': 'X-Function, X-Version, X-CRM-Status, X-CRM-Base, X-CRM-Mode, X-DB-Client'
   };
 
-  // Force wildcard if debug mode is enabled
-  if (CORS_DEBUG_WILDCARD) {
-    headers['Access-Control-Allow-Origin'] = '*';
-    return headers;
-  }
-
   // Check if origin is in allowed list
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     headers['Access-Control-Allow-Origin'] = origin;
+  } else if (ALLOWED_ORIGINS.length > 0) {
+    headers['Access-Control-Allow-Origin'] = ALLOWED_ORIGINS[0];
   }
 
   return headers;
@@ -52,26 +46,26 @@ const resend = new Resend(Deno.env.get('RESEND_API_KEY'))
 
 // Helper function to create response with consistent headers
 const createResponse = (data: any, status = 200, requestOrigin: string | null = null, crmStatus?: string, crmBase?: string, crmMode?: string) => {
-  const headers = { 
-    ...getCorsHeaders(requestOrigin), 
+  const headers = {
+    ...getCorsHeaders(requestOrigin),
     'Content-Type': 'application/json',
     'X-Function': FUNCTION_NAME,
     'X-Version': VERSION,
     'X-DB-Client': 'service_role'
   };
-  
+
   if (crmStatus) {
     headers['X-CRM-Status'] = crmStatus;
   }
-  
+
   if (crmBase) {
     headers['X-CRM-Base'] = crmBase;
   }
-  
+
   if (crmMode) {
     headers['X-CRM-Mode'] = crmMode;
   }
-  
+
   // Add function and version info to response data with DB client marker
   const responseData = {
     ...data,
@@ -80,7 +74,7 @@ const createResponse = (data: any, status = 200, requestOrigin: string | null = 
     method_used: 'POST',
     db_client: 'service_role'
   };
-  
+
   return new Response(JSON.stringify(responseData), {
     status,
     headers
@@ -148,9 +142,9 @@ function loadSuiteCRMConfig() {
   const client_secret = Deno.env.get('SUITECRM_CLIENT_SECRET')
   const auth_mode = Deno.env.get('SUITECRM_AUTH_MODE')
   const auto_create_fields = Deno.env.get('SUITECRM_AUTO_CREATE_FIELDS') !== 'false' // default true, disabled with false
-  
+
   console.log(`[CRM-CFG] env present: base_url=${!!base_url}, client_id=${!!client_id}, client_secret=${!!client_secret}, auth_mode=${!!auth_mode}, auto_create=${auto_create_fields}`)
-  
+
   return {
     base_url: base_url?.replace(/\/$/, ''), // Remove trailing slash
     client_id,
@@ -232,13 +226,13 @@ function mapLeadToSuiteCRMPayload(lead: LeadData): any {
   const payload: any = {
     // Map full_name → last_name (required by SuiteCRM)
     last_name: lead.full_name || 'Unknown',
-    
+
     // Map email → email1
     email1: lead.email,
-    
+
     // Map message → description
     description: lead.message || '',
-    
+
     // Safe defaults
     status: 'New'
   }
@@ -247,11 +241,11 @@ function mapLeadToSuiteCRMPayload(lead: LeadData): any {
   if (lead.phone) {
     payload.phone_work = lead.phone
   }
-  
+
   if (lead.company) {
     payload.account_name = lead.company
   }
-  
+
   // Map source if available (be careful not to send invalid enums)
   if (lead.utm_source) {
     payload.lead_source = lead.utm_source
@@ -276,7 +270,7 @@ async function syncLeadToSuiteCRM(lead: LeadData, config: any): Promise<SuiteCRM
 
   // Create payload with correct SuiteCRM field mapping
   const payload = mapLeadToSuiteCRMPayload(lead)
-  
+
   // Try primary endpoint first, then fallback
   const primaryEndpoint = `${config.base_url}/legacy/Api/V8/module`
   const fallbackEndpoint = `${config.base_url}/Api/V8/module`
@@ -338,7 +332,7 @@ async function syncLeadToSuiteCRM(lead: LeadData, config: any): Promise<SuiteCRM
     if (response.ok) {
       const leadId = responseData.data?.id || 'unknown'
       console.log(`[CRM] lead created: ${leadId}`)
-      
+
       return {
         success: true,
         crm_id: leadId,
@@ -347,7 +341,7 @@ async function syncLeadToSuiteCRM(lead: LeadData, config: any): Promise<SuiteCRM
       }
     } else {
       console.error(`[CRM] sync failed ${response.status}: ${responseText.substring(0, 100)}`)
-      
+
       // If SuiteCRM rejects, return 424 with debug info (non-prod only)
       return {
         success: false,
@@ -360,7 +354,7 @@ async function syncLeadToSuiteCRM(lead: LeadData, config: any): Promise<SuiteCRM
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Unknown error'
     console.error(`[CRM] sync error: ${errorMsg}`)
-    
+
     return {
       success: false,
       message: 'CRM sync failed',
@@ -385,23 +379,23 @@ const logStep = (step: string, leadId?: string, status?: string, metadata?: any)
   // SECURITY: Only log IDs and status, no PII
   const details = leadId ? `leadId: ${leadId}` : '';
   const statusInfo = status ? `, status: ${status}` : '';
-  
+
   // Redact any sensitive information from metadata
   const safeMetadata = metadata ? sanitizeLogMetadata(metadata) : '';
-  
+
   console.log(`[CONTACT-SUBMIT] ${step}${details}${statusInfo}${safeMetadata ? `, meta: ${JSON.stringify(safeMetadata)}` : ''}`);
 }
 
 const sanitizeLogMetadata = (metadata: any): any => {
   if (!metadata || typeof metadata !== 'object') return {};
-  
+
   const sanitized: any = {};
   for (const [key, value] of Object.entries(metadata)) {
     // Never log email, names, messages, or other PII
     if (['email', 'full_name', 'name', 'message', 'notes', 'additional_requirements', 'phone', 'company'].includes(key)) {
       continue;
     }
-    
+
     // Redact tokens and secrets
     if (typeof value === 'string' && (value.includes('token') || value.includes('key') || value.includes('secret'))) {
       sanitized[key] = '[REDACTED]';
@@ -411,7 +405,7 @@ const sanitizeLogMetadata = (metadata: any): any => {
       sanitized[key] = value;
     }
   }
-  
+
   return sanitized;
 }
 
@@ -426,7 +420,6 @@ console.log(`  FUNCTION_NAME: ${FUNCTION_NAME}`);
 console.log(`  REQUIRE_ENTERPRISE_COMPANY: ${REQUIRE_ENTERPRISE_COMPANY}`);
 console.log(`  REQUIRE_ENTERPRISE_EXTRAS: ${REQUIRE_ENTERPRISE_EXTRAS}`);
 console.log(`  FORMS_NORMALIZE_KEYS: ${FORMS_NORMALIZE_KEYS}`);
-console.log(`  CORS_DEBUG_WILDCARD: ${CORS_DEBUG_WILDCARD}`);
 console.log(`  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS.join(', ')}`);
 
 const trimField = (value: any): string => {
@@ -448,7 +441,7 @@ const validateEmail = (email: string): boolean => {
 
 const verifyTurnstileToken = async (token: string, remoteIP?: string): Promise<boolean> => {
   const secretKey = Deno.env.get('CLOUDFLARE_TURNSTILE_SECRET_KEY');
-  
+
   if (!secretKey) {
     console.warn('Turnstile secret key not configured');
     return false;
@@ -488,7 +481,7 @@ const mapProductInterestToLine = (productInterest: string): string => {
 const mapVolumeToCode = (volumeLabel: string): string => {
   const mapping: Record<string, string> = {
     '< 5,000 calls/month': 'lt_5k',
-    '5,000-20,000 calls/month': '5k_20k', 
+    '5,000-20,000 calls/month': '5k_20k',
     '20,000-100,000 calls/month': '20k_100k',
     '> 100,000 calls/month': 'gt_100k',
     'Custom/Variable': 'custom'
@@ -498,17 +491,17 @@ const mapVolumeToCode = (volumeLabel: string): string => {
 
 const validatePayload = (data: ContactFormRequest, normalizedProductInterest: string[], originalRaw: any): ValidationError[] => {
   const errors: ValidationError[] = [];
-  
+
   // Determine inquiry type
   const inquiryType = data.inquiry_type || (data.product_interest || data.product_line ? 'enterprise' : 'contact');
-  
+
   // Get full_name from either field
   const fullName = trimField(data.full_name || data.name);
   const email = trimField(data.email);
   const phone = trimField(data.phone);
   const company = trimField(data.company);
   const message = trimField(data.message);
-  
+
   const expectedVolumeLabel = trimField(data.expected_volume_label || data.expected_volume);
   const additionalRequirements = trimField(data.additional_requirements || data.notes);
 
@@ -516,7 +509,7 @@ const validatePayload = (data: ContactFormRequest, normalizedProductInterest: st
   if (!fullName) {
     errors.push({ field: 'full_name', message: 'Full name is required and cannot be empty' });
   }
-  
+
   if (!email) {
     errors.push({ field: 'email', message: 'Email is required and cannot be empty' });
   } else if (!validateEmail(email)) {
@@ -534,12 +527,12 @@ const validatePayload = (data: ContactFormRequest, normalizedProductInterest: st
     if (!message) {
       errors.push({ field: 'message', message: 'Message is required for enterprise inquiries' });
     }
-    
+
     // Company field - only required if REQUIRE_ENTERPRISE_COMPANY=true (default false)
     if (REQUIRE_ENTERPRISE_COMPANY && !company) {
       errors.push({ field: 'company', message: 'Company name is required for enterprise inquiries' });
     }
-    
+
     // NEW VALIDATION RULES FOR PRODUCT INTEREST
     if (REQUIRE_ENTERPRISE_EXTRAS === false) {
       // Product interest is optional, but if provided and none normalized → 422
@@ -552,7 +545,7 @@ const validatePayload = (data: ContactFormRequest, normalizedProductInterest: st
         errors.push({ field: 'product_interest', message: 'Product interest is required for enterprise inquiries.' });
       }
     }
-    
+
     // Other enterprise fields validation
     if (REQUIRE_ENTERPRISE_EXTRAS) {
       if (!expectedVolumeLabel) {
@@ -569,13 +562,13 @@ const validatePayload = (data: ContactFormRequest, normalizedProductInterest: st
       errors.push({ field: 'expected_volume', message: 'Expected volume must be one of the valid options' });
     }
   }
-  
+
   return errors;
 }
 
 const extractTrackingData = (req: Request): Partial<LeadData> => {
   const trackingData: Partial<LeadData> = {};
-  
+
   // Parse UTM parameters from URL if present
   const url = new URL(req.url);
   trackingData.utm_source = url.searchParams.get('utm_source') || undefined;
@@ -583,13 +576,13 @@ const extractTrackingData = (req: Request): Partial<LeadData> => {
   trackingData.utm_campaign = url.searchParams.get('utm_campaign') || undefined;
   trackingData.utm_term = url.searchParams.get('utm_term') || undefined;
   trackingData.utm_content = url.searchParams.get('utm_content') || undefined;
-  
+
   // Extract referrer
   trackingData.referrer = req.headers.get('referer') || undefined;
-  
+
   // Extract page URL (from referrer or construct from host)
   trackingData.page_url = trackingData.referrer || `${url.protocol}//${url.host}`;
-  
+
   return trackingData;
 }
 
@@ -600,19 +593,19 @@ const checkRateLimit = (ip: string): boolean => {
   const now = Date.now();
   const windowMs = 60 * 1000; // 1 minute
   const maxRequests = 10; // Max 10 requests per minute per IP
-  
+
   const record = rateLimitMap.get(ip);
-  
+
   if (!record || now > record.resetTime) {
     // Reset or create new record
     rateLimitMap.set(ip, { count: 1, resetTime: now + windowMs });
     return true;
   }
-  
+
   if (record.count >= maxRequests) {
     return false; // Rate limit exceeded
   }
-  
+
   record.count++;
   return true;
 }
@@ -628,24 +621,24 @@ serve(async (req) => {
 
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { 
-      status: 204, 
-      headers: corsHeaders 
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
     });
   }
 
   if (req.method !== 'POST') {
-    const responseData = { 
-      success: false, 
+    const responseData = {
+      success: false,
       error: 'Method not allowed',
       function: FUNCTION_NAME,
       version: VERSION,
       method_used: req.method,
       db_client: 'service_role'
     };
-    
-    return new Response(JSON.stringify(responseData), { 
-      status: 405, 
+
+    return new Response(JSON.stringify(responseData), {
+      status: 405,
       headers: {
         ...corsHeaders,
         'Content-Type': 'application/json',
@@ -657,10 +650,10 @@ serve(async (req) => {
   }
 
   // Get client IP for rate limiting
-  const clientIP = req.headers.get('cf-connecting-ip') || 
-                   req.headers.get('x-forwarded-for') || 
-                   req.headers.get('x-real-ip') || 
-                   'unknown';
+  const clientIP = req.headers.get('cf-connecting-ip') ||
+    req.headers.get('x-forwarded-for') ||
+    req.headers.get('x-real-ip') ||
+    'unknown';
 
   // Rate limiting
   if (!checkRateLimit(clientIP)) {
@@ -696,7 +689,7 @@ serve(async (req) => {
       }, 400, origin);
     }
 
-    logStep('payload_received', undefined, 'parsed', { 
+    logStep('payload_received', undefined, 'parsed', {
       inquiry_type: data.inquiry_type,
       has_email: !!data.email,
       has_name: !!(data.full_name || data.name)
@@ -708,7 +701,7 @@ serve(async (req) => {
     // === NORMALIZE PRODUCT INTEREST BEFORE ANY VALIDATION ===
     const raw = data.product_interest;
     const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
-    
+
     // Map each to lowercased labels and normalize synonyms
     const normalized = list
       .filter(item => item && typeof item === 'string' && item.trim())
@@ -723,10 +716,10 @@ serve(async (req) => {
         return null; // Unknown values
       })
       .filter(item => item !== null) as string[];
-    
+
     // Remove duplicates
     const uniqueNormalized = [...new Set(normalized)];
-    
+
     // Update data with normalized values for validation
     data.product_interest = uniqueNormalized;
 
@@ -739,10 +732,30 @@ serve(async (req) => {
       }, 400, origin);
     }
 
+    // Enforce Turnstile captcha — fail closed if missing or invalid
+    if (!data.turnstile_token) {
+      logStep('turnstile_missing', undefined, 'blocked');
+      return createResponse({
+        success: false,
+        error: 'Missing Turnstile captcha token',
+        error_code: 'turnstile_missing'
+      }, 400, origin);
+    }
+
+    const turnstileValid = await verifyTurnstileToken(data.turnstile_token, clientIP);
+    if (!turnstileValid) {
+      logStep('turnstile_failed', undefined, 'blocked');
+      return createResponse({
+        success: false,
+        error: 'Turnstile captcha verification failed',
+        error_code: 'turnstile_failed'
+      }, 403, origin);
+    }
+
     // Validate payload with normalized data
     const validationErrors = validatePayload(data, uniqueNormalized, raw);
     if (validationErrors.length > 0) {
-      logStep('validation_failed', undefined, 'failed', { 
+      logStep('validation_failed', undefined, 'failed', {
         error_count: validationErrors.length,
         error_fields: validationErrors.map(e => e.field)
       });
@@ -762,32 +775,32 @@ serve(async (req) => {
     let normalizedProductLine: string | undefined;
     let enhancedMessage = data.message?.trim() || undefined;
     let sourceMetadata: Record<string, any> = { ...data.source_metadata };
-    
+
     // Set lead.product_line = normalized[0] ?? null
     normalizedProductLine = uniqueNormalized.length > 0 ? uniqueNormalized[0] : undefined;
-    
+
     // Set metadata.product_interests = normalized
     if (uniqueNormalized.length > 0) {
       sourceMetadata.product_interests = uniqueNormalized;
-      
+
       // Convert first normalized back to pretty label for product_interest field
       const prettyLabels: Record<string, string> = {
         'leadgen': 'AI Lead Generation',
         'support': 'AI Customer Service'
       };
       normalizedProductInterest = prettyLabels[uniqueNormalized[0]] || uniqueNormalized[0];
-      
+
       // If normalized.length > 1, append "Also interested in..." to message
       if (uniqueNormalized.length > 1) {
         const otherPrettyLabels = uniqueNormalized.slice(1).map(item => prettyLabels[item] || item);
         const otherInterests = otherPrettyLabels.join(', ');
-        
-        enhancedMessage = enhancedMessage 
+
+        enhancedMessage = enhancedMessage
           ? `${enhancedMessage}\n\nAlso interested in: ${otherInterests}.`
           : `Also interested in: ${otherInterests}.`;
       }
     }
-    
+
     const leadData: LeadData = {
       inquiry_type: data.inquiry_type,
       full_name: normalizeFullName(data.full_name || data.name || ''),
@@ -807,7 +820,7 @@ serve(async (req) => {
       ip_country: req.headers.get('cf-ipcountry') || undefined
     };
 
-    logStep('lead_data_prepared', undefined, 'ready', { 
+    logStep('lead_data_prepared', undefined, 'ready', {
       inquiry_type: leadData.inquiry_type,
       has_tracking: !!(leadData.utm_source || leadData.referrer)
     });
@@ -827,7 +840,7 @@ serve(async (req) => {
             .select('id')
             .eq('owner_user_id', user.id)
             .single();
-          
+
           if (orgData) {
             organizationId = orgData.id;
             logStep('user_authenticated', undefined, 'success', { org_id: organizationId });
@@ -841,7 +854,7 @@ serve(async (req) => {
     // Generate deterministic external ID for idempotency
     // Use email + inquiry_type for consistent ID generation across retries
     const idempotencyData = `${leadData.email.toLowerCase().trim()}:${leadData.inquiry_type}`;
-    
+
     // Simple deterministic ID generation using built-in hash
     let externalId;
     try {
@@ -864,7 +877,7 @@ serve(async (req) => {
 
     let leadRecord;
     let insertError;
-    
+
     // Try idempotent upsert with safety fallback
     if (FORMS_IDEMPOTENCY_REQUIRED) {
       try {
@@ -873,20 +886,20 @@ serve(async (req) => {
           .upsert({
             // Use deterministic external ID for idempotency
             external_id: externalId,
-            
+
             // Map required NOT NULL fields
             name: leadData.full_name,
             email: leadData.email,
             status: 'new',
-            
+
             // Map message to notes column (update on conflict for latest info)
             notes: leadData.message,
-            
+
             // Only set product_line if it's valid (leadgen|support), otherwise leave NULL
-            product_line: (leadData.product_line === 'leadgen' || leadData.product_line === 'support') 
-              ? leadData.product_line 
+            product_line: (leadData.product_line === 'leadgen' || leadData.product_line === 'support')
+              ? leadData.product_line
               : null,
-            
+
             // Optional fields from leadData (update for latest info)
             phone: leadData.phone,
             company: leadData.company,
@@ -908,33 +921,33 @@ serve(async (req) => {
             utm_content: leadData.utm_content,
             ip_country: leadData.ip_country,
             metadata: leadData.source_metadata,
-            
+
             // Context fields
             organization_id: organizationId,
             crm_sync_status: organizationId ? 'pending' : 'not_applicable',
             email_status: 'pending',
-            
+
             // Update timestamp on upsert
             updated_at: new Date().toISOString()
-          }, { 
+          }, {
             onConflict: 'external_id',
-            ignoreDuplicates: false 
+            ignoreDuplicates: false
           })
           .select()
           .single();
-          
+
         leadRecord = data;
         insertError = error;
-        
+
         // Log external_id for monitoring (hash first 8 chars for security)
         const hashedId = externalId.substring(0, 8) + '...';
         logStep('idempotent_upsert', leadRecord?.id, 'success', { external_id_hash: hashedId });
-        
+
       } catch (upsertError) {
         // If UNIQUE constraint fails, fall back to regular insert
         console.warn('[IDEMPOTENCY] Upsert failed, falling back to insert:', upsertError.message);
         logStep('idempotency_fallback', undefined, 'warning', { reason: 'constraint_error' });
-        
+
         // Regular insert without external_id
         const { data, error } = await supabase
           .from('leads')
@@ -943,8 +956,8 @@ serve(async (req) => {
             email: leadData.email,
             status: 'new',
             notes: leadData.message,
-            product_line: (leadData.product_line === 'leadgen' || leadData.product_line === 'support') 
-              ? leadData.product_line 
+            product_line: (leadData.product_line === 'leadgen' || leadData.product_line === 'support')
+              ? leadData.product_line
               : null,
             phone: leadData.phone,
             company: leadData.company,
@@ -972,14 +985,14 @@ serve(async (req) => {
           })
           .select()
           .single();
-          
+
         leadRecord = data;
         insertError = error;
       }
     } else {
       // Idempotency disabled - regular insert
       logStep('idempotency_disabled', undefined, 'bypass', { reason: 'env_flag' });
-      
+
       const { data, error } = await supabase
         .from('leads')
         .insert({
@@ -987,8 +1000,8 @@ serve(async (req) => {
           email: leadData.email,
           status: 'new',
           notes: leadData.message,
-          product_line: (leadData.product_line === 'leadgen' || leadData.product_line === 'support') 
-            ? leadData.product_line 
+          product_line: (leadData.product_line === 'leadgen' || leadData.product_line === 'support')
+            ? leadData.product_line
             : null,
           phone: leadData.phone,
           company: leadData.company,
@@ -1016,7 +1029,7 @@ serve(async (req) => {
         })
         .select()
         .single();
-        
+
       leadRecord = data;
       insertError = error;
     }
@@ -1038,14 +1051,14 @@ serve(async (req) => {
     let crmStatus = 'not_applicable';
     let crmBase = '';
     let crmMode = '';
-    
+
     if (crmConfig.isConfigured) {
       try {
         crmBase = new URL(crmConfig.base_url!).host;
         crmMode = 'v8';
-        
+
         syncResult = await syncLeadToSuiteCRM(leadData, crmConfig);
-        
+
         if (syncResult.success) {
           crmStatus = 'success';
           logStep('crm_sync_success', leadRecord.id, 'synced', { crm_id: syncResult.crm_id });
@@ -1056,10 +1069,10 @@ serve(async (req) => {
       } catch (crmError) {
         crmStatus = 'error';
         logStep('crm_sync_error', leadRecord.id, 'error', { error: crmError.message });
-        syncResult = { 
-          success: false, 
+        syncResult = {
+          success: false,
           message: 'CRM sync error',
-          error: crmError.message 
+          error: crmError.message
         };
       }
 
@@ -1107,7 +1120,7 @@ serve(async (req) => {
       // Send confirmation email to prospect
       const isEnterprise = leadData.inquiry_type === 'enterprise';
       const confirmationTemplate = isEnterprise ? EnterpriseConfirmationEmail : ContactConfirmationEmail;
-      
+
       const confirmationHtml = await renderAsync(
         React.createElement(confirmationTemplate, {
           leadData,
@@ -1118,16 +1131,16 @@ serve(async (req) => {
       const confirmationEmail = await resend.emails.send({
         from: 'Tulora Team <hello@tulora.io>',
         to: [leadData.email],
-        subject: isEnterprise 
-          ? 'Thank you for your enterprise inquiry - Tulora' 
+        subject: isEnterprise
+          ? 'Thank you for your enterprise inquiry - Tulora'
           : 'Thank you for contacting us - Tulora',
         html: confirmationHtml
       });
 
-      confirmationEmailResult = { 
-        success: !confirmationEmail.error, 
-        id: confirmationEmail.data?.id, 
-        error: confirmationEmail.error 
+      confirmationEmailResult = {
+        success: !confirmationEmail.error,
+        id: confirmationEmail.data?.id,
+        error: confirmationEmail.error
       };
       logStep('confirmation_email_sent', leadRecord.id, confirmationEmailResult.success ? 'sent' : 'failed');
 
@@ -1142,7 +1155,7 @@ serve(async (req) => {
       .from('leads')
       .update({
         email_status: (salesEmailResult?.success && confirmationEmailResult?.success) ? 'sent' : 'failed',
-        email_error: (!salesEmailResult?.success || !confirmationEmailResult?.success) 
+        email_error: (!salesEmailResult?.success || !confirmationEmailResult?.success)
           ? `Sales: ${salesEmailResult?.error || 'OK'}, Confirmation: ${confirmationEmailResult?.error || 'OK'}`
           : null
       })
@@ -1178,7 +1191,7 @@ serve(async (req) => {
       }
     };
 
-    logStep('response_success', leadRecord.id, 'completed', { 
+    logStep('response_success', leadRecord.id, 'completed', {
       crm_synced: syncResult?.success || false,
       emails_sent: {
         sales: salesEmailResult?.success || false,
@@ -1194,10 +1207,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('[ERROR] Contact sales submission failed:', error);
-    
+
     // Log error for monitoring (no PII)
     console.log(`[MONITORING] Lead processing failed: status=500, error_type=${error.constructor.name}, function=contact-sales`);
-    
+
     const errorResponse = {
       success: false,
       error: error.message || 'Internal server error',

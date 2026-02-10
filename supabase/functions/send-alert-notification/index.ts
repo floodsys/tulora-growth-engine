@@ -1,11 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
 import { Resend } from "npm:resend@2.0.0";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface AlertNotificationRequest {
   organization_id: string;
@@ -17,6 +13,7 @@ interface AlertNotificationRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -27,13 +24,13 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { 
-      organization_id, 
-      alert_id, 
-      rule_name, 
-      severity, 
-      event_count, 
-      threshold 
+    const {
+      organization_id,
+      alert_id,
+      rule_name,
+      severity,
+      event_count,
+      threshold
     }: AlertNotificationRequest = await req.json();
 
     console.log(`Sending notification for alert ${alert_id} in organization ${organization_id}`);
@@ -74,7 +71,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Collect all admin emails
     const adminEmails: string[] = [];
-    
+
     // Add owner email
     if (orgData.profiles?.email) {
       adminEmails.push(orgData.profiles.email);

@@ -1,4 +1,4 @@
-import { corsHeaders } from '../_shared/cors.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface TurnstileVerifyRequest {
   token: string
@@ -70,6 +70,7 @@ function validateOrigin(request: Request): boolean {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   // Enhanced CORS headers with CSP
   const enhancedCorsHeaders = {
     ...corsHeaders,

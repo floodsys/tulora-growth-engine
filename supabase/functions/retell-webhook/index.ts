@@ -1,11 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RETELL_WEBHOOK_SECRET } from '../_shared/env.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-retell-signature',
-}
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 // Helper function to verify webhook signature
 async function verifyWebhookSignature(
@@ -279,6 +275,7 @@ async function processWebhookEvent(supabase: any, event: RetellWebhookEvent) {
 }
 
 serve(async (req) => {
+  const corsHeaders = { ...getCorsHeaders(req), 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-retell-signature' };
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });

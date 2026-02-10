@@ -55,7 +55,7 @@ export function AccessControlSettings() {
         {
           id: "1",
           name: "Production API",
-          key_prefix: "rk_live_abc123",
+          key_prefix: "rk_live_abc123", // gitleaks:allow – mock data, not a real key
           permissions: ["calls:read", "calls:write", "agents:read"],
           last_used: "2024-01-15T10:30:00Z",
           expires_at: null,
@@ -91,9 +91,9 @@ export function AccessControlSettings() {
       const corr = getCorrId(error);
       const baseMessage = "Failed to load access control data";
       const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
-      
+
       toast.error(message);
-      
+
       console.error("AccessControlSettings error", { corrId: corr, error });
     } finally {
       setLoading(false)
@@ -113,7 +113,7 @@ export function AccessControlSettings() {
         is_active: true,
         created_at: new Date().toISOString()
       }
-      
+
       setApiKeys(prev => [...prev, newKey])
       toast.success("API key created successfully")
       setIsKeyDialogOpen(false)
@@ -121,9 +121,9 @@ export function AccessControlSettings() {
       const corr = getCorrId(error);
       const baseMessage = "Failed to create API key";
       const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
-      
+
       toast.error(message);
-      
+
       console.error("AccessControlSettings error", { corrId: corr, error });
     }
   }
@@ -136,9 +136,9 @@ export function AccessControlSettings() {
       const corr = getCorrId(error);
       const baseMessage = "Failed to revoke API key";
       const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
-      
+
       toast.error(message);
-      
+
       console.error("AccessControlSettings error", { corrId: corr, error });
     }
   }
@@ -152,7 +152,7 @@ export function AccessControlSettings() {
         description: data.description,
         is_system: false
       }
-      
+
       setWorkspaceRoles(prev => [...prev, newRole])
       toast.success("Role created successfully")
       setIsRoleDialogOpen(false)
@@ -160,9 +160,9 @@ export function AccessControlSettings() {
       const corr = getCorrId(error);
       const baseMessage = "Failed to create role";
       const message = corr ? `${baseMessage} (Corr ID: ${corr})` : baseMessage;
-      
+
       toast.error(message);
-      
+
       console.error("AccessControlSettings error", { corrId: corr, error });
     }
   }
@@ -221,9 +221,9 @@ export function AccessControlSettings() {
                     Generate a new API key for programmatic access
                   </DialogDescription>
                 </DialogHeader>
-                <CreateApiKeyForm 
+                <CreateApiKeyForm
                   permissions={availablePermissions}
-                  onSubmit={handleCreateApiKey} 
+                  onSubmit={handleCreateApiKey}
                 />
               </DialogContent>
             </Dialog>
@@ -282,9 +282,9 @@ export function AccessControlSettings() {
                     Define a new role with specific permissions
                   </DialogDescription>
                 </DialogHeader>
-                <CreateRoleForm 
+                <CreateRoleForm
                   permissions={availablePermissions}
-                  onSubmit={handleCreateRole} 
+                  onSubmit={handleCreateRole}
                 />
               </DialogContent>
             </Dialog>
@@ -454,7 +454,7 @@ function CreateRoleForm({ permissions, onSubmit }: any) {
 
 function ApiKeyCard({ apiKey, permissions, onRevoke }: any) {
   const [showKey, setShowKey] = useState(false)
-  
+
   const getPermissionLabel = (value: string) => {
     return permissions.find((p: any) => p.value === value)?.label || value
   }
@@ -505,7 +505,7 @@ function ApiKeyCard({ apiKey, permissions, onRevoke }: any) {
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         <div>
           <Label className="text-sm font-medium">API Key</Label>
@@ -513,7 +513,7 @@ function ApiKeyCard({ apiKey, permissions, onRevoke }: any) {
             {showKey ? apiKey.key_prefix + "_full_key_here" : apiKey.key_prefix + "..."}
           </p>
         </div>
-        
+
         <div>
           <Label className="text-sm font-medium">Permissions</Label>
           <div className="flex flex-wrap gap-1 mt-1">
@@ -524,7 +524,7 @@ function ApiKeyCard({ apiKey, permissions, onRevoke }: any) {
             ))}
           </div>
         </div>
-        
+
         {apiKey.expires_at && (
           <div>
             <Label className="text-sm font-medium">Expires</Label>
@@ -563,7 +563,7 @@ function RoleCard({ role, permissions }: any) {
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         <div>
           <Label className="text-sm font-medium">Permissions</Label>
@@ -600,22 +600,22 @@ function WorkspaceSecuritySettings() {
     setSaving(true)
     const corr = crypto.randomUUID()
     const previousSettings = { ...settings }
-    
+
     try {
       // Get current organization
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
-      
+
       const { data: membership } = await supabase
         .from('organization_members')
         .select('organization_id')
         .eq('user_id', user.id)
         .single()
-      
+
       if (!membership) throw new Error('No organization found')
-      
+
       const { data, error } = await supabase.functions.invoke('org-settings-save', {
-        body: { 
+        body: {
           organizationId: membership.organization_id,
           settings: {
             require_mfa: settings.require_mfa,
@@ -627,18 +627,18 @@ function WorkspaceSecuritySettings() {
           }
         }
       })
-      
+
       if (error) throw error
-      
+
       toast.success("Security settings saved")
-      
+
       if (data?.settings) {
         setSettings(data.settings)
       }
     } catch (error) {
       // ROLLBACK on failure
       setSettings(previousSettings)
-      
+
       const corrId = getCorrId(error) || corr
       toast.error(`Failed to save settings (Corr ID: ${corrId})`)
       console.error('Settings save failed:', { corrId, error })
@@ -679,7 +679,7 @@ function WorkspaceSecuritySettings() {
               </div>
               <Switch
                 checked={settings.require_mfa}
-                onCheckedChange={(require_mfa) => 
+                onCheckedChange={(require_mfa) =>
                   setSettings(prev => ({ ...prev, require_mfa }))
                 }
               />
@@ -690,9 +690,9 @@ function WorkspaceSecuritySettings() {
               <Input
                 type="number"
                 value={settings.session_timeout_minutes}
-                onChange={(e) => setSettings(prev => ({ 
-                  ...prev, 
-                  session_timeout_minutes: parseInt(e.target.value) 
+                onChange={(e) => setSettings(prev => ({
+                  ...prev,
+                  session_timeout_minutes: parseInt(e.target.value)
                 }))}
               />
             </div>
@@ -702,7 +702,7 @@ function WorkspaceSecuritySettings() {
                 <Label>IP Whitelist</Label>
                 <Switch
                   checked={settings.ip_whitelist_enabled}
-                  onCheckedChange={(ip_whitelist_enabled) => 
+                  onCheckedChange={(ip_whitelist_enabled) =>
                     setSettings(prev => ({ ...prev, ip_whitelist_enabled }))
                   }
                 />
@@ -711,9 +711,9 @@ function WorkspaceSecuritySettings() {
                 <Input
                   placeholder="192.168.1.0/24, 10.0.0.1"
                   value={settings.ip_whitelist}
-                  onChange={(e) => setSettings(prev => ({ 
-                    ...prev, 
-                    ip_whitelist: e.target.value 
+                  onChange={(e) => setSettings(prev => ({
+                    ...prev,
+                    ip_whitelist: e.target.value
                   }))}
                 />
               )}
@@ -731,9 +731,9 @@ function WorkspaceSecuritySettings() {
               <Input
                 type="number"
                 value={settings.audit_log_retention_days}
-                onChange={(e) => setSettings(prev => ({ 
-                  ...prev, 
-                  audit_log_retention_days: parseInt(e.target.value) 
+                onChange={(e) => setSettings(prev => ({
+                  ...prev,
+                  audit_log_retention_days: parseInt(e.target.value)
                 }))}
               />
             </div>
@@ -747,7 +747,7 @@ function WorkspaceSecuritySettings() {
               </div>
               <Switch
                 checked={settings.webhook_security_enabled}
-                onCheckedChange={(webhook_security_enabled) => 
+                onCheckedChange={(webhook_security_enabled) =>
                   setSettings(prev => ({ ...prev, webhook_security_enabled }))
                 }
               />

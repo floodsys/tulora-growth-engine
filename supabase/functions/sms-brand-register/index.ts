@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 import { requireEntitlement } from '../_shared/entitlements.ts'
 import { requireOrgIpAllowed, createIpBlockedResponse } from '../_shared/org-guard.ts'
 
@@ -19,6 +19,7 @@ interface BrandRegistrationRequest {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })

@@ -1,11 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
 import { requireOrgActive, createBlockedResponse, resolveWebhookTarget } from '../_shared/org-guard.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface WebhookEvent {
   organization_id: string;
@@ -22,6 +18,7 @@ interface WebhookEvent {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -73,7 +70,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const webhookConfig = orgData.webhook_config;
-    
+
     if (!webhookConfig.enabled || !webhookConfig.url) {
       console.log('Webhook not enabled or no URL configured');
       return new Response(
@@ -84,7 +81,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Check if event should be sent based on filters
     const filters = webhookConfig.filters || {};
-    
+
     // Always exclude test_invites channel from webhooks
     if (event.channel === 'test_invites') {
       console.log('Excluding test_invites channel from webhook');
@@ -93,7 +90,7 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
     }
-    
+
     if (filters.channels && !filters.channels.includes(event.channel)) {
       console.log(`Event channel ${event.channel} not in allowed channels:`, filters.channels);
       return new Response(
@@ -196,7 +193,7 @@ async function sendWebhookWithRetry(
   for (let attempt = 0; attempt <= retryConfig.max_retries; attempt++) {
     try {
       console.log(`Webhook attempt ${attempt + 1} to ${url}`);
-      
+
       const response = await fetch(url, {
         method: 'POST',
         headers,
@@ -209,16 +206,16 @@ async function sendWebhookWithRetry(
       }
 
       console.log(`Webhook attempt ${attempt + 1} failed with status: ${response.status}`);
-      
+
       if (attempt < retryConfig.max_retries) {
         const delay = retryConfig.initial_delay * Math.pow(2, attempt); // Exponential backoff
         console.log(`Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
-      
+
     } catch (error) {
       console.error(`Webhook attempt ${attempt + 1} error:`, error);
-      
+
       if (attempt < retryConfig.max_retries) {
         const delay = retryConfig.initial_delay * Math.pow(2, attempt);
         console.log(`Retrying in ${delay}ms...`);
