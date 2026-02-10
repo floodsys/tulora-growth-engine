@@ -1,0 +1,41 @@
+title = "Tulora Growth Engine – gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "False-positive allowlist (path+regex scoped). See inline comments."
+
+regexTarget = "match"
+
+regexes = [
+  # ── Supabase CLI local-dev demo JWTs (iss=supabase-demo) ──────────────
+  # Shipped with every `supabase init`; publicly documented, never production.
+  # base64 of {"iss":"supabase-demo",
+  '''eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiw''',
+
+  # ── Supabase public anon key (role=anon) ──────────────────────────────
+  # The anon key is a *publishable* client key by design (Supabase docs).
+  # base64 payload prefix of {"iss":"supabase","ref":"nkjxb…","role":"anon"
+  '''eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ranhi''',
+
+  # ── Mock / fabricated JWTs in test files ──────────────────────────────
+  # Intentionally fake token with `.fake_signature` for expired-JWT tests
+  '''fake_signature''',
+
+  # ── UUID references in SQL (auth.users WHERE id = '<uuid>') ───────────
+  # These are user-ID lookups, not secrets.
+  '''auth\.users WHERE id''',
+
+  # ── Placeholder / mock API keys in UI demo components ─────────────────
+  '''sk_live_1234567890abcdef''',
+  '''sk_test_abcdef1234567890''',
+  '''wk_live_1234567890abcdef''',
+  '''rk_live_abc123''',
+  '''6LdyC2cqAAAAA''',
+]
+
+paths = [
+  # Lock-file integrity hashes – not secrets
+  '''deno\.lock$''',
+]
