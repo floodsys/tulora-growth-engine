@@ -48,18 +48,14 @@ serve(async (req) => {
       })
     }
 
-    // Check if user is superadmin
-    const { data: superadminCheck, error: superadminError } = await supabase
-      .from('superadmins')
-      .select('user_id')
-      .eq('user_id', userData.user.id)
-      .single()
+    // Check if user is superadmin (DB RPC is source of truth)
+    const { data: isSuperadmin, error: superadminError } = await supabase.rpc('is_superadmin', { user_id: userData.user.id })
 
-    if (superadminError && superadminError.code !== 'PGRST116') {
+    if (superadminError) {
       throw superadminError
     }
 
-    if (!superadminCheck) {
+    if (!isSuperadmin) {
       return new Response(JSON.stringify({ error: 'Admin access required' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 403,
@@ -106,23 +102,23 @@ serve(async (req) => {
             price_id: config.stripe_price_id_monthly,
             ok: true
           })
-          logStep('Price verification success', { 
-            planKey: config.plan_key, 
-            priceId: config.stripe_price_id_monthly 
+          logStep('Price verification success', {
+            planKey: config.plan_key,
+            priceId: config.stripe_price_id_monthly
           })
         } catch (stripeError: any) {
-          const errorMessage = stripeError.code === 'resource_missing' 
+          const errorMessage = stripeError.code === 'resource_missing'
             ? 'Price not found (likely wrong mode or invalid ID)'
             : stripeError.message || 'Unknown Stripe error'
-          
+
           results.push({
             plan_key: config.plan_key,
             price_id: config.stripe_price_id_monthly,
             ok: false,
             error: errorMessage
           })
-          logStep('Price verification failed', { 
-            planKey: config.plan_key, 
+          logStep('Price verification failed', {
+            planKey: config.plan_key,
             priceId: config.stripe_price_id_monthly,
             error: errorMessage
           })
@@ -139,10 +135,10 @@ serve(async (req) => {
             ok: true
           })
         } catch (stripeError: any) {
-          const errorMessage = stripeError.code === 'resource_missing' 
+          const errorMessage = stripeError.code === 'resource_missing'
             ? 'Setup price not found (likely wrong mode or invalid ID)'
             : stripeError.message || 'Unknown Stripe error'
-          
+
           results.push({
             plan_key: `${config.plan_key}_setup`,
             price_id: config.stripe_setup_price_id,
