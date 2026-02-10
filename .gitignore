@@ -37,3 +37,8 @@ supabase/.temp/
 # Local secrets
 .env
 .cline/
+
+# Local audit & debug artifacts
+MERGED_AUDIT_STATUS.md
+db_reset_output*.txt
+test-reports/
