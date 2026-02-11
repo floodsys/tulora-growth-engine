@@ -1,5 +1,4 @@
--- Drop existing function to avoid parameter name conflict
-DROP FUNCTION IF EXISTS public.is_org_admin(uuid);
+-- DROP FUNCTION removed - CREATE OR REPLACE handles param rename safely\n-- and avoids CASCADE dependency issues with existing policies
 
 -- Create role enum if it doesn't exist
 DO $$ BEGIN
