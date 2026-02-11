@@ -122,6 +122,18 @@ SET name = 'Test Organization'
 WHERE owner_user_id = 'ce9a73ad-2615-4317-984c-ddc7ddf9dc2b';
 
 -- ============================================================================
+-- (E) Bootstrap superadmin for local/CI (email-based, no hardcoded UUIDs)
+-- ============================================================================
+-- Superadmin is granted by email lookup — never by hardcoded UUID.
+-- This is idempotent: ON CONFLICT DO NOTHING.
+-- On CI/local the test-owner user gets superadmin for testing convenience.
+-- In production, superadmin is bootstrapped via bootstrap_superadmin() RPC.
+
+INSERT INTO public.superadmins (user_id)
+SELECT id FROM auth.users WHERE lower(email) = 'test-owner@example.com'
+ON CONFLICT (user_id) DO NOTHING;
+
+-- ============================================================================
 -- End of seed data
 -- ============================================================================
 -- 
@@ -131,6 +143,7 @@ WHERE owner_user_id = 'ce9a73ad-2615-4317-984c-ddc7ddf9dc2b';
 --   3. An organization in public.organizations (auto-created by trigger)
 --   4. An organization_members row (auto-created by trigger)
 --   5. A sample agent_profile (auto-created by trigger)
+--   6. A superadmin row for the test-owner user (email-based, no hardcoded UUID)
 --
 -- To log in: Use email "test-owner@example.com" with password "password123"
 -- ============================================================================
