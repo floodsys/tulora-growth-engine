@@ -136,8 +136,8 @@ $function$;
 
 -- 2. Create canonical role retrieval function
 -- Drop existing function first if it has a different return type
--- Removed: DROP FUNCTION IF EXISTS public.get_user_org_role(uuid, uuid);
--- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
+-- DROP is required: return type changes from TEXT to jsonb
+DROP FUNCTION IF EXISTS public.get_user_org_role(uuid, uuid);
 CREATE OR REPLACE FUNCTION public.get_user_org_role(p_org_id uuid, p_user_id uuid DEFAULT auth.uid())
 RETURNS jsonb
 LANGUAGE plpgsql
