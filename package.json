@@ -17,6 +17,7 @@
     "seed:edge-rls": "psql postgresql://postgres:postgres@localhost:54322/postgres -f scripts/seed-edge-rls-test-data.sql",
     "test:superadmin": "node scripts/test-superadmin-auth.cjs",
     "check:security-definer": "node scripts/check-security-definer-search-path.cjs",
+    "check:no-superadmin-uuid": "node scripts/check-no-superadmin-uuid-constants.cjs",
     "test:ci": "vitest run"
   },
   "dependencies": {
