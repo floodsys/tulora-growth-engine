@@ -17,19 +17,34 @@ jobs:
     environment: testing # Use GitHub environment for secrets
     
     steps:
+      - name: Check for required secrets
+        id: check-secrets
+        run: |
+          if [ -z "${{ secrets.VITE_SUPABASE_URL }}" ] || [ -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]; then
+            echo "⚠️ Skipping invite tests: required secrets (VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) are not configured."
+            echo "To enable these tests, add the secrets to the 'testing' environment in your repo settings."
+            echo "has_secrets=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_secrets=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout code
+        if: steps.check-secrets.outputs.has_secrets == 'true'
         uses: actions/checkout@v4
         
       - name: Setup Node.js
+        if: steps.check-secrets.outputs.has_secrets == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
           
       - name: Install dependencies
+        if: steps.check-secrets.outputs.has_secrets == 'true'
         run: npm ci
         
       - name: Build application
+        if: steps.check-secrets.outputs.has_secrets == 'true'
         env:
           VITE_COMMIT_SHA: ${{ github.sha }}
           VITE_BUILD_ID: ${{ github.sha }}-${{ github.run_number }}
@@ -37,6 +52,7 @@ jobs:
         run: npm run build
         
       - name: Run Full Invite Test Suite
+        if: steps.check-secrets.outputs.has_secrets == 'true'
         env:
           # Test Configuration
           VITE_RUN_TEST_LEVEL: "full"
