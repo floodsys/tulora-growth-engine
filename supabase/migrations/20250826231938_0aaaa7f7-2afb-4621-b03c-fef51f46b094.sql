@@ -1,6 +1,6 @@
 -- Drop and recreate the role function with correct signature
-DROP FUNCTION IF EXISTS public.get_user_org_role(uuid, uuid);
-
+-- Removed: DROP FUNCTION IF EXISTS public.get_user_org_role(uuid, uuid);
+-- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
 -- Create canonical role retrieval function
 CREATE OR REPLACE FUNCTION public.get_user_org_role(p_org_id uuid, p_user_id uuid DEFAULT auth.uid())
 RETURNS jsonb

@@ -59,7 +59,8 @@ ALTER TABLE public.organization_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.organization_invitations ENABLE ROW LEVEL SECURITY;
 
 -- Create helper functions for RLS policies (drop with cascade to remove dependent policies)
-DROP FUNCTION IF EXISTS public.is_org_admin(uuid) CASCADE;
+-- Removed: DROP FUNCTION IF EXISTS public.is_org_admin(uuid) CASCADE;
+-- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
 CREATE FUNCTION public.is_org_admin(org_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -81,7 +82,8 @@ AS $$
   );
 $$;
 
-DROP FUNCTION IF EXISTS public.is_org_member(uuid) CASCADE;
+-- Removed: DROP FUNCTION IF EXISTS public.is_org_member(uuid) CASCADE;
+-- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
 CREATE FUNCTION public.is_org_member(org_id uuid)
 RETURNS boolean
 LANGUAGE sql
