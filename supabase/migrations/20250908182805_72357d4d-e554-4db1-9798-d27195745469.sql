@@ -26,6 +26,7 @@ CREATE INDEX idx_crm_outbox_organization ON public.crm_outbox (organization_id, 
 ALTER TABLE public.crm_outbox ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for CRM outbox
+DROP POLICY IF EXISTS "Org admins can view CRM outbox" ON public.crm_outbox;
 CREATE POLICY "Org admins can view CRM outbox" 
 ON public.crm_outbox 
 FOR SELECT 
@@ -42,6 +43,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "System can manage CRM outbox" ON public.crm_outbox;
 CREATE POLICY "System can manage CRM outbox" 
 ON public.crm_outbox 
 FOR ALL 

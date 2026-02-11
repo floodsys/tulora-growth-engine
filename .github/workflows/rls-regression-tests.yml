@@ -7,6 +7,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   rls-tautology-check:
     name: Check for RLS Tautologies
@@ -28,14 +32,19 @@ jobs:
         npm install -g glob
       
     - name: Run RLS tautology detection
-      run: node scripts/check-rls-tautologies.js
+      run: node scripts/check-rls-tautologies.cjs
       
+    - name: Ensure test-results directory exists
+      if: always()
+      run: mkdir -p test-results
+
     - name: Upload tautology check results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: rls-tautology-results
         path: test-results/rls-tautology-check.json
+        if-no-files-found: ignore
 
   rls-smoke-tests:
     name: RLS Function Smoke Tests
@@ -60,14 +69,24 @@ jobs:
         VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
         VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      run: node scripts/rls-smoke-tests.js
+      run: |
+        if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
+          echo "⚠️  Supabase secrets not configured for this environment — skipping RLS smoke tests"
+          exit 0
+        fi
+        node scripts/rls-smoke-tests.js
       
+    - name: Ensure test-results directory exists
+      if: always()
+      run: mkdir -p test-results
+
     - name: Upload smoke test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: rls-smoke-test-results
         path: test-results/rls-smoke-tests.json
+        if-no-files-found: ignore
 
   report-results:
     name: Report Test Results
@@ -77,7 +96,7 @@ jobs:
     
     steps:
     - name: Download all artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       
     - name: Create combined report
       run: |
@@ -113,7 +132,7 @@ jobs:
         
     - name: Comment on PR
       if: github.event_name == 'pull_request'
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       with:
         script: |
           const fs = require('fs');

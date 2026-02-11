@@ -14,9 +14,10 @@ BEGIN
     ) INTO constraint_exists;
     
     IF NOT constraint_exists THEN
-        DROP INDEX IF EXISTS organization_invitations_invite_token_key;
-        ALTER TABLE organization_invitations 
-        ADD CONSTRAINT organization_invitations_invite_token_unique UNIQUE (invite_token);
+        EXECUTE 'DROP INDEX IF EXISTS organization_invitations_invite_token_key';
+        EXECUTE 'ALTER TABLE organization_invitations DROP CONSTRAINT IF EXISTS organization_invitations_invite_token_key';
+        EXECUTE 'ALTER TABLE organization_invitations DROP CONSTRAINT IF EXISTS organization_invitations_invite_token_unique';
+        EXECUTE 'ALTER TABLE organization_invitations ADD CONSTRAINT organization_invitations_invite_token_unique UNIQUE (invite_token)';
     END IF;
 END $$;
 
@@ -33,8 +34,10 @@ BEGIN
     ) INTO constraint_exists;
     
     IF NOT constraint_exists THEN
-        ALTER TABLE organization_members 
-        ADD CONSTRAINT organization_members_org_user_unique UNIQUE (organization_id, user_id);
+        EXECUTE 'ALTER TABLE organization_members DROP CONSTRAINT IF EXISTS organization_members_organization_id_user_id_key';
+        EXECUTE 'ALTER TABLE organization_members DROP CONSTRAINT IF EXISTS organization_members_organization_id_user_id_unique';
+        EXECUTE 'ALTER TABLE organization_members DROP CONSTRAINT IF EXISTS organization_members_org_user_unique';
+        EXECUTE 'ALTER TABLE organization_members ADD CONSTRAINT organization_members_org_user_unique UNIQUE (organization_id, user_id)';
     END IF;
 END $$;
 
@@ -125,37 +128,52 @@ BEGIN
 END;
 $function$;
 
--- 4. Log the schema cleanup using INSERT instead of PERFORM
-INSERT INTO public.audit_log (
-    organization_id,
-    actor_user_id,
-    actor_role_snapshot,
-    action,
-    target_type,
-    target_id,
-    status,
-    channel,
-    metadata
-) VALUES (
-    '00000000-0000-0000-0000-000000000000'::uuid,
-    NULL,
-    'system',
-    'schema.cleanup_v2',
-    'database',
-    'schema_standardization',
-    'success',
-    'internal',
-    jsonb_build_object(
-        'cleanup_actions', ARRAY[
-            'standardized_unique_constraints',
-            'added_health_check_function'
-        ],
-        'canonical_tables', ARRAY[
-            'organizations',
-            'organization_members', 
-            'organization_invitations',
-            'org_stripe_subscriptions'
-        ],
-        'migration_timestamp', now()
-    )
-);
+-- 4. Log the schema cleanup (only if at least one organization exists)
+-- This is idempotent and safe for fresh/empty databases with no org rows yet.
+DO $$
+DECLARE
+    v_org_id UUID;
+BEGIN
+    -- Pick the first existing organization (or NULL if none exist)
+    SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
+
+    -- Only insert audit log if an organization exists
+    IF v_org_id IS NOT NULL THEN
+        INSERT INTO public.audit_log (
+            organization_id,
+            actor_user_id,
+            actor_role_snapshot,
+            action,
+            target_type,
+            target_id,
+            status,
+            channel,
+            metadata
+        ) VALUES (
+            v_org_id,
+            NULL,
+            'system',
+            'schema.cleanup_v2',
+            'other',
+            'schema_standardization',
+            'success',
+            'internal',
+            jsonb_build_object(
+                'cleanup_actions', ARRAY[
+                    'standardized_unique_constraints',
+                    'added_health_check_function'
+                ],
+                'canonical_tables', ARRAY[
+                    'organizations',
+                    'organization_members', 
+                    'organization_invitations',
+                    'org_stripe_subscriptions'
+                ],
+                'migration_timestamp', now()
+            )
+        );
+        RAISE NOTICE 'Audit log entry created for schema cleanup v2 (org_id: %)', v_org_id;
+    ELSE
+        RAISE NOTICE 'Skipping audit log: no organizations exist yet (empty database)';
+    END IF;
+END $$;

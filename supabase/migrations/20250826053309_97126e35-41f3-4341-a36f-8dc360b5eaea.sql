@@ -123,7 +123,7 @@ BEGIN
     'build_info', jsonb_build_object(
       'supabase_url', 'https://nkjxbeypbiclvouqfjyc.supabase.co',
       'project_id', 'nkjxbeypbiclvouqfjyc',
-      'anon_key_fingerprint', substring(md5('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ranhiZXlwYmljbHZvdXFmanljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0Nzg2NDEsImV4cCI6MjA3MTA1NDY0MX0.iuFFcJSX97MKkiBvSYLmIao9aTMrQm7zqnf4kEDraQg'), 1, 8)
+      'anon_key_fingerprint', substring(md5('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ranhiZXlwYmljbHZvdXFmanljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0Nzg2NDEsImV4cCI6MjA3MTA1NDY0MX0.iuFFcJSX97MKkiBvSYLmIao9aTMrQm7zqnf4kEDraQg'), 1, 8) -- gitleaks:allow
     )
   );
 

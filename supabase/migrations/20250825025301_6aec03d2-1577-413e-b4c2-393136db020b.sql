@@ -89,7 +89,7 @@ BEGIN
         SELECT 1 FROM public.audit_log 
         WHERE organization_id = current_org_id 
           AND action = 'org.created' 
-          AND target_type = 'organization'
+          AND target_type = 'org'
           AND target_id = current_org_id::text
       ) THEN
         org_events_planned := org_events_planned + 1;
@@ -98,7 +98,7 @@ BEGIN
         IF p_dry_run THEN
           events_preview := events_preview || jsonb_build_object(
             'action', 'org.created',
-            'target_type', 'organization',
+            'target_type', 'org',
             'target_id', current_org_id::text,
             'created_at', COALESCE(org_record.created_at, now()),
             'organization_id', current_org_id
@@ -110,7 +110,7 @@ BEGIN
           ) VALUES (
             current_org_id, org_record.owner_user_id,
             CASE WHEN org_record.owner_user_id IS NOT NULL THEN 'admin' ELSE 'system' END,
-            'org.created', 'organization', current_org_id::text, 'success', 'audit',
+            'org.created', 'org', current_org_id::text, 'success', 'audit',
             jsonb_build_object(
               'name', org_record.name, 'owner_user_id', org_record.owner_user_id,
               'backfill', true, 'trace_id', trace_id

@@ -8,17 +8,24 @@ BEGIN
     END IF;
 END$$;
 
--- Fix organization_members role column
+-- Fix organization_members role column (NO-ALTER guard)
 DO $$
+DECLARE t regtype;
 BEGIN
-    -- Drop default first to avoid casting issues
-    ALTER TABLE public.organization_members ALTER COLUMN role DROP DEFAULT;
-    -- Then convert to enum
-    ALTER TABLE public.organization_members 
-    ALTER COLUMN role TYPE public.org_role USING role::public.org_role;
-    -- Set new default
-    ALTER TABLE public.organization_members ALTER COLUMN role SET DEFAULT 'user';
-END$$;
+  IF to_regclass('public.organization_members') IS NULL THEN RETURN; END IF;
+
+  SELECT a.atttypid::regtype INTO t
+  FROM pg_attribute a
+  WHERE a.attrelid='public.organization_members'::regclass
+    AND a.attname='role'
+    AND a.attnum>0
+    AND NOT a.attisdropped;
+
+  IF t IS NULL THEN RETURN; END IF;
+  IF t::text IN ('org_role','public.org_role') THEN RETURN; END IF;
+
+  RAISE NOTICE 'Skipping organization_members.role conversion here; handled earlier in 20250823211335.';
+END $$;
 
 -- Create demo_sessions table for sandbox tracking
 CREATE TABLE IF NOT EXISTS public.demo_sessions (

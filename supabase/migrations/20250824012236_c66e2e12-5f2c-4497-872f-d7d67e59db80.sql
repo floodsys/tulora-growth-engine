@@ -315,12 +315,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_alerts_updated_at ON public.alerts;
 CREATE TRIGGER update_alerts_updated_at
   BEFORE UPDATE ON public.alerts
   FOR EACH ROW
   EXECUTE FUNCTION public.update_alerts_updated_at();
 
 -- Create updated_at trigger for alert_rules
+DROP TRIGGER IF EXISTS update_alert_rules_updated_at ON public.alert_rules;
 CREATE TRIGGER update_alert_rules_updated_at
   BEFORE UPDATE ON public.alert_rules
   FOR EACH ROW

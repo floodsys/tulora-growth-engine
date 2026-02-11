@@ -21,8 +21,8 @@ AS $function$
     ) OR
     -- Superadmin bypass - superadmins can access any organization
     public.is_superadmin(COALESCE(p_user_id, auth.uid()));
-$function$
+$function$;
 
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION public.check_admin_access(uuid, uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.check_admin_access(uuid) TO authenticated;
+-- Note: check_admin_access(uuid) doesn't exist - only (uuid, uuid) signature exists

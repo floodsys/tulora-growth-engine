@@ -3,11 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 import { requireOrgActive, createBlockedResponse, requireOrgIpAllowed, createIpBlockedResponse } from '../_shared/org-guard.ts'
 import { requireEntitlement, getCurrentCount } from '../_shared/entitlements.ts'
 import { transitionAgentStatus, normalizeStatus, AgentStatus, isValidTransition, ALLOWED_TRANSITIONS } from '../_shared/agentStatus.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface PublishAgentRequest {
   agentId: string
@@ -15,6 +11,7 @@ interface PublishAgentRequest {
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   console.log('=== Retell Agent Publish Request ===')
   console.log('Request method:', req.method)
   

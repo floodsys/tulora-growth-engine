@@ -13,10 +13,12 @@ DROP POLICY IF EXISTS "leads_insert_policy" ON public.leads;
 DROP POLICY IF EXISTS "leads_select_own" ON public.leads;
 
 -- New policies for contact sales
+DROP POLICY IF EXISTS "leads_insert_anyone" ON public.leads;
 CREATE POLICY "leads_insert_anyone" ON public.leads 
 FOR INSERT 
 WITH CHECK (true); -- Allow anyone to insert leads
 
+DROP POLICY IF EXISTS "leads_select_own_or_org" ON public.leads;
 CREATE POLICY "leads_select_own_or_org" ON public.leads 
 FOR SELECT 
 USING (

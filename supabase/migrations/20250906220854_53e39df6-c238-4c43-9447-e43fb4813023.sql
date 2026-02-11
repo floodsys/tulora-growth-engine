@@ -21,15 +21,18 @@ CREATE TABLE public.sales_invoices (
 ALTER TABLE public.sales_invoices ENABLE ROW LEVEL SECURITY;
 
 -- Create policies
+DROP POLICY IF EXISTS "sales_invoices_insert_authenticated" ON public.sales_invoices;
 CREATE POLICY "sales_invoices_insert_authenticated" ON public.sales_invoices
 FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "sales_invoices_select_own" ON public.sales_invoices;
 CREATE POLICY "sales_invoices_select_own" ON public.sales_invoices
 FOR SELECT
 USING (auth.uid() = user_id OR is_org_admin(organization_id));
 
 -- Superadmin can view all invoices
+DROP POLICY IF EXISTS "sales_invoices_select_admin" ON public.sales_invoices;
 CREATE POLICY "sales_invoices_select_admin" ON public.sales_invoices
 FOR SELECT
 USING (is_superadmin());
@@ -49,7 +52,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_sales_invoices_updated_at ON public.sales_invoices;
 CREATE TRIGGER update_sales_invoices_updated_at
-BEFORE UPDATE ON public.sales_invoices
+  BEFORE UPDATE ON public.sales_invoices
 FOR EACH ROW
 EXECUTE FUNCTION public.update_sales_invoices_updated_at();

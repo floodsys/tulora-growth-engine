@@ -76,11 +76,58 @@ END $$;
 ALTER TABLE public.organization_members 
 ADD CONSTRAINT organization_members_pkey PRIMARY KEY (id);
 
-DO $$ BEGIN
-    ALTER TABLE public.organization_members 
-    ADD CONSTRAINT organization_members_organization_id_user_id_unique UNIQUE (organization_id, user_id);
-EXCEPTION
-    WHEN duplicate_table THEN null;
+DO $$
+DECLARE
+  has_org boolean;
+  has_user boolean;
+BEGIN
+  IF to_regclass('public.organization_members') IS NULL THEN
+    RAISE NOTICE 'public.organization_members missing; skipping org members unique constraint';
+    RETURN;
+  END IF;
+
+  -- Normalize org column name (org_id -> organization_id)
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='organization_members' AND column_name='organization_id'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='organization_members' AND column_name='org_id'
+  ) THEN
+    EXECUTE 'ALTER TABLE public.organization_members RENAME COLUMN org_id TO organization_id';
+  END IF;
+
+  -- (Optional) If your table used member_id instead of user_id in early migrations, normalize it:
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='organization_members' AND column_name='user_id'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='organization_members' AND column_name='member_id'
+  ) THEN
+    EXECUTE 'ALTER TABLE public.organization_members RENAME COLUMN member_id TO user_id';
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='organization_members' AND column_name='organization_id'
+  ) INTO has_org;
+
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='organization_members' AND column_name='user_id'
+  ) INTO has_user;
+
+  IF NOT (has_org AND has_user) THEN
+    RAISE NOTICE 'Skipping org members unique constraint: organization_id=% user_id=%', has_org, has_user;
+    RETURN;
+  END IF;
+
+  -- Idempotent drops (Postgres supports DROP CONSTRAINT IF EXISTS)
+  EXECUTE 'ALTER TABLE public.organization_members DROP CONSTRAINT IF EXISTS organization_members_organization_id_user_id_key';
+  EXECUTE 'ALTER TABLE public.organization_members DROP CONSTRAINT IF EXISTS organization_members_organization_id_user_id_unique';
+
+  EXECUTE 'ALTER TABLE public.organization_members ADD CONSTRAINT organization_members_organization_id_user_id_unique UNIQUE (organization_id, user_id)';
 END $$;
 
 -- Add temp column for role conversion
@@ -90,9 +137,9 @@ ADD COLUMN role_new public.org_role;
 -- Normalize and convert roles
 UPDATE public.organization_members 
 SET role_new = CASE 
-    WHEN lower(role) IN ('owner', 'admin') THEN 'admin'::public.org_role
-    WHEN lower(role) = 'editor' THEN 'editor'::public.org_role
-    WHEN lower(role) = 'viewer' THEN 'viewer'::public.org_role
+    WHEN lower(role::text) IN ('owner', 'admin') THEN 'admin'::public.org_role
+    WHEN lower(role::text) = 'editor' THEN 'editor'::public.org_role
+    WHEN lower(role::text) = 'viewer' THEN 'viewer'::public.org_role
     ELSE 'user'::public.org_role
 END;
 
@@ -121,11 +168,21 @@ EXCEPTION
     WHEN duplicate_column THEN null;
 END $$;
 
-DO $$ BEGIN
-    ALTER TABLE public.organization_invitations 
-    ADD CONSTRAINT organization_invitations_pkey PRIMARY KEY (id);
-EXCEPTION
-    WHEN duplicate_table THEN null;
+DO $$
+DECLARE
+  tbl regclass := to_regclass('public.organization_invitations');
+BEGIN
+  IF tbl IS NULL THEN RETURN; END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = tbl AND contype = 'p'
+  ) THEN
+    RAISE NOTICE 'organization_invitations already has a primary key; skipping';
+  ELSE
+    ALTER TABLE public.organization_invitations
+      ADD CONSTRAINT organization_invitations_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 -- Add temp column for role conversion
@@ -136,16 +193,16 @@ ADD COLUMN status_new public.invitation_status;
 -- Convert roles and status
 UPDATE public.organization_invitations 
 SET role_new = CASE 
-    WHEN lower(role) IN ('owner', 'admin') THEN 'admin'::public.org_role
-    WHEN lower(role) = 'editor' THEN 'editor'::public.org_role
-    WHEN lower(role) = 'viewer' THEN 'viewer'::public.org_role
+    WHEN lower(role::text) IN ('owner', 'admin') THEN 'admin'::public.org_role
+    WHEN lower(role::text) = 'editor' THEN 'editor'::public.org_role
+    WHEN lower(role::text) = 'viewer' THEN 'viewer'::public.org_role
     ELSE 'user'::public.org_role
 END,
 status_new = CASE 
-    WHEN lower(status) = 'pending' THEN 'pending'::public.invitation_status
-    WHEN lower(status) = 'accepted' THEN 'accepted'::public.invitation_status
-    WHEN lower(status) = 'revoked' THEN 'revoked'::public.invitation_status
-    WHEN lower(status) = 'expired' THEN 'expired'::public.invitation_status
+    WHEN lower(status::text) = 'pending' THEN 'pending'::public.invitation_status
+    WHEN lower(status::text) = 'accepted' THEN 'accepted'::public.invitation_status
+    WHEN lower(status::text) = 'revoked' THEN 'revoked'::public.invitation_status
+    WHEN lower(status::text) = 'expired' THEN 'expired'::public.invitation_status
     ELSE 'pending'::public.invitation_status
 END;
 
@@ -159,15 +216,32 @@ ALTER COLUMN status_new SET DEFAULT 'pending',
 ALTER COLUMN expires_at SET DEFAULT (now() + interval '7 days');
 
 ALTER TABLE public.organization_invitations 
-RENAME COLUMN role_new TO role,
+RENAME COLUMN role_new TO role;
+
+ALTER TABLE public.organization_invitations 
 RENAME COLUMN status_new TO status;
 
--- Add constraints
-DO $$ BEGIN
-    ALTER TABLE public.organization_invitations 
-    ADD CONSTRAINT organization_invitations_invite_token_unique UNIQUE (invite_token);
-EXCEPTION
-    WHEN duplicate_table THEN null;
+-- Add unique constraint on invite_token (idempotent)
+DO $$
+BEGIN
+  IF to_regclass('public.organization_invitations') IS NULL THEN
+    RAISE NOTICE 'public.organization_invitations missing; skipping invite_token unique constraint';
+    RETURN;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='organization_invitations' AND column_name='invite_token'
+  ) THEN
+    RAISE NOTICE 'invite_token column missing; skipping constraint';
+    RETURN;
+  END IF;
+
+  -- Drop existing variants
+  EXECUTE 'ALTER TABLE public.organization_invitations DROP CONSTRAINT IF EXISTS organization_invitations_invite_token_key';
+  EXECUTE 'ALTER TABLE public.organization_invitations DROP CONSTRAINT IF EXISTS organization_invitations_invite_token_unique';
+
+  EXECUTE 'ALTER TABLE public.organization_invitations ADD CONSTRAINT organization_invitations_invite_token_unique UNIQUE (invite_token)';
 END $$;
 
 -- Add FK constraints
@@ -181,7 +255,11 @@ DROP CONSTRAINT IF EXISTS organization_invitations_invited_by_fkey,
 ADD CONSTRAINT organization_invitations_invited_by_fkey 
     FOREIGN KEY (invited_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 
--- Update memberships table
-UPDATE public.memberships 
-SET role = 'admin' 
-WHERE role IN ('owner', 'Owner', 'OWNER');
+-- Update memberships table (guarded)
+DO $$
+BEGIN
+  IF to_regclass('public.memberships') IS NULL THEN RETURN; END IF;
+  EXECUTE 'UPDATE public.memberships SET role = ''admin'' WHERE role::text IN (''owner'',''Owner'',''OWNER'')';
+EXCEPTION WHEN others THEN
+  RAISE NOTICE 'Could not update memberships roles: %', SQLERRM;
+END $$;

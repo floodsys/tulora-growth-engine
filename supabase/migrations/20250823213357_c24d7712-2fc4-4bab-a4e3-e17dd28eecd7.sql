@@ -1,7 +1,7 @@
 -- Fix infinite recursion in RLS policies by updating security definer functions
 
--- Drop and recreate is_org_admin function with better implementation
-DROP FUNCTION IF EXISTS public.is_org_admin(uuid);
+-- NOTE: Removed DROP FUNCTION statements - they fail due to dependent policies
+-- and are unnecessary when using CREATE OR REPLACE with matching parameter names
 
 CREATE OR REPLACE FUNCTION public.is_org_admin(org_id uuid)
 RETURNS boolean
@@ -13,13 +13,13 @@ AS $$
   SELECT CASE 
     WHEN EXISTS (
       SELECT 1 FROM public.organizations 
-      WHERE id = org_id 
+      WHERE id = $1 
         AND owner_user_id = auth.uid()
     ) THEN true
     -- Check if user is admin member
     WHEN EXISTS (
       SELECT 1 FROM public.organization_members 
-      WHERE organization_id = org_id 
+      WHERE org_id = $1 
         AND user_id = auth.uid() 
         AND role = 'admin' 
         AND seat_active = true
@@ -27,9 +27,6 @@ AS $$
     ELSE false
   END;
 $$;
-
--- Drop and recreate is_org_member function with better implementation
-DROP FUNCTION IF EXISTS public.is_org_member(uuid);
 
 CREATE OR REPLACE FUNCTION public.is_org_member(org_id uuid)
 RETURNS boolean
@@ -41,13 +38,13 @@ AS $$
   SELECT CASE 
     WHEN EXISTS (
       SELECT 1 FROM public.organizations 
-      WHERE id = org_id 
+      WHERE id = $1 
         AND owner_user_id = auth.uid()
     ) THEN true
     -- Check if user is an active member
     WHEN EXISTS (
       SELECT 1 FROM public.organization_members 
-      WHERE organization_id = org_id 
+      WHERE org_id = $1 
         AND user_id = auth.uid() 
         AND seat_active = true
     ) THEN true
@@ -61,7 +58,7 @@ UPDATE public.organizations
 SET owner_user_id = (
   SELECT om.user_id 
   FROM public.organization_members om
-  WHERE om.organization_id = organizations.id
+  WHERE om.org_id = organizations.id
     AND om.role = 'admin'
     AND om.seat_active = true
   ORDER BY om.created_at ASC
@@ -70,7 +67,7 @@ SET owner_user_id = (
 WHERE owner_user_id IS NULL
   AND EXISTS (
     SELECT 1 FROM public.organization_members om
-    WHERE om.organization_id = organizations.id
+    WHERE om.org_id = organizations.id
       AND om.role = 'admin'
       AND om.seat_active = true
   );

@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface VerificationResult {
   id: string;
@@ -19,6 +15,7 @@ const logStep = (step: string, details?: any) => {
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   logStep('Function started', { method: req.method });
   
   if (req.method === 'OPTIONS') {

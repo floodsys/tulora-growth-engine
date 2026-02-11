@@ -1,7 +1,6 @@
 -- Fix check_admin_access to include superadmin bypass
 -- This allows superadmins to update any organization
-
-DROP FUNCTION IF EXISTS public.check_admin_access(uuid, uuid);
+-- NOTE: Using p_org_id, p_user_id to match params established by migration 20250826041312
 
 CREATE OR REPLACE FUNCTION public.check_admin_access(p_org_id uuid, p_user_id uuid DEFAULT auth.uid())
 RETURNS boolean
@@ -11,7 +10,8 @@ SET search_path TO 'public'
 AS $function$
   SELECT EXISTS (
     SELECT 1 FROM public.organizations o
-    WHERE o.id = p_org_id AND o.owner_user_id = COALESCE(p_user_id, auth.uid())
+    WHERE o.id = p_org_id 
+      AND o.owner_user_id = COALESCE(p_user_id, auth.uid())
   ) OR EXISTS (
     SELECT 1 FROM public.organization_members om
     WHERE om.organization_id = p_org_id 

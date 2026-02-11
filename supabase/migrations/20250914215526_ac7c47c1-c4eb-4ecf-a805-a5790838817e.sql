@@ -1,8 +1,13 @@
 -- Create edge function for phone number assignment to agents
--- Add index for better performance on number lookups
-CREATE INDEX IF NOT EXISTS idx_retell_numbers_agent_assignment 
-ON retell_numbers(organization_id, inbound_agent_id, outbound_agent_id) 
-WHERE is_active = true;
+-- Add index for better performance on number lookups (only if table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'retell_numbers') THEN
+    CREATE INDEX IF NOT EXISTS idx_retell_numbers_agent_assignment 
+    ON retell_numbers(organization_id, inbound_agent_id, outbound_agent_id) 
+    WHERE is_active = true;
+  END IF;
+END $$;
 
 -- Create edge function for enhanced webhook routing by event type
 -- Add webhook event tracking table
@@ -25,9 +30,11 @@ CREATE TABLE IF NOT EXISTS webhook_events (
 ALTER TABLE webhook_events ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for webhook_events
+DROP POLICY IF EXISTS "Org members can view webhook_events" ON webhook_events;
 CREATE POLICY "Org members can view webhook_events" ON webhook_events
   FOR SELECT USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "webhook_events_insert_active_only" ON webhook_events;
 CREATE POLICY "webhook_events_insert_active_only" ON webhook_events
   FOR INSERT WITH CHECK (is_org_active(organization_id) AND is_org_member(organization_id));
 
@@ -60,9 +67,11 @@ CREATE TABLE IF NOT EXISTS widget_configs (
 ALTER TABLE widget_configs ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for widget_configs
+DROP POLICY IF EXISTS "Org members can manage widget_configs" ON widget_configs;
 CREATE POLICY "Org members can manage widget_configs" ON widget_configs
   FOR ALL USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "widget_configs_insert_active_only" ON widget_configs;
 CREATE POLICY "widget_configs_insert_active_only" ON widget_configs
   FOR INSERT WITH CHECK (is_org_active(organization_id) AND is_org_member(organization_id));
 
@@ -75,6 +84,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_widget_configs_updated_at ON widget_configs;
 CREATE TRIGGER update_widget_configs_updated_at
   BEFORE UPDATE ON widget_configs
   FOR EACH ROW

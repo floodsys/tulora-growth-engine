@@ -1,9 +1,13 @@
 -- Insert sample agent profiles for testing
--- First create a sample organization and user
-INSERT INTO public.organizations (id, name, slug) 
-VALUES ('00000000-0000-0000-0000-000000000001', 'Demo Organization', 'demo-org');
-
--- Insert sample agent profiles
+-- First create a sample organization and user (idempotent)
+WITH demo_org AS (
+  INSERT INTO public.organizations (id, name, slug) 
+  VALUES ('00000000-0000-0000-0000-000000000001', 'Demo Organization', 'demo-org')
+  ON CONFLICT (slug) DO UPDATE
+    SET name = EXCLUDED.name
+  RETURNING id
+)
+-- Insert sample agent profiles (idempotent)
 INSERT INTO public.agent_profiles (
   id,
   organization_id,
@@ -25,7 +29,7 @@ INSERT INTO public.agent_profiles (
 ) VALUES 
 (
   '00000000-0000-0000-0000-000000000001',
-  '00000000-0000-0000-0000-000000000001',
+  (SELECT id FROM demo_org),
   'Sales Agent Pro',
   'agent_12345abcde',
   'active',
@@ -44,7 +48,7 @@ INSERT INTO public.agent_profiles (
 ),
 (
   '00000000-0000-0000-0000-000000000002',
-  '00000000-0000-0000-0000-000000000001',
+  (SELECT id FROM demo_org),
   'Lead Qualifier',
   'agent_67890fghij',
   'active',
@@ -63,7 +67,7 @@ INSERT INTO public.agent_profiles (
 ),
 (
   '00000000-0000-0000-0000-000000000003',
-  '00000000-0000-0000-0000-000000000001',
+  (SELECT id FROM demo_org),
   'Follow-up Specialist',
   'agent_klmno12345',
   'disabled',
@@ -79,4 +83,20 @@ INSERT INTO public.agent_profiles (
   false,
   null,
   '{"follow_up_settings": {"max_attempts": 3}}'::jsonb
-);
+)
+ON CONFLICT (id) DO UPDATE
+  SET name = EXCLUDED.name,
+      retell_agent_id = EXCLUDED.retell_agent_id,
+      status = EXCLUDED.status,
+      is_default = EXCLUDED.is_default,
+      first_message_mode = EXCLUDED.first_message_mode,
+      first_message = EXCLUDED.first_message,
+      system_prompt = EXCLUDED.system_prompt,
+      voice = EXCLUDED.voice,
+      language = EXCLUDED.language,
+      temperature = EXCLUDED.temperature,
+      max_tokens = EXCLUDED.max_tokens,
+      call_recording_enabled = EXCLUDED.call_recording_enabled,
+      warm_transfer_enabled = EXCLUDED.warm_transfer_enabled,
+      transfer_number = EXCLUDED.transfer_number,
+      settings = EXCLUDED.settings;

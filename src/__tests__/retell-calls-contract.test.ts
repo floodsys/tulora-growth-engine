@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { useRetellCalls } from '@/hooks/useRetellCalls'
-import { renderHook } from '@testing-library/react'
+import { renderHook, waitFor } from '@testing-library/react'
+
+// vi.hoisted runs before vi.mock hoisting, so the reference is available
+const { mockInvoke } = vi.hoisted(() => ({
+  mockInvoke: vi.fn()
+}))
 
 // Mock supabase
-const mockInvoke = vi.fn()
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     functions: {
@@ -18,6 +21,14 @@ vi.mock('@/hooks/use-toast', () => ({
     toast: vi.fn()
   })
 }))
+
+// Mock useUserOrganization (imported by useRetellCalls)
+vi.mock('@/hooks/useUserOrganization', () => ({
+  useUserOrganization: () => ({ organization: { id: 'test-org-id' }, loading: false })
+}))
+
+// Must import after mocks are declared
+const { useRetellCalls } = await import('@/hooks/useRetellCalls')
 
 describe('Retell Calls Contract Test', () => {
   beforeEach(() => {
@@ -41,10 +52,12 @@ describe('Retell Calls Contract Test', () => {
 
     mockInvoke.mockResolvedValueOnce(mockResponse)
 
-    const { result } = renderHook(() => useRetellCalls('test-org-id'))
+    const { result } = renderHook(() => useRetellCalls())
 
-    // Wait for the hook to finish loading
-    await new Promise(resolve => setTimeout(resolve, 100))
+    // Wait for the hook to finish loading (inside act via waitFor)
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
 
     // Verify exact response shape is handled correctly
     expect(result.current.calls).toEqual([])
@@ -74,10 +87,12 @@ describe('Retell Calls Contract Test', () => {
 
     mockInvoke.mockResolvedValueOnce(mockResponse)
 
-    const { result } = renderHook(() => useRetellCalls('test-org-id'))
+    const { result } = renderHook(() => useRetellCalls())
 
-    // Wait for the hook to finish loading
-    await new Promise(resolve => setTimeout(resolve, 100))
+    // Wait for the hook to finish loading (inside act via waitFor)
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
 
     // Should still work with extra fields (graceful handling)
     expect(result.current.calls).toEqual([])
@@ -101,10 +116,12 @@ describe('Retell Calls Contract Test', () => {
 
     mockInvoke.mockResolvedValueOnce(mockResponse)
 
-    const { result } = renderHook(() => useRetellCalls('test-org-id'))
+    const { result } = renderHook(() => useRetellCalls())
 
-    // Wait for the hook to finish loading
-    await new Promise(resolve => setTimeout(resolve, 100))
+    // Wait for the hook to finish loading (inside act via waitFor)
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
 
     // Should fallback to default pagination when missing
     expect(result.current.calls).toEqual([])

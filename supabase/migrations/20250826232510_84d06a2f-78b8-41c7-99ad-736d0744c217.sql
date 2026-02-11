@@ -2,9 +2,19 @@
 -- Canonicalize on org_stripe_subscriptions and create compatibility view
 
 -- 1. First, ensure the canonical table has proper uniqueness constraint
-ALTER TABLE public.org_stripe_subscriptions 
-ADD CONSTRAINT IF NOT EXISTS org_stripe_subscriptions_stripe_subscription_id_unique 
-UNIQUE (stripe_subscription_id);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE table_name = 'org_stripe_subscriptions'
+          AND constraint_name = 'org_stripe_subscriptions_stripe_subscription_id_unique'
+          AND constraint_type = 'UNIQUE'
+    ) THEN
+        ALTER TABLE public.org_stripe_subscriptions 
+        ADD CONSTRAINT org_stripe_subscriptions_stripe_subscription_id_unique 
+        UNIQUE (stripe_subscription_id);
+    END IF;
+END $$;
 
 -- 2. Migrate data from org_subscriptions to org_stripe_subscriptions where not already present
 INSERT INTO public.org_stripe_subscriptions (
@@ -66,31 +76,43 @@ FROM public.org_stripe_subscriptions;
 -- 5. Create RLS policies for the new view (inherits from canonical table)
 -- Note: Views inherit RLS from underlying tables, but we'll add explicit rules for clarity
 
--- 6. Log the consolidation
-INSERT INTO public.audit_log (
-  organization_id,
-  actor_user_id,
-  actor_role_snapshot,
-  action,
-  target_type,
-  target_id,
-  status,
-  channel,
-  metadata
-) VALUES (
-  '00000000-0000-0000-0000-000000000000'::uuid,
-  NULL,
-  'system',
-  'subscriptions.consolidated',
-  'database',
-  'org_stripe_subscriptions',
-  'success',
-  'internal',
-  jsonb_build_object(
-    'canonical_table', 'org_stripe_subscriptions',
-    'legacy_table_replaced', 'org_subscriptions',
-    'view_created', 'org_subscriptions (compatibility)',
-    'uniqueness_constraint', 'stripe_subscription_id',
-    'timestamp', now()
-  )
-);
+-- 6. Log the consolidation (only if at least one organization exists)
+DO $$
+DECLARE
+    v_org_id UUID;
+BEGIN
+    SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
+
+    IF v_org_id IS NOT NULL THEN
+        INSERT INTO public.audit_log (
+            organization_id,
+            actor_user_id,
+            actor_role_snapshot,
+            action,
+            target_type,
+            target_id,
+            status,
+            channel,
+            metadata
+        ) VALUES (
+            v_org_id,
+            NULL,
+            'system',
+            'subscriptions.consolidated',
+            'other',
+            'org_stripe_subscriptions',
+            'success',
+            'internal',
+            jsonb_build_object(
+                'canonical_table', 'org_stripe_subscriptions',
+                'legacy_table_replaced', 'org_subscriptions',
+                'view_created', 'org_subscriptions (compatibility)',
+                'uniqueness_constraint', 'stripe_subscription_id',
+                'timestamp', now()
+            )
+        );
+        RAISE NOTICE 'Subscription consolidation logged for org_id: %', v_org_id;
+    ELSE
+        RAISE NOTICE 'Skipping consolidation log: no organizations exist yet';
+    END IF;
+END $$;

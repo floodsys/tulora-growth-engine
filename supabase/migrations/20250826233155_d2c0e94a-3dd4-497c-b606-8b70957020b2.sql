@@ -1,4 +1,4 @@
--- Legacy memberships table cleanup
+-- Legacy memberships table cleanup (idempotent)
 -- Remove any lingering references (table doesn't exist, so just cleanup)
 
 -- 1. Check if memberships table exists and mark as deprecated
@@ -15,6 +15,8 @@ BEGIN
         ALTER TABLE public.memberships_deprecated_legacy DISABLE ROW LEVEL SECURITY;
         
         RAISE NOTICE 'Legacy memberships table has been marked as deprecated and renamed to memberships_deprecated_legacy';
+    ELSIF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'memberships_deprecated_legacy' AND table_schema = 'public') THEN
+        RAISE NOTICE 'Legacy memberships table already renamed to memberships_deprecated_legacy';
     ELSE
         RAISE NOTICE 'No legacy memberships table found - already cleaned up or never existed';
     END IF;
@@ -25,10 +27,22 @@ DO $$
 BEGIN
     -- These will silently succeed if policies don't exist
     IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'memberships' AND schemaname = 'public') THEN
-        DROP POLICY "Org admins can invite members" ON public.memberships;
-        DROP POLICY "Org admins can manage memberships" ON public.memberships;
-        DROP POLICY "Users can accept invitations" ON public.memberships;
-        DROP POLICY "Users can view own memberships" ON public.memberships;
+        BEGIN
+            DROP POLICY IF EXISTS "Org admins can invite members" ON public.memberships;
+        EXCEPTION WHEN undefined_table THEN NULL;
+        END;
+        BEGIN
+            DROP POLICY IF EXISTS "Org admins can manage memberships" ON public.memberships;
+        EXCEPTION WHEN undefined_table THEN NULL;
+        END;
+        BEGIN
+            DROP POLICY IF EXISTS "Users can accept invitations" ON public.memberships;
+        EXCEPTION WHEN undefined_table THEN NULL;
+        END;
+        BEGIN
+            DROP POLICY IF EXISTS "Users can view own memberships" ON public.memberships;
+        EXCEPTION WHEN undefined_table THEN NULL;
+        END;
         RAISE NOTICE 'Removed legacy memberships policies';
     ELSE
         RAISE NOTICE 'No legacy memberships policies found to remove';
@@ -38,31 +52,43 @@ EXCEPTION
         RAISE NOTICE 'Policy cleanup completed (some policies may not have existed)';
 END $$;
 
--- 3. Log the cleanup
-INSERT INTO public.audit_log (
-  organization_id,
-  actor_user_id,
-  actor_role_snapshot,
-  action,
-  target_type,
-  target_id,
-  status,
-  channel,
-  metadata
-) VALUES (
-  '00000000-0000-0000-0000-000000000000'::uuid,
-  NULL,
-  'system',
-  'legacy.cleanup',
-  'organization',
-  'memberships_references',
-  'success',
-  'internal',
-  jsonb_build_object(
-    'legacy_table_checked', 'memberships',
-    'canonical_table', 'organization_members',
-    'cleanup_type', 'references_only',
-    'reason', 'Ensure no lingering references to legacy memberships table',
-    'timestamp', now()
-  )
-);
+-- 3. Log the cleanup (only if at least one organization exists)
+DO $$
+DECLARE
+    v_org_id UUID;
+BEGIN
+    SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
+
+    IF v_org_id IS NOT NULL THEN
+        INSERT INTO public.audit_log (
+            organization_id,
+            actor_user_id,
+            actor_role_snapshot,
+            action,
+            target_type,
+            target_id,
+            status,
+            channel,
+            metadata
+        ) VALUES (
+            v_org_id,
+            NULL,
+            'system',
+            'legacy.cleanup',
+            'other',
+            'memberships_references',
+            'success',
+            'internal',
+            jsonb_build_object(
+                'legacy_table_checked', 'memberships',
+                'canonical_table', 'organization_members',
+                'cleanup_type', 'references_only',
+                'reason', 'Ensure no lingering references to legacy memberships table',
+                'timestamp', now()
+            )
+        );
+        RAISE NOTICE 'Legacy cleanup logged for org_id: %', v_org_id;
+    ELSE
+        RAISE NOTICE 'Skipping cleanup log: no organizations exist yet';
+    END IF;
+END $$;

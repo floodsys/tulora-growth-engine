@@ -20,16 +20,15 @@ DO $$ BEGIN
     END IF;
 END $$;
 
--- Create organization_members table if not exists
-CREATE TABLE IF NOT EXISTS public.organization_members (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
-    user_id uuid NOT NULL REFERENCES auth.users(id),
-    role public.org_role NOT NULL DEFAULT 'user',
-    seat_active boolean DEFAULT true,
-    created_at timestamptz DEFAULT now(),
-    UNIQUE(organization_id, user_id)
-);
+-- Add columns to organization_members if missing (table created earlier with org_id)
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'organization_members' AND column_name = 'id') THEN
+        ALTER TABLE public.organization_members ADD COLUMN id uuid DEFAULT gen_random_uuid();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'organization_members' AND column_name = 'created_at') THEN
+        ALTER TABLE public.organization_members ADD COLUMN created_at timestamptz DEFAULT now();
+    END IF;
+END $$;
 
 -- Create organization_invitations table if not exists
 CREATE TABLE IF NOT EXISTS public.organization_invitations (
@@ -59,8 +58,9 @@ ALTER TABLE public.organizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.organization_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.organization_invitations ENABLE ROW LEVEL SECURITY;
 
--- Create helper functions for RLS policies
-CREATE OR REPLACE FUNCTION public.is_org_admin(org_id uuid)
+-- Create helper functions for RLS policies (drop with cascade to remove dependent policies)
+DROP FUNCTION IF EXISTS public.is_org_admin(uuid) CASCADE;
+CREATE FUNCTION public.is_org_admin(org_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE SECURITY DEFINER
@@ -68,20 +68,21 @@ SET search_path TO 'public'
 AS $$
   SELECT EXISTS (
     SELECT 1
-    FROM public.organization_members
-    WHERE organization_id = org_id
-      AND user_id = auth.uid()
-      AND role = 'admin'
-      AND seat_active = true
+    FROM public.organization_members m
+    WHERE m.org_id = $1
+      AND m.user_id = auth.uid()
+      AND m.role::text = 'admin'
+      AND m.seat_active = true
   ) OR EXISTS (
     SELECT 1
     FROM public.organizations
-    WHERE id = org_id
+    WHERE id = $1
       AND owner_user_id = auth.uid()
   );
 $$;
 
-CREATE OR REPLACE FUNCTION public.is_org_member(org_id uuid)
+DROP FUNCTION IF EXISTS public.is_org_member(uuid) CASCADE;
+CREATE FUNCTION public.is_org_member(org_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE SECURITY DEFINER
@@ -89,14 +90,14 @@ SET search_path TO 'public'
 AS $$
   SELECT EXISTS (
     SELECT 1
-    FROM public.organization_members
-    WHERE organization_id = org_id
-      AND user_id = auth.uid()
-      AND seat_active = true
+    FROM public.organization_members m
+    WHERE m.org_id = $1
+      AND m.user_id = auth.uid()
+      AND m.seat_active = true
   ) OR EXISTS (
     SELECT 1
     FROM public.organizations
-    WHERE id = org_id
+    WHERE id = $1
       AND owner_user_id = auth.uid()
   );
 $$;
@@ -123,10 +124,10 @@ CREATE POLICY "Users can create organizations" ON public.organizations
 
 -- Create RLS policies for organization_members
 CREATE POLICY "Members can view organization members" ON public.organization_members
-    FOR SELECT USING (is_org_member(organization_id));
+    FOR SELECT USING (is_org_member(org_id));
 
 CREATE POLICY "Admins can manage organization members" ON public.organization_members
-    FOR ALL USING (is_org_admin(organization_id));
+    FOR ALL USING (is_org_admin(org_id));
 
 -- Create RLS policies for organization_invitations
 CREATE POLICY "Admins can view invitations" ON public.organization_invitations
@@ -180,8 +181,8 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.accept_invite(token text)
-RETURNS jsonb
+CREATE OR REPLACE FUNCTION public.accept_invite(p_token text)
+RETURNS json
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO 'public'
@@ -193,29 +194,29 @@ BEGIN
     -- Get invitation details
     SELECT * INTO invitation
     FROM public.organization_invitations
-    WHERE invite_token = token
+    WHERE invite_token = p_token
       AND status = 'pending'
       AND expires_at > now();
     
     IF invitation IS NULL THEN
-        RETURN jsonb_build_object('success', false, 'error', 'Invalid or expired invitation');
+        RETURN json_build_object('success', false, 'error', 'Invalid or expired invitation');
     END IF;
     
     -- Check if user is already a member
     SELECT * INTO existing_member
     FROM public.organization_members
-    WHERE organization_id = invitation.organization_id
+    WHERE org_id = invitation.organization_id
       AND user_id = auth.uid();
     
     IF existing_member IS NOT NULL THEN
         -- Update existing membership
         UPDATE public.organization_members
         SET role = invitation.role, seat_active = true
-        WHERE id = existing_member.id;
+        WHERE org_id = invitation.organization_id AND user_id = auth.uid();
     ELSE
         -- Create new membership
         INSERT INTO public.organization_members (
-            organization_id,
+            org_id,
             user_id,
             role
         ) VALUES (
@@ -230,7 +231,7 @@ BEGIN
     SET status = 'accepted'
     WHERE id = invitation.id;
     
-    RETURN jsonb_build_object(
+    RETURN json_build_object(
         'success', true,
         'organization_id', invitation.organization_id
     );
