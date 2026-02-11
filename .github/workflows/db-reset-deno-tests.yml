@@ -16,11 +16,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Start Supabase local stack
-        run: npx --yes supabase@2.76.6 start
+      - name: Start Supabase local stack (with retry)
+        run: bash scripts/ci-supabase-start-retry.sh "npx --yes supabase@2.76.6"
 
-      - name: Run db reset --debug
-        run: npx --yes supabase@2.76.6 db reset --debug
+      - name: Run db reset --debug (with retry + health check)
+        run: bash scripts/ci-supabase-reset-retry.sh "npx --yes supabase@2.76.6"
 
       - name: Stop Supabase
         if: always()
