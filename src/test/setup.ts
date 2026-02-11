@@ -1,6 +1,17 @@
 import { beforeAll, afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
+// Polyfill ResizeObserver for jsdom (used by Radix UI components)
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class ResizeObserver {
+    private cb: ResizeObserverCallback;
+    constructor(cb: ResizeObserverCallback) { this.cb = cb; }
+    observe() { }
+    unobserve() { }
+    disconnect() { }
+  };
+}
+
 // Setup DOM environment
 beforeAll(() => {
   // Mock environment variables for testing

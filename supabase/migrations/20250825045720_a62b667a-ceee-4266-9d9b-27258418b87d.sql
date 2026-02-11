@@ -1,3 +1,21 @@
+-- Conditionally drop cleanup_expired_logs() only if it exists with a non-jsonb return type
+DO $$
+DECLARE
+  existing_result text;
+BEGIN
+  SELECT pg_get_function_result(p.oid)
+    INTO existing_result
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public'
+    AND p.proname = 'cleanup_expired_logs'
+    AND pg_get_function_identity_arguments(p.oid) = '';
+
+  IF existing_result IS NOT NULL AND existing_result <> 'jsonb' THEN
+    EXECUTE 'DROP FUNCTION public.cleanup_expired_logs()';
+  END IF;
+END $$;
+
 -- Add legal hold and export settings to organizations
 ALTER TABLE public.organizations 
 ADD COLUMN IF NOT EXISTS legal_hold_enabled boolean DEFAULT false,

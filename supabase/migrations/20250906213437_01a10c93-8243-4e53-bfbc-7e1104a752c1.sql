@@ -76,11 +76,13 @@ $$;
 DROP POLICY IF EXISTS "System can manage subscriptions" ON org_stripe_subscriptions;
 DROP POLICY IF EXISTS "Org members can view subscriptions" ON org_stripe_subscriptions;
 
+DROP POLICY IF EXISTS "Service role can manage subscriptions" ON org_stripe_subscriptions;
 CREATE POLICY "Service role can manage subscriptions" ON org_stripe_subscriptions
 FOR ALL
 USING (true)
 WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Org members can view own subscriptions" ON org_stripe_subscriptions;
 CREATE POLICY "Org members can view own subscriptions" ON org_stripe_subscriptions  
 FOR SELECT
 USING (

@@ -40,21 +40,25 @@ CREATE TABLE public.retell_calls (
 ALTER TABLE public.retell_calls ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
+DROP POLICY IF EXISTS "Org members can view retell_calls" ON public.retell_calls;
 CREATE POLICY "Org members can view retell_calls" 
 ON public.retell_calls 
 FOR SELECT 
 USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "Org members can manage retell_calls" ON public.retell_calls;
 CREATE POLICY "Org members can manage retell_calls" 
 ON public.retell_calls 
 FOR ALL 
 USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "retell_calls_insert_active_only" ON public.retell_calls;
 CREATE POLICY "retell_calls_insert_active_only" 
 ON public.retell_calls 
 FOR INSERT 
 WITH CHECK (is_org_active(organization_id) AND is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "retell_calls_update_active_only" ON public.retell_calls;
 CREATE POLICY "retell_calls_update_active_only" 
 ON public.retell_calls 
 FOR UPDATE 
@@ -70,6 +74,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SET search_path = public;
 
+DROP TRIGGER IF EXISTS update_retell_calls_updated_at ON public.retell_calls;
 CREATE TRIGGER update_retell_calls_updated_at
   BEFORE UPDATE ON public.retell_calls
   FOR EACH ROW
@@ -96,6 +101,7 @@ VALUES (
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage policies for call recordings
+DROP POLICY IF EXISTS "Org members can view call recordings" ON storage.objects;
 CREATE POLICY "Org members can view call recordings" 
 ON storage.objects 
 FOR SELECT 
@@ -108,11 +114,13 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "System can upload call recordings" ON storage.objects;
 CREATE POLICY "System can upload call recordings" 
 ON storage.objects 
 FOR INSERT 
 WITH CHECK (bucket_id = 'call-recordings' AND auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "System can update call recordings" ON storage.objects;
 CREATE POLICY "System can update call recordings" 
 ON storage.objects 
 FOR UPDATE 

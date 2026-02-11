@@ -1,13 +1,13 @@
 // Quick test for Admin contact-sales verification
 // Run with: node test-admin-contact-sales.js
 
-const SUPABASE_URL = 'https://nkjxbeypbiclvouqfjyc.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ranhiZXlwYmljbHZvdXFmanljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0Nzg2NDEsImV4cCI6MjA3MTA1NDY0MX0.iuFFcJSX97MKkiBvSYLmIao9aTMrQm7zqnf4kEDraQg';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nkjxbeypbiclvouqfjyc.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''; // set SUPABASE_ANON_KEY env var
 
 async function testContactSales(testCase, payload) {
   console.log(`\n🧪 Testing: ${testCase}`);
   console.log('📤 Payload:', JSON.stringify(payload, null, 2));
-  
+
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/contact-sales`, {
       method: 'POST',
@@ -24,10 +24,10 @@ async function testContactSales(testCase, payload) {
     console.log('  X-Function:', response.headers.get('X-Function'));
     console.log('  X-Version:', response.headers.get('X-Version'));
     console.log('  X-CRM-Status:', response.headers.get('X-CRM-Status'));
-    
+
     const result = await response.text();
     console.log('📝 Response (first 200 chars):', result.substring(0, 200));
-    
+
     try {
       const jsonResult = JSON.parse(result);
       if (jsonResult.lead_id) {
@@ -39,7 +39,7 @@ async function testContactSales(testCase, payload) {
     } catch (e) {
       // Response may not be JSON
     }
-    
+
     if (response.status === 200 || response.status === 424) {
       console.log('✅ SUCCESS: Expected non-422 status');
     } else if (response.status === 422) {
@@ -55,7 +55,7 @@ async function testContactSales(testCase, payload) {
 
 async function runTests() {
   console.log('🚀 Testing contact-sales endpoint normalization and validation');
-  
+
   // Test a) product_interest: []
   await testContactSales('Empty array', {
     inquiry_type: 'enterprise',

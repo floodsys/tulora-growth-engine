@@ -14,9 +14,10 @@ BEGIN
     ) INTO constraint_exists;
     
     IF NOT constraint_exists THEN
-        DROP INDEX IF EXISTS organization_invitations_invite_token_key;
-        ALTER TABLE organization_invitations 
-        ADD CONSTRAINT organization_invitations_invite_token_unique UNIQUE (invite_token);
+        EXECUTE 'DROP INDEX IF EXISTS organization_invitations_invite_token_key';
+        EXECUTE 'ALTER TABLE organization_invitations DROP CONSTRAINT IF EXISTS organization_invitations_invite_token_key';
+        EXECUTE 'ALTER TABLE organization_invitations DROP CONSTRAINT IF EXISTS organization_invitations_invite_token_unique';
+        EXECUTE 'ALTER TABLE organization_invitations ADD CONSTRAINT organization_invitations_invite_token_unique UNIQUE (invite_token)';
     END IF;
 END $$;
 
@@ -33,8 +34,10 @@ BEGIN
     ) INTO constraint_exists;
     
     IF NOT constraint_exists THEN
-        ALTER TABLE organization_members 
-        ADD CONSTRAINT organization_members_org_user_unique UNIQUE (organization_id, user_id);
+        EXECUTE 'ALTER TABLE organization_members DROP CONSTRAINT IF EXISTS organization_members_organization_id_user_id_key';
+        EXECUTE 'ALTER TABLE organization_members DROP CONSTRAINT IF EXISTS organization_members_organization_id_user_id_unique';
+        EXECUTE 'ALTER TABLE organization_members DROP CONSTRAINT IF EXISTS organization_members_org_user_unique';
+        EXECUTE 'ALTER TABLE organization_members ADD CONSTRAINT organization_members_org_user_unique UNIQUE (organization_id, user_id)';
     END IF;
 END $$;
 

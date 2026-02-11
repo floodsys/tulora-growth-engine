@@ -46,21 +46,25 @@ CREATE TABLE public.retell_agents (
 ALTER TABLE public.retell_agents ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
+DROP POLICY IF EXISTS "Org members can view retell_agents" ON public.retell_agents;
 CREATE POLICY "Org members can view retell_agents" 
 ON public.retell_agents 
 FOR SELECT 
 USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "Org members can manage retell_agents" ON public.retell_agents;
 CREATE POLICY "Org members can manage retell_agents" 
 ON public.retell_agents 
 FOR ALL 
 USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "retell_agents_insert_active_only" ON public.retell_agents;
 CREATE POLICY "retell_agents_insert_active_only" 
 ON public.retell_agents 
 FOR INSERT 
 WITH CHECK (is_org_active(organization_id) AND is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "retell_agents_update_active_only" ON public.retell_agents;
 CREATE POLICY "retell_agents_update_active_only" 
 ON public.retell_agents 
 FOR UPDATE 
@@ -76,6 +80,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_retell_agents_updated_at ON public.retell_agents;
 CREATE TRIGGER update_retell_agents_updated_at
   BEFORE UPDATE ON public.retell_agents
   FOR EACH ROW

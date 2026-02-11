@@ -5,7 +5,7 @@ ALTER TABLE public.organization_invitations ENABLE ROW LEVEL SECURITY;
 
 -- Update existing security helper function to check if user is org admin
 -- (keeping same signature to avoid breaking existing policies)
-CREATE OR REPLACE FUNCTION public.is_org_admin(org_uuid uuid)
+CREATE OR REPLACE FUNCTION public.is_org_admin(org_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE SECURITY DEFINER
@@ -15,13 +15,13 @@ AS $$
     -- Check if user is the owner of the organization
     SELECT 1
     FROM public.organizations
-    WHERE id = org_uuid
+    WHERE id = $1
       AND owner_user_id = auth.uid()
   ) OR EXISTS (
     -- Check if user is an admin member of the organization
     SELECT 1
     FROM public.organization_members
-    WHERE organization_id = org_uuid
+    WHERE org_id = $1
       AND user_id = auth.uid()
       AND role = 'admin'::public.org_role
       AND seat_active = true
@@ -30,7 +30,7 @@ $$;
 
 -- Update existing security helper function to check if user is org member
 -- (keeping same signature to avoid breaking existing policies)
-CREATE OR REPLACE FUNCTION public.is_org_member(org_uuid uuid)
+CREATE OR REPLACE FUNCTION public.is_org_member(org_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE SECURITY DEFINER
@@ -40,13 +40,13 @@ AS $$
     -- Check if user is the owner of the organization
     SELECT 1
     FROM public.organizations
-    WHERE id = org_uuid
+    WHERE id = $1
       AND owner_user_id = auth.uid()
   ) OR EXISTS (
     -- Check if user is any member of the organization
     SELECT 1
     FROM public.organization_members
-    WHERE organization_id = org_uuid
+    WHERE org_id = $1
       AND user_id = auth.uid()
       AND seat_active = true
   );
@@ -81,19 +81,19 @@ CREATE POLICY "organizations_insert_policy" ON public.organizations
 -- ORGANIZATION_MEMBERS POLICIES
 -- SELECT: allowed to any member of the same organization_id
 CREATE POLICY "organization_members_select_policy" ON public.organization_members
-    FOR SELECT USING (is_org_member(organization_id));
+    FOR SELECT USING (is_org_member(org_id));
 
 -- INSERT: allowed only if is_org_admin(organization_id)
 CREATE POLICY "organization_members_insert_policy" ON public.organization_members
-    FOR INSERT WITH CHECK (is_org_admin(organization_id));
+    FOR INSERT WITH CHECK (is_org_admin(org_id));
 
 -- UPDATE: allowed only if is_org_admin(organization_id)
 CREATE POLICY "organization_members_update_policy" ON public.organization_members
-    FOR UPDATE USING (is_org_admin(organization_id));
+    FOR UPDATE USING (is_org_admin(org_id));
 
 -- DELETE: allowed only if is_org_admin(organization_id)
 CREATE POLICY "organization_members_delete_policy" ON public.organization_members
-    FOR DELETE USING (is_org_admin(organization_id));
+    FOR DELETE USING (is_org_admin(org_id));
 
 -- ORGANIZATION_INVITATIONS POLICIES
 -- SELECT: allowed only if is_org_admin(organization_id)

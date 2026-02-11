@@ -7,7 +7,7 @@
  * - Seat count query fails → FAIL-CLOSED: returns { success: false, error: "..." }
  * - Subscription lookup PGRST116 (no rows) → FAIL-OPEN: returns { success: true, skipped: true }
  * - Subscription lookup non-PGRST116 error → FAIL-CLOSED: returns { success: false, error: "..." }
- * - No STRIPE_SECRET_KEY → FAIL-OPEN: returns { success: true, skipped: true }
+ * - No STRIPE_SECRET_KEY → FAIL-CLOSED: returns { success: false, error: "STRIPE_SECRET_KEY_MISSING" }
  * - Success path → calls Stripe to update subscription quantity
  * 
  * Run with: deno test --allow-env supabase/functions/_shared/__tests__/billingSeats.test.ts
@@ -166,10 +166,10 @@ describe('billingSeats - syncStripeSeatsForOrg', () => {
     });
 
     // =========================================================================
-    // A) FAIL-OPEN: No Stripe key configured
+    // A) FAIL-CLOSED: No Stripe key configured
     // =========================================================================
     describe('A) when STRIPE_SECRET_KEY is not configured', () => {
-        it('should return success with skipped=true (FAIL-OPEN)', async () => {
+        it('should return success=false with STRIPE_SECRET_KEY_MISSING error (FAIL-CLOSED)', async () => {
             // Stub Deno.env.get to return undefined for STRIPE_SECRET_KEY
             envStub = stub(Deno.env, 'get', (key: string) => {
                 if (key === 'STRIPE_SECRET_KEY') return undefined;
@@ -180,9 +180,38 @@ describe('billingSeats - syncStripeSeatsForOrg', () => {
 
             const result = await syncStripeSeatsForOrg(mockSupabase, 'org-123', 'test-corr');
 
-            assertEquals(result.success, true);
-            assertEquals(result.skipped, true);
-            assertStringIncludes(result.message, 'Stripe not configured');
+            assertEquals(result.success, false);
+            assertEquals(result.error, 'STRIPE_SECRET_KEY_MISSING');
+            assertStringIncludes(result.message, 'STRIPE_SECRET_KEY is not configured');
+            assertEquals(result.skipped, undefined); // NOT skipped — it's an error
+        });
+
+        it('should include setup instructions in the error message', async () => {
+            envStub = stub(Deno.env, 'get', (key: string) => {
+                if (key === 'STRIPE_SECRET_KEY') return undefined;
+                return undefined;
+            });
+
+            const mockSupabase = createMockSupabase({});
+
+            const result = await syncStripeSeatsForOrg(mockSupabase, 'org-123', 'test-corr');
+
+            assertEquals(result.success, false);
+            assertStringIncludes(result.message, '.env.example');
+        });
+
+        it('should return success=false even with empty string key', async () => {
+            envStub = stub(Deno.env, 'get', (key: string) => {
+                if (key === 'STRIPE_SECRET_KEY') return '';
+                return undefined;
+            });
+
+            const mockSupabase = createMockSupabase({});
+
+            const result = await syncStripeSeatsForOrg(mockSupabase, 'org-123', 'test-corr');
+
+            assertEquals(result.success, false);
+            assertEquals(result.error, 'STRIPE_SECRET_KEY_MISSING');
         });
     });
 
@@ -557,7 +586,7 @@ describe('billingSeats - syncStripeSeatsForOrg', () => {
             assertEquals(result.newQuantity, 0);
         });
 
-        it('should generate correlation ID if not provided', async () => {
+        it('should generate correlation ID if not provided (and still fail-closed without key)', async () => {
             envStub = stub(Deno.env, 'get', (key: string) => {
                 if (key === 'STRIPE_SECRET_KEY') return undefined;
                 return undefined;
@@ -565,11 +594,11 @@ describe('billingSeats - syncStripeSeatsForOrg', () => {
 
             const mockSupabase = createMockSupabase({});
 
-            // Call without correlationId
+            // Call without correlationId — should still produce a result (with auto-generated corr ID)
             const result = await syncStripeSeatsForOrg(mockSupabase, 'org-123');
 
-            assertEquals(result.success, true);
-            assertEquals(result.skipped, true);
+            assertEquals(result.success, false);
+            assertEquals(result.error, 'STRIPE_SECRET_KEY_MISSING');
         });
 
         it('should handle subscription with null quantity as 0', async () => {
@@ -677,24 +706,24 @@ describe('billingSeats - Behavior Documentation', () => {
     it('documents FAIL-OPEN scenarios (graceful skip)', () => {
         // These scenarios return success: true, skipped: true
         const failOpenScenarios = [
-            'STRIPE_SECRET_KEY not configured',
             'Subscription lookup returns null (no active subscription)',
             'Subscription data is null (no active subscription)',
         ];
 
-        assertEquals(failOpenScenarios.length, 3);
+        assertEquals(failOpenScenarios.length, 2);
     });
 
     it('documents FAIL-CLOSED scenarios (return error)', () => {
         // These scenarios return success: false with error message
         const failClosedScenarios = [
+            'STRIPE_SECRET_KEY not configured (error: STRIPE_SECRET_KEY_MISSING)',
             'Seat count query fails (any error)',
             'Subscription lookup returns error (subError != null)',
             'Stripe API call fails (subscription retrieve or item update)',
             'No subscription items found in Stripe subscription',
         ];
 
-        assertEquals(failClosedScenarios.length, 4);
+        assertEquals(failClosedScenarios.length, 5);
     });
 });
 

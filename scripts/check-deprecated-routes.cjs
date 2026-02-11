@@ -14,7 +14,7 @@ const DEPRECATED_FILE = 'TeamsSettings.tsx';
 const DEPRECATED_IMPORT_PATTERN = /import.*TeamsSettings.*from/;
 const DEPRECATED_ROUTE_USAGE = /\/settings\/teams(?!.*RedirectToOrganizationTeam)/;
 const ALLOWLISTED_EXTENSIONS = ['.md', '.txt', '.json'];
-const ALLOWLISTED_FILES = ['RedirectToOrganizationTeam.tsx', 'check-deprecated-routes.js'];
+const ALLOWLISTED_FILES = ['RedirectToOrganizationTeam.tsx', 'check-deprecated-routes.js', 'TeamsConsolidationTests.tsx'];
 
 let hasErrors = false;
 const errors = [];
@@ -39,7 +39,7 @@ function isAllowlistedFile(filePath) {
 
 function checkForDeprecatedFile() {
   console.log('🔍 Checking for deprecated TeamsSettings.tsx file...');
-  
+
   const deprecatedFiles = glob.sync(`**/${DEPRECATED_FILE}`, {
     ignore: ['node_modules/**', 'dist/**', '.git/**']
   });
@@ -59,7 +59,7 @@ function checkForDeprecatedFile() {
 
 function checkForDeprecatedImports() {
   console.log('🔍 Checking for deprecated TeamsSettings imports...');
-  
+
   const sourceFiles = glob.sync('src/**/*.{ts,tsx,js,jsx}', {
     ignore: ['node_modules/**', 'dist/**']
   });
@@ -68,7 +68,7 @@ function checkForDeprecatedImports() {
     try {
       const content = fs.readFileSync(file, 'utf8');
       const lines = content.split('\n');
-      
+
       lines.forEach((line, index) => {
         if (DEPRECATED_IMPORT_PATTERN.test(line)) {
           addError(
@@ -87,7 +87,7 @@ function checkForDeprecatedImports() {
 
 function checkForDeprecatedRouteUsage() {
   console.log('🔍 Checking for deprecated /settings/teams usage...');
-  
+
   const sourceFiles = glob.sync('src/**/*.{ts,tsx,js,jsx}', {
     ignore: ['node_modules/**', 'dist/**']
   });
@@ -100,7 +100,7 @@ function checkForDeprecatedRouteUsage() {
     try {
       const content = fs.readFileSync(file, 'utf8');
       const lines = content.split('\n');
-      
+
       lines.forEach((line, index) => {
         if (DEPRECATED_ROUTE_USAGE.test(line)) {
           addError(
@@ -119,11 +119,11 @@ function checkForDeprecatedRouteUsage() {
 
 function main() {
   console.log('🚀 Starting deprecated routes check...\n');
-  
+
   checkForDeprecatedFile();
   checkForDeprecatedImports();
   checkForDeprecatedRouteUsage();
-  
+
   console.log('\n📊 Check Summary:');
   if (hasErrors) {
     console.log(`❌ Found ${errors.length} error(s):`);

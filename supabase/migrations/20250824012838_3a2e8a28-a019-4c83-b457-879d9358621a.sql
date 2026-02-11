@@ -27,12 +27,14 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create trigger on audit_log table
+DROP TRIGGER IF EXISTS trigger_external_integrations_audit_log ON public.audit_log;
 CREATE TRIGGER trigger_external_integrations_audit_log
   AFTER INSERT ON public.audit_log
   FOR EACH ROW
   EXECUTE FUNCTION public.trigger_external_integrations();
 
 -- Create trigger on activity_logs table (for backward compatibility)
+DROP TRIGGER IF EXISTS trigger_external_integrations_activity_logs ON public.activity_logs;
 CREATE TRIGGER trigger_external_integrations_activity_logs
   AFTER INSERT ON public.activity_logs
   FOR EACH ROW

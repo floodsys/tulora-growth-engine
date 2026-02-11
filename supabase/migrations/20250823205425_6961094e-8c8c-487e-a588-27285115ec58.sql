@@ -1,5 +1,5 @@
--- Drop existing function to avoid parameter name conflict
-DROP FUNCTION IF EXISTS public.is_org_admin(uuid);
+-- NOTE: Removed DROP FUNCTION - it fails due to dependent policies and is unnecessary
+-- when using CREATE OR REPLACE with matching parameter names
 
 -- Create role enum if it doesn't exist
 DO $$ BEGIN
@@ -57,7 +57,7 @@ ALTER TABLE public.organization_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.organization_invitations ENABLE ROW LEVEL SECURITY;
 
 -- Helper function: is_org_admin
-CREATE OR REPLACE FUNCTION public.is_org_admin(org_uuid uuid)
+CREATE OR REPLACE FUNCTION public.is_org_admin(org_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE SECURITY DEFINER
@@ -65,18 +65,18 @@ SET search_path TO 'public'
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.organizations o
-    WHERE o.id = org_uuid 
+    WHERE o.id = $1 
       AND o.owner_user_id = auth.uid()
   ) OR EXISTS (
     SELECT 1 FROM public.organization_members om
-    WHERE om.organization_id = org_uuid
+    WHERE om.org_id = $1
       AND om.user_id = auth.uid()
       AND om.role = 'admin'
   );
 $$;
 
 -- Helper function: is_org_member
-CREATE OR REPLACE FUNCTION public.is_org_member(org_uuid uuid)
+CREATE OR REPLACE FUNCTION public.is_org_member(org_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE SECURITY DEFINER
@@ -84,11 +84,11 @@ SET search_path TO 'public'
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.organizations o
-    WHERE o.id = org_uuid 
+    WHERE o.id = $1 
       AND o.owner_user_id = auth.uid()
   ) OR EXISTS (
     SELECT 1 FROM public.organization_members om
-    WHERE om.organization_id = org_uuid
+    WHERE om.org_id = $1
       AND om.user_id = auth.uid()
   );
 $$;
@@ -100,7 +100,7 @@ CREATE POLICY "orgs_select_members" ON public.organizations
     owner_user_id = auth.uid() OR 
     EXISTS (
       SELECT 1 FROM public.organization_members om
-      WHERE om.organization_id = organizations.id
+      WHERE om.org_id = organizations.id
         AND om.user_id = auth.uid()
     )
   );
@@ -116,19 +116,19 @@ CREATE POLICY "orgs_insert_authenticated" ON public.organizations
 -- RLS Policies for organization_members
 DROP POLICY IF EXISTS "members_select_org_members" ON public.organization_members;
 CREATE POLICY "members_select_org_members" ON public.organization_members
-  FOR SELECT USING (is_org_member(organization_id));
+  FOR SELECT USING (is_org_member(org_id));
 
 DROP POLICY IF EXISTS "members_insert_admins" ON public.organization_members;
 CREATE POLICY "members_insert_admins" ON public.organization_members
-  FOR INSERT WITH CHECK (is_org_admin(organization_id));
+  FOR INSERT WITH CHECK (is_org_admin(org_id));
 
 DROP POLICY IF EXISTS "members_update_admins" ON public.organization_members;
 CREATE POLICY "members_update_admins" ON public.organization_members
-  FOR UPDATE USING (is_org_admin(organization_id));
+  FOR UPDATE USING (is_org_admin(org_id));
 
 DROP POLICY IF EXISTS "members_delete_admins" ON public.organization_members;
 CREATE POLICY "members_delete_admins" ON public.organization_members
-  FOR DELETE USING (is_org_admin(organization_id));
+  FOR DELETE USING (is_org_admin(org_id));
 
 -- RLS Policies for organization_invitations
 DROP POLICY IF EXISTS "invites_select_admins" ON public.organization_invitations;
@@ -177,7 +177,7 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM public.organization_members om
     JOIN auth.users u ON u.id = om.user_id
-    WHERE om.organization_id = p_org AND u.email = p_email
+    WHERE om.org_id = p_org AND u.email = p_email
   ) THEN
     RAISE EXCEPTION 'User is already a member of this organization';
   END IF;
@@ -248,7 +248,7 @@ BEGIN
 
   -- Insert or update membership
   INSERT INTO public.organization_members (
-    organization_id,
+    org_id,
     user_id,
     role
   ) VALUES (
@@ -256,7 +256,7 @@ BEGIN
     auth.uid(),
     v_invite.role
   )
-  ON CONFLICT (organization_id, user_id)
+  ON CONFLICT (org_id, user_id)
   DO UPDATE SET role = EXCLUDED.role;
 
   -- Mark invitation as accepted

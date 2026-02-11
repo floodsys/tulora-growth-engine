@@ -31,7 +31,7 @@ describe('resolveNextPath', () => {
   });
 
   it('handles backslash paths by normalizing', () => {
-    expect(resolveNextPath('\\agents')).toBe('/\\agents'); // Becomes invalid path, fallback
+    expect(resolveNextPath('\\agents')).toBe('/dashboard'); // Backslash fails validation, fallback
     expect(resolveNextPath('agents')).toBe('/agents'); // Gets normalized to /agents
   });
 

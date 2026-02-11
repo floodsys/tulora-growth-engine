@@ -1,0 +1,43 @@
+name: DB Reset & Deno Edge Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  db-reset:
+    name: Supabase DB Reset Smoke Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start Supabase local stack
+        run: npx --yes supabase@2.76.6 start
+
+      - name: Run db reset --debug
+        run: npx --yes supabase@2.76.6 db reset --debug
+
+      - name: Stop Supabase
+        if: always()
+        run: npx --yes supabase@2.76.6 stop
+
+  deno-edge-tests:
+    name: Deno Edge Shared Module Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Run shared module tests
+        run: deno test --allow-env --no-check supabase/functions/_shared/__tests__/*.test.ts

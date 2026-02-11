@@ -102,25 +102,31 @@ ALTER TABLE public.org_stripe_subscriptions ENABLE ROW LEVEL SECURITY;
 -- RLS Policies for org isolation
 
 -- Plan configs are publicly readable (for pricing page)
+DROP POLICY IF EXISTS "Plan configs are publicly readable" ON public.plan_configs;
 CREATE POLICY "Plan configs are publicly readable" ON public.plan_configs
 FOR SELECT USING (is_active = true);
 
 -- Activity logs: only org members can view their org's logs
+DROP POLICY IF EXISTS "Org members can view activity logs" ON public.activity_logs;
 CREATE POLICY "Org members can view activity logs" ON public.activity_logs
 FOR SELECT USING (is_org_member(organization_id));
 
 -- System can insert activity logs (via edge functions)
+DROP POLICY IF EXISTS "System can insert activity logs" ON public.activity_logs;
 CREATE POLICY "System can insert activity logs" ON public.activity_logs
 FOR INSERT WITH CHECK (true);
 
 -- Demo sessions: publicly accessible for sandbox
+DROP POLICY IF EXISTS "Demo sessions public access" ON public.demo_sessions;
 CREATE POLICY "Demo sessions public access" ON public.demo_sessions
 FOR ALL USING (true);
 
 -- Org subscriptions: org members can view, system can modify
+DROP POLICY IF EXISTS "Org members can view subscriptions" ON public.org_stripe_subscriptions;
 CREATE POLICY "Org members can view subscriptions" ON public.org_stripe_subscriptions
 FOR SELECT USING (is_org_member(organization_id));
 
+DROP POLICY IF EXISTS "System can manage subscriptions" ON public.org_stripe_subscriptions;
 CREATE POLICY "System can manage subscriptions" ON public.org_stripe_subscriptions
 FOR ALL USING (true);
 
@@ -133,11 +139,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_plan_configs_updated_at ON public.plan_configs;
 CREATE TRIGGER update_plan_configs_updated_at
   BEFORE UPDATE ON public.plan_configs
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_org_stripe_subscriptions_updated_at ON public.org_stripe_subscriptions;
 CREATE TRIGGER update_org_stripe_subscriptions_updated_at
   BEFORE UPDATE ON public.org_stripe_subscriptions
   FOR EACH ROW
@@ -145,14 +153,14 @@ CREATE TRIGGER update_org_stripe_subscriptions_updated_at
 
 -- Functions for feature gating and activity logging
 
--- Log user activities
+-- Log user activities (6-arg version with p_user_id)
 CREATE OR REPLACE FUNCTION public.log_activity(
   p_org_id UUID,
-  p_user_id UUID DEFAULT NULL,
+  p_user_id UUID,
   p_action TEXT,
   p_resource_type TEXT DEFAULT NULL,
   p_resource_id UUID DEFAULT NULL,
-  p_details JSONB DEFAULT '{}'
+  p_details JSONB DEFAULT '{}'::jsonb
 )
 RETURNS UUID
 LANGUAGE plpgsql
@@ -325,5 +333,6 @@ COMMENT ON TABLE public.org_stripe_subscriptions IS 'Stripe subscription sync da
 
 COMMENT ON FUNCTION public.has_feature IS 'Check if organization has access to specific feature';
 COMMENT ON FUNCTION public.can_perform_action IS 'Check if organization can perform action based on plan limits';
-COMMENT ON FUNCTION public.log_activity IS 'Log user activity for audit and analytics purposes';
+COMMENT ON FUNCTION public.log_activity(uuid, uuid, text, text, uuid, jsonb)
+    IS 'Log user activity for audit and analytics purposes';
 COMMENT ON FUNCTION public.create_organization_with_owner IS 'Create organization with proper owner setup';

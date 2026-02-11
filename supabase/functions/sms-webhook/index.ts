@@ -1,12 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 import { timingSafeEqual } from 'https://deno.land/std@0.168.0/crypto/timing_safe_equal.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-}
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 async function computeTwilioSignature(
   authToken: string, 
@@ -41,6 +36,7 @@ async function computeTwilioSignature(
 }
 
 serve(async (req) => {
+  const corsHeaders = { ...getCorsHeaders(req), 'Access-Control-Allow-Headers': 'content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }

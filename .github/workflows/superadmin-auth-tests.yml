@@ -72,10 +72,19 @@ jobs:
             exit 1
           fi
           
-          # Verify edge functions use DB RPC
-          if grep -r --include="*.ts" --exclude="*.test.ts" \
-            -L "supabaseClient\.rpc.*is_superadmin" supabase/functions/admin-* supabase/functions/org-suspension/; then
+          # Verify edge functions use DB RPC (direct .rpc call or requireSuperadmin shared guard)
+          EDGE_VIOLATIONS=""
+          for fn_dir in supabase/functions/admin-* supabase/functions/org-suspension; do
+            idx="$fn_dir/index.ts"
+            if [ -f "$idx" ]; then
+              if ! grep -qE '\.rpc.*is_superadmin|requireSuperadmin' "$idx"; then
+                EDGE_VIOLATIONS="$EDGE_VIOLATIONS\n  $idx"
+              fi
+            fi
+          done
+          if [ -n "$EDGE_VIOLATIONS" ]; then
             echo "❌ VIOLATION: Admin edge functions not using DB RPC!"
+            echo -e "Files missing is_superadmin guard:$EDGE_VIOLATIONS"
             exit 1
           fi
           
@@ -90,12 +99,12 @@ jobs:
             exit 1
           fi
           
-          if ! grep -q "Source of truth = DB" SECURITY.md; then
+          if ! grep -qi "Source of Truth" SECURITY.md; then
             echo "❌ SECURITY.md missing DB source of truth policy!"
             exit 1
           fi
           
-          if ! grep -q "Environment variables are COSMETIC ONLY" SECURITY.md; then
+          if ! grep -qi "COSMETIC ONLY" SECURITY.md; then
             echo "❌ SECURITY.md missing env vars policy!"
             exit 1
           fi

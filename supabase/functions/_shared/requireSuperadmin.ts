@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
+import { getCorsHeaders } from './cors.ts';
 
 export interface SuperadminGuardResult {
   ok: boolean;
@@ -6,20 +7,16 @@ export interface SuperadminGuardResult {
   response?: Response;
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
 /**
  * Validates if the requesting user is a superadmin.
  * Returns authentication and authorization errors with proper CORS headers.
  * Logs denial attempts to audit sink when available.
  */
 export async function requireSuperadmin(req: Request, endpoint?: string): Promise<SuperadminGuardResult> {
+  const corsHeaders = getCorsHeaders(req);
   const requestUrl = new URL(req.url);
   const endpointName = endpoint || requestUrl.pathname.split('/').pop() || 'unknown';
-  
+
   try {
     // Create user Supabase client for authorization checks (NOT service role)
     const authHeader = req.headers.get("Authorization");
@@ -30,7 +27,7 @@ export async function requireSuperadmin(req: Request, endpoint?: string): Promis
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
         { auth: { persistSession: false } }
       );
-      
+
       await logDenialAttempt(serviceClient, {
         endpoint: endpointName,
         user_id: null,
@@ -43,8 +40,8 @@ export async function requireSuperadmin(req: Request, endpoint?: string): Promis
         response: new Response(JSON.stringify({
           error: 'Authentication required'
         }), {
-          headers: { 
-            ...corsHeaders, 
+          headers: {
+            ...corsHeaders,
             "Content-Type": "application/json",
             "WWW-Authenticate": "Bearer realm=\"admin\""
           },
@@ -67,7 +64,7 @@ export async function requireSuperadmin(req: Request, endpoint?: string): Promis
     // Extract token and get user
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await userClient.auth.getUser(token);
-    
+
     if (userError || !userData.user) {
       // Log unauthenticated attempt (invalid token) with service client
       const serviceClient = createClient(
@@ -75,7 +72,7 @@ export async function requireSuperadmin(req: Request, endpoint?: string): Promis
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
         { auth: { persistSession: false } }
       );
-      
+
       await logDenialAttempt(serviceClient, {
         endpoint: endpointName,
         user_id: null,
@@ -88,8 +85,8 @@ export async function requireSuperadmin(req: Request, endpoint?: string): Promis
         response: new Response(JSON.stringify({
           error: 'Authentication required'
         }), {
-          headers: { 
-            ...corsHeaders, 
+          headers: {
+            ...corsHeaders,
             "Content-Type": "application/json",
             "WWW-Authenticate": "Bearer realm=\"admin\""
           },
@@ -112,17 +109,17 @@ export async function requireSuperadmin(req: Request, endpoint?: string): Promis
       ts: new Date().toISOString()
     };
     console.log('🔐 Edge Superadmin Check:', JSON.stringify(logData));
-    
+
     if (superadminError || !isSuperadmin) {
       console.error('Superadmin check failed:', { error: superadminError, isSuperadmin, userId: user.id });
-      
+
       // Log non-superadmin attempt with service client
       const serviceClient = createClient(
         Deno.env.get("SUPABASE_URL") ?? "",
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
         { auth: { persistSession: false } }
       );
-      
+
       await logDenialAttempt(serviceClient, {
         endpoint: endpointName,
         user_id: user.id,

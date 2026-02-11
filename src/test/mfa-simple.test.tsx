@@ -1,27 +1,50 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import React from 'react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from '@/contexts/AuthContext';
 import { MFASetup } from '@/components/admin/MFASetup';
 import { MFAVerification } from '@/components/admin/MFAVerification';
+
+// Mock `input-otp` to prevent it from scheduling DOM-dependent timers
+// (elementFromPoint, window refs) that fire after jsdom teardown.
+vi.mock('input-otp', () => {
+  const SlotContext = React.createContext({
+    slots: Array.from({ length: 6 }, () => ({
+      char: '',
+      hasFakeCaret: false,
+      isActive: false,
+    })),
+  });
+  return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    OTPInput: React.forwardRef<HTMLDivElement, any>(
+      ({ containerClassName, children, ...rest }: any, ref: any) =>
+        React.createElement('div', { ref, className: containerClassName, 'data-testid': 'otp-input' }, children),
+    ),
+    OTPInputContext: SlotContext,
+  };
+});
 
 // Mock Supabase
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     auth: {
       getSession: vi.fn().mockResolvedValue({
-        data: { 
-          session: { 
-            user: { id: 'test-user-id', email: 'test@example.com' } 
-          } 
+        data: {
+          session: {
+            user: { id: 'test-user-id', email: 'test@example.com' }
+          }
         }
       }),
       getUser: vi.fn().mockResolvedValue({
-        data: { 
-          user: { id: 'test-user-id', email: 'test@example.com' } 
+        data: {
+          user: { id: 'test-user-id', email: 'test@example.com' }
         }
+      }),
+      onAuthStateChange: vi.fn().mockReturnValue({
+        data: { subscription: { unsubscribe: vi.fn() } },
       }),
       mfa: {
         enroll: vi.fn(),
@@ -62,6 +85,20 @@ vi.mock('@/lib/mfa-observability', () => ({
   },
 }));
 
+// Mock AuthContext so the real AuthProvider never fires async state updates
+vi.mock('@/contexts/AuthContext', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAuth: () => ({
+    user: { id: 'test-user-id', email: 'test@example.com' },
+    session: { user: { id: 'test-user-id', email: 'test@example.com' } },
+    loading: false,
+    signOut: vi.fn(),
+  }),
+}));
+
+// Import the mocked AuthProvider (synchronous, no async effects)
+const { AuthProvider } = await import('@/contexts/AuthContext');
+
 const TestWrapper = ({ children }: { children: React.ReactNode }) => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -72,7 +109,7 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AuthProvider>
           {children}
         </AuthProvider>
@@ -83,7 +120,14 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => {
 
 describe('MFA Components', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   describe('MFASetup', () => {
@@ -108,7 +152,7 @@ describe('MFA Components', () => {
 
       const { container } = render(
         <TestWrapper>
-          <MFAVerification 
+          <MFAVerification
             onVerificationSuccess={mockOnSuccess}
             onCancel={mockOnCancel}
           />

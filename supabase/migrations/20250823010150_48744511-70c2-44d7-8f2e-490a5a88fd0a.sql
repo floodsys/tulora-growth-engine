@@ -36,7 +36,8 @@ ALTER TABLE org_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE organization_members ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for org_subscriptions - read for org members
-CREATE POLICY IF NOT EXISTS "org_subscriptions read for members"
+DROP POLICY IF EXISTS "org_subscriptions read for members" ON org_subscriptions;
+CREATE POLICY "org_subscriptions read for members"
 ON org_subscriptions FOR SELECT
 USING (EXISTS (
   SELECT 1 FROM organization_members m 
@@ -45,7 +46,8 @@ USING (EXISTS (
 ));
 
 -- RLS policies for organization_members - read self org
-CREATE POLICY IF NOT EXISTS "organization_members read self org"
+DROP POLICY IF EXISTS "organization_members read self org" ON organization_members;
+CREATE POLICY "organization_members read self org"
 ON organization_members FOR SELECT
 USING (
   user_id = auth.uid() 
@@ -65,7 +67,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER IF NOT EXISTS update_org_subscriptions_updated_at_trigger
+DROP TRIGGER IF EXISTS update_org_subscriptions_updated_at_trigger ON org_subscriptions;
+CREATE TRIGGER update_org_subscriptions_updated_at_trigger
   BEFORE UPDATE ON org_subscriptions
   FOR EACH ROW
   EXECUTE FUNCTION update_org_subscriptions_updated_at();

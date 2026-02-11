@@ -1,5 +1,5 @@
 -- Add function to check if organization is active for RLS policies
-CREATE OR REPLACE FUNCTION public.is_org_active(org_id uuid)
+CREATE OR REPLACE FUNCTION public.is_org_active(p_org_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE SECURITY DEFINER
@@ -7,7 +7,7 @@ SET search_path = 'public'
 AS $$
   SELECT COALESCE(suspension_status, 'active') = 'active'
   FROM public.organizations
-  WHERE id = org_id;
+  WHERE id = p_org_id;
 $$;
 
 -- Update audit logging function to support blocked operations

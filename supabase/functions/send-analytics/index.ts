@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface AnalyticsEvent {
   organization_id: string;
@@ -19,6 +15,7 @@ interface AnalyticsEvent {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -56,7 +53,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const analyticsConfig = orgData.analytics_config;
-    
+
     if (!analyticsConfig.enabled || analyticsConfig.opted_out) {
       console.log('Analytics disabled or opted out');
       return new Response(
@@ -165,7 +162,7 @@ async function sendToSegment(event: AnalyticsEvent, config: any) {
     };
 
     const auth = btoa(`${config.write_key}:`);
-    
+
     const response = await fetch('https://api.segment.io/v1/track', {
       method: 'POST',
       headers: {
@@ -192,7 +189,7 @@ function getSafeAnalyticsProperties(metadata: any): Record<string, any> {
 
   // Only include specific safe properties for analytics
   const safeProps: Record<string, any> = {};
-  
+
   // Include non-PII metadata
   const allowedProps = [
     'action_type', 'resource_count', 'duration_ms', 'success_rate',

@@ -37,17 +37,12 @@ CREATE INDEX IF NOT EXISTS idx_billing_webhook_errors_event_type
 ALTER TABLE public.billing_webhook_errors ENABLE ROW LEVEL SECURITY;
 
 -- Only superadmins can read webhook errors (via service role in dashboard)
+DROP POLICY IF EXISTS "superadmins_can_view_webhook_errors" ON public.billing_webhook_errors;
 CREATE POLICY "superadmins_can_view_webhook_errors"
   ON public.billing_webhook_errors
   FOR SELECT
   TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'superadmin'
-    )
-  );
+  USING (public.is_superadmin());
 
 -- Service role (edge functions) can insert errors
 -- No policy needed - service role bypasses RLS
