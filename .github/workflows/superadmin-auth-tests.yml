@@ -72,19 +72,20 @@ jobs:
             exit 1
           fi
           
-          # Verify edge functions use DB RPC (direct .rpc call or requireSuperadmin shared guard)
-          EDGE_VIOLATIONS=""
-          for fn_dir in supabase/functions/admin-* supabase/functions/org-suspension; do
-            idx="$fn_dir/index.ts"
-            if [ -f "$idx" ]; then
-              if ! grep -qE '\.rpc.*is_superadmin|requireSuperadmin' "$idx"; then
-                EDGE_VIOLATIONS="$EDGE_VIOLATIONS\n  $idx"
+          # Verify edge functions use DB RPC (explicit loop avoids grep -r -L edge cases)
+          # Accept: *.rpc('is_superadmin') OR requireSuperadmin (shared helper that calls rpc internally)
+          MISSING_RPC=false
+          for dir in supabase/functions/admin-* supabase/functions/org-suspension; do
+            for f in "$dir"/index.ts; do
+              [ -f "$f" ] || continue
+              if ! grep -qE "(\.rpc\(.*is_superadmin|requireSuperadmin)" "$f"; then
+                echo "  MISSING is_superadmin RPC guard in: $f"
+                MISSING_RPC=true
               fi
-            fi
+            done
           done
-          if [ -n "$EDGE_VIOLATIONS" ]; then
+          if [ "$MISSING_RPC" = true ]; then
             echo "❌ VIOLATION: Admin edge functions not using DB RPC!"
-            echo -e "Files missing is_superadmin guard:$EDGE_VIOLATIONS"
             exit 1
           fi
           
