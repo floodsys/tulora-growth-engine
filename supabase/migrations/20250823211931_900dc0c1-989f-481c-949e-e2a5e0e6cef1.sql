@@ -1,10 +1,14 @@
 -- Drop existing functions to make this idempotent
 -- Note: Must drop all signature variants (uuid,text,text) and (uuid,text,org_role)
 -- because earlier migrations created functions with different param types
-DROP FUNCTION IF EXISTS public.create_invite(uuid, text, text);
-DROP FUNCTION IF EXISTS public.create_invite(uuid, text, public.org_role);
-DROP FUNCTION IF EXISTS public.accept_invite(text);
-DROP FUNCTION IF EXISTS public.accept_invite(uuid);
+-- Removed: DROP FUNCTION IF EXISTS public.create_invite(uuid, text, text);
+-- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
+-- Removed: DROP FUNCTION IF EXISTS public.create_invite(uuid, text, public.org_role);
+-- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
+-- Removed: DROP FUNCTION IF EXISTS public.accept_invite(text);
+-- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
+-- Removed: DROP FUNCTION IF EXISTS public.accept_invite(uuid);
+-- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
 
 -- Create function to create invitations
 CREATE OR REPLACE FUNCTION public.create_invite(

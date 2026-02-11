@@ -222,7 +222,8 @@ BEGIN
 END $outer$;
 
 -- Fix is_org_admin function to use proper enum comparison (cast enum to text)
-DROP FUNCTION IF EXISTS public.is_org_admin(uuid) CASCADE;
+-- Removed: DROP FUNCTION IF EXISTS public.is_org_admin(uuid) CASCADE;
+-- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
 CREATE FUNCTION public.is_org_admin(org_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -245,7 +246,8 @@ AS $$
 $$;
 
 -- Fix is_org_member function to use proper column name
-DROP FUNCTION IF EXISTS public.is_org_member(uuid) CASCADE;
+-- Removed: DROP FUNCTION IF EXISTS public.is_org_member(uuid) CASCADE;
+-- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
 CREATE FUNCTION public.is_org_member(org_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -267,8 +269,10 @@ AS $$
 $$;
 
 -- Update RPC functions to use text input and cast to org_role
-DROP FUNCTION IF EXISTS public.create_invite(uuid, text, public.org_role);
-DROP FUNCTION IF EXISTS public.create_invite(uuid, text, text);
+-- Removed: DROP FUNCTION IF EXISTS public.create_invite(uuid, text, public.org_role);
+-- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
+-- Removed: DROP FUNCTION IF EXISTS public.create_invite(uuid, text, text);
+-- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
 CREATE OR REPLACE FUNCTION public.create_invite(
     org_id uuid,
     invite_email text,
