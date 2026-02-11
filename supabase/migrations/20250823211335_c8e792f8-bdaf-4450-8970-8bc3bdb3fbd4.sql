@@ -269,10 +269,10 @@ AS $$
 $$;
 
 -- Update RPC functions to use text input and cast to org_role
--- Removed: DROP FUNCTION IF EXISTS public.create_invite(uuid, text, public.org_role);
--- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
--- Removed: DROP FUNCTION IF EXISTS public.create_invite(uuid, text, text);
--- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
+-- DROP is required here because the parameter type changes from org_role to text;
+-- CREATE OR REPLACE cannot change parameter types of an existing function.
+DROP FUNCTION IF EXISTS public.create_invite(uuid, text, public.org_role);
+DROP FUNCTION IF EXISTS public.create_invite(uuid, text, text);
 CREATE OR REPLACE FUNCTION public.create_invite(
     org_id uuid,
     invite_email text,
