@@ -6,13 +6,10 @@ DROP POLICY IF EXISTS "organizations_update_policy" ON public.organizations;
 DROP POLICY IF EXISTS "organizations_select_policy" ON public.organizations;
 DROP POLICY IF EXISTS "organizations_delete_policy" ON public.organizations;
 
--- Drop existing functions
--- Removed: DROP FUNCTION IF EXISTS public.check_admin_access(uuid, uuid);
--- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
--- Removed: DROP FUNCTION IF EXISTS public.check_org_membership(uuid, uuid);
--- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
--- Removed: DROP FUNCTION IF EXISTS public.check_org_ownership(uuid, uuid);
--- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
+-- DROP is required: parameter names change (org_id → p_org_id)
+DROP FUNCTION IF EXISTS public.check_admin_access(uuid, uuid);
+DROP FUNCTION IF EXISTS public.check_org_membership(uuid, uuid);
+DROP FUNCTION IF EXISTS public.check_org_ownership(uuid, uuid);
 -- Create fixed check_admin_access function
 CREATE OR REPLACE FUNCTION public.check_admin_access(p_org_id uuid, p_user_id uuid DEFAULT auth.uid())
 RETURNS boolean
