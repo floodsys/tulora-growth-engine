@@ -1,7 +1,6 @@
 -- Fix infinite recursion in RLS policies by updating security definer functions
 
--- Drop and recreate is_org_admin function with better implementation
-DROP FUNCTION IF EXISTS public.is_org_admin(uuid);
+-- DROP FUNCTION removed (policies depend on it, CREATE OR REPLACE is safe)
 
 CREATE OR REPLACE FUNCTION public.is_org_admin(org_id uuid)
 RETURNS boolean
@@ -28,8 +27,7 @@ AS $$
   END;
 $$;
 
--- Drop and recreate is_org_member function with better implementation
-DROP FUNCTION IF EXISTS public.is_org_member(uuid);
+-- DROP FUNCTION removed (policies depend on it, CREATE OR REPLACE is safe)
 
 CREATE OR REPLACE FUNCTION public.is_org_member(org_id uuid)
 RETURNS boolean

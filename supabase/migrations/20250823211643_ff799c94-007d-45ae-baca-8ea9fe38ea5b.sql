@@ -3,9 +3,7 @@ ALTER TABLE public.organizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.organization_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.organization_invitations ENABLE ROW LEVEL SECURITY;
 
--- Drop existing functions to recreate with correct parameter names
-DROP FUNCTION IF EXISTS public.is_org_admin(uuid);
-DROP FUNCTION IF EXISTS public.is_org_member(uuid);
+-- DROP FUNCTION removed (policies depend on it, CREATE OR REPLACE is safe)
 
 -- Create security helper function to check if user is org admin
 CREATE OR REPLACE FUNCTION public.is_org_admin(org_uuid uuid)

@@ -72,9 +72,18 @@ jobs:
             exit 1
           fi
           
-          # Verify edge functions use DB RPC
-          if grep -r --include="*.ts" --exclude="*.test.ts" \
-            -L "supabaseClient\.rpc.*is_superadmin" supabase/functions/admin-* supabase/functions/org-suspension/; then
+          # Verify edge functions use DB RPC (explicit loop avoids grep -r -L edge cases)
+          MISSING_RPC=false
+          for dir in supabase/functions/admin-* supabase/functions/org-suspension; do
+            for f in "$dir"/index.ts; do
+              [ -f "$f" ] || continue
+              if ! grep -q "supabaseClient\.rpc.*is_superadmin" "$f"; then
+                echo "  MISSING supabaseClient.rpc('is_superadmin') in: $f"
+                MISSING_RPC=true
+              fi
+            done
+          done
+          if [ "$MISSING_RPC" = true ]; then
             echo "❌ VIOLATION: Admin edge functions not using DB RPC!"
             exit 1
           fi
