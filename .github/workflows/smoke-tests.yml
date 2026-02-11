@@ -7,6 +7,10 @@ on:
   workflow_dispatch: # Allow manual triggers
   deployment_status: # Run after deployments
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   smoke-tests:
     name: Production Smoke Tests
