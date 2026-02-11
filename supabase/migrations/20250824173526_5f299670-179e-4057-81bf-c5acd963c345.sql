@@ -1,6 +1,6 @@
 -- Drop and recreate enhanced backfill function with de-duplication, batch processing, and comprehensive safety
-DROP FUNCTION IF EXISTS public.backfill_audit_logs(uuid, boolean);
-
+-- Removed: DROP FUNCTION IF EXISTS public.backfill_audit_logs(uuid, boolean);
+-- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
 CREATE OR REPLACE FUNCTION public.backfill_audit_logs(
   p_org_id uuid DEFAULT NULL,
   p_org_ids uuid[] DEFAULT NULL,
