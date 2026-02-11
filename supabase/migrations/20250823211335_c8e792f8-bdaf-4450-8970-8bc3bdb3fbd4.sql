@@ -224,7 +224,7 @@ END $outer$;
 -- Fix is_org_admin function to use proper enum comparison (cast enum to text)
 -- Removed: DROP FUNCTION IF EXISTS public.is_org_admin(uuid) CASCADE;
 -- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
-CREATE FUNCTION public.is_org_admin(org_id uuid)
+CREATE OR REPLACE FUNCTION public.is_org_admin(org_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE SECURITY DEFINER
@@ -248,7 +248,7 @@ $$;
 -- Fix is_org_member function to use proper column name
 -- Removed: DROP FUNCTION IF EXISTS public.is_org_member(uuid) CASCADE;
 -- (CREATE OR REPLACE handles redefinition safely without breaking dependent policies)
-CREATE FUNCTION public.is_org_member(org_id uuid)
+CREATE OR REPLACE FUNCTION public.is_org_member(org_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE SECURITY DEFINER
