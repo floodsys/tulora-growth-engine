@@ -18,6 +18,9 @@
     "test:superadmin": "node scripts/test-superadmin-auth.cjs",
     "check:security-definer": "node scripts/check-security-definer-search-path.cjs",
     "check:no-superadmin-uuid": "node scripts/check-no-superadmin-uuid-constants.cjs",
+    "check:no-seed-in-migrations": "node scripts/check-no-seed-in-migrations.cjs",
+    "check:no-risky-drop-cascade": "node scripts/check-no-risky-drop-cascade.cjs",
+    "check:migration-hygiene": "node scripts/check-no-seed-in-migrations.cjs && node scripts/check-no-risky-drop-cascade.cjs",
     "test:ci": "vitest run"
   },
   "dependencies": {

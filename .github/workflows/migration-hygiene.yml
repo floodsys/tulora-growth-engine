@@ -1,0 +1,43 @@
+name: Migration Hygiene Gates
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  migration-hygiene:
+    name: Migration Hygiene Checks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Check no seed data in migrations
+      run: node scripts/check-no-seed-in-migrations.cjs
+
+    - name: Check no risky DROP CASCADE in migrations
+      run: node scripts/check-no-risky-drop-cascade.cjs
+
+    - name: Check RLS tautologies
+      run: node scripts/check-rls-tautologies.cjs
+
+    - name: Check RLS org-scope
+      run: node scripts/check-rls-org-scope.cjs
+
+    - name: Check security definer search path
+      run: node scripts/check-security-definer-search-path.cjs
+
+    - name: Check no superadmin UUID constants
+      run: node scripts/check-no-superadmin-uuid-constants.cjs
