@@ -134,6 +134,106 @@ SELECT id FROM auth.users WHERE lower(email) = 'test-owner@example.com'
 ON CONFLICT (user_id) DO NOTHING;
 
 -- ============================================================================
+-- (F) Seed plan_configs — canonical source of truth for local dev/CI
+-- ============================================================================
+-- These are the canonical plan definitions. Historical migrations also insert
+-- plan_configs, but this seed file is the source of truth going forward.
+-- ON CONFLICT DO UPDATE ensures this data always wins on `supabase db reset`.
+
+INSERT INTO public.plan_configs (
+  plan_key, display_name, product_line,
+  price_monthly, price_yearly,
+  stripe_setup_price_id, stripe_price_id_monthly, stripe_price_id_yearly,
+  limits, features, is_active
+) VALUES
+-- Lead Gen Starter
+(
+  'leadgen_starter', 'Lead Gen Starter', 'leadgen',
+  250000, NULL, NULL, NULL, NULL,
+  jsonb_build_object(
+    'minutes_included', 500, 'minutes_overage_rate', 0.20,
+    'messages_included', 10000, 'messages_overage_rate', 0.009,
+    'realtime_overage_rate', 0.60, 'passthrough_markup', 0.20,
+    'agents', 10, 'seats', 5
+  ),
+  ARRAY['voice_calls','messaging','lead_capture','analytics']::TEXT[],
+  true
+),
+-- Lead Gen Business
+(
+  'leadgen_business', 'Lead Gen Business', 'leadgen',
+  350000, NULL, NULL, NULL, NULL,
+  jsonb_build_object(
+    'minutes_included', 2000, 'minutes_overage_rate', 0.20,
+    'messages_included', 50000, 'messages_overage_rate', 0.009,
+    'realtime_overage_rate', 0.60, 'passthrough_markup', 0.20,
+    'agents', 50, 'seats', 15
+  ),
+  ARRAY['voice_calls','messaging','lead_capture','analytics','advanced_routing','priority_support']::TEXT[],
+  true
+),
+-- Lead Gen Enterprise (Contact Sales)
+(
+  'leadgen_enterprise', 'Lead Gen Enterprise', 'leadgen',
+  NULL, NULL, NULL, NULL, NULL,
+  jsonb_build_object(
+    'minutes_included', -1, 'minutes_overage_rate', 0.20,
+    'messages_included', -1, 'messages_overage_rate', 0.009,
+    'realtime_overage_rate', 0.60, 'passthrough_markup', 0.15,
+    'agents', -1, 'seats', -1
+  ),
+  ARRAY['voice_calls','messaging','lead_capture','analytics','advanced_routing','priority_support','custom_integrations','dedicated_support','sla_guarantee']::TEXT[],
+  true
+),
+-- Support Starter
+(
+  'support_starter', 'Support Starter', 'support',
+  150000, NULL, NULL, NULL, NULL,
+  jsonb_build_object(
+    'minutes_included', 1000, 'minutes_overage_rate', 0.25,
+    'messages_included', 10000, 'messages_overage_rate', 0.009,
+    'realtime_overage_rate', 0.60, 'passthrough_markup', 0.20,
+    'agents', 10, 'seats', 5
+  ),
+  ARRAY['voice_calls','messaging','ticket_routing','knowledge_base','analytics']::TEXT[],
+  true
+),
+-- Support Business
+(
+  'support_business', 'Support Business', 'support',
+  350000, NULL, NULL, NULL, NULL,
+  jsonb_build_object(
+    'minutes_included', 4000, 'minutes_overage_rate', 0.25,
+    'messages_included', 50000, 'messages_overage_rate', 0.009,
+    'realtime_overage_rate', 0.60, 'passthrough_markup', 0.20,
+    'agents', 50, 'seats', 15
+  ),
+  ARRAY['voice_calls','messaging','ticket_routing','knowledge_base','analytics','advanced_routing','priority_support','sla_management']::TEXT[],
+  true
+),
+-- Support Enterprise (Contact Sales)
+(
+  'support_enterprise', 'Support Enterprise', 'support',
+  NULL, NULL, NULL, NULL, NULL,
+  jsonb_build_object(
+    'minutes_included', -1, 'minutes_overage_rate', 0.25,
+    'messages_included', -1, 'messages_overage_rate', 0.009,
+    'realtime_overage_rate', 0.60, 'passthrough_markup', 0.15,
+    'agents', -1, 'seats', -1
+  ),
+  ARRAY['voice_calls','messaging','ticket_routing','knowledge_base','analytics','advanced_routing','priority_support','sla_management','custom_integrations','dedicated_support','white_label']::TEXT[],
+  true
+)
+ON CONFLICT (plan_key) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  product_line = EXCLUDED.product_line,
+  price_monthly = EXCLUDED.price_monthly,
+  price_yearly = EXCLUDED.price_yearly,
+  limits = EXCLUDED.limits,
+  features = EXCLUDED.features,
+  is_active = EXCLUDED.is_active;
+
+-- ============================================================================
 -- End of seed data
 -- ============================================================================
 -- 
@@ -144,6 +244,7 @@ ON CONFLICT (user_id) DO NOTHING;
 --   4. An organization_members row (auto-created by trigger)
 --   5. A sample agent_profile (auto-created by trigger)
 --   6. A superadmin row for the test-owner user (email-based, no hardcoded UUID)
+--   7. Six plan_configs rows (canonical plan definitions)
 --
 -- To log in: Use email "test-owner@example.com" with password "password123"
 -- ============================================================================
