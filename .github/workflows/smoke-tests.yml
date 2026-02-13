@@ -7,6 +7,10 @@ on:
   workflow_dispatch: # Allow manual triggers
   deployment_status: # Run after deployments
 
+concurrency:
+  group: production-smoke-tests
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
