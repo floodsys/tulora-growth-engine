@@ -33,41 +33,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      - name: Discover production org UUID (TEMP)
-        id: discover_org
-        shell: bash
-        env:
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-        run: |
-          set -euo pipefail
-          REST="${VITE_SUPABASE_URL%/}/rest/v1"
-          CANDIDATE=""
-
-          # Try common table names; pick the first UUID found.
-          for T in organizations orgs organization; do
-            RESP="$(curl -sS \
-              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-              "${REST}/${T}?select=id&limit=1" || true)"
-
-            ID="$(node -e "try{const d=JSON.parse(process.argv[1]);process.stdout.write((d&&d[0]&&d[0].id)||'')}catch(e){process.stdout.write('')}" "${RESP}")"
-
-            if [[ "${ID}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$ ]]; then
-              CANDIDATE="${ID}"
-              break
-            fi
-          done
-
-          if [[ -z "${CANDIDATE}" ]]; then
-            echo "::error::Could not discover an org UUID from PostgREST. Check table name and production data."
-            exit 1
-          fi
-
-          echo "Discovered production org UUID: ${CANDIDATE}"
-          echo "VITE_TEST_ORG_ID=${CANDIDATE}" >> "${GITHUB_ENV}"
-          echo "discovered_org_id=${CANDIDATE}" >> "${GITHUB_OUTPUT}"
-
       - name: Run Production Smoke Tests
         env:
           # Smoke Test Configuration (Read-only)
