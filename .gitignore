@@ -62,5 +62,11 @@ supabase_db_reset*.txt
 # Patch files
 cline_diff.patchgit
 
+# Secret provisioning artifacts (never commit secret dumps)
+*.secrets
+*.secrets.*
+secrets.json
+secrets.env
+
 # Windows stray null device file
 nul
