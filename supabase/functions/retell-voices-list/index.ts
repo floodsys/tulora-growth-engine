@@ -5,9 +5,9 @@ import { getCorsHeaders } from '../_shared/cors.ts'
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
-  console.log('=== Retell Voices List Request ===')
-  console.log('Request method:', req.method)
-  
+  const corrId = crypto.randomUUID()
+  console.log(`[retell-voices-list][${corrId}] ${req.method}`)
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -16,7 +16,7 @@ serve(async (req) => {
   if (req.method !== 'GET') {
     return new Response(
       JSON.stringify({ error: 'Method not allowed' }),
-      { 
+      {
         status: 405,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
@@ -41,7 +41,7 @@ serve(async (req) => {
     if (!organizationId) {
       return new Response(
         JSON.stringify({ error: 'organizationId is required' }),
-        { 
+        {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
@@ -78,11 +78,11 @@ serve(async (req) => {
       const errorText = await retellResponse.text()
       console.error('Retell API error:', retellResponse.status, errorText)
       return new Response(
-        JSON.stringify({ 
-          error: 'Failed to fetch voices from Retell', 
-          details: errorText 
+        JSON.stringify({
+          error: 'Failed to fetch voices from Retell',
+          details: errorText
         }),
-        { 
+        {
           status: retellResponse.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
@@ -109,7 +109,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ voices }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
@@ -117,7 +117,7 @@ serve(async (req) => {
     console.error('Unexpected error in retell-voices-list:', error)
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: error.message }),
-      { 
+      {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
