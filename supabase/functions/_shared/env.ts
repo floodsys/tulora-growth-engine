@@ -1,10 +1,9 @@
 /**
- * Centralized environment variable access for Edge Functions
- * Works in both Deno (Edge Functions) and Node.js environments
+ * Centralized environment variable access for Deno Edge Functions
  */
 
 export const getEnv = (key: string): string => {
-  const value = Deno?.env?.get?.(key) ?? process.env[key];
+  const value = Deno.env.get(key);
   if (!value) {
     throw new Error(`Missing required environment variable: ${key}`);
   }
@@ -12,7 +11,7 @@ export const getEnv = (key: string): string => {
 };
 
 export const getOptionalEnv = (key: string): string | undefined => {
-  return Deno?.env?.get?.(key) ?? process.env[key];
+  return Deno.env.get(key);
 };
 
 // Retell API configuration
