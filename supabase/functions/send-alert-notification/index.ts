@@ -10,6 +10,7 @@ interface AlertNotificationRequest {
   severity: string;
   event_count: number;
   threshold: number;
+  metadata?: { channel?: string;[key: string]: unknown };
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -30,7 +31,8 @@ const handler = async (req: Request): Promise<Response> => {
       rule_name,
       severity,
       event_count,
-      threshold
+      threshold,
+      metadata
     }: AlertNotificationRequest = await req.json();
 
     console.log(`Sending notification for alert ${alert_id} in organization ${organization_id}`);
