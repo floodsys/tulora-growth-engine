@@ -17,12 +17,12 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     if (req.method === 'POST') {
       const requestData = await req.json()
-      
+
       if (requestData.action === 'get_status') {
         // Get CRM sync status for admin dashboard
         const { organization_id, limit = 50 } = requestData
@@ -98,11 +98,13 @@ serve(async (req) => {
             .eq('lead_id', lead_id)
 
           // Trigger worker immediately
+          const workerSecret = Deno.env.get('INTERNAL_SUITECRM_WORKER_SECRET') ?? ''
           await fetch(`${supabaseUrl}/functions/v1/suitecrm-sync-worker`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${supabaseServiceKey}`,
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              'x-internal-secret': workerSecret
             }
           })
 
@@ -128,11 +130,13 @@ serve(async (req) => {
             .eq('status', 'failed')
 
           // Trigger worker immediately
+          const workerSecret2 = Deno.env.get('INTERNAL_SUITECRM_WORKER_SECRET') ?? ''
           await fetch(`${supabaseUrl}/functions/v1/suitecrm-sync-worker`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${supabaseServiceKey}`,
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              'x-internal-secret': workerSecret2
             }
           })
 
@@ -165,13 +169,13 @@ serve(async (req) => {
   } catch (error) {
     console.error('CRM Admin API error:', error)
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
   }
