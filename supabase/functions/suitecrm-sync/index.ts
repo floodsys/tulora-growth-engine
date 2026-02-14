@@ -8,12 +8,12 @@ import { getCorsHeaders } from '../_shared/cors.ts'
  */
 function createUserClient(authHeader: string | null): SupabaseClient | null {
   if (!authHeader) return null
-  
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
-  
+
   if (!supabaseUrl || !supabaseAnonKey) return null
-  
+
   return createClient(supabaseUrl, supabaseAnonKey, {
     global: {
       headers: { Authorization: authHeader }
@@ -27,7 +27,7 @@ function createUserClient(authHeader: string | null): SupabaseClient | null {
  */
 async function verifyOrgMembership(
   serviceClient: SupabaseClient,
-  userId: string, 
+  userId: string,
   organizationId: string
 ): Promise<boolean> {
   const { data, error } = await serviceClient
@@ -36,12 +36,12 @@ async function verifyOrgMembership(
     .eq('user_id', userId)
     .eq('organization_id', organizationId)
     .maybeSingle()
-  
+
   if (error) {
     console.error('Error checking org membership:', error)
     return false
   }
-  
+
   return data !== null
 }
 
@@ -122,7 +122,7 @@ interface SyncRequest {
 function splitFullName(fullName: string): { first_name: string; last_name: string } {
   const trimmed = fullName.trim()
   const parts = trimmed.split(/\s+/)
-  
+
   if (parts.length === 1) {
     return { first_name: '', last_name: parts[0] }
   } else {
@@ -134,23 +134,23 @@ function splitFullName(fullName: string): { first_name: string; last_name: strin
 
 function composeDescription(lead: LeadData): string {
   const parts: string[] = []
-  
+
   if (lead.product_interest) {
     parts.push(`Product Interest: ${lead.product_interest}`)
   }
   if (lead.product_line) {
     parts.push(`Product Line: ${lead.product_line}`)
   }
-  
+
   const content = lead.inquiry_type === 'contact' ? lead.message : lead.additional_requirements
   if (content) {
     parts.push(`Details: ${content}`)
   }
-  
+
   if (lead.expected_volume_label) {
     parts.push(`Expected Volume: ${lead.expected_volume_label}`)
   }
-  
+
   const trackingParts: string[] = []
   if (lead.page_url) trackingParts.push(`Page: ${lead.page_url}`)
   if (lead.referrer) trackingParts.push(`Referrer: ${lead.referrer}`)
@@ -159,23 +159,23 @@ function composeDescription(lead: LeadData): string {
   if (lead.utm_campaign) trackingParts.push(`UTM Campaign: ${lead.utm_campaign}`)
   if (lead.utm_term) trackingParts.push(`UTM Term: ${lead.utm_term}`)
   if (lead.utm_content) trackingParts.push(`UTM Content: ${lead.utm_content}`)
-  
+
   if (trackingParts.length > 0) {
     parts.push(`Tracking: ${trackingParts.join(', ')}`)
   }
-  
+
   return parts.join('\n\n')
 }
 
 function mapLeadSource(inquiryType?: 'contact' | 'enterprise'): string {
-  return inquiryType === 'contact' 
+  return inquiryType === 'contact'
     ? 'Website - Contact Us'
     : 'Website - Enterprise Sales'
 }
 
 function mapLeadToSuiteCRM(lead: LeadData): SuiteCRMLeadPayload {
   const { first_name, last_name } = splitFullName(lead.full_name || lead.name)
-  
+
   return {
     first_name,
     last_name,
@@ -215,7 +215,7 @@ class SuiteCRMService {
   async authenticate(): Promise<void> {
     try {
       const authMode = this.config.authMode || 'v8_client_credentials'
-      
+
       let authPayload: any = {
         client_id: this.config.clientId || 'suitecrm_client',
         client_secret: this.config.clientSecret || ''
@@ -247,10 +247,10 @@ class SuiteCRMService {
 
       const authData: SuiteCRMAuthResponse = await response.json()
       this.accessToken = authData.access_token
-      
+
       const expirySeconds = authData.expires_in - 300
       this.tokenExpiry = new Date(Date.now() + (expirySeconds * 1000))
-      
+
     } catch (error) {
       throw new Error(`SuiteCRM authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
@@ -264,7 +264,7 @@ class SuiteCRMService {
 
   private async apiRequest(endpoint: string, options: RequestInit = {}): Promise<Response> {
     await this.ensureAuthenticated()
-    
+
     const url = `${this.config.baseUrl}/Api/V8${endpoint}`
     const headers = {
       'Authorization': `Bearer ${this.accessToken}`,
@@ -286,11 +286,11 @@ class SuiteCRMService {
     try {
       const response = await this.apiRequest(`/module/Leads?filter[external_id_c]=${encodeURIComponent(externalId)}`)
       const data = await response.json()
-      
+
       if (data.data && data.data.length > 0) {
         return data.data[0].id
       }
-      
+
       return null
     } catch (error) {
       console.error('Failed to find lead by external ID:', error)
@@ -301,14 +301,14 @@ class SuiteCRMService {
   async upsertLead(payload: SuiteCRMLeadPayload): Promise<{ success: boolean, leadId?: string, message: string }> {
     try {
       const existingLeadId = await this.findLeadByExternalId(payload.external_id_c)
-      
+
       if (existingLeadId) {
         // Update existing lead
         const response = await this.apiRequest(`/module/Leads/${existingLeadId}`, {
           method: 'PATCH',
           body: JSON.stringify({ data: { attributes: payload } })
         })
-        
+
         return {
           success: true,
           leadId: existingLeadId,
@@ -320,10 +320,10 @@ class SuiteCRMService {
           method: 'POST',
           body: JSON.stringify({ data: { type: 'Leads', attributes: payload } })
         })
-        
+
         const data = await response.json()
         const newLeadId = data.data?.id
-        
+
         return {
           success: true,
           leadId: newLeadId,
@@ -341,11 +341,11 @@ class SuiteCRMService {
   async syncLead(lead: LeadData): Promise<{ success: boolean, leadId?: string, message: string }> {
     try {
       const payload = mapLeadToSuiteCRM(lead)
-      console.log('SuiteCRM Lead payload:', JSON.stringify(payload, null, 2))
-      
+      console.log('SuiteCRM Lead sync:', { external_id: payload.external_id_c, inquiry_type: payload.inquiry_type_c, lead_source: payload.lead_source })
+
       const syncResult = await this.upsertLead(payload)
       return syncResult
-      
+
     } catch (error) {
       return {
         success: false,
@@ -361,14 +361,14 @@ function createSuiteCRMService(): SuiteCRMService | null {
   const clientSecret = Deno.env.get('SUITECRM_CLIENT_SECRET')
   const username = Deno.env.get('SUITECRM_USERNAME')
   const password = Deno.env.get('SUITECRM_PASSWORD')
-  
+
   if (!baseUrl || !clientId || !clientSecret) {
     console.log('SuiteCRM credentials not configured (missing base URL, client ID, or client secret), skipping CRM sync')
     return null
   }
-  
+
   const authMode = (username && password) ? 'v8_password' : 'v8_client_credentials'
-  
+
   return new SuiteCRMService({
     baseUrl: baseUrl.replace(/\/$/, ''),
     authMode,
@@ -382,7 +382,7 @@ function createSuiteCRMService(): SuiteCRMService | null {
 async function syncLeadToSuiteCRM(leadId: string) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  
+
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   try {
@@ -400,9 +400,9 @@ async function syncLeadToSuiteCRM(leadId: string) {
     // Update status to syncing
     await supabase
       .from('leads')
-      .update({ 
+      .update({
         crm_sync_status: 'syncing',
-        crm_sync_error: null 
+        crm_sync_error: null
       })
       .eq('id', leadId)
 
@@ -442,7 +442,7 @@ async function syncLeadToSuiteCRM(leadId: string) {
         .eq('lead_id', leadId)
 
       console.log(`Lead ${leadId} synced successfully to SuiteCRM: ${syncResult.leadId}`)
-      
+
       return {
         success: true,
         leadId: syncResult.leadId,
@@ -474,12 +474,12 @@ async function syncLeadToSuiteCRM(leadId: string) {
       .single()
 
     const attemptCount = (outboxEntry?.attempt_count || 0) + 1
-    
+
     // Calculate next retry delay: 5m, 30m, 2h, 24h
     let retryDelay: string
     switch (attemptCount) {
       case 1: retryDelay = '5 minutes'; break
-      case 2: retryDelay = '30 minutes'; break  
+      case 2: retryDelay = '30 minutes'; break
       case 3: retryDelay = '2 hours'; break
       default: retryDelay = '24 hours'; break
     }
@@ -529,33 +529,33 @@ serve(async (req) => {
     // ============================================================
     const authHeader = req.headers.get('Authorization')
     const userClient = createUserClient(authHeader)
-    
+
     if (!userClient) {
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Missing or invalid authorization header' 
+        JSON.stringify({
+          success: false,
+          error: 'Missing or invalid authorization header'
         }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
 
     // Get the authenticated user from the JWT
     const { data: { user }, error: authError } = await userClient.auth.getUser()
-    
+
     if (authError || !user) {
       console.error('Authentication failed:', authError?.message)
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Unauthorized: Invalid or expired token' 
+        JSON.stringify({
+          success: false,
+          error: 'Unauthorized: Invalid or expired token'
         }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
@@ -565,13 +565,13 @@ serve(async (req) => {
 
     if (!lead_id) {
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'lead_id is required' 
+        JSON.stringify({
+          success: false,
+          error: 'lead_id is required'
         }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
@@ -587,17 +587,17 @@ serve(async (req) => {
     // If organization_id is provided in the request, verify membership
     if (organization_id) {
       const isMember = await verifyOrgMembership(serviceClient, user.id, organization_id)
-      
+
       if (!isMember) {
         console.error(`User ${user.id} is not a member of organization ${organization_id}`)
         return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: 'Forbidden: You are not a member of this organization' 
+          JSON.stringify({
+            success: false,
+            error: 'Forbidden: You are not a member of this organization'
           }),
-          { 
-            status: 403, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         )
       }
@@ -613,13 +613,13 @@ serve(async (req) => {
 
     if (leadFetchError || !lead) {
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Lead not found' 
+        JSON.stringify({
+          success: false,
+          error: 'Lead not found'
         }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
@@ -627,17 +627,17 @@ serve(async (req) => {
     // Verify user is a member of the lead's organization
     if (lead.organization_id) {
       const isMemberOfLeadOrg = await verifyOrgMembership(serviceClient, user.id, lead.organization_id)
-      
+
       if (!isMemberOfLeadOrg) {
         console.error(`User ${user.id} is not authorized to sync lead ${lead_id} (org: ${lead.organization_id})`)
         return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: 'Forbidden: You are not authorized to sync this lead' 
+          JSON.stringify({
+            success: false,
+            error: 'Forbidden: You are not authorized to sync this lead'
           }),
-          { 
-            status: 403, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         )
       }
@@ -652,21 +652,21 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify(result),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
 
   } catch (error) {
     console.error('Request processing error:', error)
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error occurred' 
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
       }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
   }

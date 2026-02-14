@@ -2,9 +2,10 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import Stripe from 'https://esm.sh/stripe@14.21.0'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { safeJson } from '../_shared/log.ts'
 
 const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  const detailsStr = details ? ` - ${JSON.stringify(safeJson(details))}` : '';
   console.log(`[ORG-BILLING-WEBHOOK] ${step}${detailsStr}`);
 }
 
@@ -27,7 +28,7 @@ interface WebhookErrorContext {
  */
 async function logWebhookError(supabase: any, context: WebhookErrorContext): Promise<void> {
   const { eventId, eventType, orgId, errorCode, errorMessage, rawStatus, correlationId } = context;
-  
+
   try {
     // Insert into billing_webhook_errors table
     const { error: insertError } = await supabase
@@ -76,9 +77,9 @@ async function logWebhookError(supabase: any, context: WebhookErrorContext): Pro
     logStep('Webhook error logged to activity_events', { correlationId });
   } catch (logError) {
     // Don't throw - logging failures shouldn't break the response
-    logStep('WARNING: Failed to log webhook error', { 
+    logStep('WARNING: Failed to log webhook error', {
       error: logError instanceof Error ? logError.message : String(logError),
-      correlationId 
+      correlationId
     });
   }
 }
@@ -86,10 +87,10 @@ async function logWebhookError(supabase: any, context: WebhookErrorContext): Pro
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === 'OPTIONS') {
-    return new Response(null, { 
-      headers: { 
-        ...corsHeaders, 
-        'Access-Control-Allow-Methods': 'POST, OPTIONS' 
+    return new Response(null, {
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
       },
       status: 204
     })
@@ -105,7 +106,7 @@ serve(async (req) => {
 
   const fail = async (status: number, code: string, message: string, hint?: string, details?: any) => {
     logStep("ERROR", { corr, code, message, hint, details, status });
-    
+
     // Log error to database if we have a supabase client
     if (supabaseClient) {
       await logWebhookError(supabaseClient, {
@@ -118,7 +119,7 @@ serve(async (req) => {
         correlationId: corr,
       });
     }
-    
+
     return new Response(JSON.stringify({ corr, code, message, hint, details }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status,
@@ -130,7 +131,7 @@ serve(async (req) => {
 
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
     const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')
-    
+
     // Initialize supabase client early so we can log errors even for config issues
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     if (serviceRoleKey && Deno.env.get('SUPABASE_URL')) {
@@ -144,7 +145,7 @@ serve(async (req) => {
     if (!stripeKey) {
       return await fail(500, 'INTERNAL_ERROR', 'STRIPE_SECRET_KEY not configured', 'Configure Stripe secret key in environment');
     }
-    
+
     if (!webhookSecret) {
       return await fail(500, 'INTERNAL_ERROR', 'STRIPE_WEBHOOK_SECRET not configured', 'Configure Stripe webhook secret in environment');
     }
@@ -163,11 +164,11 @@ serve(async (req) => {
 
     // Verify webhook signature
     const event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret)
-    
+
     // Store event context for error logging
     eventId = event.id;
     eventType = event.type;
-    
+
     logStep('Event verified', { corr, type: event.type, id: event.id })
 
     // Use the already-initialized supabase client
@@ -177,7 +178,7 @@ serve(async (req) => {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
         logStep('Checkout completed', { sessionId: session.id })
-        
+
         if (session.mode === 'subscription' && session.subscription) {
           const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
           await handleSubscriptionUpdate(supabase, stripe, subscription, event.id)
@@ -191,10 +192,10 @@ serve(async (req) => {
         const subscription = event.data.object as Stripe.Subscription
         // Try to resolve org ID early for error logging context
         resolvedOrgId = subscription.metadata.organization_id || subscription.metadata.org_id;
-        logStep('Subscription event', { 
-          type: event.type, 
+        logStep('Subscription event', {
+          type: event.type,
           subscriptionId: subscription.id,
-          status: subscription.status 
+          status: subscription.status
         })
         await handleSubscriptionUpdate(supabase, stripe, subscription, event.id)
         break
@@ -203,12 +204,12 @@ serve(async (req) => {
       case 'invoice.paid':
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice
-        logStep('Invoice event', { 
-          type: event.type, 
+        logStep('Invoice event', {
+          type: event.type,
           invoiceId: invoice.id,
-          subscriptionId: invoice.subscription 
+          subscriptionId: invoice.subscription
         })
-        
+
         if (invoice.subscription) {
           const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string)
           await handleSubscriptionUpdate(supabase, stripe, subscription, event.id)
@@ -227,12 +228,12 @@ serve(async (req) => {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    
+
     // Handle webhook-specific errors
     if (error instanceof Error && error.message.includes('signature')) {
       return await fail(400, 'INVALID_SIGNATURE', 'Invalid webhook signature', 'Verify STRIPE_WEBHOOK_SECRET matches endpoint configuration');
     }
-    
+
     // Return 500 so Stripe will retry the webhook
     return await fail(500, 'INTERNAL_ERROR', 'Webhook processing failed', 'Check function logs for details', { error: errorMessage });
   }
@@ -240,10 +241,10 @@ serve(async (req) => {
 
 async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscription: Stripe.Subscription, eventId: string) {
   try {
-    logStep('Handling subscription update', { 
+    logStep('Handling subscription update', {
       subscriptionId: subscription.id,
       status: subscription.status,
-      eventId 
+      eventId
     })
 
     // Check if this event has already been processed (idempotency)
@@ -260,17 +261,17 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
 
     // Primary: Resolve org via subscription.metadata.organization_id
     let orgId = subscription.metadata.organization_id || subscription.metadata.org_id
-    
+
     // Fallback: Map customer → organizations.stripe_customer_id
     if (!orgId && subscription.customer) {
       logStep('No org_id in subscription metadata, resolving via customer mapping')
-      
+
       const { data: org, error: orgError } = await supabase
         .from('organizations')
         .select('id')
         .eq('stripe_customer_id', subscription.customer)
         .single()
-      
+
       if (orgError) {
         logStep('Error looking up org by customer', { error: orgError })
       } else if (org) {
@@ -280,7 +281,7 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
     }
 
     if (!orgId) {
-      logStep('ERROR: Cannot resolve org for subscription', { 
+      logStep('ERROR: Cannot resolve org for subscription', {
         subscriptionId: subscription.id,
         customerId: subscription.customer,
         metadata: subscription.metadata
@@ -291,7 +292,7 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
     // Get subscription item details - handle empty items gracefully
     const subscriptionItem = subscription.items.data[0]
     if (!subscriptionItem || !subscription.items.data.length) {
-      logStep('WARNING: No subscription items found, using subscription-level defaults', { 
+      logStep('WARNING: No subscription items found, using subscription-level defaults', {
         subscriptionId: subscription.id,
         itemCount: subscription.items.data.length
       })
@@ -303,13 +304,13 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
       try {
         const price = await stripe.prices.retrieve(subscriptionItem.price.id)
         priceMetadata = price.metadata || {}
-        
-        logStep('Price metadata retrieved', { 
-          priceId: price.id, 
-          metadata: priceMetadata 
+
+        logStep('Price metadata retrieved', {
+          priceId: price.id,
+          metadata: priceMetadata
         })
       } catch (error) {
-        logStep('WARNING: Could not retrieve price metadata', { 
+        logStep('WARNING: Could not retrieve price metadata', {
           priceId: subscriptionItem.price.id,
           error: error instanceof Error ? error.message : String(error)
         })
@@ -319,7 +320,7 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
     // Extract plan_key and product_line from metadata or subscription metadata
     let planKey = priceMetadata.plan_key || subscription.metadata.plan_key
     const productLine = priceMetadata.product_line || subscription.metadata.product_line || 'leadgen'
-    
+
     // Fallback: Map price ID to plan_key via plan_configs if metadata missing
     if (!planKey && subscriptionItem?.price?.id) {
       try {
@@ -328,7 +329,7 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
           .select('plan_key')
           .or(`stripe_price_id_monthly.eq.${subscriptionItem.price.id},stripe_price_id_yearly.eq.${subscriptionItem.price.id}`)
           .single()
-        
+
         if (planConfig) {
           planKey = planConfig.plan_key
           logStep('Plan key resolved via price mapping', { priceId: subscriptionItem.price.id, planKey })
@@ -337,13 +338,13 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
         logStep('Could not resolve plan key from price ID', { priceId: subscriptionItem.price.id, error })
       }
     }
-    
+
     // Default fallback (only if no other method worked)
     if (!planKey) {
       planKey = 'trial'
       logStep('Using fallback plan key', { planKey })
     }
-    
+
     logStep('Extracted plan info', { planKey, productLine })
 
     // Build subscription data with safe timestamp conversion and new fields
@@ -355,11 +356,11 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
       product_line: productLine,
       status: subscription.status,
       quantity: subscriptionItem?.quantity || 1,
-      current_period_start: subscription.current_period_start ? 
+      current_period_start: subscription.current_period_start ?
         (await supabase.rpc('safe_stripe_timestamp', { stripe_timestamp: subscription.current_period_start })).data : null,
-      current_period_end: subscription.current_period_end ? 
+      current_period_end: subscription.current_period_end ?
         (await supabase.rpc('safe_stripe_timestamp', { stripe_timestamp: subscription.current_period_end })).data : null,
-      trial_end: subscription.trial_end ? 
+      trial_end: subscription.trial_end ?
         (await supabase.rpc('safe_stripe_timestamp', { stripe_timestamp: subscription.trial_end })).data : null,
       cancel_at_period_end: subscription.cancel_at_period_end || false,
       last_event_id: eventId,
@@ -379,16 +380,16 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
     // Handle subscription deletion or cancellation
     if (subscription.status === 'canceled' || subscription.status === 'incomplete_expired') {
       logStep('Subscription canceled/expired, removing from database', { subscriptionId: subscription.id, status: subscription.status })
-      
+
       const { error: deleteError } = await supabase
         .from('org_stripe_subscriptions')
         .delete()
         .eq('stripe_subscription_id', subscription.id)
-      
+
       if (deleteError) {
-        logStep('ERROR deleting canceled subscription', { 
+        logStep('ERROR deleting canceled subscription', {
           error: deleteError,
-          subscriptionId: subscription.id 
+          subscriptionId: subscription.id
         })
         throw deleteError
       }
@@ -401,10 +402,10 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
         })
 
       if (subUpsertError) {
-        logStep('ERROR upserting to org_stripe_subscriptions', { 
+        logStep('ERROR upserting to org_stripe_subscriptions', {
           error: subUpsertError,
           subscriptionId: subscription.id,
-          subscriptionData 
+          subscriptionData
         })
         throw subUpsertError
       }
@@ -423,7 +424,7 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
     // Refresh organization billing summary using computed entitlements
     await supabase.rpc('refresh_organization_billing_summary', { p_org_id: orgId })
 
-    logStep('Successfully processed subscription update', { 
+    logStep('Successfully processed subscription update', {
       orgId,
       subscriptionId: subscription.id,
       status: subscription.status,
@@ -434,9 +435,9 @@ async function handleSubscriptionUpdate(supabase: any, stripe: Stripe, subscript
     })
 
   } catch (error) {
-    logStep('ERROR in handleSubscriptionUpdate', { 
+    logStep('ERROR in handleSubscriptionUpdate', {
       error: error instanceof Error ? error.message : String(error),
-      subscriptionId: subscription.id 
+      subscriptionId: subscription.id
     })
     throw error // Re-throw to ensure webhook returns error status
   }

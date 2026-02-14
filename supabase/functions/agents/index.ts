@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 import { requireOrgActive, createBlockedResponse } from '../_shared/org-guard.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { logInfo, logError, truncId } from '../_shared/log.ts'
 
 interface AgentProfileUpdate {
   name?: string
@@ -22,18 +23,13 @@ interface AgentProfileUpdate {
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
-  console.log('=== NEW REQUEST ===')
-  console.log('Request method:', req.method)
-  console.log('Request URL:', req.url)
-  console.log('Request headers:', Object.fromEntries(req.headers))
+  const corrId = crypto.randomUUID()
+  logInfo({ fn: 'agents', corrId, method: req.method, url: req.url })
 
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
-
-  console.log('Request method:', req.method)
-  console.log('Request URL:', req.url)
 
   try {
     const supabase = createClient(
@@ -48,9 +44,8 @@ serve(async (req) => {
 
     // For function invocation, we get the data from the request body
     const requestData = await req.json()
-    console.log('Request data:', JSON.stringify(requestData))
-    
     let { method, agentId, organizationId, ...updates } = requestData
+    logInfo({ fn: 'agents', corrId, method, agentId: truncId(agentId), orgId: truncId(organizationId) })
 
     // For PATCH operations, check organization status before proceeding
     if (method === 'PATCH') {
@@ -61,7 +56,7 @@ serve(async (req) => {
           .select('organization_id')
           .eq('id', agentId)
           .single();
-        
+
         if (agent) {
           organizationId = agent.organization_id;
         }
@@ -85,10 +80,10 @@ serve(async (req) => {
     // Handle legacy numeric IDs by mapping them to UUIDs
     const legacyIdMap: Record<string, string> = {
       '1': '00000000-0000-0000-0000-000000000001',
-      '2': '00000000-0000-0000-0000-000000000002', 
+      '2': '00000000-0000-0000-0000-000000000002',
       '3': '00000000-0000-0000-0000-000000000003'
     }
-    
+
     if (legacyIdMap[agentId]) {
       console.log(`Mapping legacy ID ${agentId} to UUID ${legacyIdMap[agentId]}`)
       agentId = legacyIdMap[agentId]
@@ -98,7 +93,7 @@ serve(async (req) => {
 
     if (method === 'GET') {
       console.log('Attempting to fetch agent with ID:', agentId)
-      
+
       // Get agent profile
       const { data: agent, error } = await supabase
         .from('agent_profiles')
@@ -106,13 +101,13 @@ serve(async (req) => {
         .eq('id', agentId)
         .maybeSingle()
 
-      console.log('Database query result:', { agent, error })
+      logInfo({ fn: 'agents', corrId, step: 'db_query', hasAgent: !!agent, hasError: !!error })
 
       if (error) {
         console.error('Error fetching agent:', error)
         return new Response(
           JSON.stringify({ error: 'Failed to fetch agent' }),
-          { 
+          {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
@@ -123,7 +118,7 @@ serve(async (req) => {
         console.log('Agent not found:', agentId)
         return new Response(
           JSON.stringify({ error: 'Agent not found' }),
-          { 
+          {
             status: 404,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
@@ -132,7 +127,7 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify(agent),
-        { 
+        {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
@@ -140,14 +135,14 @@ serve(async (req) => {
 
     if (method === 'PATCH') {
       const agentUpdates: AgentProfileUpdate = updates
-      
-      console.log('Agent updates:', agentUpdates)
+
+      logInfo({ fn: 'agents', corrId, step: 'patch', fields: Object.keys(agentUpdates) })
 
       // Validate transfer_number if provided
       if (agentUpdates.transfer_number && !/^\+\d{7,15}$/.test(agentUpdates.transfer_number)) {
         return new Response(
           JSON.stringify({ error: 'Invalid transfer number format. Must be E.164 format (+1234567890)' }),
-          { 
+          {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
@@ -165,7 +160,7 @@ serve(async (req) => {
         console.error('Error fetching current agent:', fetchError)
         return new Response(
           JSON.stringify({ error: 'Agent not found' }),
-          { 
+          {
             status: 404,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
@@ -175,7 +170,7 @@ serve(async (req) => {
       // If setting as default, unset previous default
       if (agentUpdates.is_default === true && !currentAgent.is_default) {
         console.log('Unsetting previous default agents for org:', currentAgent.organization_id)
-        
+
         const { error: unsetError } = await supabase
           .from('agent_profiles')
           .update({ is_default: false })
@@ -199,7 +194,7 @@ serve(async (req) => {
         console.error('Error updating agent:', updateError)
         return new Response(
           JSON.stringify({ error: 'Failed to update agent' }),
-          { 
+          {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
@@ -210,7 +205,7 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify(updatedAgent),
-        { 
+        {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
@@ -218,18 +213,16 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ error: `Method ${method} not allowed` }),
-      { 
+      {
         status: 405,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
   } catch (error) {
-    console.error('Unexpected error:', error)
-    console.error('Error stack:', error.stack)
-    console.error('Error message:', error.message)
+    logError({ fn: 'agents', corrId, msg: error instanceof Error ? error.message : 'unknown' })
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { 
+      {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }

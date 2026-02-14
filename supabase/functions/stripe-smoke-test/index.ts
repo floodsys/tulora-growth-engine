@@ -3,9 +3,11 @@ import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from '../_shared/cors.ts'
 
+import { safeJson } from '../_shared/log.ts'
+
 // Helper logging function
 const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  const detailsStr = details ? ` - ${JSON.stringify(safeJson(details))}` : '';
   console.log(`[STRIPE-SMOKE-TEST] ${step}${detailsStr}`);
 };
 
@@ -37,7 +39,7 @@ serve(async (req) => {
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { 
+      {
         auth: { persistSession: false },
         global: { headers: { Authorization: authHeader } }
       }
@@ -61,7 +63,7 @@ serve(async (req) => {
         status: 403,
       });
     }
-    logStep("Superadmin access verified", { userId: user.id, email: user.email });
+    logStep("Superadmin access verified", { userId: user.id });
 
     const results: StripeTestResult[] = [];
     const timestamp = new Date().toISOString();
@@ -159,7 +161,7 @@ serve(async (req) => {
         test_name: "Prices API",
         status: "pass",
         message: `Found ${prices.data.length} price(s)`,
-        details: { 
+        details: {
           prices_count: prices.data.length,
           price_ids: prices.data.map(p => ({ id: p.id, amount: p.unit_amount, currency: p.currency, recurring: !!p.recurring }))
         }
@@ -179,10 +181,10 @@ serve(async (req) => {
       results.push({
         test_name: "Webhook Endpoints",
         status: webhooks.data.length > 0 ? "pass" : "warning",
-        message: webhooks.data.length > 0 
-          ? `Found ${webhooks.data.length} webhook endpoint(s)` 
+        message: webhooks.data.length > 0
+          ? `Found ${webhooks.data.length} webhook endpoint(s)`
           : "No webhook endpoints configured",
-        details: { 
+        details: {
           webhooks_count: webhooks.data.length,
           endpoints: webhooks.data.map(w => ({ id: w.id, url: w.url, status: w.status, enabled_events: w.enabled_events.length }))
         }
@@ -202,10 +204,10 @@ serve(async (req) => {
       results.push({
         test_name: "Billing Portal Configuration",
         status: portalConfig.data.length > 0 ? "pass" : "warning",
-        message: portalConfig.data.length > 0 
-          ? "Billing portal is configured" 
+        message: portalConfig.data.length > 0
+          ? "Billing portal is configured"
           : "No billing portal configuration found",
-        details: { 
+        details: {
           configurations_count: portalConfig.data.length,
           configs: portalConfig.data.map(c => ({ id: c.id, is_default: c.is_default, business_profile: c.business_profile }))
         }
@@ -269,7 +271,7 @@ serve(async (req) => {
         });
       } catch (error) {
         results.push({
-          test_name: "Subscription Operations", 
+          test_name: "Subscription Operations",
           status: "fail",
           message: `Subscription endpoints failing: ${error.message}`,
           details: { error: error.message }
@@ -331,7 +333,7 @@ serve(async (req) => {
     // Test 10: Check for common environment variables
     const stripeWebhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
     const stripePortalReturnUrl = Deno.env.get("STRIPE_PORTAL_RETURN_URL");
-    
+
     results.push({
       test_name: "Environment Variables",
       status: stripeWebhookSecret ? "pass" : "warning",
@@ -365,7 +367,7 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in stripe-smoke-test", { message: errorMessage });
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       error: "Internal server error",
       message: errorMessage,
       timestamp: new Date().toISOString()
