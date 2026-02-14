@@ -42,11 +42,11 @@ export const useRetellWebCall = () => {
     setBillingLimitError({ isOverLimit: false })
   }, [])
 
-  const createWebCall = async (agentId: string): Promise<WebCallSession | null> => {
-    if (!agentId) {
+  const createWebCall = async (agentSlug: string): Promise<WebCallSession | null> => {
+    if (!agentSlug) {
       toast({
         title: "Error",
-        description: "Agent ID is required for web call",
+        description: "Agent slug is required for web call",
         variant: "destructive"
       })
       return null
@@ -56,7 +56,7 @@ export const useRetellWebCall = () => {
       setLoading(true)
 
       const { data, error } = await supabase.functions.invoke('retell-webcall-create', {
-        body: { agent_id: agentId }
+        body: { agentSlug }
       })
 
       // Check for billing over limit in the response data
