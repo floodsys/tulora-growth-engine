@@ -10,6 +10,8 @@ export interface EntitlementError {
   message: string
   hint: string
   corr?: string
+  planKey?: string | null
+  planName?: string
 }
 
 export interface EntitlementCheck {
@@ -38,7 +40,7 @@ export interface PlanLimitsSchema {
 const FEATURE_ALIASES: Record<string, string> = {
   appointment_scheduling: "scheduling",
   voice_numbers: "numbers",
-  telephony_numbers: "numbers", 
+  telephony_numbers: "numbers",
   messaging: "sms",
   voice_sms: "sms",
   site_widgets: "widgets",
@@ -81,7 +83,7 @@ export async function requireEntitlement(
   corr?: string
 ): Promise<{ ok: true } | { ok: false; status: number; body: EntitlementError }> {
   const correlationId = corr || crypto.randomUUID()
-  
+
   console.log(`[${correlationId}] Checking entitlements for org ${orgId}:`, check)
   try {
     // Get organization plan
@@ -161,14 +163,14 @@ export async function requireEntitlement(
       const rawFeatures = planConfig.features || []
       const canonical = new Set<string>()
       rawFeatures.forEach((f: string) => canonical.add(toCanonicalFeature(f)))
-      
+
       const wanted = toCanonicalFeature(check.feature)
       const hasFeature = canonical.has(wanted)
-      
+
       if (!hasFeature) {
-        const errorCode = wanted === 'sms' ? 'FEATURE_NOT_ENABLED_SMS' : 
-                         wanted === 'widgets' ? 'FEATURE_NOT_ENABLED_WIDGETS' : 
-                         'FEATURE_NOT_ENABLED'
+        const errorCode = wanted === 'sms' ? 'FEATURE_NOT_ENABLED_SMS' :
+          wanted === 'widgets' ? 'FEATURE_NOT_ENABLED_WIDGETS' :
+            'FEATURE_NOT_ENABLED'
         console.log(`[${correlationId}] Feature not enabled:`, wanted, 'Available:', Array.from(canonical))
         return {
           ok: false,
@@ -189,7 +191,7 @@ export async function requireEntitlement(
     if (check.limitKey && check.currentCount !== undefined && planConfig) {
       const limits = planConfig.limits || {}
       const limit = limits[check.limitKey]
-      
+
       // null or undefined means unlimited
       if (limit !== null && limit !== undefined && check.currentCount >= limit) {
         const errorCode = `LIMIT_REACHED_${check.limitKey.toUpperCase()}` as keyof typeof ERROR_MESSAGES
@@ -235,7 +237,7 @@ export async function getEntitlementsForOrg(
   corr?: string
 ): Promise<{ ok: true; entitlements: { features: Set<string>; limits: Record<string, number | null> } } | { ok: false; error: any }> {
   const correlationId = corr || crypto.randomUUID()
-  
+
   try {
     // Get organization plan
     const { data: org, error: orgError } = await supabase
@@ -285,7 +287,7 @@ export async function getCurrentCount(
 ): Promise<number> {
   try {
     let query
-    
+
     switch (resourceType) {
       case 'agents':
         query = supabase
@@ -294,7 +296,7 @@ export async function getCurrentCount(
           .eq('organization_id', orgId)
           .eq('is_active', true)
         break
-      
+
       case 'numbers':
         query = supabase
           .from('retell_numbers')
@@ -302,7 +304,7 @@ export async function getCurrentCount(
           .eq('organization_id', orgId)
           .eq('is_active', true)
         break
-        
+
       case 'widgets':
         query = supabase
           .from('widget_configs')
@@ -310,14 +312,14 @@ export async function getCurrentCount(
           .eq('organization_id', orgId)
           .eq('is_active', true)
         break
-        
+
       default:
         return 0
     }
-    
+
     const { count } = await query
     return count || 0
-    
+
   } catch (error) {
     console.error(`Failed to get ${resourceType} count:`, error)
     return 0

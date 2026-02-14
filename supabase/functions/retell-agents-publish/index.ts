@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
-import { requireOrgActive, createBlockedResponse, requireOrgIpAllowed, createIpBlockedResponse } from '../_shared/org-guard.ts'
+import { requireOrgActive, createBlockedResponse, requireOrgIpAllowed, createIpBlockedResponse, resolveWebhookTarget } from '../_shared/org-guard.ts'
 import { requireEntitlement, getCurrentCount } from '../_shared/entitlements.ts'
 import { transitionAgentStatus, normalizeStatus, AgentStatus, isValidTransition, ALLOWED_TRANSITIONS } from '../_shared/agentStatus.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
@@ -14,7 +14,7 @@ serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   console.log('=== Retell Agent Publish Request ===')
   console.log('Request method:', req.method)
-  
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -23,7 +23,7 @@ serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response(
       JSON.stringify({ error: 'Method not allowed' }),
-      { 
+      {
         status: 405,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
@@ -46,7 +46,7 @@ serve(async (req) => {
     if (!agentId || !organizationId) {
       return new Response(
         JSON.stringify({ error: 'agentId and organizationId are required' }),
-        { 
+        {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
@@ -86,7 +86,7 @@ serve(async (req) => {
       console.log(`[${corr}] Agent publishing blocked by entitlements:`, entitlementCheck.body)
       return new Response(
         JSON.stringify(entitlementCheck.body),
-        { 
+        {
           status: entitlementCheck.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
@@ -100,7 +100,7 @@ serve(async (req) => {
       console.log(`[${analyticsCorr}] Advanced analytics blocked by entitlements:`, analyticsGate.body)
       return new Response(
         JSON.stringify(analyticsGate.body),
-        { 
+        {
           status: analyticsGate.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
@@ -119,15 +119,23 @@ serve(async (req) => {
       console.error('Agent not found:', agentError)
       return new Response(
         JSON.stringify({ error: 'Agent not found' }),
-        { 
+        {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
 
+    // Fetch org settings for webhook fallback (not included in OrgGuardResult)
+    const { data: orgRow } = await supabase
+      .from('organizations')
+      .select('settings')
+      .eq('id', organizationId)
+      .single()
+
     // Prepare agent configuration for Retell API
-    const retellConfig = {
+    // deno-lint-ignore no-explicit-any
+    const retellConfig: Record<string, any> = {
       agent_name: agent.name,
       voice_id: agent.voice_id,
       voice_model: agent.voice_model || 'eleven_labs',
@@ -166,13 +174,13 @@ serve(async (req) => {
     }
 
     // Add webhook URL using precedence resolution (agent → org fallback)
-    const webhookResult = resolveWebhookTarget({ 
-      agent: { webhook_url: agent.webhook_url }, 
-      orgSettings: guardResult.organization?.settings 
+    const webhookResult = resolveWebhookTarget({
+      agent: { webhook_url: agent.webhook_url },
+      orgSettings: orgRow?.settings
     })
     if (webhookResult.url) {
       retellConfig.webhook_url = webhookResult.url
-      console.log('Webhook configured:', { corrId, organizationId, target: webhookResult.target, url: webhookResult.url.substring(0, 30) + '...' })
+      console.log('Webhook configured:', { corr, organizationId, target: webhookResult.target, url: webhookResult.url.substring(0, 30) + '...' })
     }
 
     // Add DTMF settings if enabled
@@ -183,7 +191,7 @@ serve(async (req) => {
         termination_key: agent.settings.dtmf.termKey || '#',
         timeout_ms: agent.settings.dtmf.timeoutMs || 5000
       }
-      
+
       // Also include in metadata for runtime access
       retellConfig.metadata = {
         ...retellConfig.metadata,
@@ -208,7 +216,7 @@ serve(async (req) => {
     if (!retellResponse.ok) {
       const errorText = await retellResponse.text()
       console.error('Retell API error:', retellResponse.status, errorText)
-      
+
       // Log the failed publish attempt
       await supabase.rpc('log_event', {
         p_org_id: organizationId,
@@ -225,11 +233,11 @@ serve(async (req) => {
       })
 
       return new Response(
-        JSON.stringify({ 
-          error: 'Failed to publish agent to Retell', 
-          details: errorText 
+        JSON.stringify({
+          error: 'Failed to publish agent to Retell',
+          details: errorText
         }),
-        { 
+        {
           status: retellResponse.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
@@ -241,7 +249,7 @@ serve(async (req) => {
 
     // Update agent status using state machine transition
     const currentStatus = normalizeStatus(agent.status)
-    
+
     // Determine target status - TESTING → ACTIVE (publish), or stay ACTIVE if already active
     let targetStatus = AgentStatus.ACTIVE
     if (currentStatus === AgentStatus.ACTIVE) {
@@ -252,13 +260,13 @@ serve(async (req) => {
       const allowed = ALLOWED_TRANSITIONS[currentStatus]?.join(', ') || 'none'
       console.error(`Cannot publish agent from ${currentStatus} status. Allowed: [${allowed}]`)
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'INVALID_STATUS_TRANSITION',
           message: `Agent must be in TESTING status to publish. Current status: ${currentStatus}`,
           currentStatus,
           allowedTransitions: ALLOWED_TRANSITIONS[currentStatus] || [],
         }),
-        { 
+        {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
@@ -303,23 +311,24 @@ serve(async (req) => {
     })
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
         version: newVersion,
         retell_agent: publishedAgent,
         webhook_configured: !!webhookResult.url,
         webhook_target: webhookResult.target,
-        corr: corrId
+        corr
       }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
   } catch (error) {
     console.error('Unexpected error in retell-agents-publish:', error)
+    const message = error instanceof Error ? error.message : String(error)
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
-      { 
+      JSON.stringify({ error: 'Internal server error', details: message }),
+      {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
