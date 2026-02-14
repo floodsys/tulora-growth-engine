@@ -6,8 +6,8 @@ const Security = () => {
     description: "Your data remains private and is never utilized for model training purposes.",
     icon: Shield
   }, {
-    title: "SOC 2 (Type II) & GDPR Compliant",
-    description: "We are SOC 2 (Type II) certified and GDPR compliant, ensuring top-tier data security and privacy.",
+    title: "Working Toward SOC 2 & GDPR Alignment",
+    description: "We are actively pursuing SOC 2 Type II certification and aligning with GDPR requirements. Our security practices are informed by these frameworks.",
     icon: FileCheck
   }, {
     title: "Dedicated Infrastructure",
@@ -27,40 +27,40 @@ const Security = () => {
     icon: Eye
   }];
   return <section className="py-20 px-4 bg-background">
-      <div className="container mx-auto max-w-6xl">
-        {/* Header with image */}
-        <div className="text-center mb-16">
-          <div className="flex justify-center mb-8">
-            <img src={securityImage} alt="Security illustration" className="w-48 h-28" />
-          </div>
-          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
-            Manage and monitor your 
-            <br />
-            AI workers in one secure place.
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">We ensure security and compliance, and give you control over your data storage, user permissions, integrations and more.</p>
+    <div className="container mx-auto max-w-6xl">
+      {/* Header with image */}
+      <div className="text-center mb-16">
+        <div className="flex justify-center mb-8">
+          <img src={securityImage} alt="Security illustration" className="w-48 h-28" />
         </div>
+        <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
+          Manage and monitor your
+          <br />
+          AI workers in one secure place.
+        </h2>
+        <p className="text-lg text-muted-foreground max-w-3xl mx-auto">We ensure security and compliance, and give you control over your data storage, user permissions, integrations and more.</p>
+      </div>
 
-        {/* Security Features Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {securityFeatures.map((feature, index) => {
+      {/* Security Features Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {securityFeatures.map((feature, index) => {
           const IconComponent = feature.icon;
           return <div key={index} className="bg-card rounded-lg p-6 border border-border/50 hover:border-primary/20 transition-colors hover:shadow-lg">
-                <div className="mb-4 text-center">
-                  <div className="w-12 h-12 mb-4 rounded-lg bg-gradient-to-br from-[#6056FF] to-[#FE7587] flex items-center justify-center mx-auto">
-                    <IconComponent className="w-7 h-7 text-white" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-foreground mb-3">
-                    {feature.title}
-                  </h3>
-                </div>
-                <p className="text-muted-foreground leading-relaxed">
-                  {feature.description}
-                </p>
-              </div>;
+            <div className="mb-4 text-center">
+              <div className="w-12 h-12 mb-4 rounded-lg bg-gradient-to-br from-[#6056FF] to-[#FE7587] flex items-center justify-center mx-auto">
+                <IconComponent className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-foreground mb-3">
+                {feature.title}
+              </h3>
+            </div>
+            <p className="text-muted-foreground leading-relaxed">
+              {feature.description}
+            </p>
+          </div>;
         })}
-        </div>
       </div>
-    </section>;
+    </div>
+  </section>;
 };
 export default Security;
