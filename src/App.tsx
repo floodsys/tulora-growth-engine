@@ -27,6 +27,7 @@ import Demo from "@/pages/Demo";
 import VoiceDemo from "@/pages/demos/voice";
 import SettingsLayout from "@/pages/SettingsLayout";
 import { TeamAccessGuard } from "@/components/guards/TeamAccessGuard";
+import { RequireAuth } from "@/components/guards/RequireAuth";
 import ProgressiveProfilingGuard from "@/components/guards/ProgressiveProfilingGuard";
 
 import SettingsTeams from "@/pages/SettingsTeams";
@@ -103,7 +104,7 @@ function App() {
                   <Route path="/invite/accept" element={<InviteAccept />} />
                   <Route path="/invite/accept-new" element={<InviteAcceptRedirect />} />
                   <Route path="/demo" element={<Demo />} />
-                  <Route path="/demos/voice" element={<VoiceDemo />} />
+                  <Route path="/demos/voice" element={<RequireAuth><VoiceDemo /></RequireAuth>} />
                   <Route path="/activity-logs" element={<ActivityLogs />} />
                   <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
                   <Route path="/admin/access-denied" element={<AdminAccessDenied />} />
