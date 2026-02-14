@@ -95,6 +95,16 @@ serve(async (req) => {
     });
   }
 
+  // ── KILL SWITCH: disable call initiation via env flag ──────────────
+  const killFlag = Deno.env.get("DISABLE_RETELL_CALLS");
+  if (killFlag && ["true", "1", "yes"].includes(killFlag.toLowerCase())) {
+    console.warn(`[${traceId}] DISABLE_RETELL_CALLS is active — rejecting webcall create`);
+    return new Response(
+      JSON.stringify({ error: "CALLS_DISABLED", message: "Call initiation is temporarily disabled.", traceId }),
+      { status: 503, headers: { ...cors, "Content-Type": "application/json" } }
+    );
+  }
+
   // ── AUTH GUARD: require authenticated user + org membership ────────
   const auth = await requireCallAuth(req, traceId);
   if (!auth.ok) {
