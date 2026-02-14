@@ -34,10 +34,10 @@ serve(async (req) => {
     // Check required environment variables
     const requiredEnvVars = [
       'SUPABASE_URL',
-      'SUPABASE_ANON_KEY', 
+      'SUPABASE_ANON_KEY',
       'SUPABASE_SERVICE_ROLE_KEY'
     ];
-    
+
     const missingEnvVars = requiredEnvVars.filter(varName => !Deno.env.get(varName));
     if (missingEnvVars.length > 0) {
       return new Response(JSON.stringify({
@@ -67,25 +67,26 @@ serve(async (req) => {
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { 
+      {
         auth: { persistSession: false },
         global: { headers: { Authorization: authHeader } }
       }
     );
 
-    // Check if user is superadmin using USER context (not service role)
-    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin', { user_id: userData.user.id });
-    if (superadminError || !isSuperadmin) {
-      logStep("Superadmin check failed", { error: superadminError?.message, isSuperadmin });
+    // Get user info FIRST so we have a valid user object for the superadmin check
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      logStep("User auth failed", { error: userError?.message });
       return new Response(JSON.stringify({ error: "forbidden" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 403,
       });
     }
 
-    // Get user info for logging
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
+    // Check if user is superadmin using USER context (not service role)
+    const { data: isSuperadmin, error: superadminError } = await supabaseClient.rpc('is_superadmin', { user_id: user.id });
+    if (superadminError || !isSuperadmin) {
+      logStep("Superadmin check failed", { error: superadminError?.message, isSuperadmin });
       return new Response(JSON.stringify({ error: "forbidden" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 403,
@@ -199,12 +200,12 @@ serve(async (req) => {
     }
 
     // Validate confirmation phrase
-    const expectedPhrase = action === 'suspend' ? 
-      `SUSPEND ORG ${org_id}` : 
+    const expectedPhrase = action === 'suspend' ?
+      `SUSPEND ORG ${org_id}` :
       action === 'cancel' ?
-      `CANCEL ORG ${org_id}` :
-      `REINSTATE ORG ${org_id}`;
-    
+        `CANCEL ORG ${org_id}` :
+        `REINSTATE ORG ${org_id}`;
+
     if (confirmation_phrase !== expectedPhrase) {
       return new Response(JSON.stringify({
         ok: false,
@@ -280,7 +281,7 @@ serve(async (req) => {
       ];
 
       if (notify_owner && Deno.env.get("ENVIRONMENT") === "production") {
-        wouldChange.push(`Email notification sent to: ${orgData.profiles.email}`);
+        wouldChange.push(`Email notification sent to: ${orgData.profiles?.[0]?.email}`);
       }
 
       return new Response(JSON.stringify({
@@ -294,8 +295,8 @@ serve(async (req) => {
         requirements: {
           environment_variables: requiredEnvVars,
           database_functions: [
-            action === 'suspend' ? 'suspend_organization' : 
-            action === 'cancel' ? 'cancel_organization' : 'reinstate_organization'
+            action === 'suspend' ? 'suspend_organization' :
+              action === 'cancel' ? 'cancel_organization' : 'reinstate_organization'
           ]
         }
       }), {
@@ -308,7 +309,7 @@ serve(async (req) => {
     const serviceRoleClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { 
+      {
         auth: { persistSession: false }
       }
     );
@@ -327,7 +328,7 @@ serve(async (req) => {
         // For cancel, we'll update the status directly since cancel_organization function might not exist
         const { data, error } = await serviceRoleClient
           .from('organizations')
-          .update({ 
+          .update({
             status: 'canceled',
             canceled_at: new Date().toISOString(),
             suspension_reason: reason
@@ -349,7 +350,7 @@ serve(async (req) => {
     } catch (dbError) {
       const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
       logStep("Database operation failed", { error: errorMessage });
-      
+
       return new Response(JSON.stringify({
         ok: false,
         error: "Database operation failed",
@@ -365,12 +366,12 @@ serve(async (req) => {
     // Send email notification if requested and in production
     if (notify_owner && Deno.env.get("ENVIRONMENT") === "production") {
       try {
-        logStep("Email notification would be sent", { 
-          to: orgData.profiles.email,
+        logStep("Email notification would be sent", {
+          to: orgData.profiles?.[0]?.email,
           action,
           orgName: orgData.name
         });
-        
+
         // TODO: Implement actual email sending service
         // For now, just log that it would be sent
       } catch (emailError) {
@@ -396,8 +397,8 @@ serve(async (req) => {
       requirements: {
         environment_variables: requiredEnvVars,
         database_functions: [
-          action === 'suspend' ? 'suspend_organization' : 
-          action === 'cancel' ? 'cancel_organization' : 'reinstate_organization'
+          action === 'suspend' ? 'suspend_organization' :
+            action === 'cancel' ? 'cancel_organization' : 'reinstate_organization'
         ]
       }
     }), {
@@ -408,7 +409,7 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage, stack: error instanceof Error ? error.stack : undefined });
-    
+
     // Always return 200 with structured error
     return new Response(JSON.stringify({
       ok: false,
@@ -419,7 +420,7 @@ serve(async (req) => {
       requirements: {
         environment_variables: [
           'SUPABASE_URL',
-          'SUPABASE_ANON_KEY', 
+          'SUPABASE_ANON_KEY',
           'SUPABASE_SERVICE_ROLE_KEY'
         ]
       }

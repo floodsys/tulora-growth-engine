@@ -29,20 +29,23 @@ interface OutboxEntry {
 /**
  * Validates that the request contains the correct internal secret header.
  * Returns null if valid, or an error Response if invalid.
+ *
+ * @param req  The incoming request
+ * @param cors CORS headers to include on error responses
  */
-function validateInternalSecret(req: Request): Response | null {
+function validateInternalSecret(req: Request, cors: Record<string, string>): Response | null {
   const expectedSecret = Deno.env.get('INTERNAL_SUITECRM_WORKER_SECRET')
-  
+
   if (!expectedSecret) {
     console.error('INTERNAL_SUITECRM_WORKER_SECRET is not configured')
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: 'Internal configuration error' 
+      JSON.stringify({
+        success: false,
+        error: 'Internal configuration error'
       }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        status: 500,
+        headers: { ...cors, 'Content-Type': 'application/json' }
       }
     )
   }
@@ -52,13 +55,13 @@ function validateInternalSecret(req: Request): Response | null {
   if (!providedSecret) {
     console.warn('Missing x-internal-secret header')
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: 'Unauthorized: missing internal secret' 
+      JSON.stringify({
+        success: false,
+        error: 'Unauthorized: missing internal secret'
       }),
-      { 
-        status: 401, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        status: 401,
+        headers: { ...cors, 'Content-Type': 'application/json' }
       }
     )
   }
@@ -67,13 +70,13 @@ function validateInternalSecret(req: Request): Response | null {
   if (providedSecret.length !== expectedSecret.length) {
     console.warn('Invalid x-internal-secret header (length mismatch)')
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: 'Forbidden: invalid internal secret' 
+      JSON.stringify({
+        success: false,
+        error: 'Forbidden: invalid internal secret'
       }),
-      { 
-        status: 403, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        status: 403,
+        headers: { ...cors, 'Content-Type': 'application/json' }
       }
     )
   }
@@ -87,13 +90,13 @@ function validateInternalSecret(req: Request): Response | null {
   if (mismatch !== 0) {
     console.warn('Invalid x-internal-secret header (value mismatch)')
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: 'Forbidden: invalid internal secret' 
+      JSON.stringify({
+        success: false,
+        error: 'Forbidden: invalid internal secret'
       }),
-      { 
-        status: 403, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        status: 403,
+        headers: { ...cors, 'Content-Type': 'application/json' }
       }
     )
   }
@@ -105,7 +108,7 @@ async function processOutboxEntries() {
   // Service role key is only accessed after secret validation has passed
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  
+
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   try {
@@ -139,7 +142,7 @@ async function processOutboxEntries() {
         // Mark as processing
         await supabase
           .from('crm_outbox')
-          .update({ 
+          .update({
             status: 'processing',
             updated_at: new Date().toISOString()
           })
@@ -167,17 +170,17 @@ async function processOutboxEntries() {
 
       } catch (error) {
         console.error(`❌ Error processing outbox entry ${entry.id}:`, error)
-        
+
         // Reset status to failed so it can be retried
         await supabase
           .from('crm_outbox')
-          .update({ 
+          .update({
             status: 'failed',
             last_error: error instanceof Error ? error.message : 'Unknown worker error',
             updated_at: new Date().toISOString()
           })
           .eq('id', entry.id)
-        
+
         errors++
       }
     })
@@ -186,7 +189,7 @@ async function processOutboxEntries() {
     await Promise.all(promises)
 
     console.log(`Worker completed: ${processed} processed, ${errors} errors`)
-    
+
     return { processed, errors }
 
   } catch (error) {
@@ -205,14 +208,14 @@ serve(async (req) => {
   // ─────────────────────────────────────────────────────────────────────────────
   // SECURITY CHECK: Validate internal secret BEFORE any worker logic executes
   // ─────────────────────────────────────────────────────────────────────────────
-  const authError = validateInternalSecret(req)
+  const authError = validateInternalSecret(req, corsHeaders)
   if (authError) {
     return authError
   }
 
   try {
     console.log('SuiteCRM Sync Worker started (authenticated)')
-    
+
     const result = await processOutboxEntries()
 
     return new Response(
@@ -221,21 +224,21 @@ serve(async (req) => {
         message: `Processed ${result.processed} entries, ${result.errors} errors`,
         ...result
       }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
 
   } catch (error) {
     console.error('Worker execution error:', error)
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown worker error' 
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown worker error'
       }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
   }
