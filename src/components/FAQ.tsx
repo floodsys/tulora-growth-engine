@@ -9,11 +9,11 @@ const FAQ = () => {
   const faqs = [
     {
       question: "How secure is my prospect data?",
-      answer: "Tulora is SOC 2 Type II compliant (in progress) and uses enterprise-grade encryption for all data. We never share your prospect information with third parties and follow strict data retention policies. All AI processing happens in secure, isolated environments."
+      answer: "Tulora is actively working toward SOC 2 Type II certification and uses AES-256 encryption at rest and TLS in transit. We never share your prospect information with third parties and follow strict data retention policies. All AI processing happens in secure, isolated environments."
     },
     {
       question: "What data privacy measures do you have?",
-      answer: "We're GDPR and CCPA compliant. Your prospect data is processed only for the specific AI functions you enable. You maintain full control over data deletion and can export your data at any time. We use data minimization principles and automatic data expiration."
+      answer: "We are aligning our practices with GDPR and CCPA requirements. Your prospect data is processed only for the specific AI functions you enable. You maintain full control over data deletion and can export your data at any time. We use data minimization principles and automatic data expiration."
     },
     {
       question: "Which AI model providers do you use?",
@@ -29,7 +29,7 @@ const FAQ = () => {
     },
     {
       question: "Do you have uptime guarantees (SLAs)?",
-      answer: "Yes, we maintain 99.9% uptime SLA for all paid plans. If we don't meet this commitment, you'll receive service credits. We use redundant infrastructure across multiple cloud providers to ensure maximum reliability."
+      answer: "We target high availability for all paid plans and are working toward formal SLA commitments. We use redundant cloud infrastructure to maximize reliability. Specific SLA terms will be available as we exit beta."
     },
     {
       question: "How accurate is the AI scheduling?",
@@ -51,7 +51,7 @@ const FAQ = () => {
               Frequently asked questions
             </h2>
             <p className="text-lg text-muted-foreground">
-              Everything you need to know about Tulora. Can't find what you're looking for? 
+              Everything you need to know about Tulora. Can't find what you're looking for?
               <a href="/talk-to-us" className="text-brand hover:text-brand-dark font-semibold ml-1">
                 Contact our team
               </a>

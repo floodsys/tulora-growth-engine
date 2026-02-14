@@ -49,6 +49,11 @@ import AdminSelfCheck from "@/pages/AdminSelfCheck";
 import AdminContactSettings from "@/pages/AdminContactSettings";
 import AdminNotifications from "@/pages/AdminNotifications";
 import Pricing from "@/pages/Pricing";
+import Privacy from "@/pages/legal/Privacy";
+import Terms from "@/pages/legal/Terms";
+import SecurityPolicy from "@/pages/legal/SecurityPolicy";
+import GDPR from "@/pages/legal/GDPR";
+import DPA from "@/pages/legal/DPA";
 import { ObservabilityDashboard } from "@/pages/admin/ObservabilityDashboard";
 
 import { AdminGuard } from "@/components/admin/AdminGuard";
@@ -120,6 +125,11 @@ function App() {
                   <Route path="/admin/self-check" element={<AdminGuard><AdminSelfCheck /></AdminGuard>} />
                   <Route path="/pricing" element={<Pricing />} />
                   <Route path="/contact/sales" element={<ContactSales />} />
+                  <Route path="/privacy" element={<Privacy />} />
+                  <Route path="/terms" element={<Terms />} />
+                  <Route path="/security" element={<SecurityPolicy />} />
+                  <Route path="/gdpr" element={<GDPR />} />
+                  <Route path="/dpa" element={<DPA />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </ProgressiveProfilingGuard>
