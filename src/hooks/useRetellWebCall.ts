@@ -1,6 +1,9 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
+import type { WebCallCreatePayload, WebCallCreateResponse } from '@/types/webcall'
+
+export type { WebCallCreatePayload, WebCallCreateResponse }
 
 export interface WebCallSession {
   call_id: string
@@ -55,8 +58,9 @@ export const useRetellWebCall = () => {
     try {
       setLoading(true)
 
+      const payload: WebCallCreatePayload = { agentSlug }
       const { data, error } = await supabase.functions.invoke('retell-webcall-create', {
-        body: { agentSlug }
+        body: payload
       })
 
       // Check for billing over limit in the response data
