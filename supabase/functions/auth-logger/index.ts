@@ -38,12 +38,10 @@ Deno.serve(async (req) => {
       ...metadata
     };
 
-    // For login failures, only store minimal context
+    // For login failures, only store minimal context (no PII)
     if (action === 'login_failure') {
       auditMetadata = {
-        email: email?.substring(0, 50), // Truncate email for privacy
         attempt_time: new Date().toISOString(),
-        user_agent_fingerprint: req.headers.get('user-agent')?.substring(0, 50)
       };
     }
 
@@ -54,7 +52,7 @@ Deno.serve(async (req) => {
         .from('organizations')
         .select('id')
         .eq('owner_user_id', userId);
-      
+
       const { data: memberOrgs } = await supabase
         .from('organization_members')
         .select('organization_id')
@@ -99,7 +97,7 @@ Deno.serve(async (req) => {
 // Simple IP hashing function
 async function hashIP(ip: string): Promise<string> {
   if (!ip || ip === 'unknown') return 'unknown';
-  
+
   const encoder = new TextEncoder();
   const data = encoder.encode(ip);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
