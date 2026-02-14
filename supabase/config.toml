@@ -45,6 +45,12 @@ verify_jwt = true
 [functions.smoke-tests]
 verify_jwt = true
 
+[functions.retell-outbound]
+verify_jwt = true
+
+[functions.retell-webcall-create]
+verify_jwt = true
+
 [functions.retell-webhook]
 verify_jwt = false
 
