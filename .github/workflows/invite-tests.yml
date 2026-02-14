@@ -9,7 +9,7 @@ on:
 
 jobs:
   invite-tests:
-    name: Full Invite System Test Suite
+    name: Invite Lifecycle Tests (smoke + full)
     runs-on: ubuntu-latest
     # Skip when required secrets are unavailable (forks / PRs without environment)
     if: ${{ github.event_name == 'workflow_dispatch' || vars.HAS_TESTING_ENV == 'true' || github.event_name == 'push' }}
@@ -43,15 +43,7 @@ jobs:
         if: steps.check-secrets.outputs.has_secrets == 'true'
         run: npm ci
         
-      - name: Build application
-        if: steps.check-secrets.outputs.has_secrets == 'true'
-        env:
-          VITE_COMMIT_SHA: ${{ github.sha }}
-          VITE_BUILD_ID: ${{ github.sha }}-${{ github.run_number }}
-          VITE_BUILD_TIMESTAMP: ${{ github.event.head_commit.timestamp }}
-        run: npm run build
-        
-      - name: Run Full Invite Test Suite
+      - name: Run invite lifecycle tests (--mode=full)
         if: steps.check-secrets.outputs.has_secrets == 'true'
         env:
           # Test Configuration
