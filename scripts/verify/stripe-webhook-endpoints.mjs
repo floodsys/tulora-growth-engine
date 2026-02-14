@@ -10,7 +10,10 @@
  *   STRIPE_SECRET_KEY  – Stripe secret key (never printed)
  *   SUPABASE_URL       – used to derive expected endpoint URL
  *
- * Exit code 0 = all PASS, 1 = at least one FAIL or error.
+ * Exit codes:
+ *   0 = PASS
+ *   1 = FAIL
+ *   2 = SKIP (credentials missing)
  */
 
 const REQUIRED_EVENTS = [
@@ -165,6 +168,7 @@ async function main() {
     return { pass, fail, skip: 0, label: "stripe-webhook-endpoints" };
 }
 
-// When run directly
+// When run directly — exit codes: 0=PASS, 1=FAIL, 2=SKIP
 const result = await main();
 if (result.fail > 0) process.exit(1);
+else if (result.skip > 0) process.exit(2);
