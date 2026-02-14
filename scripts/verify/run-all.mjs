@@ -2,45 +2,88 @@
 /**
  * scripts/verify/run-all.mjs  —  "verify:beta" orchestrator
  *
- * Runs every verification script in sequence and prints a summary.
- * Exit code 0 = all PASS (or SKIP/UNKNOWN), 1 = any FAIL.
+ * Runs every verification script in sequence and prints a truthful summary.
  *
- * Usage:  node scripts/verify/run-all.mjs
- *         npm run verify:beta
+ * Statuses:
+ *   PASS    — check ran and succeeded
+ *   FAIL    — check ran and found a problem, OR script crashed / is missing
+ *   SKIP    — check could not run because credentials are missing
+ *   UNKNOWN — check ran but could not determine a result
+ *
+ * Exit code:
+ *   Normal mode:  0 = no FAIL,  1 = any FAIL
+ *   Strict mode:  0 = all PASS, 1 = any FAIL/SKIP/UNKNOWN
+ *
+ * Flags:
+ *   --strict        enable strict mode
+ *   VERIFY_STRICT=1 enable strict mode via env
+ *
+ * Usage:
+ *   node scripts/verify/run-all.mjs
+ *   node scripts/verify/run-all.mjs --strict
+ *   VERIFY_STRICT=1 node scripts/verify/run-all.mjs
+ *   npm run verify:beta
+ *   npm run verify:beta:strict
  */
 
 import { execSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const isWindows = process.platform === "win32";
+const strict =
+    process.argv.includes("--strict") || process.env.VERIFY_STRICT === "1";
+
+// ── exit-code-to-status mapping for child scripts ───────────────────────────
+// Convention:  0=PASS  1=FAIL  2=SKIP  3=UNKNOWN
+// Anything else (including crash / missing script) → FAIL
+function exitCodeToStatus(code) {
+    switch (code) {
+        case 0:
+            return "PASS";
+        case 1:
+            return "FAIL";
+        case 2:
+            return "SKIP";
+        case 3:
+            return "UNKNOWN";
+        default:
+            return "FAIL";
+    }
+}
 
 // ── checks to run ───────────────────────────────────────────────────────────
 const checks = [
     {
         label: "retell-webhook-config",
-        cmd: `node "${join(__dirname, "retell-webhook-config.mjs")}"`,
+        script: join(__dirname, "retell-webhook-config.mjs"),
+        requiredEnv: ["RETELL_API_KEY"],
     },
     {
         label: "stripe-webhook-endpoints",
-        cmd: `node "${join(__dirname, "stripe-webhook-endpoints.mjs")}"`,
+        script: join(__dirname, "stripe-webhook-endpoints.mjs"),
+        requiredEnv: ["STRIPE_SECRET_KEY"],
     },
     {
         label: "scheduler-check",
-        cmd: `node "${join(__dirname, "scheduler-check.mjs")}"`,
+        script: join(__dirname, "scheduler-check.mjs"),
+        requiredEnv: [], // degrades gracefully on its own
     },
     {
         label: "github-actions-permissions",
-        cmd: isWindows
-            ? `bash "${join(__dirname, "github-actions-permissions.sh").replace(/\\/g, "/")}" 2>&1 || node -e "process.exit(0)"`
-            : `bash "${join(__dirname, "github-actions-permissions.sh")}"`,
+        script: join(__dirname, "github-actions-permissions.mjs"),
+        requiredEnv: [], // degrades gracefully (gh CLI detection is internal)
     },
 ];
 
 // ── run ─────────────────────────────────────────────────────────────────────
 console.log("╔══════════════════════════════════════════════════╗");
-console.log("║        🚀  BETA READINESS VERIFICATION          ║");
+console.log(
+    strict
+        ? "║     🚀  BETA READINESS VERIFICATION (STRICT)      ║"
+        : "║        🚀  BETA READINESS VERIFICATION             ║"
+);
 console.log("╚══════════════════════════════════════════════════╝");
 console.log();
 
@@ -52,20 +95,36 @@ for (const check of checks) {
     console.log(`▶ ${check.label}`);
     console.log(divider);
 
+    // Guard: if the script file doesn't exist, it's a FAIL
+    if (!existsSync(check.script)) {
+        console.log(`  ✗ Script not found: ${check.script}`);
+        results.push({ label: check.label, status: "FAIL" });
+        continue;
+    }
+
+    // Guard: if required env vars are missing, mark SKIP (don't fake PASS)
+    const missingEnv = check.requiredEnv.filter((v) => !process.env[v]);
+    if (missingEnv.length > 0) {
+        console.log(
+            `  ⏭ SKIP — missing env: ${missingEnv.join(", ")}`
+        );
+        results.push({ label: check.label, status: "SKIP" });
+        continue;
+    }
+
+    // Run the script
     try {
-        execSync(check.cmd, {
+        execSync(`node "${check.script}"`, {
             stdio: "inherit",
             env: process.env,
             timeout: 60_000,
         });
+        // exit code 0 → PASS
         results.push({ label: check.label, status: "PASS" });
     } catch (err) {
-        const code = err.status || 1;
-        if (code === 0) {
-            results.push({ label: check.label, status: "PASS" });
-        } else {
-            results.push({ label: check.label, status: "FAIL" });
-        }
+        const code = err.status ?? 1;
+        const status = exitCodeToStatus(code);
+        results.push({ label: check.label, status });
     }
 }
 
@@ -76,22 +135,48 @@ console.log("║               VERIFICATION SUMMARY               ║");
 console.log("╚══════════════════════════════════════════════════╝");
 console.log();
 
+const icons = { PASS: "✓", FAIL: "✗", SKIP: "⏭", UNKNOWN: "?" };
 const maxLabel = Math.max(...results.map((r) => r.label.length));
+
 for (const r of results) {
-    const icon = r.status === "PASS" ? "✓" : "✗";
+    const icon = icons[r.status] || "?";
     console.log(`  ${icon} ${r.label.padEnd(maxLabel + 2)} ${r.status}`);
 }
 
-const totalFail = results.filter((r) => r.status === "FAIL").length;
-const totalPass = results.filter((r) => r.status === "PASS").length;
+const counts = { PASS: 0, FAIL: 0, SKIP: 0, UNKNOWN: 0 };
+for (const r of results) counts[r.status] = (counts[r.status] || 0) + 1;
 
 console.log();
-console.log(`  Total: ${results.length}  Pass: ${totalPass}  Fail: ${totalFail}`);
+console.log(
+    `  Total: ${results.length}  ` +
+    `Pass: ${counts.PASS}  Fail: ${counts.FAIL}  ` +
+    `Skip: ${counts.SKIP}  Unknown: ${counts.UNKNOWN}`
+);
 console.log();
 
-if (totalFail > 0) {
-    console.log("  ❌ Beta readiness check FAILED.\n");
-    process.exit(1);
+if (strict) {
+    // Strict: only all-PASS is success
+    const nonPass = results.filter((r) => r.status !== "PASS").length;
+    if (nonPass > 0) {
+        console.log(
+            `  ❌ Beta readiness check FAILED (strict mode: ${nonPass} non-PASS result(s)).\n`
+        );
+        process.exit(1);
+    } else {
+        console.log("  ✅ All beta readiness checks passed (strict).\n");
+        process.exit(0);
+    }
 } else {
-    console.log("  ✅ All beta readiness checks passed.\n");
+    // Normal: SKIP/UNKNOWN are tolerated, only FAIL causes non-zero exit
+    if (counts.FAIL > 0) {
+        console.log("  ❌ Beta readiness check FAILED.\n");
+        process.exit(1);
+    } else {
+        const extra =
+            counts.SKIP + counts.UNKNOWN > 0
+                ? ` (${counts.SKIP} skipped, ${counts.UNKNOWN} unknown — run with --strict to enforce)`
+                : "";
+        console.log(`  ✅ All beta readiness checks passed${extra}.\n`);
+        process.exit(0);
+    }
 }
