@@ -215,9 +215,9 @@ const PricingTable = () => {
       setupFee: "Custom",
       monthlyPrice: "Contact Sales",
       includedUsage: ["Platform retainer"],
-      modelMix: "HIPAA/PCI options, custom voice tuning",
+      modelMix: "HIPAA/PCI readiness (planned), custom voice tuning",
       features: [
-        "HIPAA/PCI options",
+        "HIPAA/PCI readiness (planned)",
         "Custom voice tuning",
         "IVR trees by department",
         "Data residency",
@@ -239,7 +239,7 @@ const PricingTable = () => {
 
   const renderPlanCard = (plan: any) => {
     const isActivePlan = currentOrgPlan === plan.planKey;
-    
+
     return (
       <div key={plan.planKey} className={`relative bg-card border border-border rounded-xl p-8 ${plan.popular ? "ring-2 ring-primary shadow-lg" : ""}`}>
         {plan.popular && (
@@ -263,7 +263,7 @@ const PricingTable = () => {
         <div className="text-center mb-6">
           <h3 className="text-2xl font-bold text-foreground mb-1">{plan.name}</h3>
           <p className="text-sm text-muted-foreground mb-4">{plan.subtitle}</p>
-          
+
           <div className="mb-4">
             <div className="text-3xl font-bold text-foreground">Custom Solutions</div>
             <div className="text-sm text-muted-foreground">4-week implementation</div>
@@ -298,16 +298,16 @@ const PricingTable = () => {
 
         {/* CTA */}
         {isActivePlan ? (
-          <Button 
-            className="w-full" 
+          <Button
+            className="w-full"
             variant="outline"
             onClick={handleManageSubscription}
           >
             Manage in portal
           </Button>
         ) : plan.isEnterprise ? (
-          <Button 
-            className="w-full" 
+          <Button
+            className="w-full"
             variant="outline"
             onClick={() => window.location.href = '/talk-to-us'}
           >
@@ -315,8 +315,8 @@ const PricingTable = () => {
             <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
         ) : (
-          <Button 
-            className="w-full" 
+          <Button
+            className="w-full"
             onClick={() => window.location.href = '/talk-to-us'}
           >
             Contact Us
@@ -331,7 +331,7 @@ const PricingTable = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Admin Checklist Banner */}
         <AdminChecklistBanner />
-        
+
         {/* Header */}
         <div className="text-center mb-16">
           <h2 className="text-3xl font-bold text-foreground mb-4 lg:text-4xl">
