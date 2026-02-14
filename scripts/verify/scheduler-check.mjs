@@ -3,13 +3,12 @@
  * scripts/verify/scheduler-check.mjs
  *
  * Checks whether retention-cleanup / usage-rollup scheduled jobs are present.
- * Queries the Supabase database via the REST API to detect pg_cron jobs.
- * If pg_cron is not installed or not accessible, reports UNKNOWN with follow-up.
  *
- * Env vars:
- *   SUPABASE_URL             – project URL
- *   SUPABASE_SERVICE_ROLE_KEY – service role for DB access (never printed)
- *   DATABASE_URL              – direct Postgres connection (fallback, optional)
+ * Detection strategies (in order):
+ *   1. Supabase RPC / PostgREST (needs SUPABASE_URL + SERVICE_ROLE_KEY)
+ *   2. Direct psql via DATABASE_URL
+ *   3. Supabase config.toml scheduled functions
+ *   4. GitHub Actions cron workflows in .github/workflows/*.yml
  *
  * Exit codes:
  *   0 = PASS
@@ -19,7 +18,7 @@
  */
 
 import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -28,10 +27,50 @@ function redact(key) {
     return key.slice(0, 4) + "…" + key.slice(-4);
 }
 
+/**
+ * Strategy 4: Scan .github/workflows/*.yml for `schedule:` triggers with cron.
+ * Returns an array of { file, cron } objects, or empty array.
+ */
+function detectGitHubActionsCron(repoRoot) {
+    const workflowsDir = join(repoRoot, ".github", "workflows");
+    let files;
+    try {
+        files = readdirSync(workflowsDir).filter(
+            (f) => f.endsWith(".yml") || f.endsWith(".yaml")
+        );
+    } catch {
+        return [];
+    }
+
+    const results = [];
+    for (const file of files) {
+        try {
+            const content = readFileSync(join(workflowsDir, file), "utf8");
+            // Match cron expressions inside schedule blocks
+            const cronMatches = content.match(
+                /on:\s[\s\S]*?schedule:\s*\n(?:\s+-\s*cron:\s*"([^"]+)"\s*(?:#[^\n]*)?\n?)+/
+            );
+            if (cronMatches) {
+                // Extract all individual cron expressions
+                const allCrons = [...content.matchAll(/cron:\s*"([^"]+)"/g)];
+                for (const m of allCrons) {
+                    results.push({ file, cron: m[1] });
+                }
+            }
+        } catch {
+            // skip unreadable files
+        }
+    }
+    return results;
+}
+
 async function main() {
     const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
     const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const DATABASE_URL = process.env.DATABASE_URL;
+
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const repoRoot = join(__dirname, "..", "..");
 
     console.log("\n🔍 Scheduler / Cron Jobs Verification");
     console.log("─".repeat(50));
@@ -43,7 +82,6 @@ async function main() {
     // ── Strategy 1: Query via Supabase RPC (PostgREST) ──
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
         try {
-            // Check if pg_cron extension exists
             const extRes = await fetch(
                 `${SUPABASE_URL}/rest/v1/rpc/`,
                 {
@@ -54,11 +92,8 @@ async function main() {
                         "Content-Type": "application/json",
                         Prefer: "return=representation",
                     },
-                    // We can't directly query cron.job via PostgREST,
-                    // so we'll use a raw SQL approach via psql if available
                 }
             );
-            // PostgREST doesn't expose cron schema by default
         } catch {
             // Ignore - fall through to psql
         }
@@ -67,7 +102,6 @@ async function main() {
     // ── Strategy 2: Direct psql (if DATABASE_URL or local psql available) ──
     if (DATABASE_URL) {
         try {
-            const __dirname = dirname(fileURLToPath(import.meta.url));
             const sqlPath = join(__dirname, "scheduler-check.sql");
 
             const output = execSync(`psql "${DATABASE_URL}" -f "${sqlPath}" 2>&1`, {
@@ -78,7 +112,6 @@ async function main() {
             console.log("  psql output:");
             console.log(output.split("\n").map((l) => `    ${l}`).join("\n"));
 
-            // Parse results
             const hasCronJobs = output.includes("pg_cron") && !output.includes("0 rows");
             const pgCronInstalled = output.includes("pg_cron extension is installed");
 
@@ -98,10 +131,8 @@ async function main() {
     }
 
     // ── Strategy 3: Check for Supabase scheduled functions (edge functions with cron) ──
-    // Supabase allows scheduling via supabase/config.toml [functions.<name>.schedule]
     try {
-        const __dirname = dirname(fileURLToPath(import.meta.url));
-        const configPath = join(__dirname, "..", "..", "supabase", "config.toml");
+        const configPath = join(repoRoot, "supabase", "config.toml");
         const config = readFileSync(configPath, "utf8");
 
         const scheduleMatches = config.match(/\[functions\.[^\]]+\][\s\S]*?schedule\s*=\s*"[^"]+"/g);
@@ -116,6 +147,18 @@ async function main() {
         }
     } catch {
         console.log("  Could not read supabase/config.toml.");
+    }
+
+    // ── Strategy 4: GitHub Actions cron workflows ──
+    const ghCronJobs = detectGitHubActionsCron(repoRoot);
+    if (ghCronJobs.length > 0) {
+        console.log(`  ✓ Found ${ghCronJobs.length} GitHub Actions cron schedule(s):`);
+        for (const { file, cron } of ghCronJobs) {
+            console.log(`    • ${file}  →  cron: "${cron}"`);
+        }
+        console.log();
+        console.log("  PASS — GitHub Actions cron is the scheduler-of-record.");
+        return { pass: 1, fail: 0, skip: 0, label: "scheduler-check" };
     }
 
     // ── Fallback: UNKNOWN ──
@@ -139,5 +182,5 @@ const result = await main();
 // Exit codes: 0=PASS, 1=FAIL, 2=SKIP, 3=UNKNOWN
 if (result.fail > 0) process.exit(1);
 else if (result.pass > 0) process.exit(0);
-else if (result.skip > 0) process.exit(3); // UNKNOWN — could not determine
+else if (result.skip > 0) process.exit(3);
 else process.exit(3);

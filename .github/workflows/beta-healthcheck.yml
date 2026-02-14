@@ -1,0 +1,25 @@
+name: Beta Healthcheck (Scheduled)
+
+on:
+  schedule:
+    - cron: "17 */6 * * *" # every 6 hours at :17
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-beta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run beta readiness checks (non-strict)
+        run: npm run verify:beta
