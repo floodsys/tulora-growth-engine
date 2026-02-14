@@ -5,11 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  RefreshCw, 
-  Webhook, 
-  CheckCircle, 
-  XCircle, 
+import {
+  RefreshCw,
+  Webhook,
+  CheckCircle,
+  XCircle,
   AlertTriangle,
   TrendingUp,
   TrendingDown
@@ -35,11 +35,48 @@ interface WebhookStats {
   total_events: number;
   success_rate: number;
   failed_count: number;
-  avg_response_time: number;
+  avg_response_time: number | null;
   spike_detected: boolean;
 }
 
-export const WebhookDashboard = () => {
+interface ObservabilityMetrics {
+  generated_at: string;
+  retell_webhooks: {
+    last_1h: { total: number; by_type: Record<string, number> };
+    last_24h: { total: number; by_type: Record<string, number> };
+  };
+  stripe_webhooks: {
+    last_1h: { total: number; by_type: Record<string, number> };
+    last_24h: { total: number; by_type: Record<string, number> };
+  };
+  failures: {
+    last_1h: number;
+    last_24h: number;
+    recent_errors: Array<{
+      id: string;
+      action: string;
+      error_code: string | null;
+      target_type: string;
+      created_at: string;
+    }>;
+  };
+  latency: {
+    call_p50_ms: number | null;
+    call_p95_ms: number | null;
+    sample_size: number;
+  };
+  calls: {
+    active: number;
+    total_24h: number;
+    failed_24h: number;
+  };
+}
+
+interface WebhookDashboardProps {
+  metrics?: ObservabilityMetrics | null;
+}
+
+export const WebhookDashboard = ({ metrics }: WebhookDashboardProps) => {
   const { organization } = useUserOrganization();
   const [webhookEvents, setWebhookEvents] = useState<WebhookEvent[]>([]);
   const [stats, setStats] = useState<WebhookStats | null>(null);
@@ -54,7 +91,7 @@ export const WebhookDashboard = () => {
     try {
       setLoading(true);
 
-      // Fetch recent webhook events
+      // Fetch recent webhook events from audit_log
       const { data: events, error: eventsError } = await supabase
         .from('audit_log')
         .select('*')
@@ -80,7 +117,7 @@ export const WebhookDashboard = () => {
 
       setWebhookEvents(formattedEvents);
 
-      // Calculate stats
+      // Calculate stats from real data
       const totalEvents = formattedEvents.length;
       const successCount = formattedEvents.filter(e => e.status === 'success').length;
       const failedCount = formattedEvents.filter(e => e.status === 'failed').length;
@@ -89,15 +126,18 @@ export const WebhookDashboard = () => {
       // Check for spikes (more than 10% failure rate in last hour)
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       const recentEvents = formattedEvents.filter(e => new Date(e.created_at) > oneHourAgo);
-      const recentFailureRate = recentEvents.length > 0 ? 
+      const recentFailureRate = recentEvents.length > 0 ?
         (recentEvents.filter(e => e.status === 'failed').length / recentEvents.length) * 100 : 0;
       const spikeDetected = recentFailureRate > 10 && recentEvents.length > 5;
+
+      // Use real latency from edge function metrics if available
+      const avgResponseTime = metrics?.latency?.call_p50_ms ?? null;
 
       const webhookStats: WebhookStats = {
         total_events: totalEvents,
         success_rate: successRate,
         failed_count: failedCount,
-        avg_response_time: 150, // Mock for now
+        avg_response_time: avgResponseTime,
         spike_detected: spikeDetected
       };
 
@@ -108,8 +148,8 @@ export const WebhookDashboard = () => {
         const hour = new Date(Date.now() - (23 - i) * 60 * 60 * 1000);
         const hourEvents = formattedEvents.filter(e => {
           const eventHour = new Date(e.created_at);
-          return eventHour.getHours() === hour.getHours() && 
-                 eventHour.getDate() === hour.getDate();
+          return eventHour.getHours() === hour.getHours() &&
+            eventHour.getDate() === hour.getDate();
         });
 
         return {
@@ -212,6 +252,37 @@ export const WebhookDashboard = () => {
         </div>
       </div>
 
+      {/* Global Webhook Counts from Edge Function */}
+      {metrics && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-blue-700">
+              Global Webhook Throughput (all orgs)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <div className="text-lg font-bold">{metrics.retell_webhooks.last_1h.total}</div>
+                <div className="text-muted-foreground">Retell (1h)</div>
+              </div>
+              <div>
+                <div className="text-lg font-bold">{metrics.retell_webhooks.last_24h.total}</div>
+                <div className="text-muted-foreground">Retell (24h)</div>
+              </div>
+              <div>
+                <div className="text-lg font-bold">{metrics.stripe_webhooks.last_1h.total}</div>
+                <div className="text-muted-foreground">Stripe (1h)</div>
+              </div>
+              <div>
+                <div className="text-lg font-bold">{metrics.stripe_webhooks.last_24h.total}</div>
+                <div className="text-muted-foreground">Stripe (24h)</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -294,7 +365,7 @@ export const WebhookDashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="hour" />
                 <YAxis />
-                <Tooltip 
+                <Tooltip
                   formatter={(value, name) => [value, name === 'success' ? 'Success' : 'Failed']}
                   labelFormatter={(hour) => `Hour: ${hour}:00`}
                 />
@@ -339,7 +410,7 @@ export const WebhookDashboard = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <Badge className={getStatusColor(event.status)}>
