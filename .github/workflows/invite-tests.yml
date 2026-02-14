@@ -1,3 +1,13 @@
+# ---------------------------------------------------------------------------
+# Invite System Tests — fully self-contained (local Supabase)
+#
+# This workflow starts a local Supabase stack inside the CI runner so that
+# the invite lifecycle tests can run WITHOUT any production/staging secrets.
+# All auth users, orgs, invitations, and memberships are ephemeral and
+# created / destroyed by the test script itself.
+#
+# Security note: no GitHub Environments or repository secrets are referenced.
+# ---------------------------------------------------------------------------
 name: Invite System Tests
 
 on:
@@ -5,63 +15,50 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch: # Allow manual triggers
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   invite-tests:
-    name: Invite Lifecycle Tests (smoke + full)
+    name: Invite Lifecycle Tests (local Supabase)
     runs-on: ubuntu-latest
-    # Skip when required secrets are unavailable (forks / PRs without environment)
-    if: ${{ github.event_name == 'workflow_dispatch' || vars.HAS_TESTING_ENV == 'true' || github.event_name == 'push' }}
-    
-    environment: testing # Use GitHub environment for secrets
-    
-    steps:
-      - name: Check for required secrets
-        id: check-secrets
-        run: |
-          if [ -z "${{ secrets.VITE_SUPABASE_URL }}" ] || [ -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]; then
-            echo "⚠️ Skipping invite tests: required secrets (VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) are not configured."
-            echo "To enable these tests, add the secrets to the 'testing' environment in your repo settings."
-            echo "has_secrets=false" >> $GITHUB_OUTPUT
-          else
-            echo "has_secrets=true" >> $GITHUB_OUTPUT
-          fi
 
+    steps:
       - name: Checkout code
-        if: steps.check-secrets.outputs.has_secrets == 'true'
         uses: actions/checkout@v4
-        
+
+      - name: Start Supabase local stack (with retry)
+        run: bash scripts/ci-supabase-start-retry.sh "npx --yes supabase@2.76.6"
+
+      - name: Export Supabase connection env vars
+        id: sb
+        run: |
+          STATUS_JSON=$(npx --yes supabase@2.76.6 status -o json)
+          echo "SUPABASE_URL=$(echo "$STATUS_JSON"     | jq -r '.API_URL')"            >> "$GITHUB_ENV"
+          echo "SUPABASE_ANON_KEY=$(echo "$STATUS_JSON" | jq -r '.ANON_KEY')"           >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=$(echo "$STATUS_JSON" | jq -r '.SERVICE_ROLE_KEY')" >> "$GITHUB_ENV"
+
       - name: Setup Node.js
-        if: steps.check-secrets.outputs.has_secrets == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: Install dependencies
-        if: steps.check-secrets.outputs.has_secrets == 'true'
         run: npm ci
-        
+
       - name: Run invite lifecycle tests (--mode=full)
-        if: steps.check-secrets.outputs.has_secrets == 'true'
         env:
-          # Test Configuration
-          VITE_RUN_TEST_LEVEL: "full"
-          VITE_TEST_ORG_ID: ${{ secrets.TEST_ORG_ID }}
           VITE_DISABLE_EMAIL_DELIVERY_FOR_TESTS: "true"
-          VITE_ANALYTICS_EXCLUDE_ORGS: '["${{ secrets.TEST_ORG_ID }}"]'
-          
-          # Supabase Configuration
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
-          
-          # Service Role for CI Testing
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          
         run: node scripts/run-invite-tests.js --mode=full
-        
+
+      - name: Stop Supabase
+        if: always()
+        run: npx --yes supabase@2.76.6 stop --no-backup
+
       - name: Ensure test-results directory exists
         if: always()
         run: mkdir -p test-results
@@ -74,7 +71,7 @@ jobs:
           path: test-results/
           retention-days: 30
           if-no-files-found: ignore
-          
+
       - name: Comment PR with test results
         uses: actions/github-script@v7
         if: github.event_name == 'pull_request' && always()
@@ -86,24 +83,24 @@ jobs:
               const passed = results.every(suite => suite.passed);
               const passedCount = results.filter(s => s.passed).length;
               const totalCount = results.length;
-              
+
               const status = passed ? '✅ PASSED' : '❌ FAILED';
               const summary = `${passedCount}/${totalCount} test suites passed`;
-              
+
               const body = `## 🔒 Invite System Test Results ${status}
-              
+
               **Summary:** ${summary}
-              
-              ${results.map(suite => 
+
+              ${results.map(suite =>
                 `### ${suite.passed ? '✅' : '❌'} ${suite.suiteName}
                 ${suite.summary}
-                
-                ${suite.results.map(test => 
+
+                ${suite.results.map(test =>
                   `- ${test.passed ? '✅' : '❌'} ${test.testName}: ${test.message}`
                 ).join('\n')}`
               ).join('\n\n')}
               `;
-              
+
               github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,

@@ -31,29 +31,42 @@ const args = process.argv.slice(2);
 const mode = args.find(arg => arg.startsWith('--mode='))?.split('=')[1] || 'smoke';
 
 // ---------------------------------------------------------------------------
+// Environment helpers — prefer SUPABASE_URL / SUPABASE_ANON_KEY but fall
+// back to the VITE_* variants so existing local-dev .env files still work.
+// ---------------------------------------------------------------------------
+function env(primary, ...fallbacks) {
+  for (const key of [primary, ...fallbacks]) {
+    if (process.env[key]) return process.env[key];
+  }
+  return undefined;
+}
+
+const RESOLVED_URL = () => env('SUPABASE_URL', 'VITE_SUPABASE_URL');
+const RESOLVED_ANON_KEY = () => env('SUPABASE_ANON_KEY', 'VITE_SUPABASE_PUBLISHABLE_KEY');
+const RESOLVED_SRK = () => env('SUPABASE_SERVICE_ROLE_KEY');
+
+// ---------------------------------------------------------------------------
 // Environment validation
 // ---------------------------------------------------------------------------
 function validateEnvironment() {
-  const required = [
-    'VITE_SUPABASE_URL',
-    'VITE_SUPABASE_PUBLISHABLE_KEY',
+  const checks = [
+    { label: 'SUPABASE_URL (or VITE_SUPABASE_URL)', ok: !!RESOLVED_URL() },
+    { label: 'SUPABASE_ANON_KEY (or VITE_SUPABASE_PUBLISHABLE_KEY)', ok: !!RESOLVED_ANON_KEY() },
   ];
 
-  // smoke mode also needs a pre-existing org id
   if (mode === 'smoke') {
-    required.push('VITE_TEST_ORG_ID');
+    checks.push({ label: 'VITE_TEST_ORG_ID', ok: !!process.env.VITE_TEST_ORG_ID });
   }
 
-  // full mode needs service role key for admin operations
   if (mode === 'full') {
-    required.push('SUPABASE_SERVICE_ROLE_KEY');
+    checks.push({ label: 'SUPABASE_SERVICE_ROLE_KEY', ok: !!RESOLVED_SRK() });
   }
 
-  const missing = required.filter(key => !process.env[key]);
+  const missing = checks.filter(c => !c.ok);
 
   if (missing.length > 0) {
     console.error('❌ Missing required environment variables:');
-    missing.forEach(key => console.error(`  - ${key}`));
+    missing.forEach(c => console.error(`  - ${c.label}`));
     process.exit(1);
   }
 
@@ -70,16 +83,16 @@ function validateEnvironment() {
 // ---------------------------------------------------------------------------
 function createServiceClient() {
   return createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+    RESOLVED_URL(),
+    RESOLVED_SRK() || RESOLVED_ANON_KEY(),
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 }
 
 function createAnonClient() {
   return createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+    RESOLVED_URL(),
+    RESOLVED_ANON_KEY(),
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 }
