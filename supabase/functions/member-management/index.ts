@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0'
 import { requireOrgActive, createBlockedResponse } from '../_shared/org-guard.ts'
+import { requireOrgRole, isLastOwner } from '../_shared/requireOrgRole.ts'
 import { syncStripeSeatsForOrgAsync } from '../_shared/billingSeats.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 
@@ -64,6 +65,48 @@ Deno.serve(async (req) => {
 
     if (!guardResult.ok) {
       return createBlockedResponse(guardResult, corsHeaders)
+    }
+
+    // ── Authorization gate: caller must be org owner or admin ──
+    const roleCheck = await requireOrgRole(supabase, organizationId, user.id, ['owner', 'admin']);
+    if (!roleCheck.ok) {
+      // Log the unauthorized attempt
+      await supabase.rpc('log_event', {
+        p_org_id: organizationId,
+        p_action: `member.${action}_denied`,
+        p_target_type: 'member',
+        p_target_id: userId,
+        p_status: 'denied',
+        p_metadata: {
+          caller_id: user.id,
+          caller_role: roleCheck.callerRole ?? 'none',
+          reason: roleCheck.reason,
+          attempted_action: action,
+        }
+      });
+
+      return new Response(
+        JSON.stringify({
+          error: 'Forbidden: only organization owners and admins can manage members',
+          code: roleCheck.reason,
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ── Last-owner protection ──
+    // Prevent removing or demoting the last owner (would lock out the org)
+    if (action === 'remove' || (action === 'change_role' && oldRole === 'owner' && newRole !== 'owner')) {
+      const lastOwner = await isLastOwner(supabase, organizationId, userId);
+      if (lastOwner) {
+        return new Response(
+          JSON.stringify({
+            error: 'Cannot remove or demote the last owner of the organization',
+            code: 'last_owner_protected',
+          }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     let result;
@@ -148,18 +191,18 @@ Deno.serve(async (req) => {
         if (roleError) {
           auditAction = 'member.role_change_failed';
           auditStatus = 'error';
-          auditMetadata = { 
-            ...memberInfo, 
-            old_role: oldRole, 
-            new_role: newRole, 
-            error: roleError.message 
+          auditMetadata = {
+            ...memberInfo,
+            old_role: oldRole,
+            new_role: newRole,
+            error: roleError.message
           };
         } else {
           auditAction = 'member.role_changed';
-          auditMetadata = { 
-            ...memberInfo, 
-            old_role: oldRole, 
-            new_role: newRole 
+          auditMetadata = {
+            ...memberInfo,
+            old_role: oldRole,
+            new_role: newRole
           };
           result = { success: true };
         }
