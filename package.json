@@ -21,7 +21,8 @@
     "check:no-seed-in-migrations": "node scripts/check-no-seed-in-migrations.cjs",
     "check:no-risky-drop-cascade": "node scripts/check-no-risky-drop-cascade.cjs",
     "check:migration-hygiene": "node scripts/check-no-seed-in-migrations.cjs && node scripts/check-no-risky-drop-cascade.cjs",
-    "test:ci": "vitest run"
+    "test:ci": "vitest run",
+    "verify:beta": "node scripts/verify/run-all.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
