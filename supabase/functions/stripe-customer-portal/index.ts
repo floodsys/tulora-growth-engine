@@ -12,8 +12,10 @@ interface PortalRequest {
   organizationId: string;
 }
 
+import { safeJson } from '../_shared/log.ts'
+
 const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  const detailsStr = details ? ` - ${JSON.stringify(safeJson(details))}` : '';
   console.log(`[STRIPE-CUSTOMER-PORTAL] ${step}${detailsStr}`);
 };
 
@@ -77,11 +79,11 @@ serve(async (req) => {
     // Find Stripe customer
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    
+
     if (customers.data.length === 0) {
       throw new Error("No Stripe customer found for this user");
     }
-    
+
     const customerId = customers.data[0].id;
     logStep("Customer found", { customerId });
 
@@ -92,13 +94,13 @@ serve(async (req) => {
       return_url: `${origin}/dashboard`,
     });
 
-    logStep("Customer portal session created", { 
-      sessionId: portalSession.id, 
-      url: portalSession.url 
+    logStep("Customer portal session created", {
+      sessionId: portalSession.id,
+      url: portalSession.url
     });
 
-    return new Response(JSON.stringify({ 
-      url: portalSession.url 
+    return new Response(JSON.stringify({
+      url: portalSession.url
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

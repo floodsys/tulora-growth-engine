@@ -8,7 +8,7 @@ interface TurnstileVerifyRequest {
 
 async function verifyTurnstile(token: string, remoteip?: string): Promise<boolean> {
   const secretKey = Deno.env.get('TURNSTILE_SECRET_KEY')
-  
+
   if (!secretKey) {
     console.error('TURNSTILE_SECRET_KEY not configured')
     return false
@@ -47,20 +47,20 @@ const getAllowedDomains = (): string[] => {
 function validateOrigin(request: Request): boolean {
   const origin = request.headers.get('origin')
   const referer = request.headers.get('referer')
-  
+
   if (!origin && !referer) {
     return false // Require origin or referer for widget requests
   }
-  
+
   const allowedDomains = getAllowedDomains()
   const urlToCheck = origin || referer
-  
+
   try {
     const url = new URL(urlToCheck!)
     const hostname = url.hostname.toLowerCase()
-    
-    return allowedDomains.some(domain => 
-      hostname === domain || 
+
+    return allowedDomains.some(domain =>
+      hostname === domain ||
       hostname.endsWith('.' + domain) ||
       (domain === 'localhost' && (hostname === 'localhost' || hostname === '127.0.0.1'))
     )
@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
   try {
     // Validate origin for widget protection
     if (!validateOrigin(req)) {
-      console.warn('Invalid origin for widget request:', req.headers.get('origin'))
+      console.warn('Invalid origin for widget request')
       return new Response(
         JSON.stringify({ error: 'Origin not allowed' }),
         { status: 403, headers: { ...enhancedCorsHeaders, 'Content-Type': 'application/json' } }
@@ -111,8 +111,8 @@ Deno.serve(async (req) => {
     }
 
     // Extract client IP from request
-    const clientIP = remoteip || 
-      req.headers.get('cf-connecting-ip') || 
+    const clientIP = remoteip ||
+      req.headers.get('cf-connecting-ip') ||
       req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
       req.headers.get('x-real-ip')
 
@@ -120,24 +120,22 @@ Deno.serve(async (req) => {
 
     if (!isValid) {
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Turnstile verification failed' 
+        JSON.stringify({
+          success: false,
+          error: 'Turnstile verification failed'
         }),
         { status: 400, headers: { ...enhancedCorsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Log successful verification for security monitoring
+    // Log successful verification for security monitoring (no PII)
     console.log('Turnstile verification successful:', {
       action,
-      clientIP,
-      origin: req.headers.get('origin'),
       timestamp: new Date().toISOString()
     })
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
         verified_at: new Date().toISOString()
       }),
