@@ -11,7 +11,11 @@
  *   SUPABASE_SERVICE_ROLE_KEY – service role for DB access (never printed)
  *   DATABASE_URL              – direct Postgres connection (fallback, optional)
  *
- * Exit code 0 = PASS or UNKNOWN, 1 = explicit FAIL.
+ * Exit codes:
+ *   0 = PASS
+ *   1 = FAIL
+ *   2 = SKIP
+ *   3 = UNKNOWN
  */
 
 import { execSync } from "node:child_process";
@@ -132,5 +136,8 @@ async function main() {
 }
 
 const result = await main();
-// UNKNOWN (skip) is exit 0; only explicit FAIL exits 1
+// Exit codes: 0=PASS, 1=FAIL, 2=SKIP, 3=UNKNOWN
 if (result.fail > 0) process.exit(1);
+else if (result.pass > 0) process.exit(0);
+else if (result.skip > 0) process.exit(3); // UNKNOWN — could not determine
+else process.exit(3);

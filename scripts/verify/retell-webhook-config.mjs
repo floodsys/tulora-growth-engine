@@ -10,7 +10,10 @@
  *   SUPABASE_URL            – e.g. https://nkjxbeypbiclvouqfjyc.supabase.co
  *   SUPABASE_SERVICE_ROLE_KEY – service-role key for DB queries (never printed)
  *
- * Exit code 0 = all PASS, 1 = at least one FAIL or error.
+ * Exit codes:
+ *   0 = PASS
+ *   1 = FAIL
+ *   2 = SKIP (credentials missing)
  */
 
 const EXPECTED_WEBHOOK_PATH = "/functions/v1/retell-webhook";
@@ -176,6 +179,7 @@ async function main() {
     return { pass, fail, skip: 0, label: "retell-webhook-config" };
 }
 
-// When run directly
+// When run directly — exit codes: 0=PASS, 1=FAIL, 2=SKIP
 const result = await main();
 if (result.fail > 0) process.exit(1);
+else if (result.skip > 0) process.exit(2);
