@@ -127,23 +127,23 @@ export async function requireOrgActive(context: OrgGuardContext): Promise<OrgGua
  */
 export function getClientIp(req: Request): string | null {
   const headers = req.headers;
-  
+
   // Order of preference: cf-connecting-ip → x-real-ip → first of x-forwarded-for → fly-client-ip
   const cfConnectingIp = headers.get('cf-connecting-ip');
   if (cfConnectingIp) return cfConnectingIp;
-  
+
   const xRealIp = headers.get('x-real-ip');
   if (xRealIp) return xRealIp;
-  
+
   const xForwardedFor = headers.get('x-forwarded-for');
   if (xForwardedFor) {
     const firstIp = xForwardedFor.split(',')[0]?.trim();
     if (firstIp) return firstIp;
   }
-  
+
   const flyClientIp = headers.get('fly-client-ip');
   if (flyClientIp) return flyClientIp;
-  
+
   // Last resort: check for edge runtime IP
   const xForwardedHost = headers.get('x-forwarded-host');
   if (xForwardedHost) {
@@ -151,7 +151,7 @@ export function getClientIp(req: Request): string | null {
     const edgeIp = headers.get('x-edge-ip') || headers.get('x-client-ip');
     if (edgeIp) return edgeIp;
   }
-  
+
   return null;
 }
 
@@ -161,14 +161,14 @@ export function getClientIp(req: Request): string | null {
  */
 export function ipMatchesAllowlist(ip: string, rules: string[]): boolean {
   if (!ip || !rules?.length) return false;
-  
+
   for (const rule of rules) {
     const trimmedRule = rule.trim();
     if (!trimmedRule) continue;
-    
+
     // Exact match
     if (trimmedRule === ip) return true;
-    
+
     // Wildcard match (e.g., 203.0.113.*)
     if (trimmedRule.includes('*')) {
       const regexPattern = trimmedRule
@@ -177,23 +177,23 @@ export function ipMatchesAllowlist(ip: string, rules: string[]): boolean {
       const regex = new RegExp(`^${regexPattern}$`);
       if (regex.test(ip)) return true;
     }
-    
+
     // CIDR notation (e.g., 203.0.113.0/24)
     if (trimmedRule.includes('/')) {
       const [network, prefixStr] = trimmedRule.split('/');
       const prefix = parseInt(prefixStr, 10);
-      
+
       if (prefix >= 0 && prefix <= 32 && network) {
         try {
           const ipParts = ip.split('.').map(p => parseInt(p, 10));
           const networkParts = network.split('.').map(p => parseInt(p, 10));
-          
+
           if (ipParts.length === 4 && networkParts.length === 4) {
             // Convert to 32-bit integers
             const ipInt = (ipParts[0] << 24) + (ipParts[1] << 16) + (ipParts[2] << 8) + ipParts[3];
             const networkInt = (networkParts[0] << 24) + (networkParts[1] << 16) + (networkParts[2] << 8) + networkParts[3];
             const mask = ~((1 << (32 - prefix)) - 1);
-            
+
             if ((ipInt & mask) === (networkInt & mask)) return true;
           }
         } catch (e) {
@@ -202,7 +202,7 @@ export function ipMatchesAllowlist(ip: string, rules: string[]): boolean {
       }
     }
   }
-  
+
   return false;
 }
 
@@ -210,13 +210,13 @@ export function ipMatchesAllowlist(ip: string, rules: string[]): boolean {
  * Validates if the request IP is allowed based on organization IP allowlist settings
  */
 export async function requireOrgIpAllowed(
-  req: Request, 
-  organizationId: string, 
+  req: Request,
+  organizationId: string,
   supabase: SupabaseClient
 ): Promise<OrgIpGuardResult> {
   try {
     const clientIp = getClientIp(req);
-    
+
     // Fetch organization settings
     const { data: org, error } = await supabase
       .from('organizations')
@@ -260,7 +260,7 @@ export async function requireOrgIpAllowed(
 
     // Check if IP matches allowlist
     const isAllowed = ipMatchesAllowlist(clientIp, ipAllowlist);
-    
+
     if (!isAllowed) {
       // Log blocked IP attempt
       await supabase.rpc('log_event', {
@@ -331,7 +331,7 @@ async function logBlockedOperation(
     const now = Date.now();
     const windowMs = 60 * 1000; // 1 minute window
     const maxRequests = 50; // Max 50 blocked operations per minute per org/IP
-    
+
     // Check rate limit
     const current = rateLimitCache.get(rateLimitKey);
     if (current && current.resetTime > now) {
@@ -343,7 +343,7 @@ async function logBlockedOperation(
     } else {
       rateLimitCache.set(rateLimitKey, { count: 1, resetTime: now + windowMs });
     }
-    
+
     // Clean up expired entries
     for (const [key, value] of rateLimitCache.entries()) {
       if (value.resetTime <= now) {
@@ -374,7 +374,7 @@ async function logBlockedOperation(
         organization_name: params.organizationName,
         suspension_reason: params.suspensionReason,
         ip_address: clientIP,
-        rate_limit_applied: current?.count > 1,
+        rate_limit_applied: (current?.count ?? 0) > 1,
         timestamp: new Date().toISOString()
       }
     });
@@ -448,44 +448,44 @@ export function isExemptedPath(path: string, action: string): boolean {
     /^\/api\/billing\//,
     /^\/api\/stripe\//,
     /^\/api\/portal\//,
-    
+
     // Auth operations
     /^\/api\/auth\//,
     /^\/api\/me$/,
-    
+
     // Read-only settings (but not updates)
-    /^\/api\/settings\// && action.includes('read'),
-    
+    ...(action.includes('read') ? [/^\/api\/settings\//] : []),
+
     // Support and contact
     /^\/api\/support\//,
     /^\/api\/contact\//,
-    
+
     // Health checks
     /^\/api\/health$/,
     /^\/api\/status$/
   ];
 
-  return exemptedPatterns.some(pattern => 
-    typeof pattern === 'object' && 'test' in pattern 
+  return exemptedPatterns.some(pattern =>
+    typeof pattern === 'object' && 'test' in pattern
       ? pattern.test(path)
       : false
-   );
+  );
 }
 
 /**
  * Resolve webhook target with precedence: agent.webhook_url → org.settings.webhook_url → null
  */
-export function resolveWebhookTarget({ agent, orgSettings }: { 
-  agent?: { webhook_url?: string }, 
-  orgSettings?: { webhook_url?: string } 
+export function resolveWebhookTarget({ agent, orgSettings }: {
+  agent?: { webhook_url?: string },
+  orgSettings?: { webhook_url?: string }
 }): { url: string | null, target: "agent" | "org" | null } {
   if (agent?.webhook_url?.trim()) {
     return { url: agent.webhook_url.trim(), target: "agent" }
   }
-  
+
   if (orgSettings?.webhook_url?.trim()) {
     return { url: orgSettings.webhook_url.trim(), target: "org" }
   }
-  
+
   return { url: null, target: null }
 }
