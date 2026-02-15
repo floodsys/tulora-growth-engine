@@ -17,12 +17,23 @@
  */
 
 const EXPECTED_WEBHOOK_PATH = "/functions/v1/retell-webhook";
-const EXPECTED_EVENTS = ["call_started", "call_ended", "call_analyzed"];
+
+/**
+ * Per Retell docs, when webhook_events is null/undefined the platform
+ * delivers these three event types by default.
+ */
+const DEFAULT_EVENTS = ["call_started", "call_ended", "call_analyzed"];
+const REQUIRED_EVENTS = ["call_started", "call_ended", "call_analyzed"];
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 function redact(key) {
     if (!key) return "(unset)";
     return key.slice(0, 4) + "…" + key.slice(-4);
+}
+
+/** Normalize a base URL by stripping any trailing slash. */
+function normalizeUrl(url) {
+    return url ? url.replace(/\/+$/, "") : "";
 }
 
 function table(rows) {
@@ -46,6 +57,33 @@ function table(rows) {
     }
 }
 
+// ─── reachability probe ─────────────────────────────────────────────────────
+/**
+ * Send a POST to the expected webhook URL with a tiny JSON body and NO
+ * Retell signature header. This verifies the Edge Function route exists.
+ *
+ * Returns: "PASS" | "FAIL" | "SKIP"
+ *   - 401 / 405 → route exists (PASS)
+ *   - 404       → route missing (FAIL)
+ *   - network error or SUPABASE_URL unset → SKIP
+ */
+async function probeWebhookRoute(expectedUrl) {
+    if (!expectedUrl) return "SKIP";
+    try {
+        const res = await fetch(expectedUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ event: "probe", call_id: "verify-probe" }),
+        });
+        if (res.status === 404) return "FAIL";
+        // 401 (missing/bad signature) or 405 both confirm the route is live
+        return "PASS";
+    } catch {
+        // Network error — cannot reach, but don't block if SUPABASE_URL is set
+        return "SKIP";
+    }
+}
+
 // ─── main ───────────────────────────────────────────────────────────────────
 async function main() {
     const RETELL_API_KEY = process.env.RETELL_API_KEY;
@@ -64,12 +102,34 @@ async function main() {
         return { pass: 0, fail: 0, skip: 1, label: "retell-webhook-config" };
     }
 
+    // ── Compute expected webhook URL ────────────────────────────────────
+    const expectedUrl = SUPABASE_URL
+        ? `${normalizeUrl(SUPABASE_URL)}${EXPECTED_WEBHOOK_PATH}`
+        : null;
+
+    if (expectedUrl) {
+        console.log(`  Expected webhook URL: ${expectedUrl}`);
+    } else {
+        console.log("  ⚠ SUPABASE_URL unset — will do best-effort URL matching.");
+    }
+
+    // ── Reachability probe (optional) ───────────────────────────────────
+    const probeResult = await probeWebhookRoute(expectedUrl);
+    if (probeResult === "PASS") {
+        console.log("  ✓ Reachability probe: route exists (POST returned non-404).");
+    } else if (probeResult === "FAIL") {
+        console.log("  ✗ Reachability probe: POST returned 404 — route may be missing!");
+    } else {
+        console.log("  ⏭ Reachability probe: skipped (URL unset or network error).");
+    }
+    console.log();
+
     // ── Step 1: Get agent IDs from Supabase (preferred) or Retell list ──
     let agentIds = [];
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
         try {
             const res = await fetch(
-                `${SUPABASE_URL}/rest/v1/retell_agents?select=agent_id,name,organization_id&is_active=eq.true`,
+                `${normalizeUrl(SUPABASE_URL)}/rest/v1/retell_agents?select=agent_id,name,organization_id&is_active=eq.true`,
                 {
                     headers: {
                         apikey: SUPABASE_SERVICE_ROLE_KEY,
@@ -117,10 +177,6 @@ async function main() {
     }
 
     // ── Step 2: Check each agent's webhook config ──
-    const expectedUrlBase = SUPABASE_URL
-        ? `${SUPABASE_URL}${EXPECTED_WEBHOOK_PATH}`
-        : null;
-
     let pass = 0;
     let fail = 0;
     const rows = [];
@@ -134,7 +190,7 @@ async function main() {
             rows.push({
                 agent_id: agent_id.slice(0, 12) + "…",
                 name: name?.slice(0, 20) || "—",
-                webhook_url: `(HTTP ${res.status})`,
+                webhook_url: `(API ${res.status})`,
                 events: "—",
                 result: "FAIL",
             });
@@ -144,38 +200,59 @@ async function main() {
 
         const agent = await res.json();
         const webhookUrl = agent.webhook_url || "(none)";
-        const webhookEvents = agent.webhook_events || [];
-        const eventStr = webhookEvents.length ? webhookEvents.join(",") : "(default/unset)";
+        const webhookEvents = agent.webhook_events; // may be null/undefined or array
 
-        // Evaluate
-        let urlOk = true;
-        if (expectedUrlBase) {
-            urlOk = webhookUrl === expectedUrlBase;
+        // Resolve effective events: null/undefined → Retell defaults
+        const effectiveEvents =
+            Array.isArray(webhookEvents) && webhookEvents.length > 0
+                ? webhookEvents
+                : DEFAULT_EVENTS;
+
+        const eventStr = Array.isArray(webhookEvents) && webhookEvents.length > 0
+            ? webhookEvents.join(",")
+            : "(default)";
+
+        // ── Validate webhook_url ────────────────────────────────────────
+        let urlOk;
+        if (expectedUrl) {
+            urlOk = webhookUrl === expectedUrl;
         } else {
-            urlOk = webhookUrl.includes("/retell-webhook");
+            // Best-effort: at least contains the expected path
+            urlOk = webhookUrl.includes(EXPECTED_WEBHOOK_PATH);
         }
 
-        const eventsOk =
-            webhookEvents.length === 0 || // unset = Retell defaults (OK)
-            EXPECTED_EVENTS.every((e) => webhookEvents.includes(e));
+        // ── Validate webhook_events ─────────────────────────────────────
+        const eventsOk = REQUIRED_EVENTS.every((e) => effectiveEvents.includes(e));
 
         const result = urlOk && eventsOk ? "PASS" : "FAIL";
         if (result === "PASS") pass++;
         else fail++;
+
+        // Build detail string for failures
+        let detail = "";
+        if (!urlOk) detail += " url-mismatch";
+        if (!eventsOk) detail += " events-missing";
 
         rows.push({
             agent_id: agent_id.slice(0, 12) + "…",
             name: (name || "—").slice(0, 20),
             webhook_url: webhookUrl.length > 50 ? webhookUrl.slice(0, 47) + "…" : webhookUrl,
             events: eventStr.length > 30 ? eventStr.slice(0, 27) + "…" : eventStr,
-            result,
+            result: result + detail,
         });
     }
 
     console.log();
     table(rows);
-    console.log(`\n  ✓ ${pass} PASS  ✗ ${fail} FAIL\n`);
+    console.log(`\n  ✓ ${pass} PASS  ✗ ${fail} FAIL`);
 
+    // Probe failure is only an additional FAIL when SUPABASE_URL is set
+    if (probeResult === "FAIL" && SUPABASE_URL) {
+        console.log("  ✗ Reachability probe FAILED — webhook route returned 404 on POST.");
+        fail++;
+    }
+
+    console.log();
     return { pass, fail, skip: 0, label: "retell-webhook-config" };
 }
 
