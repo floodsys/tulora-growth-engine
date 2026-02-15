@@ -27,7 +27,7 @@ npm run verify:beta:strict   # strict mode (only PASS is accepted)
 | Script | Purpose | Required Env Vars |
 |--------|---------|-------------------|
 | `retell-webhook-config.mjs` | Verifies Retell agents have correct webhook URLs and events | `RETELL_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` |
-| `stripe-webhook-endpoints.mjs` | Verifies Stripe webhook endpoints point to org-billing-webhook | `STRIPE_SECRET_KEY`, `SUPABASE_URL` |
+| `stripe-webhook-endpoints.mjs` | Verifies Stripe webhook endpoints point to org-billing-webhook. Supports `--fix` to auto-add missing required events. | `STRIPE_SECRET_KEY`, `SUPABASE_URL` |
 | `scheduler-check.mjs` | Detects pg_cron / scheduled function jobs | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL` (optional) |
 | `github-actions-permissions.mjs` | Checks repo default_workflow_permissions and explicit permissions blocks | `gh` CLI authenticated |
 
@@ -52,6 +52,9 @@ node scripts/verify/retell-webhook-config.mjs
 # Stripe webhook endpoints
 node scripts/verify/stripe-webhook-endpoints.mjs
 
+# Stripe webhook endpoints — auto-fix missing required events
+node scripts/verify/stripe-webhook-endpoints.mjs --fix
+
 # Scheduler / cron jobs
 node scripts/verify/scheduler-check.mjs
 
@@ -63,6 +66,30 @@ node scripts/verify/github-actions-permissions.mjs
 
 All verification scripts are pure Node.js (`.mjs`). No bash or shell dependencies.
 Works on Windows, macOS, and Linux without any additional setup.
+
+## Auto-Fix Mode (`--fix`)
+
+The `stripe-webhook-endpoints.mjs` script supports a `--fix` flag that automatically
+adds any missing required events to the Stripe webhook endpoint:
+
+```bash
+node scripts/verify/stripe-webhook-endpoints.mjs --fix
+```
+
+**Behavior:**
+- If exactly **one** endpoint matches the expected billing webhook URL, and it is
+  missing required events (e.g., `invoice.paid`), the script updates it via the
+  Stripe API to include them.
+- Existing `enabled_events` are **preserved** — the fix adds the union of current
+  events and required events (it never removes events).
+- After applying the fix, the script re-fetches the endpoint and re-verifies. If
+  all checks pass, it exits with code `0` (PASS).
+- If zero or multiple endpoints match, or the failure is not about missing events,
+  the script will not attempt a fix.
+
+> **Note:** Strict mode (`npm run verify:beta:strict`) requires **all** checks to
+> PASS — including Stripe webhooks. Running `--fix` first ensures the Stripe check
+> will pass in strict mode.
 
 ## Strict Mode
 
