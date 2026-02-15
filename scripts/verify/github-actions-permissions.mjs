@@ -5,15 +5,21 @@
  * Cross-platform (Node) replacement for github-actions-permissions.sh.
  *
  * Verifies:
- *   1. GitHub Actions default_workflow_permissions are read-only (via gh CLI API)
- *   2. All .github/workflows/*.yml files have explicit `permissions:` blocks
+ *   1. All .github/workflows/*.yml files have explicit `permissions:` blocks
+ *   2. GitHub Actions default_workflow_permissions are read-only (via gh CLI API, best-effort)
  *
- * Requires: gh CLI authenticated (GITHUB_TOKEN or `gh auth login`)
+ * Requires: gh CLI authenticated (GITHUB_TOKEN or `gh auth login`) for the API check.
+ *
+ * Overall result logic:
+ *   - If workflow files scan is PASS (all workflows have explicit `permissions:`),
+ *     overall is PASS even if the API check is UNKNOWN or SKIP.
+ *   - If either check is FAIL, overall is FAIL.
+ *   - If workflow files scan is not PASS, UNKNOWN/SKIP propagate normally.
  *
  * Exit codes:
- *   0 = all PASS (or SKIP when gh is unavailable)
- *   1 = at least one FAIL
- *   2 = SKIP (no gh CLI / not authenticated)
+ *   0 = PASS
+ *   1 = FAIL
+ *   2 = SKIP
  *   3 = UNKNOWN
  */
 
@@ -81,62 +87,9 @@ function hasExplicitPermissions(content) {
     return false;
 }
 
-// ─── check 1: default workflow permissions via gh API ───────────────────────
-
-function checkDefaultPermissions(repo) {
-    console.log("  ── Default Workflow Permissions ──");
-
-    if (!ghExists()) {
-        console.log("    ⚠ gh CLI not found. Skipping API-based permission check.");
-        console.log("      Install: https://cli.github.com/");
-        return "SKIP";
-    }
-
-    if (!ghAuthenticated()) {
-        console.log("    ⚠ gh CLI not authenticated. Skipping API-based permission check.");
-        console.log("      Run: gh auth login");
-        return "SKIP";
-    }
-
-    if (!repo) {
-        console.log("    ⚠ Cannot determine GitHub repository.");
-        return "UNKNOWN";
-    }
-
-    const raw = run(`gh api repos/${repo}/actions/permissions`);
-    if (!raw) {
-        console.log("    ⚠ Could not fetch repo permissions (may need admin access).");
-        return "UNKNOWN";
-    }
-
-    try {
-        const perms = JSON.parse(raw);
-        const defaultPerms = perms.default_workflow_permissions || "unknown";
-        const canApprove = perms.can_approve_pull_request_reviews;
-
-        console.log(`    default_workflow_permissions: ${defaultPerms}`);
-        console.log(`    can_approve_pull_request_reviews: ${canApprove ?? "unknown"}`);
-
-        if (defaultPerms === "read") {
-            console.log("    ✓ PASS — default is read-only (least privilege)");
-            return "PASS";
-        } else if (defaultPerms === "write") {
-            console.log("    ✗ FAIL — default is read-write; prefer 'read' with explicit per-job permissions");
-            return "FAIL";
-        } else {
-            console.log("    ⚠ Could not determine default permissions");
-            return "UNKNOWN";
-        }
-    } catch {
-        console.log("    ⚠ Failed to parse permissions response.");
-        return "UNKNOWN";
-    }
-}
-
-// ─── check 2: workflow files have explicit permissions blocks ────────────────
+// ─── check 1: workflow files have explicit permissions blocks ────────────────
 
 function checkWorkflowPermissions() {
-    console.log("");
     console.log("  ── Workflow Permissions Blocks ──");
 
     if (!existsSync(WORKFLOW_DIR)) {
@@ -179,6 +132,65 @@ function checkWorkflowPermissions() {
     }
 }
 
+// ─── check 2: default workflow permissions via gh API (best-effort) ─────────
+
+function checkDefaultPermissions(repo) {
+    console.log("");
+    console.log("  ── Default Workflow Permissions (best-effort) ──");
+
+    if (!ghExists()) {
+        console.log("    ⚠ gh CLI not found. Skipping API-based permission check.");
+        console.log("      Install: https://cli.github.com/");
+        return "SKIP";
+    }
+
+    if (!ghAuthenticated()) {
+        console.log("    ⚠ gh CLI not authenticated. Skipping API-based permission check.");
+        console.log("      Run: gh auth login");
+        return "SKIP";
+    }
+
+    if (!repo) {
+        console.log("    ⚠ Cannot determine GitHub repository.");
+        return "UNKNOWN";
+    }
+
+    const endpoint = `repos/${repo}/actions/permissions/workflow`;
+    const raw = run(`gh api ${endpoint}`);
+    if (!raw) {
+        console.log(`    ⚠ Could not fetch workflow permissions from: ${endpoint}`);
+        console.log("      This may require admin/owner access to the repository.");
+        console.log(`      Manual check: gh api ${endpoint}`);
+        return "UNKNOWN";
+    }
+
+    try {
+        const perms = JSON.parse(raw);
+        const defaultPerms = perms.default_workflow_permissions || "unknown";
+        const canApprove = perms.can_approve_pull_request_reviews;
+
+        console.log(`    default_workflow_permissions: ${defaultPerms}`);
+        console.log(`    can_approve_pull_request_reviews: ${canApprove ?? "unknown"}`);
+
+        if (defaultPerms === "read") {
+            console.log("    ✓ PASS — default is read-only (least privilege)");
+            return "PASS";
+        } else if (defaultPerms === "write") {
+            console.log("    ✗ FAIL — default is read-write; prefer 'read' with explicit per-job permissions");
+            return "FAIL";
+        } else {
+            console.log("    ⚠ Could not determine default permissions.");
+            console.log(`      Manual check: gh api ${endpoint}`);
+            return "UNKNOWN";
+        }
+    } catch (e) {
+        console.log(`    ⚠ Failed to parse permissions response from: ${endpoint}`);
+        console.log(`      Error: ${e.message}`);
+        console.log(`      Manual check: gh api ${endpoint}`);
+        return "UNKNOWN";
+    }
+}
+
 // ─── main ───────────────────────────────────────────────────────────────────
 
 function main() {
@@ -190,25 +202,45 @@ function main() {
     console.log(`  Repository: ${repo || "(unknown)"}`);
     console.log("");
 
-    const result1 = checkDefaultPermissions(repo);
-    const result2 = checkWorkflowPermissions();
+    const workflowResult = checkWorkflowPermissions();
+    const apiResult = checkDefaultPermissions(repo);
 
-    // Determine overall status
-    // Priority: FAIL > UNKNOWN > SKIP > PASS
-    const statuses = [result1, result2];
+    // ── Determine overall status ──
+    //
+    // Key rule: if ALL workflow files have explicit `permissions:` blocks (PASS),
+    // the overall result is PASS regardless of the API check being UNKNOWN/SKIP,
+    // because the workflow-level declarations override repo defaults.
+    //
+    // If either check is FAIL, overall is FAIL.
+
     let overall;
-    if (statuses.includes("FAIL")) {
+
+    if (workflowResult === "FAIL" || apiResult === "FAIL") {
         overall = "FAIL";
-    } else if (statuses.includes("UNKNOWN")) {
-        overall = "UNKNOWN";
-    } else if (statuses.includes("SKIP")) {
-        overall = "SKIP";
-    } else {
+    } else if (workflowResult === "PASS") {
+        // Workflow files all have explicit permissions — this is sufficient.
+        // API check being UNKNOWN/SKIP doesn't downgrade the overall result.
         overall = "PASS";
+
+        if (apiResult !== "PASS") {
+            console.log("");
+            console.log("  ⚠ Note: repo default workflow permissions could not be determined via API.");
+            console.log(`    To verify manually: gh api repos/${repo || "{owner}/{repo}"}/actions/permissions/workflow`);
+            console.log("    Since all workflow files declare explicit permissions, this is non-blocking.");
+        }
+    } else {
+        // Workflow files scan is not PASS (UNKNOWN/SKIP) — fall back to normal priority
+        if ([workflowResult, apiResult].includes("UNKNOWN")) {
+            overall = "UNKNOWN";
+        } else if ([workflowResult, apiResult].includes("SKIP")) {
+            overall = "SKIP";
+        } else {
+            overall = "PASS";
+        }
     }
 
     console.log("");
-    console.log(`  Summary: API check=${result1}  Workflow files=${result2}  Overall=${overall}`);
+    console.log(`  Summary: Workflow files=${workflowResult}  API check=${apiResult}  Overall=${overall}`);
     console.log("");
 
     // Exit codes: 0=PASS, 1=FAIL, 2=SKIP, 3=UNKNOWN
