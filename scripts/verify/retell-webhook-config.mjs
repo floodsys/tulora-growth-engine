@@ -5,6 +5,11 @@
  * Verifies that every Retell agent used by Tulora has the correct
  * production webhook_url configured and the expected webhook events.
  *
+ * When Get Voice Agent returns 404, the verifier now also attempts
+ * Get Chat Agent for that ID, annotating the result as:
+ *   - "wrong-type"  if chat succeeds (DB agent is a chat agent, not voice)
+ *   - "not-found"   if both endpoints return 404
+ *
  * Env vars required:
  *   RETELL_API_KEY          – Retell platform API key (never printed)
  *   SUPABASE_URL            – e.g. https://nkjxbeypbiclvouqfjyc.supabase.co
@@ -55,6 +60,43 @@ function table(rows) {
             cols.map((c, i) => ` ${String(row[c] ?? "").padEnd(widths[i])} `).join("│")
         );
     }
+}
+
+// ─── agent type detection ───────────────────────────────────────────────────
+
+/**
+ * Try to fetch agent details, falling back from voice → chat endpoint.
+ *
+ * Returns: { ok: boolean, agent: object|null, agentType: "voice"|"chat"|null, status: number }
+ */
+async function fetchAgentWithFallback(agentId, apiKey) {
+    // Try voice agent first
+    const voiceRes = await fetch(`https://api.retellai.com/get-agent/${agentId}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (voiceRes.ok) {
+        return { ok: true, agent: await voiceRes.json(), agentType: "voice", status: voiceRes.status };
+    }
+
+    // If voice returned 404, try chat agent
+    if (voiceRes.status === 404) {
+        try {
+            const chatRes = await fetch(`https://api.retellai.com/get-chat-agent/${agentId}`, {
+                headers: { Authorization: `Bearer ${apiKey}` },
+            });
+            if (chatRes.ok) {
+                return { ok: true, agent: await chatRes.json(), agentType: "chat", status: chatRes.status };
+            }
+            // Both 404
+            return { ok: false, agent: null, agentType: null, status: 404 };
+        } catch {
+            // Chat endpoint call failed, treat as not-found
+            return { ok: false, agent: null, agentType: null, status: 404 };
+        }
+    }
+
+    // Non-404 error from voice endpoint
+    return { ok: false, agent: null, agentType: null, status: voiceRes.status };
 }
 
 // ─── reachability probe ─────────────────────────────────────────────────────
@@ -126,6 +168,7 @@ async function main() {
 
     // ── Step 1: Get agent IDs from Supabase (preferred) or Retell list ──
     let agentIds = [];
+    let dbReachable = false;
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
         try {
             const res = await fetch(
@@ -138,6 +181,7 @@ async function main() {
                 }
             );
             if (res.ok) {
+                dbReachable = true;
                 const data = await res.json();
                 agentIds = data.map((r) => ({
                     agent_id: r.agent_id,
@@ -153,7 +197,15 @@ async function main() {
         }
     }
 
-    // Fallback: list agents via Retell API
+    // If DB was reachable and returned 0 active agents, that's a valid
+    // "nothing to verify" state — don't fall back to listing ALL Retell agents
+    // (which may include template/demo agents not used by Tulora).
+    if (dbReachable && agentIds.length === 0) {
+        console.log("  No active agents in DB — nothing to verify. PASS.");
+        return { pass: 0, fail: 0, skip: 0, label: "retell-webhook-config" };
+    }
+
+    // Fallback: list agents via Retell API (only when DB was not reachable)
     if (!agentIds.length) {
         const listRes = await fetch("https://api.retellai.com/list-agents", {
             headers: { Authorization: `Bearer ${RETELL_API_KEY}` },
@@ -182,23 +234,25 @@ async function main() {
     const rows = [];
 
     for (const { agent_id, name } of agentIds) {
-        const res = await fetch(`https://api.retellai.com/get-agent/${agent_id}`, {
-            headers: { Authorization: `Bearer ${RETELL_API_KEY}` },
-        });
+        const { ok, agent, agentType, status } = await fetchAgentWithFallback(agent_id, RETELL_API_KEY);
 
-        if (!res.ok) {
+        if (!ok) {
+            // Determine annotation: not-found (both 404) vs other error
+            const annotation = status === 404 ? "not-found" : `api-${status}`;
             rows.push({
                 agent_id: agent_id.slice(0, 12) + "…",
                 name: name?.slice(0, 20) || "—",
-                webhook_url: `(API ${res.status})`,
+                webhook_url: `(API ${status})`,
                 events: "—",
-                result: "FAIL",
+                result: `FAIL ${annotation}`,
             });
             fail++;
             continue;
         }
 
-        const agent = await res.json();
+        // If agent was found via chat endpoint, annotate as wrong-type
+        const typeNote = agentType === "chat" ? " [wrong-type:chat]" : "";
+
         const webhookUrl = agent.webhook_url || "(none)";
         const webhookEvents = agent.webhook_events; // may be null/undefined or array
 
@@ -232,6 +286,7 @@ async function main() {
         let detail = "";
         if (!urlOk) detail += " url-mismatch";
         if (!eventsOk) detail += " events-missing";
+        if (typeNote) detail += typeNote;
 
         rows.push({
             agent_id: agent_id.slice(0, 12) + "…",
