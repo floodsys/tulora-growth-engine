@@ -224,43 +224,55 @@ async function runFullTests() {
   }
 
   // -----------------------------------------------------------------------
-  // 1. Create ephemeral org
+  // 1. Locate org auto-created by handle_new_user_signup trigger
+  //    (The trigger fires on auth.users INSERT and creates an org + admin
+  //     membership automatically, so we just look it up instead of
+  //     inserting a duplicate which would violate owner_user_id_unique.)
   // -----------------------------------------------------------------------
   try {
-    const { data, error } = await svc.from('organizations').insert({
-      name: `CI Test Org ${tag}`,
-      owner_user_id: adminUserId,
-      status: 'active'
-    }).select().single();
+    const { data, error } = await svc.from('organizations')
+      .select('*')
+      .eq('owner_user_id', adminUserId)
+      .single();
 
     if (error) throw new Error(error.message);
+    if (!data) throw new Error('Trigger did not auto-create an organization');
     testOrgId = data.id;
+
+    // Optionally rename it for clarity in logs
+    await svc.from('organizations')
+      .update({ name: `CI Test Org ${tag}` })
+      .eq('id', testOrgId);
+
     cleanup.push(() => svc.from('organizations').delete().eq('id', testOrgId));
 
-    record('1. Create ephemeral org', true, `org ${testOrgId}`);
+    record('1. Locate ephemeral org (auto-created by trigger)', true, `org ${testOrgId}`);
   } catch (err) {
-    record('1. Create ephemeral org', false, err.message);
+    record('1. Locate ephemeral org (auto-created by trigger)', false, err.message);
     await runCleanup(cleanup);
     return buildSuiteResult('Full Invite Lifecycle', results);
   }
 
   // -----------------------------------------------------------------------
-  // 1b. Add admin user as admin member
+  // 1b. Verify admin membership (auto-created by trigger)
   // -----------------------------------------------------------------------
   try {
-    const { error } = await svc.from('organization_members').insert({
-      organization_id: testOrgId,
-      user_id: adminUserId,
-      role: 'admin'
-    });
+    const { data, error } = await svc.from('organization_members')
+      .select('*')
+      .eq('organization_id', testOrgId)
+      .eq('user_id', adminUserId)
+      .single();
+
     if (error) throw new Error(error.message);
+    if (!data) throw new Error('Trigger did not auto-create admin membership');
+
     cleanup.push(() =>
       svc.from('organization_members').delete()
         .eq('organization_id', testOrgId).eq('user_id', adminUserId)
     );
-    record('1b. Admin membership created', true, 'admin role assigned');
+    record('1b. Admin membership verified (auto-created)', true, `role=${data.role}`);
   } catch (err) {
-    record('1b. Admin membership created', false, err.message);
+    record('1b. Admin membership verified (auto-created)', false, err.message);
     await runCleanup(cleanup);
     return buildSuiteResult('Full Invite Lifecycle', results);
   }
