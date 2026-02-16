@@ -43,4 +43,4 @@ jobs:
           deno-version: v2.x
 
       - name: Run shared module tests
-        run: deno test --allow-env --no-check supabase/functions/_shared/__tests__/*.test.ts
+        run: deno test --allow-env --allow-run=deno --no-check supabase/functions/_shared/__tests__/*.test.ts
