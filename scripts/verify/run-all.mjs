@@ -27,11 +27,33 @@
  */
 
 import { execSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// ── Load .env.local into process.env (if present) ──────────────────────────
+try {
+    const envPath = join(__dirname, "..", "..", ".env.local");
+    if (existsSync(envPath)) {
+        const lines = readFileSync(envPath, "utf8").split(/\r?\n/);
+        for (const line of lines) {
+            const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)/);
+            if (m && !process.env[m[1]]) {
+                let val = m[2].trim();
+                if (
+                    (val.startsWith('"') && val.endsWith('"')) ||
+                    (val.startsWith("'") && val.endsWith("'"))
+                )
+                    val = val.slice(1, -1);
+                process.env[m[1]] = val;
+            }
+        }
+    }
+} catch {
+    /* .env.local not found or not readable — continue without it */
+}
 const strict =
     process.argv.includes("--strict") || process.env.VERIFY_STRICT === "1";
 
