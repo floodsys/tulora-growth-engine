@@ -50,12 +50,16 @@ interface Agent {
   enableRecording?: boolean
 }
 
+// ── Mock/template agents for UI preview only ──
+// These are TEMPLATES — they must never have status "active" or real-looking
+// retell_agent_ids. To go live, an agent must be "published" through the
+// proper provisioning flow which assigns a real Retell agent ID.
 const mockAgents: Agent[] = [
   {
     id: "00000000-0000-0000-0000-000000000001",
     name: "Sales Agent Pro",
-    retellId: "agent_12345abcde",
-    status: "active",
+    retellId: "", // placeholder — no real Retell agent ID
+    status: "inactive",
     calls: 156,
     avgDuration: 180,
     successRate: 68,
@@ -70,10 +74,10 @@ const mockAgents: Agent[] = [
     enableRecording: true
   },
   {
-    id: "00000000-0000-0000-0000-000000000002", 
+    id: "00000000-0000-0000-0000-000000000002",
     name: "Lead Qualifier",
-    retellId: "agent_67890fghij",
-    status: "active", 
+    retellId: "", // placeholder — no real Retell agent ID
+    status: "inactive",
     calls: 89,
     avgDuration: 120,
     successRate: 72,
@@ -89,7 +93,7 @@ const mockAgents: Agent[] = [
   {
     id: "00000000-0000-0000-0000-000000000003",
     name: "Follow-up Specialist",
-    retellId: "agent_klmno12345",
+    retellId: "", // placeholder — no real Retell agent ID
     status: "inactive",
     calls: 34,
     avgDuration: 95,
@@ -145,12 +149,12 @@ const AllAgentsTab = () => {
 
     try {
       console.log("Dialing with agent:", selectedAgent.retellId, "to:", phoneNumber)
-      
+
       toast({
         title: "Test Call Initiated",
         description: `Calling ${phoneNumber} with ${selectedAgent.name}`,
       })
-      
+
       setTestCallOpen(false)
       setPhoneNumber("")
       setSelectedAgent(null)
@@ -174,7 +178,7 @@ const AllAgentsTab = () => {
       ...agent,
       isDefault: agent.id === agentId
     })))
-    
+
     toast({
       title: "Default Agent Updated",
       description: "The default agent has been updated for your organization",
@@ -204,7 +208,7 @@ const AllAgentsTab = () => {
                       Place a test call using one of your AI agents
                     </DialogDescription>
                   </DialogHeader>
-                  
+
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="agent">Select Agent</Label>
@@ -221,7 +225,7 @@ const AllAgentsTab = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="phone">Phone Number</Label>
                       <Input
@@ -231,7 +235,7 @@ const AllAgentsTab = () => {
                         onChange={(e) => setPhoneNumber(e.target.value)}
                       />
                     </div>
-                    
+
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" onClick={() => setTestCallOpen(false)}>
                         Cancel
@@ -244,7 +248,7 @@ const AllAgentsTab = () => {
                   </div>
                 </DialogContent>
               </Dialog>
-              
+
               {entitlements.limits.agents === null || agents.length < entitlements.limits.agents ? (
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
@@ -324,14 +328,14 @@ const PerformanceTab = () => {
   useEffect(() => {
     const loadAgentPerformance = async () => {
       if (!organization?.id) return
-      
+
       setPerfLoading(true)
       try {
         const dateFilter = dateRange?.from && dateRange?.to ? {
           start: dateRange.from.toISOString(),
           end: dateRange.to.toISOString()
         } : undefined
-        
+
         const agentData = await getByAgent(dateFilter)
         setAgentPerformance(agentData)
       } catch (error) {
@@ -495,7 +499,7 @@ const PerformanceTab = () => {
 
 const TemplatesTab = () => {
   const { organization } = useUserOrganization()
-  
+
   return (
     <div className="space-y-6">
       <AgentCatalog onAgentCreated={() => window.location.reload()} />
@@ -526,7 +530,7 @@ export function AgentsScreen() {
         <h1 className="text-2xl font-semibold">AI Agents</h1>
         <p className="text-muted-foreground">Create and manage your AI voice agents</p>
       </div>
-      
+
       <Tabs defaultValue="agents" className="h-full flex flex-col">
         <TabsList className="grid w-full max-w-lg grid-cols-4">
           <TabsTrigger value="agents">AGENTS</TabsTrigger>
@@ -534,19 +538,19 @@ export function AgentsScreen() {
           <TabsTrigger value="templates">TEMPLATES</TabsTrigger>
           <TabsTrigger value="automation">AUTOMATION</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="agents" className="flex-1 mt-6">
           <AllAgentsTab />
         </TabsContent>
-        
+
         <TabsContent value="performance" className="flex-1 mt-6">
           <PerformanceTab />
         </TabsContent>
-        
+
         <TabsContent value="templates" className="flex-1 mt-6">
           <TemplatesTab />
         </TabsContent>
-        
+
         <TabsContent value="automation" className="flex-1 mt-6">
           <AutomationTab />
         </TabsContent>
