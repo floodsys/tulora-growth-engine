@@ -9,10 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { 
-  Bot, 
-  Phone, 
-  Users, 
+import {
+  Bot,
+  Phone,
+  Users,
   Calendar,
   Settings,
   Plus,
@@ -140,7 +140,7 @@ export function AgentCatalog({ onAgentCreated }: AgentCatalogProps) {
   const { user } = useAuth()
   const { organization } = useUserOrganization()
   const { entitlements, isLoading } = useEntitlements(organization?.id ?? null)
-  
+
   const [templates] = useState<AgentTemplate[]>(mockTemplates)
   const [selectedTemplate, setSelectedTemplate] = useState<AgentTemplate | null>(null)
   const [provisioningOpen, setProvisioningOpen] = useState(false)
@@ -195,7 +195,7 @@ export function AgentCatalog({ onAgentCreated }: AgentCatalogProps) {
         .map(([key]) => key)
 
       const missingFields = requiredFields.filter(field => !formData[field as keyof ProvisioningFormData])
-      
+
       if (missingFields.length > 0) {
         const fieldLabels = missingFields.map(f => {
           if (selectedTemplate.type === 'ai_lead_gen') {
@@ -226,7 +226,7 @@ export function AgentCatalog({ onAgentCreated }: AgentCatalogProps) {
         status: 'draft',
         first_message_mode: 'assistant_speaks',
         first_message: `Hello! I'm your ${agentType.name.toLowerCase()} assistant. How can I help you today?`,
-        retell_agent_id: `temp_${Date.now()}`, // Temporary until Retell integration
+        retell_agent_id: null, // Must remain null until real Retell agent is provisioned via publish flow
         is_default: false,
         warm_transfer_enabled: false,
         call_recording_enabled: true,
@@ -373,10 +373,10 @@ export function AgentCatalog({ onAgentCreated }: AgentCatalogProps) {
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            You've reached your plan limit for agents. 
+            You've reached your plan limit for agents.
             <Button variant="link" className="ml-1 p-0 h-auto">
               Upgrade your plan
-            </Button> 
+            </Button>
             to create more agents.
           </AlertDescription>
         </Alert>
