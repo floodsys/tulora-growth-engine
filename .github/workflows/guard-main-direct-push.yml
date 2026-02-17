@@ -1,0 +1,145 @@
+# guard-main-direct-push.yml
+# ──────────────────────────────────────────────────────────────────
+# "Soft" main-branch protection for GitHub Free private repos.
+#
+# GitHub Free + private cannot enable branch-protection rules or
+# rulesets.  This workflow detects direct pushes to main that are
+# NOT associated with a merged pull request and:
+#   1. Opens (or updates) an issue titled "Direct push to main detected".
+#   2. Optionally auto-reverts the commit via a revert PR when the
+#      repository secret  AUTO_REVERT_DIRECT_PUSH  is set to "true".
+#
+# It does NOT prevent the push (GitHub limitation) — it makes
+# violations visible and can undo them quickly.
+# ──────────────────────────────────────────────────────────────────
+
+name: Guard — Direct Push to Main
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  detect-direct-push:
+    runs-on: ubuntu-latest
+    steps:
+      # ── 1. Check whether the pushed SHA is associated with any PR ──
+      - name: Check if commit came from a PR
+        id: pr_check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "::group::Querying associated PRs for ${{ github.sha }}"
+          PR_JSON=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" \
+          )
+          PR_COUNT=$(echo "$PR_JSON" | jq 'length')
+          echo "pr_count=$PR_COUNT" >> "$GITHUB_OUTPUT"
+          echo "Associated PRs: $PR_COUNT"
+          echo "$PR_JSON" | jq '.[].number'
+          echo "::endgroup::"
+
+      # ── 2. If no associated PR → flag as direct push ──────────────
+      - name: Open / update issue for direct push
+        if: steps.pr_check.outputs.pr_count == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="🚨 Direct push to main detected"
+          SHA="${{ github.sha }}"
+          SHORT_SHA="${SHA:0:7}"
+          ACTOR="${{ github.actor }}"
+          COMMIT_MSG=$(echo '${{ toJSON(github.event.head_commit.message) }}' | jq -r '.')
+          COMMIT_URL="https://github.com/${{ github.repository }}/commit/${SHA}"
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          BODY="## Direct push to \`main\` detected
+
+          | Field | Value |
+          |---|---|
+          | **Commit** | [\`${SHORT_SHA}\`](${COMMIT_URL}) |
+          | **Author** | @${ACTOR} |
+          | **Message** | ${COMMIT_MSG} |
+          | **Workflow run** | [View run](${RUN_URL}) |
+
+          > **Why this issue?**
+          > Branch protection is not available on GitHub Free private repos.
+          > This workflow is a best-effort guard — all changes to \`main\` should
+          > go through a pull request.  See \`docs/runbooks/rollback-playbook.md\`
+          > §9 for details.
+          "
+
+          # Check for an existing open issue with the same title
+          EXISTING=$(gh issue list \
+            --repo "${{ github.repository }}" \
+            --state open \
+            --search "in:title ${TITLE}" \
+            --json number \
+            --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING" ]; then
+            echo "Updating existing issue #${EXISTING}"
+            gh issue comment "$EXISTING" \
+              --repo "${{ github.repository }}" \
+              --body "$BODY"
+          else
+            echo "Creating new issue"
+            gh issue create \
+              --repo "${{ github.repository }}" \
+              --title "$TITLE" \
+              --body "$BODY" \
+              --label "security,ops"
+          fi
+
+      # ── 3. Optional auto-revert (only when env flag is set) ───────
+      - name: Auto-revert direct push
+        if: >-
+          steps.pr_check.outputs.pr_count == '0' &&
+          vars.AUTO_REVERT_DIRECT_PUSH == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          SHA="${{ github.sha }}"
+          SHORT_SHA="${SHA:0:7}"
+          BRANCH="auto-revert/${SHORT_SHA}"
+
+          echo "::group::Setting up git"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          echo "::endgroup::"
+
+          echo "::group::Creating revert branch"
+          git fetch origin main
+          git checkout -b "$BRANCH" origin/main
+          echo "::endgroup::"
+
+          echo "::group::Reverting commit ${SHORT_SHA}"
+          if ! git revert --no-edit "$SHA"; then
+            echo "::error::Revert failed (likely conflicts). Manual intervention required."
+            exit 1
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Pushing revert branch"
+          git push origin "$BRANCH"
+          echo "::endgroup::"
+
+          echo "::group::Opening revert PR"
+          gh pr create \
+            --repo "${{ github.repository }}" \
+            --base main \
+            --head "$BRANCH" \
+            --title "revert: undo direct push ${SHORT_SHA}" \
+            --body "Automated revert of direct push [\`${SHORT_SHA}\`](https://github.com/${{ github.repository }}/commit/${SHA}) by @${{ github.actor }}.
+
+          > This PR was created automatically because \`AUTO_REVERT_DIRECT_PUSH\` is enabled.
+          > Review carefully before merging — the revert may need manual conflict resolution."
+          echo "::endgroup::"
