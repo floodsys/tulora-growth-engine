@@ -97,6 +97,11 @@ const checks = [
         script: join(__dirname, "github-actions-permissions.mjs"),
         requiredEnv: [], // degrades gracefully (gh CLI detection is internal)
     },
+    {
+        label: "webhook-secrets-presence",
+        script: join(__dirname, "webhook-secrets-presence.mjs"),
+        requiredEnv: [], // This check itself validates secret presence; no prereqs
+    },
 ];
 
 // ── run ─────────────────────────────────────────────────────────────────────
