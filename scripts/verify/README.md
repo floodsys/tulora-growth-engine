@@ -1,4 +1,4 @@
-# Beta Readiness Verification Scripts
+`# Beta Readiness Verification Scripts
 
 CLI-driven checks that validate external service configurations before beta launch.
 Run all checks at once with:
