@@ -16,6 +16,7 @@
 6. [Kill Switch — Disable Retell Call Initiation](#6-kill-switch--disable-retell-call-initiation)
 7. [Post-Incident Checklist](#7-post-incident-checklist)
 8. [Verification Commands](#8-verification-commands)
+9. [Soft Branch Protection (GitHub Free Limitation)](#9-soft-branch-protection-github-free-limitation)
 
 ---
 
@@ -315,6 +316,49 @@ gh workflow run smoke-tests.yml
 
 ---
 
+## 9. Soft Branch Protection (GitHub Free Limitation)
+
+> **Context:** GitHub Free plans for **private** repositories do not support
+> branch-protection rules or repository rulesets. This means we cannot block
+> direct pushes to `main` at the platform level.
+
+### What we have instead
+
+The workflow **`.github/workflows/guard-main-direct-push.yml`** runs on every
+push to `main` and checks whether the commit SHA is associated with a merged
+pull request.
+
+| Scenario | Result |
+|---|---|
+| Push via merged PR | ✅ No action taken |
+| Direct push (no PR) | 🚨 GitHub Issue opened with commit details |
+| Direct push + `AUTO_REVERT_DIRECT_PUSH=true` | 🚨 Issue opened **and** a revert PR is created automatically |
+
+### Enabling auto-revert (optional)
+
+By default the workflow only opens an issue. To enable automatic revert PRs:
+
+1. Go to **Settings → Secrets and variables → Actions → Variables**
+2. Create a **repository variable** named `AUTO_REVERT_DIRECT_PUSH` with value `true`
+
+> **Warning:** Auto-revert may fail if the commit has merge conflicts with
+> subsequent changes. In that case the workflow logs an error and manual
+> intervention is required.
+
+### When will this be unnecessary?
+
+This guard is a **best-effort mitigation** until one of the following is true:
+
+- The repository is upgraded to **GitHub Pro / Team / Enterprise** (which
+  support branch-protection rules on private repos), **or**
+- The repository is made **public** (GitHub Free supports branch protection
+  on public repos)
+
+At that point, enable native branch-protection rules and this workflow can
+be removed.
+
+---
+
 ## Appendix: File Reference
 
 | Path | Purpose |
@@ -328,6 +372,7 @@ gh workflow run smoke-tests.yml
 | `supabase/functions/org-billing-webhook/index.ts` | Stripe webhook processor |
 | `scripts/verify/run-all.mjs` | Beta verification suite |
 | `docs/organization-status-runbook.md` | Org suspension/cancellation procedures |
+| `.github/workflows/guard-main-direct-push.yml` | Soft branch protection — detects direct pushes to main (§9) |
 
 ---
 
