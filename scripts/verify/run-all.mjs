@@ -98,9 +98,15 @@ const checks = [
         requiredEnv: [], // degrades gracefully (gh CLI detection is internal)
     },
     {
+        label: "webhook-signature-enforcement",
+        script: join(__dirname, "webhook-signature-enforcement.mjs"),
+        requiredEnv: [], // Degrades gracefully: SKIPs when SUPABASE_URL missing
+    },
+    {
         label: "webhook-secrets-presence",
         script: join(__dirname, "webhook-secrets-presence.mjs"),
-        requiredEnv: [], // This check itself validates secret presence; no prereqs
+        requiredEnv: [], // DEPRECATED: info-only, always SKIPs
+        strictExempt: true, // Never block strict mode (replaced by webhook-signature-enforcement)
     },
 ];
 
@@ -182,15 +188,24 @@ console.log(
 console.log();
 
 if (strict) {
-    // Strict: only all-PASS is success
-    const nonPass = results.filter((r) => r.status !== "PASS").length;
+    // Strict: only all-PASS is success (strictExempt checks are excluded)
+    const exemptLabels = new Set(
+        checks.filter((c) => c.strictExempt).map((c) => c.label)
+    );
+    const nonPass = results.filter(
+        (r) => r.status !== "PASS" && !exemptLabels.has(r.label)
+    ).length;
+    const exempted = results.filter(
+        (r) => r.status !== "PASS" && exemptLabels.has(r.label)
+    ).length;
     if (nonPass > 0) {
         console.log(
             `  ❌ Beta readiness check FAILED (strict mode: ${nonPass} non-PASS result(s)).\n`
         );
         process.exit(1);
     } else {
-        console.log("  ✅ All beta readiness checks passed (strict).\n");
+        const exemptNote = exempted > 0 ? ` (${exempted} info-only check(s) exempted)` : "";
+        console.log(`  ✅ All beta readiness checks passed (strict)${exemptNote}.\n`);
         process.exit(0);
     }
 } else {
