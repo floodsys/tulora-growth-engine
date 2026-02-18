@@ -70,3 +70,8 @@ secrets.env
 
 # Windows stray null device file
 nul
+  
+# Additional debug/audit artifacts  
+cached_diff.txt  
+temp-ending.txt  
+PR_SUMMARY.md  
