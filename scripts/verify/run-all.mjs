@@ -57,6 +57,12 @@ try {
 const strict =
     process.argv.includes("--strict") || process.env.VERIFY_STRICT === "1";
 
+// Propagate strict flag to child processes via environment variable
+// so individual verifiers (e.g. webhook-signature-enforcement) can detect it.
+if (strict && process.env.VERIFY_STRICT !== "1") {
+    process.env.VERIFY_STRICT = "1";
+}
+
 // ── exit-code-to-status mapping for child scripts ───────────────────────────
 // Convention:  0=PASS  1=FAIL  2=SKIP  3=UNKNOWN
 // Anything else (including crash / missing script) → FAIL
