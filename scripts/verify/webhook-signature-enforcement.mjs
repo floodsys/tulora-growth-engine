@@ -13,6 +13,14 @@
  *   - Retell:  ${SUPABASE_URL}/functions/v1/retell-webhook
  *   - Stripe:  ${SUPABASE_URL}/functions/v1/org-billing-webhook
  *
+ * Mode behavior:
+ *   Strict mode (VERIFY_STRICT=1 or VERIFY_RUNTIME_ENFORCEMENT=1):
+ *     - Any 2xx from a live probe is an immediate FAIL — no source code fallback.
+ *     - This is the production readiness gate.
+ *   Non-strict mode (default):
+ *     - Source code fallback is allowed as INFO/WARN when the live probe fails
+ *       for reasons other than accepting unsigned requests.
+ *
  * Exit codes:
  *   0 = PASS  (all endpoints reject unsigned requests with 4xx)
  *   1 = FAIL  (endpoint accepted unsigned request, returned 5xx, or 404)
@@ -22,6 +30,18 @@
 import { fileURLToPath } from "node:url";
 import { resolve, join, dirname } from "node:path";
 import { readFileSync, existsSync } from "node:fs";
+
+/**
+ * Determine if the verifier is running in strict-runtime mode.
+ *
+ * @returns {boolean}
+ */
+export function isStrictRuntime() {
+    return (
+        process.env.VERIFY_STRICT === "1" ||
+        process.env.VERIFY_RUNTIME_ENFORCEMENT === "1"
+    );
+}
 
 /**
  * Interpret an HTTP status code from a signature-less probe.
@@ -47,6 +67,82 @@ export function interpretProbeStatus(status) {
         return { verdict: "PASS", reason: `Rejected with ${status} (non-standard but acceptable)` };
     }
     return { verdict: "FAIL", reason: `Unexpected status ${status}` };
+}
+
+/**
+ * Evaluate the final verdict for a probed endpoint, considering strict mode
+ * and (optionally) source code enforcement as a fallback.
+ *
+ * In strict-runtime mode the source code fallback is NEVER used — a non-PASS
+ * probe result is always a hard FAIL.
+ *
+ * @param {object} opts
+ * @param {number} opts.status           - HTTP status from the unsigned probe
+ * @param {boolean} opts.strictRuntime   - Whether strict-runtime mode is active
+ * @param {boolean} opts.sourceHasEnforcement - Whether source code contains enforcement patterns
+ * @param {string}  opts.endpointLabel   - Human-readable endpoint name
+ * @param {string}  opts.endpointUrl     - Endpoint URL (will be redacted in output)
+ * @returns {{ verdict: 'PASS'|'FAIL', reason: string, usedFallback: boolean }}
+ */
+export function evaluateEndpointResult({ status, strictRuntime, sourceHasEnforcement, endpointLabel, endpointUrl }) {
+    const probe = interpretProbeStatus(status);
+    const redactedUrl = redactUrl(endpointUrl || "");
+
+    if (probe.verdict === "PASS") {
+        return { verdict: "PASS", reason: probe.reason, usedFallback: false };
+    }
+
+    // Probe indicates a problem — decide based on mode
+    if (strictRuntime) {
+        // Strict: hard FAIL, no fallback
+        const is2xx = status >= 200 && status < 300;
+        const failMsg = is2xx
+            ? `FAIL: deployed webhook accepted unsigned request (status ${status})`
+            : `FAIL: probe returned non-passing status ${status}`;
+        return {
+            verdict: "FAIL",
+            reason: `${failMsg} | endpoint=${endpointLabel} url=${redactedUrl}`,
+            usedFallback: false,
+        };
+    }
+
+    // Non-strict: allow source code fallback
+    if (sourceHasEnforcement) {
+        return {
+            verdict: "PASS",
+            reason: `Source code has enforcement (deployment pending) — treated as PASS`,
+            usedFallback: true,
+        };
+    }
+
+    return {
+        verdict: "FAIL",
+        reason: `${probe.reason} | endpoint=${endpointLabel} url=${redactedUrl}`,
+        usedFallback: false,
+    };
+}
+
+/**
+ * Redact secrets/tokens from a URL for safe logging.
+ *
+ * @param {string} url
+ * @returns {string}
+ */
+function redactUrl(url) {
+    try {
+        const u = new URL(url);
+        // Redact password
+        if (u.password) u.password = "***";
+        // Redact common secret query params
+        for (const key of u.searchParams.keys()) {
+            if (/secret|token|key|password/i.test(key)) {
+                u.searchParams.set(key, "***");
+            }
+        }
+        return u.toString();
+    } catch {
+        return url.replace(/([?&](?:secret|token|key|password)[=])[^&]*/gi, "$1***");
+    }
 }
 
 /**
@@ -123,8 +219,12 @@ function checkSourceCodeEnforcement(functionDir) {
 
 async function main() {
     const supabaseUrl = process.env.SUPABASE_URL;
+    const strict = isStrictRuntime();
 
     console.log("\n🔒 Webhook Signature Enforcement Probe");
+    if (strict) {
+        console.log("   ⚡ STRICT RUNTIME MODE — no source-code fallback allowed");
+    }
     console.log("─".repeat(50));
 
     if (!supabaseUrl) {
@@ -157,31 +257,39 @@ async function main() {
 
     for (const ep of endpoints) {
         console.log(`\n  Probing ${ep.label}...`);
-        console.log(`    URL: ${ep.url}`);
+        console.log(`    URL: ${redactUrl(ep.url)}`);
 
-        const result = await probeEndpoint(ep.url, ep.label, ep.body);
+        const probeResult = await probeEndpoint(ep.url, ep.label, ep.body);
+        const srcCheck = checkSourceCodeEnforcement(ep.functionDir);
 
-        if (result.verdict === "PASS") {
-            console.log(`    ✓ HTTP ${result.status} — ${result.reason}`);
+        const evaluation = evaluateEndpointResult({
+            status: probeResult.status,
+            strictRuntime: strict,
+            sourceHasEnforcement: srcCheck.hasEnforcement,
+            endpointLabel: ep.label,
+            endpointUrl: ep.url,
+        });
+
+        if (evaluation.verdict === "PASS" && !evaluation.usedFallback) {
+            console.log(`    ✓ HTTP ${probeResult.status} — ${evaluation.reason}`);
+            pass++;
+        } else if (evaluation.verdict === "PASS" && evaluation.usedFallback) {
+            console.log(`    ⚠ HTTP ${probeResult.status || "N/A"} — ${probeResult.reason}`);
+            console.log(`    ↳ Source code HAS signature enforcement (needs redeployment):`);
+            for (const p of srcCheck.patterns) {
+                console.log(`      • ${p}`);
+            }
+            console.log(`    ↳ Treating as PASS — code is correct, deployment pending.`);
             pass++;
         } else {
-            // Live probe failed — check if source code has enforcement
-            // (function may not be deployed yet with the latest code)
-            const srcCheck = checkSourceCodeEnforcement(ep.functionDir);
-
-            if (srcCheck.hasEnforcement) {
-                console.log(`    ⚠ HTTP ${result.status || "N/A"} — ${result.reason}`);
-                console.log(`    ↳ Source code HAS signature enforcement (needs redeployment):`);
-                for (const p of srcCheck.patterns) {
-                    console.log(`      • ${p}`);
-                }
-                console.log(`    ↳ Treating as PASS — code is correct, deployment pending.`);
-                pass++;
-            } else {
-                console.log(`    ✗ HTTP ${result.status || "N/A"} — ${result.reason}`);
+            // FAIL
+            console.log(`    ✗ ${evaluation.reason}`);
+            if (strict) {
+                console.log(`    ↳ Strict mode: source-code fallback is DISABLED.`);
+            } else if (!srcCheck.hasEnforcement) {
                 console.log(`    ↳ Source code does NOT contain signature enforcement patterns.`);
-                fail++;
             }
+            fail++;
         }
     }
 
@@ -192,12 +300,19 @@ async function main() {
     if (fail > 0) {
         console.log(
             "  ❌ Webhook signature enforcement check FAILED.\n" +
-            "     One or more endpoints did not reject an unsigned request\n" +
-            "     and source code lacks enforcement patterns.\n"
+            (strict
+                ? "     Strict mode: deployed endpoints must reject unsigned requests.\n" +
+                "     Source-code fallback is not allowed in strict mode.\n"
+                : "     One or more endpoints did not reject an unsigned request\n" +
+                "     and source code lacks enforcement patterns.\n")
         );
     } else {
-        console.log("  ✅ All webhook endpoints enforce signature verification\n" +
-            "     (or source code has enforcement pending deployment).\n");
+        console.log(
+            strict
+                ? "  ✅ All webhook endpoints enforce signature verification (strict runtime).\n"
+                : "  ✅ All webhook endpoints enforce signature verification\n" +
+                "     (or source code has enforcement pending deployment).\n"
+        );
     }
 
     return { pass, fail, skip: 0, label: "webhook-signature-enforcement" };
