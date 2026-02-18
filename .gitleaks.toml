@@ -3,6 +3,13 @@ title = "Tulora Growth Engine – gitleaks config"
 [extend]
 useDefault = true
 
+# ── Custom rules ────────────────────────────────────────────────────────
+[[rules]]
+id = "supabase-jwt-secret"
+description = "Detect Supabase JWT secret tokens (sb_secret_)"
+regex = """sb_secret_[A-Za-z0-9_\-]{20,}"""
+tags = ["key", "supabase"]
+
 [allowlist]
 description = "False-positive allowlist (path+regex scoped). See inline comments."
 
