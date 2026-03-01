@@ -30,6 +30,7 @@ npm run verify:beta:strict   # strict mode (only PASS is accepted)
 | `stripe-webhook-endpoints.mjs` | Verifies Stripe webhook endpoints point to org-billing-webhook. Supports `--fix` to auto-add missing required events. | `STRIPE_SECRET_KEY`, `SUPABASE_URL` |
 | `scheduler-check.mjs` | Detects pg_cron / scheduled function jobs | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL` (optional) |
 | `github-actions-permissions.mjs` | Checks repo default_workflow_permissions and explicit permissions blocks | `gh` CLI authenticated |
+| `supabase-edge-function-exists.mjs` | Verifies critical Edge Functions are deployed (non-404) in production | `SUPABASE_URL` |
 
 ## Environment Variables
 
