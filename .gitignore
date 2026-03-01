@@ -62,6 +62,9 @@ supabase_db_reset*.txt
 # Patch files
 cline_diff.patchgit
 
+# Ops scripts that handle secrets (never commit)
+scripts/ops/set-rotated-secrets.ps1
+
 # Secret provisioning artifacts (never commit secret dumps)
 *.secrets
 *.secrets.*
