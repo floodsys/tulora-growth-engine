@@ -114,6 +114,11 @@ const checks = [
         requiredEnv: [], // DEPRECATED: info-only, always SKIPs
         strictExempt: true, // Never block strict mode (replaced by webhook-signature-enforcement)
     },
+    {
+        label: "supabase-edge-function-exists",
+        script: join(__dirname, "supabase-edge-function-exists.mjs"),
+        requiredEnv: [], // Degrades gracefully: SKIPs when SUPABASE_URL missing
+    },
 ];
 
 // ── run ─────────────────────────────────────────────────────────────────────
